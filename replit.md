@@ -32,7 +32,9 @@ server/
   index.ts             # Express server entry point
   routes.ts            # REST API + Socket.io game server
   gameLogic.ts         # Room management, scoring, round logic
-  wordDatabase.ts      # 2000+ Arabic words per category
+  wordDatabase.ts      # Word validation logic (loads from JSON)
+  data/
+    wordDatabase.json  # 3500+ Arabic words across 8 categories
 
 constants/
   colors.ts            # Moroccan-themed dark color palette
@@ -43,7 +45,7 @@ constants/
 
 1. **Multiplayer Rooms** - Create/join rooms (2-8 players) via Socket.io
 2. **28 Arabic Letters** - Random letter selection each round
-3. **25-second Timer** - Per-round countdown
+3. **50-second Timer** - Per-round countdown
 4. **8 Categories** - Girl/Boy names, Animals, Fruits, Vegetables, Objects, Cities, Countries
 5. **Scoring** - Correct=3pts, Duplicate=0pts, Empty=0pts
 6. **Offline Mode** - Play against 2 AI bots
