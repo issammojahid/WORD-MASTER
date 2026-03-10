@@ -14,9 +14,46 @@ import {
   findAvailableRoom,
   type PlayerAnswers,
 } from "./gameLogic";
+import { validateWord, CATEGORY_MAP, type WordCategory } from "./wordDatabase";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
+
+  // REST endpoint: validate all answers for one round (used by offline mode)
+  // POST /api/validate-round
+  // Body: { letter: string, answers: Record<gameCategory, string>[] }
+  // Returns: { results: { category, word, valid, reason }[] }[]
+  app.post("/api/validate-round", (req, res) => {
+    try {
+      const { letter, participantsAnswers } = req.body as {
+        letter: string;
+        participantsAnswers: Array<Record<string, string>>;
+      };
+
+      if (!letter || !Array.isArray(participantsAnswers)) {
+        res.status(400).json({ error: "invalid_request" });
+        return;
+      }
+
+      const results = participantsAnswers.map((answers) => {
+        const validation: Record<string, { valid: boolean; reason?: string }> = {};
+        for (const [gameCategory, word] of Object.entries(answers)) {
+          const dbCategory = CATEGORY_MAP[gameCategory] as WordCategory | undefined;
+          if (!dbCategory) {
+            validation[gameCategory] = { valid: false, reason: "unknown_category" };
+          } else {
+            validation[gameCategory] = validateWord(word || "", dbCategory, letter);
+          }
+        }
+        return validation;
+      });
+
+      res.json({ results });
+    } catch (e) {
+      console.error("validate-round error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
 
   const allowedOrigins = new Set<string>();
 

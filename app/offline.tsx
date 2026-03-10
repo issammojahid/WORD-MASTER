@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { usePlayer } from "@/contexts/PlayerContext";
 import Colors from "@/constants/colors";
 import { ARABIC_LETTERS, GAME_CATEGORIES, GameCategory } from "@/constants/i18n";
+import { getApiUrl } from "@/lib/query-client";
 
 const ROUND_TIME = 50;
 const TOTAL_ROUNDS = 5;
@@ -126,7 +127,7 @@ export default function OfflineScreen() {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   };
 
-  const doCalculate = useCallback((submittedAnswers: Record<GameCategory, string>) => {
+  const doCalculate = useCallback(async (submittedAnswers: Record<GameCategory, string>) => {
     Keyboard.dismiss();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
@@ -139,6 +140,7 @@ export default function OfflineScreen() {
       })),
     ];
 
+    // Count duplicates across all participants (before validation)
     const answerCounts: Partial<Record<GameCategory, Map<string, number>>> = {};
     for (const cat of GAME_CATEGORIES) {
       const m = new Map<string, number>();
@@ -149,23 +151,59 @@ export default function OfflineScreen() {
       answerCounts[cat] = m;
     }
 
+    // Call server to validate all answers against the word database
+    let serverValidation: Array<Record<string, { valid: boolean; reason?: string }>> = [];
+    try {
+      const apiBase = getApiUrl();
+      const url = new URL("/api/validate-round", apiBase).toString();
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          letter,
+          participantsAnswers: allParticipants.map((p) => p.answers as Record<string, string>),
+        }),
+      });
+      if (response.ok) {
+        const data = await response.json() as { results: Array<Record<string, { valid: boolean; reason?: string }>> };
+        serverValidation = data.results;
+      }
+    } catch (err) {
+      console.warn("Validation API error:", err);
+    }
+
     const allEntries: RoundResultEntry[] = [];
-    for (const participant of allParticipants) {
+    for (let i = 0; i < allParticipants.length; i++) {
+      const participant = allParticipants[i];
+      const validation = serverValidation[i] ?? {};
       const scores = {} as Record<GameCategory, number>;
       const status = {} as Record<GameCategory, CategoryStatus>;
       let total = 0;
 
       for (const cat of GAME_CATEGORIES) {
         const ans = (participant.answers[cat] || "").trim();
-        if (!ans) { scores[cat] = 0; status[cat] = "empty"; }
-        else {
-          const norm = ans.replace(/[أإآ]/g, "أ");
-          const normLetter = letter.replace(/[أإآ]/g, "أ");
-          if (!norm.startsWith(normLetter)) { scores[cat] = 0; status[cat] = "invalid"; }
-          else {
+        if (!ans) {
+          scores[cat] = 0;
+          status[cat] = "empty";
+        } else {
+          const catValidation = validation[cat];
+          // If server gave us a result, use it; otherwise fall back to letter-only check
+          const isValid = catValidation
+            ? catValidation.valid
+            : ans.replace(/[أإآ]/g, "ا").startsWith(letter.replace(/[أإآ]/g, "ا"));
+
+          if (!isValid) {
+            scores[cat] = 0;
+            status[cat] = "invalid";
+          } else {
             const count = answerCounts[cat]?.get(ans.toLowerCase()) || 0;
-            if (count > 1) { scores[cat] = 0; status[cat] = "duplicate"; }
-            else { scores[cat] = 3; status[cat] = "correct"; }
+            if (count > 1) {
+              scores[cat] = 0;
+              status[cat] = "duplicate";
+            } else {
+              scores[cat] = 3;
+              status[cat] = "correct";
+            }
           }
         }
         total += scores[cat];
