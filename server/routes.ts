@@ -1,11 +1,307 @@
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
+import { Server as SocketIOServer } from "socket.io";
+import {
+  createRoom,
+  joinRoom,
+  removePlayer,
+  startGame,
+  submitAnswers,
+  calculateRoundScores,
+  nextRound,
+  getRoom,
+  resetRoom,
+  type PlayerAnswers,
+} from "./gameLogic";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // put application routes here
-  // prefix all routes with /api
-
   const httpServer = createServer(app);
 
+  const allowedOrigins = new Set<string>();
+
+  if (process.env.REPLIT_DEV_DOMAIN) {
+    allowedOrigins.add(`https://${process.env.REPLIT_DEV_DOMAIN}`);
+  }
+  if (process.env.REPLIT_DOMAINS) {
+    process.env.REPLIT_DOMAINS.split(",").forEach((d) => {
+      allowedOrigins.add(`https://${d.trim()}`);
+    });
+  }
+
+  const io = new SocketIOServer(httpServer, {
+    cors: {
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        const isLocalhost =
+          origin.startsWith("http://localhost:") ||
+          origin.startsWith("http://127.0.0.1:");
+        if (isLocalhost || allowedOrigins.has(origin)) {
+          return callback(null, true);
+        }
+        return callback(null, true); // Allow all for Expo
+      },
+      methods: ["GET", "POST"],
+      credentials: true,
+    },
+    transports: ["websocket", "polling"],
+  });
+
+  io.on("connection", (socket) => {
+    console.log("Socket connected:", socket.id);
+
+    // Create a new room
+    socket.on(
+      "create_room",
+      (
+        data: { playerName: string; playerSkin: string },
+        cb: (res: { success: boolean; roomId?: string; error?: string }) => void
+      ) => {
+        try {
+          const room = createRoom(socket.id, data.playerName, data.playerSkin);
+          socket.join(room.id);
+          cb({ success: true, roomId: room.id });
+          io.to(room.id).emit("room_updated", sanitizeRoom(room));
+        } catch (e) {
+          cb({ success: false, error: "server_error" });
+        }
+      }
+    );
+
+    // Join a room
+    socket.on(
+      "join_room",
+      (
+        data: { roomId: string; playerName: string; playerSkin: string },
+        cb: (res: { success: boolean; room?: ReturnType<typeof sanitizeRoom>; error?: string }) => void
+      ) => {
+        try {
+          const result = joinRoom(data.roomId, socket.id, data.playerName, data.playerSkin);
+          if (!result.success || !result.room) {
+            cb({ success: false, error: result.error });
+            return;
+          }
+          socket.join(data.roomId);
+          cb({ success: true, room: sanitizeRoom(result.room) });
+          io.to(data.roomId).emit("room_updated", sanitizeRoom(result.room));
+          io.to(data.roomId).emit("player_joined", {
+            playerName: data.playerName,
+          });
+        } catch (e) {
+          cb({ success: false, error: "server_error" });
+        }
+      }
+    );
+
+    // Start game
+    socket.on(
+      "start_game",
+      (
+        data: { roomId: string },
+        cb: (res: { success: boolean; error?: string }) => void
+      ) => {
+        try {
+          const result = startGame(data.roomId);
+          if (!result.success || !result.room) {
+            cb({ success: false, error: result.error });
+            return;
+          }
+          cb({ success: true });
+          io.to(data.roomId).emit("game_started", {
+            letter: result.room.currentLetter,
+            round: result.room.currentRound,
+            totalRounds: result.room.totalRounds,
+          });
+
+          // Start 25-second timer
+          const room = result.room;
+          room.timer = setTimeout(() => {
+            // Time's up - calculate scores for whoever has submitted
+            const results = calculateRoundScores(data.roomId);
+            io.to(data.roomId).emit("round_results", {
+              results,
+              round: room.currentRound,
+              totalRounds: room.totalRounds,
+              players: room.players.map((p) => ({
+                id: p.id,
+                name: p.name,
+                score: p.score,
+              })),
+            });
+          }, 26000);
+        } catch (e) {
+          cb({ success: false, error: "server_error" });
+        }
+      }
+    );
+
+    // Submit answers
+    socket.on(
+      "submit_answers",
+      (data: { roomId: string; answers: PlayerAnswers }) => {
+        try {
+          const { allSubmitted, room } = submitAnswers(
+            data.roomId,
+            socket.id,
+            data.answers
+          );
+
+          // Notify room that this player submitted
+          io.to(data.roomId).emit("player_submitted", { playerId: socket.id });
+
+          if (allSubmitted && room) {
+            if (room.timer) {
+              clearTimeout(room.timer);
+              room.timer = null;
+            }
+            const results = calculateRoundScores(data.roomId);
+            const updatedRoom = getRoom(data.roomId);
+            io.to(data.roomId).emit("round_results", {
+              results,
+              round: updatedRoom?.currentRound || 0,
+              totalRounds: updatedRoom?.totalRounds || 5,
+              players: updatedRoom?.players.map((p) => ({
+                id: p.id,
+                name: p.name,
+                score: p.score,
+              })) || [],
+            });
+          }
+        } catch (e) {
+          console.error("submit_answers error:", e);
+        }
+      }
+    );
+
+    // Next round
+    socket.on(
+      "next_round",
+      (
+        data: { roomId: string },
+        cb?: (res: { isGameOver: boolean; letter?: string }) => void
+      ) => {
+        try {
+          const { isGameOver, room } = nextRound(data.roomId);
+          if (isGameOver && room) {
+            io.to(data.roomId).emit("game_over", {
+              players: room.players.map((p) => ({
+                id: p.id,
+                name: p.name,
+                score: p.score,
+                coins: p.coins,
+              })),
+            });
+            cb?.({ isGameOver: true });
+          } else if (room) {
+            io.to(data.roomId).emit("new_round", {
+              letter: room.currentLetter,
+              round: room.currentRound,
+              totalRounds: room.totalRounds,
+            });
+            cb?.({ isGameOver: false, letter: room.currentLetter });
+
+            // Start new 25-second timer
+            room.timer = setTimeout(() => {
+              const results = calculateRoundScores(data.roomId);
+              const updatedRoom = getRoom(data.roomId);
+              io.to(data.roomId).emit("round_results", {
+                results,
+                round: updatedRoom?.currentRound || 0,
+                totalRounds: updatedRoom?.totalRounds || 5,
+                players: updatedRoom?.players.map((p) => ({
+                  id: p.id,
+                  name: p.name,
+                  score: p.score,
+                })) || [],
+              });
+            }, 26000);
+          }
+        } catch (e) {
+          console.error("next_round error:", e);
+        }
+      }
+    );
+
+    // Play again
+    socket.on(
+      "play_again",
+      (data: { roomId: string }) => {
+        const room = resetRoom(data.roomId);
+        if (room) {
+          io.to(data.roomId).emit("room_updated", sanitizeRoom(room));
+        }
+      }
+    );
+
+    // Get room info
+    socket.on(
+      "get_room",
+      (
+        data: { roomId: string },
+        cb: (res: { room?: ReturnType<typeof sanitizeRoom>; error?: string }) => void
+      ) => {
+        const room = getRoom(data.roomId);
+        if (!room) {
+          cb({ error: "room_not_found" });
+        } else {
+          cb({ room: sanitizeRoom(room) });
+        }
+      }
+    );
+
+    // Disconnect
+    socket.on("disconnect", () => {
+      console.log("Socket disconnected:", socket.id);
+      // Find rooms this player is in
+      const roomsToUpdate: string[] = [];
+      // We iterate via the socket's joined rooms
+      for (const [roomId] of (socket as any).rooms || []) {
+        if (roomId !== socket.id) {
+          roomsToUpdate.push(roomId);
+        }
+      }
+      for (const roomId of roomsToUpdate) {
+        const room = removePlayer(roomId, socket.id);
+        if (room) {
+          io.to(roomId).emit("room_updated", sanitizeRoom(room));
+          io.to(roomId).emit("player_left", { playerId: socket.id });
+        }
+      }
+    });
+  });
+
+  // REST API routes
+  app.get("/api/room/:id", (req, res) => {
+    const room = getRoom(req.params.id);
+    if (!room) {
+      return res.status(404).json({ error: "Room not found" });
+    }
+    res.json(sanitizeRoom(room));
+  });
+
+  app.get("/api/health", (_req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
   return httpServer;
+}
+
+function sanitizeRoom(room: ReturnType<typeof getRoom>) {
+  if (!room) return null;
+  return {
+    id: room.id,
+    state: room.state,
+    currentLetter: room.currentLetter,
+    currentRound: room.currentRound,
+    totalRounds: room.totalRounds,
+    players: room.players.map((p) => ({
+      id: p.id,
+      name: p.name,
+      skin: p.skin,
+      score: p.score,
+      roundScores: p.roundScores,
+      coins: p.coins,
+      isHost: p.isHost,
+      isReady: p.isReady,
+    })),
+  };
 }
