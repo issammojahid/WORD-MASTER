@@ -63,6 +63,35 @@ Workflows:
 - `Start Backend` - Express + Socket.io server
 - `Start Frontend` - Expo dev server with HMR
 
+## Deploying to Railway (Online Server)
+
+The backend Express server can be deployed to Railway so the multiplayer works online.
+
+### Files Added
+- `railway.toml` — tells Railway how to build and start the server automatically
+
+### Steps
+1. Push your code to GitHub
+2. In Railway: **New Project → Deploy from GitHub repo**
+3. Railway will automatically read `railway.toml` and:
+   - **Build**: `npm install && npm run server:build && cp -r server/data server_dist/data`
+   - **Start**: `npm run server:prod`
+
+### Environment Variables (set in Railway dashboard → Variables tab)
+| Variable | Value |
+|----------|-------|
+| `NODE_ENV` | `production` |
+| `PORT` | Set automatically by Railway — do NOT set manually |
+
+### Update Expo App to Point to Railway
+In your Expo app, change the server URL to your Railway domain:
+- Railway will give you a domain like: `word-master-production.up.railway.app`
+- Update `EXPO_PUBLIC_DOMAIN` in your Expo build config or in the app settings
+
+### CORS
+The server automatically allows all `*.railway.app` and `*.up.railway.app` domains.
+No extra configuration needed for CORS.
+
 ## Building Android APK
 
 ```bash

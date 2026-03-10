@@ -23,10 +23,27 @@ export const CATEGORY_MAP: Record<string, WordCategory> = {
 };
 
 // Load the word database from JSON
+// Uses process.cwd()-based paths to work in both dev (tsx) and production (esbuild ESM bundle)
 function loadWordDatabase(): Record<WordCategory, string[]> {
-  const dbPath = join(__dirname, "data", "wordDatabase.json");
-  const raw = readFileSync(dbPath, "utf-8");
-  return JSON.parse(raw) as Record<WordCategory, string[]>;
+  const cwd = process.cwd();
+  const candidatePaths = [
+    join(cwd, "server", "data", "wordDatabase.json"),
+    join(cwd, "server_dist", "data", "wordDatabase.json"),
+    join(cwd, "data", "wordDatabase.json"),
+  ];
+
+  for (const dbPath of candidatePaths) {
+    try {
+      const raw = readFileSync(dbPath, "utf-8");
+      return JSON.parse(raw) as Record<WordCategory, string[]>;
+    } catch {
+      // try next path
+    }
+  }
+
+  throw new Error(
+    `wordDatabase.json not found. Tried: ${candidatePaths.join(", ")}`
+  );
 }
 
 const rawDatabase = loadWordDatabase();

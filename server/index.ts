@@ -27,14 +27,25 @@ function setupCors(app: express.Application) {
       });
     }
 
+    if (process.env.ALLOWED_ORIGIN) {
+      process.env.ALLOWED_ORIGIN.split(",").forEach((d) => {
+        origins.add(d.trim());
+      });
+    }
+
+    if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+      origins.add(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
+    }
+
     const origin = req.header("origin");
 
-    // Allow localhost origins for Expo web development (any port)
     const isLocalhost =
       origin?.startsWith("http://localhost:") ||
       origin?.startsWith("http://127.0.0.1:");
 
-    if (origin && (origins.has(origin) || isLocalhost)) {
+    const isRailwayDomain = origin?.endsWith(".railway.app") || origin?.endsWith(".up.railway.app");
+
+    if (origin && (origins.has(origin) || isLocalhost || isRailwayDomain)) {
       res.header("Access-Control-Allow-Origin", origin);
       res.header(
         "Access-Control-Allow-Methods",
