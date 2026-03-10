@@ -20,7 +20,7 @@ import { usePlayer } from "@/contexts/PlayerContext";
 import Colors from "@/constants/colors";
 import { ARABIC_LETTERS, GAME_CATEGORIES, GameCategory } from "@/constants/i18n";
 
-const ROUND_TIME = 25;
+const ROUND_TIME = 50;
 const TOTAL_ROUNDS = 5;
 
 type CategoryStatus = "correct" | "duplicate" | "empty" | "invalid";
@@ -225,7 +225,7 @@ export default function OfflineScreen() {
     letterAnim.setValue(0);
   };
 
-  const timerColor = timeLeft > 10 ? Colors.timerGreen : timeLeft > 5 ? Colors.timerYellow : Colors.timerRed;
+  const timerColor = timeLeft > 15 ? Colors.timerGreen : timeLeft > 8 ? Colors.timerYellow : Colors.timerRed;
   const timerProgress = timeLeft / ROUND_TIME;
 
   if (phase === "gameOver") {

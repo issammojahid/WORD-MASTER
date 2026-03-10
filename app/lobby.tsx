@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -37,7 +37,7 @@ type RoomData = {
   totalRounds: number;
 };
 
-type TabMode = "select" | "create" | "join" | "waiting";
+type TabMode = "select" | "create" | "join" | "waiting" | "matchmaking";
 
 export default function LobbyScreen() {
   const insets = useSafeAreaInsets();
@@ -49,6 +49,10 @@ export default function LobbyScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [socketId, setSocketId] = useState<string | null>(null);
+  const [matchmakingStatus, setMatchmakingStatus] = useState("جاري البحث عن لاعبين...");
+
+  // Store roomId in a ref so game_started handler never has stale closure
+  const roomIdRef = useRef<string | null>(null);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
@@ -59,90 +63,67 @@ export default function LobbyScreen() {
     const socket = getSocket();
     setSocketId(socket.id || null);
 
-    socket.on("connect", () => {
-      setSocketId(socket.id || null);
-    });
+    const handleConnect = () => setSocketId(socket.id || null);
+    const handleRoomUpdated = (roomData: RoomData) => setRoom(roomData);
 
-    socket.on("room_updated", (roomData: RoomData) => {
-      setRoom(roomData);
-    });
+    const handleGameStarted = (data: { letter: string; round: number; totalRounds: number }) => {
+      const currentRoomId = roomIdRef.current;
+      if (!currentRoomId) return;
+      router.replace({
+        pathname: "/game",
+        params: {
+          roomId: currentRoomId,
+          letter: data.letter,
+          round: String(data.round),
+          totalRounds: String(data.totalRounds),
+        },
+      });
+    };
 
-    socket.on("player_joined", ({ playerName }: { playerName: string }) => {
-      // Could show a toast here
-    });
-
-    socket.on("player_left", () => {
-      // Handle player leaving
-    });
-
-    socket.on("game_started", (data: { letter: string; round: number; totalRounds: number }) => {
-      if (room) {
-        router.replace({
-          pathname: "/game",
-          params: {
-            roomId: room.id,
-            letter: data.letter,
-            round: String(data.round),
-            totalRounds: String(data.totalRounds),
-            isHost: isMyTurn(room) ? "true" : "false",
-          },
-        });
-      }
-    });
+    socket.on("connect", handleConnect);
+    socket.on("room_updated", handleRoomUpdated);
+    socket.on("game_started", handleGameStarted);
 
     return () => {
-      socket.off("room_updated");
-      socket.off("player_joined");
-      socket.off("player_left");
-      socket.off("game_started");
+      socket.off("connect", handleConnect);
+      socket.off("room_updated", handleRoomUpdated);
+      socket.off("game_started", handleGameStarted);
     };
-  }, [room]);
+  }, []);
 
-  // Re-check game_started with updated room
-  useEffect(() => {
-    const socket = getSocket();
-    const handleGameStarted = (data: { letter: string; round: number; totalRounds: number }) => {
-      if (room) {
-        router.replace({
-          pathname: "/game",
-          params: {
-            roomId: room.id,
-            letter: data.letter,
-            round: String(data.round),
-            totalRounds: String(data.totalRounds),
-          },
-        });
-      }
-    };
-    socket.on("game_started", handleGameStarted);
-    return () => { socket.off("game_started", handleGameStarted); };
-  }, [room]);
-
-  const isMyTurn = (r: RoomData | null) => {
+  const isHost = (r: RoomData | null) => {
     if (!r || !socketId) return false;
     const me = r.players.find((p) => p.id === socketId);
     return me?.isHost || false;
   };
 
-  const handleCreateRoom = async () => {
+  const handleCreateRoom = () => {
     setLoading(true);
     setError(null);
     const socket = getSocket();
     socket.emit(
       "create_room",
       { playerName: profile.name, playerSkin: profile.equippedSkin },
-      (res: { success: boolean; roomId?: string; error?: string }) => {
+      (res: { success: boolean; roomId?: string; room?: RoomData; error?: string }) => {
         setLoading(false);
         if (res.success && res.roomId) {
+          roomIdRef.current = res.roomId;
+          // Get room data via get_room since create_room only returns roomId
+          socket.emit("get_room", { roomId: res.roomId }, (roomRes: { room?: RoomData }) => {
+            if (roomRes.room) {
+              setRoom(roomRes.room);
+            }
+          });
           setTab("waiting");
         } else {
+          setTab("select");
           setError(res.error || "خطأ في إنشاء الغرفة");
         }
       }
     );
   };
 
-  const handleJoinRoom = async () => {
+  const handleJoinRoom = () => {
     if (!joinCode.trim() || joinCode.length < 4) {
       setError("الرجاء إدخال رمز صحيح");
       return;
@@ -160,6 +141,7 @@ export default function LobbyScreen() {
       (res: { success: boolean; room?: RoomData; error?: string }) => {
         setLoading(false);
         if (res.success && res.room) {
+          roomIdRef.current = res.room.id;
           setRoom(res.room);
           setTab("waiting");
         } else {
@@ -168,8 +150,37 @@ export default function LobbyScreen() {
               ? t.roomNotFound
               : res.error === "room_full"
               ? t.roomFull
+              : res.error === "game_in_progress"
+              ? "اللعبة جارية بالفعل"
               : t.connectionError
           );
+        }
+      }
+    );
+  };
+
+  const handleQuickMatch = () => {
+    setTab("matchmaking");
+    setMatchmakingStatus("جاري البحث عن غرفة متاحة...");
+    setLoading(true);
+    const socket = getSocket();
+    socket.emit(
+      "quick_match",
+      { playerName: profile.name, playerSkin: profile.equippedSkin },
+      (res: { success: boolean; roomId?: string; room?: RoomData; created?: boolean; error?: string }) => {
+        setLoading(false);
+        if (res.success && res.roomId && res.room) {
+          roomIdRef.current = res.roomId;
+          setRoom(res.room);
+          if (res.created) {
+            setMatchmakingStatus("تم إنشاء غرفة جديدة! في انتظار لاعبين آخرين...");
+          } else {
+            setMatchmakingStatus("تم العثور على غرفة! في انتظار بدء اللعبة...");
+          }
+          setTab("waiting");
+        } else {
+          setTab("select");
+          setError(res.error || t.connectionError);
         }
       }
     );
@@ -181,32 +192,37 @@ export default function LobbyScreen() {
     const socket = getSocket();
     socket.emit("start_game", { roomId: room.id }, (res: { success: boolean; error?: string }) => {
       if (!res.success) {
-        Alert.alert(t.error, res.error || "فشل البدء");
+        Alert.alert(t.error, res.error === "need_more_players" ? "تحتاج لاعبَين على الأقل" : "فشل البدء");
       }
     });
   };
 
   const handleBack = () => {
+    if (room) {
+      const socket = getSocket();
+      socket.emit("leave_room", { roomId: room.id });
+    }
     setTab("select");
     setRoom(null);
+    roomIdRef.current = null;
     setError(null);
     setJoinCode("");
+    setLoading(false);
   };
 
   const copyRoomCode = () => {
     if (!room) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // Simple alert since clipboard varies
     Alert.alert(t.roomCode, room.id);
   };
 
+  // Waiting room screen
   if (tab === "waiting" && room) {
-    const amHost = isMyTurn(room);
+    const amHost = isHost(room);
     const canStart = room.players.length >= 2;
 
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
             <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
@@ -218,19 +234,18 @@ export default function LobbyScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Room code display */}
         <View style={styles.roomCodeCard}>
           <Text style={styles.roomCodeLabel}>{t.roomCode}</Text>
           <Text style={styles.roomCodeBig}>{room.id}</Text>
           <Text style={styles.roomCodeHint}>شارك الرمز مع أصدقائك</Text>
         </View>
 
-        {/* Players list */}
         <Text style={styles.playersTitle}>
           {t.players}: {room.players.length}/8
         </Text>
+
         <ScrollView style={styles.playersList} showsVerticalScrollIndicator={false}>
-          {room.players.map((player, i) => {
+          {room.players.map((player) => {
             const skin = SKINS.find((s) => s.id === player.skin) || SKINS[0];
             const isMe = player.id === socketId;
             return (
@@ -256,7 +271,7 @@ export default function LobbyScreen() {
 
         <View style={styles.minPlayersHint}>
           <Ionicons name="information-circle-outline" size={14} color={Colors.textMuted} />
-          <Text style={styles.minPlayersText}>{t.minPlayers}</Text>
+          <Text style={styles.minPlayersText}>الحد الأدنى ٢ لاعبين للبدء</Text>
         </View>
 
         {amHost ? (
@@ -265,8 +280,14 @@ export default function LobbyScreen() {
             onPress={handleStartGame}
             disabled={!canStart}
           >
-            <Ionicons name="play" size={20} color={Colors.black} style={{ marginRight: 8 }} />
-            <Text style={styles.startBtnText}>{t.startGame}</Text>
+            {!canStart ? (
+              <Text style={[styles.startBtnText, { color: Colors.textMuted }]}>في انتظار لاعبين...</Text>
+            ) : (
+              <>
+                <Ionicons name="play" size={20} color={Colors.black} style={{ marginRight: 8 }} />
+                <Text style={styles.startBtnText}>{t.startGame}</Text>
+              </>
+            )}
           </TouchableOpacity>
         ) : (
           <View style={styles.waitingBar}>
@@ -278,35 +299,77 @@ export default function LobbyScreen() {
     );
   }
 
+  // Matchmaking searching screen
+  if (tab === "matchmaking") {
+    return (
+      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => { setTab("select"); setLoading(false); }}>
+            <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>المباراة السريعة</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.matchmakingContainer}>
+          <View style={styles.matchmakingCircle}>
+            <ActivityIndicator size="large" color={Colors.gold} />
+          </View>
+          <Text style={styles.matchmakingTitle}>جاري البحث...</Text>
+          <Text style={styles.matchmakingStatus}>{matchmakingStatus}</Text>
+          <TouchableOpacity style={styles.cancelBtn} onPress={() => { setTab("select"); setLoading(false); }}>
+            <Text style={styles.cancelBtnText}>{t.cancel}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Main select screen
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {tab === "create" ? t.createRoom : tab === "join" ? t.joinRoom : t.playOnline}
+          {tab === "join" ? t.joinRoom : t.playOnline}
         </Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.selectContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.selectContent} showsVerticalScrollIndicator={false}>
         {/* Profile mini */}
         <View style={styles.miniProfile}>
           <View style={[styles.miniAvatarCircle, { backgroundColor: equippedSkin.color + "33" }]}>
             <Text style={styles.miniAvatarEmoji}>{equippedSkin.emoji}</Text>
           </View>
-          <Text style={styles.miniPlayerName}>{profile.name}</Text>
+          <View>
+            <Text style={styles.miniPlayerName}>{profile.name}</Text>
+            <Text style={styles.miniPlayerLevel}>المستوى {profile.level}</Text>
+          </View>
         </View>
 
         {tab === "select" && (
           <View style={styles.selectButtons}>
             <Text style={styles.sectionTitle}>كيف تريد اللعب؟</Text>
 
+            {/* Quick Match */}
+            <TouchableOpacity
+              style={[styles.lobbyOptionCard, styles.lobbyOptionCardPrimary]}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleQuickMatch(); }}
+              activeOpacity={0.85}
+            >
+              <View style={[styles.lobbyOptionIcon, { backgroundColor: Colors.gold + "22" }]}>
+                <Ionicons name="flash" size={32} color={Colors.gold} />
+              </View>
+              <View style={styles.lobbyOptionText}>
+                <Text style={styles.lobbyOptionTitle}>مباراة سريعة</Text>
+                <Text style={styles.lobbyOptionSubtitle}>انضم فوراً لأقرب مباراة متاحة</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
+            </TouchableOpacity>
+
+            {/* Create Room */}
             <TouchableOpacity
               style={styles.lobbyOptionCard}
               onPress={() => {
@@ -317,7 +380,7 @@ export default function LobbyScreen() {
               activeOpacity={0.85}
             >
               <View style={styles.lobbyOptionIcon}>
-                <Ionicons name="add-circle" size={32} color={Colors.gold} />
+                <Ionicons name="add-circle" size={32} color={Colors.emerald} />
               </View>
               <View style={styles.lobbyOptionText}>
                 <Text style={styles.lobbyOptionTitle}>{t.createRoom}</Text>
@@ -326,16 +389,14 @@ export default function LobbyScreen() {
               <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
             </TouchableOpacity>
 
+            {/* Join Room */}
             <TouchableOpacity
               style={styles.lobbyOptionCard}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                setTab("join");
-              }}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setTab("join"); }}
               activeOpacity={0.85}
             >
               <View style={styles.lobbyOptionIcon}>
-                <Ionicons name="enter" size={32} color={Colors.emerald} />
+                <Ionicons name="enter" size={32} color={Colors.sapphire} />
               </View>
               <View style={styles.lobbyOptionText}>
                 <Text style={styles.lobbyOptionTitle}>{t.joinRoom}</Text>
@@ -346,7 +407,7 @@ export default function LobbyScreen() {
           </View>
         )}
 
-        {(tab === "create" || loading) && (
+        {tab === "create" && loading && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={Colors.gold} />
             <Text style={styles.loadingText}>جاري إنشاء الغرفة...</Text>
@@ -359,7 +420,7 @@ export default function LobbyScreen() {
             <TextInput
               style={styles.codeInput}
               value={joinCode}
-              onChangeText={(t) => setJoinCode(t.toUpperCase())}
+              onChangeText={(v) => { setJoinCode(v.toUpperCase()); setError(null); }}
               placeholder="XXXX"
               placeholderTextColor={Colors.inputPlaceholder}
               maxLength={4}
@@ -369,15 +430,22 @@ export default function LobbyScreen() {
             />
             {error && <Text style={styles.errorText}>{error}</Text>}
             <TouchableOpacity
-              style={[styles.startBtn, loading && styles.startBtnDisabled]}
+              style={[styles.startBtn, (loading || joinCode.length < 4) && styles.startBtnDisabled]}
               onPress={handleJoinRoom}
-              disabled={loading}
+              disabled={loading || joinCode.length < 4}
             >
               {loading ? (
                 <ActivityIndicator size="small" color={Colors.black} />
               ) : (
-                <Text style={styles.startBtnText}>{t.joinRoom}</Text>
+                <Text style={[styles.startBtnText, joinCode.length < 4 && { color: Colors.textMuted }]}>
+                  {t.joinRoom}
+                </Text>
               )}
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.backLinkBtn} onPress={() => { setTab("select"); setError(null); setJoinCode(""); }}>
+              <Ionicons name="arrow-back" size={16} color={Colors.textMuted} />
+              <Text style={styles.backLinkText}>رجوع</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -391,10 +459,7 @@ export default function LobbyScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -402,68 +467,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     justifyContent: "space-between",
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: Colors.card,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 18,
-    color: Colors.textPrimary,
-  },
-  codeBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.card,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-  },
-  codeText: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 14,
-    color: Colors.gold,
-    letterSpacing: 2,
-  },
-  selectContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  miniProfile: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 24,
-  },
-  miniAvatarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  miniAvatarEmoji: {
-    fontSize: 24,
-  },
-  miniPlayerName: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 16,
-    color: Colors.textPrimary,
-  },
-  sectionTitle: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 16,
-    color: Colors.textSecondary,
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  selectButtons: {
-    gap: 14,
-  },
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: Colors.card, justifyContent: "center", alignItems: "center" },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
+  codeBtn: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.card, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
+  codeText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.gold, letterSpacing: 2 },
+  selectContent: { padding: 20, paddingBottom: 40 },
+  miniProfile: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 24 },
+  miniAvatarCircle: { width: 48, height: 48, borderRadius: 24, justifyContent: "center", alignItems: "center" },
+  miniAvatarEmoji: { fontSize: 24 },
+  miniPlayerName: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary },
+  miniPlayerLevel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textSecondary, marginBottom: 16, textAlign: "center" },
+  selectButtons: { gap: 14 },
   lobbyOptionCard: {
     backgroundColor: Colors.card,
     borderRadius: 16,
@@ -473,42 +488,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.cardBorder,
   },
-  lobbyOptionIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: Colors.backgroundTertiary,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 14,
-  },
-  lobbyOptionText: {
-    flex: 1,
-  },
-  lobbyOptionTitle: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 16,
-    color: Colors.textPrimary,
-    marginBottom: 2,
-  },
-  lobbyOptionSubtitle: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 12,
-    color: Colors.textMuted,
-  },
-  loadingContainer: {
-    alignItems: "center",
-    paddingVertical: 60,
-    gap: 16,
-  },
-  loadingText: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
-  joinContainer: {
-    gap: 16,
-  },
+  lobbyOptionCardPrimary: { borderColor: Colors.gold + "40", backgroundColor: Colors.gold + "08" },
+  lobbyOptionIcon: { width: 52, height: 52, borderRadius: 14, backgroundColor: Colors.backgroundTertiary, justifyContent: "center", alignItems: "center", marginRight: 14 },
+  lobbyOptionText: { flex: 1 },
+  lobbyOptionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, marginBottom: 2 },
+  lobbyOptionSubtitle: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  loadingContainer: { alignItems: "center", paddingVertical: 60, gap: 16 },
+  loadingText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
+  joinContainer: { gap: 16 },
   codeInput: {
     backgroundColor: Colors.inputBg,
     borderRadius: 16,
@@ -522,113 +509,25 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 8,
   },
-  errorText: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 14,
-    color: Colors.ruby,
-    textAlign: "center",
-  },
-  roomCodeCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 20,
-    padding: 20,
-    alignItems: "center",
-    marginHorizontal: 16,
-    marginBottom: 20,
-    borderWidth: 2,
-    borderColor: Colors.gold + "40",
-  },
-  roomCodeLabel: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 12,
-    color: Colors.textMuted,
-    marginBottom: 8,
-  },
-  roomCodeBig: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 48,
-    color: Colors.gold,
-    letterSpacing: 12,
-    marginBottom: 4,
-  },
-  roomCodeHint: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 12,
-    color: Colors.textMuted,
-  },
-  playersTitle: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 14,
-    color: Colors.textSecondary,
-    paddingHorizontal: 16,
-    marginBottom: 10,
-  },
-  playersList: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  playerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.card,
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
-  playerRowMe: {
-    borderColor: Colors.gold + "60",
-    backgroundColor: Colors.card,
-  },
-  playerAvatarSmall: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  playerAvatarEmoji: {
-    fontSize: 20,
-  },
-  playerRowName: {
-    flex: 1,
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 15,
-    color: Colors.textPrimary,
-  },
-  playerRowRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  hostBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.gold + "20",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    gap: 3,
-  },
-  hostBadgeText: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 10,
-    color: Colors.gold,
-  },
-  minPlayersHint: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  minPlayersText: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 12,
-    color: Colors.textMuted,
-  },
+  errorText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.ruby, textAlign: "center" },
+  backLinkBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 8 },
+  backLinkText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted },
+  roomCodeCard: { backgroundColor: Colors.card, borderRadius: 20, padding: 20, alignItems: "center", marginHorizontal: 16, marginBottom: 20, borderWidth: 2, borderColor: Colors.gold + "40" },
+  roomCodeLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginBottom: 8 },
+  roomCodeBig: { fontFamily: "Cairo_700Bold", fontSize: 48, color: Colors.gold, letterSpacing: 12, marginBottom: 4 },
+  roomCodeHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  playersTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textSecondary, paddingHorizontal: 16, marginBottom: 10 },
+  playersList: { flex: 1, paddingHorizontal: 16 },
+  playerRow: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.card, borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: Colors.cardBorder },
+  playerRowMe: { borderColor: Colors.gold + "60" },
+  playerAvatarSmall: { width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center", marginRight: 12 },
+  playerAvatarEmoji: { fontSize: 20 },
+  playerRowName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary },
+  playerRowRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  hostBadge: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.gold + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, gap: 3 },
+  hostBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.gold },
+  minPlayersHint: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 16, paddingVertical: 8 },
+  minPlayersText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
   startBtn: {
     backgroundColor: Colors.gold,
     borderRadius: 16,
@@ -643,30 +542,14 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
-  startBtnDisabled: {
-    backgroundColor: Colors.card,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  startBtnText: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 18,
-    color: Colors.black,
-  },
-  waitingBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    backgroundColor: Colors.card,
-    marginHorizontal: 16,
-    borderRadius: 16,
-  },
-  waitingText: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
+  startBtnDisabled: { backgroundColor: Colors.card, shadowOpacity: 0, elevation: 0 },
+  startBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.black },
+  waitingBar: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 16, paddingHorizontal: 16, backgroundColor: Colors.card, marginHorizontal: 16, borderRadius: 16 },
+  waitingText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
+  matchmakingContainer: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 20 },
+  matchmakingCircle: { width: 120, height: 120, borderRadius: 60, backgroundColor: Colors.gold + "15", borderWidth: 2, borderColor: Colors.gold + "30", justifyContent: "center", alignItems: "center" },
+  matchmakingTitle: { fontFamily: "Cairo_700Bold", fontSize: 24, color: Colors.textPrimary },
+  matchmakingStatus: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center" },
+  cancelBtn: { backgroundColor: Colors.card, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 32, borderWidth: 1, borderColor: Colors.cardBorder },
+  cancelBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textSecondary },
 });

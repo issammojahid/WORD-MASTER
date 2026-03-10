@@ -309,6 +309,15 @@ export function getRoom(roomId: string): Room | undefined {
   return rooms.get(roomId);
 }
 
+export function findAvailableRoom(): Room | null {
+  for (const [, room] of rooms) {
+    if (room.state === "waiting" && room.players.length > 0 && room.players.length < 8) {
+      return room;
+    }
+  }
+  return null;
+}
+
 export function resetRoom(roomId: string): Room | null {
   const room = rooms.get(roomId);
   if (!room) return null;

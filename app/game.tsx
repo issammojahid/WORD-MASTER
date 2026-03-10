@@ -9,7 +9,6 @@ import {
   Animated,
   Keyboard,
   Platform,
-  Alert,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,7 +21,7 @@ import Colors from "@/constants/colors";
 import { getSocket } from "@/services/socket";
 import { GAME_CATEGORIES, GameCategory } from "@/constants/i18n";
 
-const ROUND_TIME = 25;
+const ROUND_TIME = 50;
 
 type CategoryStatus = "idle" | "correct" | "duplicate" | "empty" | "invalid";
 
@@ -43,7 +42,7 @@ export default function GameScreen() {
     totalRounds: string;
   }>();
   const insets = useSafeAreaInsets();
-  const { t, isRTL } = useLanguage();
+  const { t } = useLanguage();
   const { profile, updateProfile, addCoins, addXp } = usePlayer();
   const socket = getSocket();
 
@@ -64,15 +63,26 @@ export default function GameScreen() {
   >([]);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const timerAnim = useRef(new Animated.Value(1)).current;
   const letterAnim = useRef(new Animated.Value(0)).current;
+  const answersRef = useRef<Record<GameCategory, string>>({} as Record<GameCategory, string>);
+  const submittedRef = useRef(false);
   const socketId = socket.id;
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
+  // Keep refs in sync
   useEffect(() => {
-    // Letter entrance animation
+    answersRef.current = answers;
+  }, [answers]);
+
+  useEffect(() => {
+    submittedRef.current = submitted;
+  }, [submitted]);
+
+  // Letter entrance animation
+  useEffect(() => {
+    letterAnim.setValue(0);
     Animated.spring(letterAnim, {
       toValue: 1,
       tension: 100,
@@ -81,10 +91,54 @@ export default function GameScreen() {
     }).start();
   }, [currentLetter]);
 
+  // Start timer when round changes
   useEffect(() => {
     startTimer();
     return () => stopTimer();
   }, [currentRound]);
+
+  const stopTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const startTimer = () => {
+    stopTimer();
+    setTimeLeft(ROUND_TIME);
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          stopTimer();
+          // Use refs to avoid stale closure
+          if (!submittedRef.current) {
+            doSubmit(answersRef.current);
+          }
+          return 0;
+        }
+        if (prev <= 5) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const doSubmit = (currentAnswers: Record<GameCategory, string>) => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+    setSubmitted(true);
+    Keyboard.dismiss();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    socket.emit("submit_answers", { roomId, answers: currentAnswers });
+  };
+
+  const handleSubmit = () => {
+    if (submittedRef.current) return;
+    stopTimer();
+    doSubmit(answersRef.current);
+  };
 
   useEffect(() => {
     socket.on("player_submitted", ({ playerId }: { playerId: string }) => {
@@ -111,16 +165,18 @@ export default function GameScreen() {
     socket.on(
       "new_round",
       (data: { letter: string; round: number; totalRounds: number }) => {
+        // Reset state for new round — startTimer is triggered by the currentRound useEffect
         setCurrentLetter(data.letter);
         setCurrentRound(data.round);
         setAnswers({} as Record<GameCategory, string>);
         setSubmitted(false);
+        submittedRef.current = false;
         setSubmittedPlayers([]);
         setRoundResults(null);
         setTimeLeft(ROUND_TIME);
         letterAnim.setValue(0);
-        startTimer();
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        // NOTE: Do NOT call startTimer() here — the useEffect([currentRound]) handles it
       }
     );
 
@@ -131,12 +187,11 @@ export default function GameScreen() {
         setIsGameOver(true);
         setGameOverPlayers(data.players);
 
-        // Award coins and XP to local player
         const me = data.players.find((p) => p.id === socketId);
         if (me) {
           addCoins(me.coins);
           addXp(Math.floor(me.score / 2));
-          const rank = data.players.findIndex((p) => p.id === socketId);
+          const rank = data.players.sort((a, b) => b.score - a.score).findIndex((p) => p.id === socketId);
           updateProfile({
             gamesPlayed: profile.gamesPlayed + 1,
             wins: rank === 0 ? profile.wins + 1 : profile.wins,
@@ -154,50 +209,6 @@ export default function GameScreen() {
     };
   }, [socketId]);
 
-  const startTimer = () => {
-    stopTimer();
-    setTimeLeft(ROUND_TIME);
-    timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          stopTimer();
-          handleAutoSubmit();
-          return 0;
-        }
-        if (prev <= 5) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  const stopTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-
-  const handleAutoSubmit = useCallback(() => {
-    if (!submitted) {
-      handleSubmit();
-    }
-  }, [submitted, answers, roomId]);
-
-  const handleSubmit = useCallback(() => {
-    if (submitted) return;
-    setSubmitted(true);
-    Keyboard.dismiss();
-    stopTimer();
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-
-    socket.emit("submit_answers", {
-      roomId,
-      answers,
-    });
-  }, [submitted, answers, roomId]);
-
   const handleNextRound = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     socket.emit("next_round", { roomId }, (_res: { isGameOver: boolean }) => {});
@@ -209,20 +220,16 @@ export default function GameScreen() {
   };
 
   const timerColor =
-    timeLeft > 10 ? Colors.timerGreen : timeLeft > 5 ? Colors.timerYellow : Colors.timerRed;
+    timeLeft > 15 ? Colors.timerGreen : timeLeft > 8 ? Colors.timerYellow : Colors.timerRed;
   const timerProgress = timeLeft / ROUND_TIME;
 
   // Game over screen
   if (isGameOver) {
     const sortedPlayers = [...gameOverPlayers].sort((a, b) => b.score - a.score);
-    const myRank = sortedPlayers.findIndex((p) => p.id === socketId);
 
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-        <ScrollView
-          contentContainerStyle={styles.gameOverContent}
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView contentContainerStyle={styles.gameOverContent} showsVerticalScrollIndicator={false}>
           <Text style={styles.gameOverTitle}>{t.gameOver}</Text>
           <View style={styles.trophyCircle}>
             <Ionicons name="trophy" size={56} color={Colors.gold} />
@@ -271,8 +278,7 @@ export default function GameScreen() {
 
   // Round results screen
   if (roundResults) {
-    const myResult = roundResults.find((r) => r.playerId === socketId);
-    const isHost = gamePlayers.find((p) => p.id === socketId)?.id === gamePlayers[0]?.id;
+    const isHost = socketId && gamePlayers.length > 0 && gamePlayers[0].id === socketId;
 
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
@@ -282,18 +288,14 @@ export default function GameScreen() {
           </Text>
         </View>
 
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={styles.roundResultsContent}
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.roundResultsContent} showsVerticalScrollIndicator={false}>
           {roundResults.map((result) => {
             const isMe = result.playerId === socketId;
             return (
               <View key={result.playerId} style={[styles.resultPlayerCard, isMe && styles.resultPlayerCardMe]}>
                 <View style={styles.resultPlayerHeader}>
                   <Text style={styles.resultPlayerName}>{result.playerName}{isMe ? " (أنت)" : ""}</Text>
-                  <View style={[styles.resultTotalBadge]}>
+                  <View style={styles.resultTotalBadge}>
                     <Text style={styles.resultTotalText}>+{result.roundTotal}</Text>
                   </View>
                 </View>
@@ -323,7 +325,6 @@ export default function GameScreen() {
             );
           })}
 
-          {/* Score summary */}
           <View style={styles.scoreSummary}>
             <Text style={styles.scoreSummaryTitle}>المجموع الكلي</Text>
             {[...gamePlayers].sort((a, b) => b.score - a.score).map((p, idx) => (
@@ -355,9 +356,7 @@ export default function GameScreen() {
   // Game play screen
   return (
     <View style={[styles.container, { paddingTop: topInset }]}>
-      {/* Top bar */}
       <View style={styles.gameTopBar}>
-        {/* Letter */}
         <Animated.View
           style={[
             styles.letterDisplay,
@@ -377,18 +376,17 @@ export default function GameScreen() {
           <Text style={styles.letterText}>{currentLetter}</Text>
         </Animated.View>
 
-        {/* Round & timer */}
         <View style={styles.gameInfoRight}>
           <Text style={styles.roundLabel}>
             {t.round} {currentRound}/{numTotalRounds}
           </Text>
           <View style={styles.timerContainer}>
             <View style={styles.timerTrack}>
-              <Animated.View
+              <View
                 style={[
                   styles.timerFill,
                   {
-                    width: `${timerProgress * 100}%`,
+                    width: `${timerProgress * 100}%` as any,
                     backgroundColor: timerColor,
                   },
                 ]}
@@ -401,7 +399,6 @@ export default function GameScreen() {
         </View>
       </View>
 
-      {/* Submitted count */}
       {submittedPlayers.length > 0 && (
         <View style={styles.submittedBar}>
           <Ionicons name="checkmark-circle" size={14} color={Colors.emerald} />
@@ -411,7 +408,6 @@ export default function GameScreen() {
         </View>
       )}
 
-      {/* Category inputs */}
       <KeyboardAwareScrollView
         style={{ flex: 1 }}
         contentContainerStyle={[styles.inputsContent, { paddingBottom: bottomInset + 80 }]}
@@ -445,7 +441,6 @@ export default function GameScreen() {
         ))}
       </KeyboardAwareScrollView>
 
-      {/* Submit button */}
       {!submitted ? (
         <TouchableOpacity
           style={[styles.submitBtn, { bottom: bottomInset + 12 }]}
@@ -465,10 +460,7 @@ export default function GameScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
   gameTopBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -492,44 +484,13 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 8,
   },
-  letterText: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 40,
-    color: Colors.black,
-    lineHeight: 52,
-  },
-  gameInfoRight: {
-    flex: 1,
-  },
-  roundLabel: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginBottom: 8,
-    textAlign: "right",
-  },
-  timerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  timerTrack: {
-    flex: 1,
-    height: 8,
-    backgroundColor: Colors.cardBorder,
-    borderRadius: 4,
-    overflow: "hidden",
-  },
-  timerFill: {
-    height: "100%",
-    borderRadius: 4,
-  },
-  timerText: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 22,
-    minWidth: 32,
-    textAlign: "center",
-  },
+  letterText: { fontFamily: "Cairo_700Bold", fontSize: 40, color: Colors.black, lineHeight: 52 },
+  gameInfoRight: { flex: 1 },
+  roundLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, marginBottom: 8, textAlign: "right" },
+  timerContainer: { flexDirection: "row", alignItems: "center", gap: 10 },
+  timerTrack: { flex: 1, height: 8, backgroundColor: Colors.cardBorder, borderRadius: 4, overflow: "hidden" },
+  timerFill: { height: "100%", borderRadius: 4 },
+  timerText: { fontFamily: "Cairo_700Bold", fontSize: 22, minWidth: 32, textAlign: "center" },
   submittedBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -538,27 +499,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  submittedText: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 12,
-    color: Colors.emerald,
-  },
-  inputsContent: {
-    padding: 12,
-    gap: 8,
-  },
-  categoryInputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  categoryLabel: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 13,
-    color: Colors.textSecondary,
-    width: 72,
-    textAlign: "right",
-  },
+  submittedText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.emerald },
+  inputsContent: { padding: 12, gap: 8 },
+  categoryInputRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  categoryLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, width: 72, textAlign: "right" },
   categoryInput: {
     flex: 1,
     backgroundColor: Colors.inputBg,
@@ -571,13 +515,8 @@ const styles = StyleSheet.create({
     fontFamily: "Cairo_400Regular",
     color: Colors.inputText,
   },
-  categoryInputFilled: {
-    borderColor: Colors.gold + "80",
-    backgroundColor: Colors.gold + "10",
-  },
-  categoryInputSubmitted: {
-    opacity: 0.6,
-  },
+  categoryInputFilled: { borderColor: Colors.gold + "80", backgroundColor: Colors.gold + "10" },
+  categoryInputSubmitted: { opacity: 0.6 },
   submitBtn: {
     position: "absolute",
     left: 16,
@@ -594,11 +533,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
-  submitBtnText: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 18,
-    color: Colors.black,
-  },
+  submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.black },
   submittedState: {
     position: "absolute",
     left: 16,
@@ -613,11 +548,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.emerald + "40",
   },
-  submittedStateText: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 14,
-    color: Colors.emerald,
-  },
+  submittedStateText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.emerald },
   roundResultsHeader: {
     paddingHorizontal: 16,
     paddingVertical: 16,
@@ -625,123 +556,26 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.cardBorder,
     backgroundColor: Colors.backgroundSecondary,
   },
-  roundResultsTitle: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 18,
-    color: Colors.textPrimary,
-    textAlign: "center",
-  },
-  roundResultsContent: {
-    padding: 12,
-    gap: 12,
-    paddingBottom: 100,
-  },
-  resultPlayerCard: {
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
-  resultPlayerCardMe: {
-    borderColor: Colors.gold + "60",
-  },
-  resultPlayerHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  resultPlayerName: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 15,
-    color: Colors.textPrimary,
-  },
-  resultTotalBadge: {
-    backgroundColor: Colors.gold + "22",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  resultTotalText: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 14,
-    color: Colors.gold,
-  },
-  resultCatRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 5,
-    borderTopWidth: 1,
-    borderTopColor: Colors.cardBorder + "50",
-  },
-  resultCatName: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 12,
-    color: Colors.textMuted,
-    width: 64,
-    textAlign: "right",
-  },
-  resultAnswer: {
-    flex: 1,
-    fontFamily: "Cairo_400Regular",
-    fontSize: 14,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    paddingHorizontal: 6,
-  },
-  resultAnswerEmpty: {
-    color: Colors.textMuted,
-  },
-  resultScoreBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    minWidth: 32,
-    alignItems: "center",
-  },
-  resultScoreText: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 13,
-  },
-  scoreSummary: {
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
-  scoreSummaryTitle: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 15,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginBottom: 10,
-  },
-  scoreSummaryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 6,
-  },
-  scoreSummaryRank: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 16,
-    color: Colors.gold,
-    width: 30,
-    textAlign: "center",
-  },
-  scoreSummaryName: {
-    flex: 1,
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 14,
-    color: Colors.textPrimary,
-    paddingHorizontal: 10,
-  },
-  scoreSummaryTotal: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 16,
-    color: Colors.textPrimary,
-  },
+  roundResultsTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "center" },
+  roundResultsContent: { padding: 12, gap: 12, paddingBottom: 100 },
+  resultPlayerCard: { backgroundColor: Colors.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: Colors.cardBorder },
+  resultPlayerCardMe: { borderColor: Colors.gold + "60" },
+  resultPlayerHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
+  resultPlayerName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
+  resultTotalBadge: { backgroundColor: Colors.gold + "22", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+  resultTotalText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.gold },
+  resultCatRow: { flexDirection: "row", alignItems: "center", paddingVertical: 5, borderTopWidth: 1, borderTopColor: Colors.cardBorder + "50" },
+  resultCatName: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted, width: 64, textAlign: "right" },
+  resultAnswer: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textPrimary, textAlign: "center", paddingHorizontal: 6 },
+  resultAnswerEmpty: { color: Colors.textMuted },
+  resultScoreBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, minWidth: 32, alignItems: "center" },
+  resultScoreText: { fontFamily: "Cairo_700Bold", fontSize: 13 },
+  scoreSummary: { backgroundColor: Colors.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: Colors.cardBorder },
+  scoreSummaryTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "center", marginBottom: 10 },
+  scoreSummaryRow: { flexDirection: "row", alignItems: "center", paddingVertical: 6 },
+  scoreSummaryRank: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.gold, width: 30, textAlign: "center" },
+  scoreSummaryName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, paddingHorizontal: 10 },
+  scoreSummaryTotal: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary },
   nextRoundBtn: {
     backgroundColor: Colors.gold,
     borderRadius: 16,
@@ -757,32 +591,19 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
-  nextRoundBtnText: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 18,
-    color: Colors.black,
-  },
+  nextRoundBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.black },
   waitingNextRound: {
-    alignItems: "center",
     paddingVertical: 16,
-  },
-  waitingNextRoundText: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 14,
-    color: Colors.textMuted,
-  },
-  gameOverContent: {
-    padding: 20,
+    paddingHorizontal: 16,
+    backgroundColor: Colors.card,
+    marginHorizontal: 16,
+    marginVertical: 12,
+    borderRadius: 16,
     alignItems: "center",
-    paddingBottom: 40,
   },
-  gameOverTitle: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 32,
-    color: Colors.textPrimary,
-    textAlign: "center",
-    marginBottom: 20,
-  },
+  waitingNextRoundText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
+  gameOverContent: { padding: 20, alignItems: "center", paddingBottom: 40 },
+  gameOverTitle: { fontFamily: "Cairo_700Bold", fontSize: 32, color: Colors.textPrimary, textAlign: "center", marginBottom: 20 },
   trophyCircle: {
     width: 100,
     height: 100,
@@ -796,84 +617,34 @@ const styles = StyleSheet.create({
   },
   winnerCard: {
     backgroundColor: Colors.gold + "15",
-    borderRadius: 20,
+    borderRadius: 16,
     padding: 20,
     alignItems: "center",
     width: "100%",
+    borderWidth: 1,
+    borderColor: Colors.gold + "30",
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: Colors.gold + "40",
   },
-  winnerLabel: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 13,
-    color: Colors.gold,
-    marginBottom: 4,
-  },
-  winnerName: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 24,
-    color: Colors.textPrimary,
-    marginBottom: 4,
-  },
-  winnerScore: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 16,
-    color: Colors.gold,
-  },
-  finalRankings: {
-    width: "100%",
-    gap: 10,
-    marginBottom: 24,
-  },
-  finalRankRow: {
-    backgroundColor: Colors.card,
-    borderRadius: 14,
-    padding: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
-  finalRankRowMe: {
-    borderColor: Colors.gold + "60",
-  },
-  finalRankNum: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 20,
-    width: 36,
-    textAlign: "center",
-  },
-  finalRankName: {
-    flex: 1,
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 15,
-    color: Colors.textPrimary,
-    paddingHorizontal: 10,
-  },
-  finalRankRight: {
-    alignItems: "flex-end",
-    gap: 4,
-  },
-  finalRankScore: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 18,
-    color: Colors.textPrimary,
-  },
+  winnerLabel: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, marginBottom: 4 },
+  winnerName: { fontFamily: "Cairo_700Bold", fontSize: 24, color: Colors.gold, marginBottom: 4 },
+  winnerScore: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: Colors.textSecondary },
+  finalRankings: { width: "100%", gap: 10, marginBottom: 24 },
+  finalRankRow: { backgroundColor: Colors.card, borderRadius: 14, padding: 14, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: Colors.cardBorder },
+  finalRankRowMe: { borderColor: Colors.gold + "60" },
+  finalRankNum: { fontFamily: "Cairo_700Bold", fontSize: 20, width: 36, textAlign: "center" },
+  finalRankName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary, paddingHorizontal: 10 },
+  finalRankRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  finalRankScore: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
   coinRewardBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 2,
-    backgroundColor: Colors.gold + "20",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
+    backgroundColor: Colors.gold + "22",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 3,
   },
-  coinRewardText: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 11,
-    color: Colors.gold,
-  },
+  coinRewardText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.gold },
   playAgainBtn: {
     backgroundColor: Colors.gold,
     borderRadius: 16,
@@ -886,22 +657,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
-  playAgainBtnText: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 18,
-    color: Colors.black,
-  },
-  homeBtn: {
-    backgroundColor: Colors.card,
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 40,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
-  homeBtnText: {
-    fontFamily: "Cairo_600SemiBold",
-    fontSize: 16,
-    color: Colors.textSecondary,
-  },
+  playAgainBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.black },
+  homeBtn: { backgroundColor: Colors.card, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 40, borderWidth: 1, borderColor: Colors.cardBorder },
+  homeBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: Colors.textSecondary },
 });

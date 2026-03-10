@@ -11,6 +11,7 @@ import {
   nextRound,
   getRoom,
   resetRoom,
+  findAvailableRoom,
   type PlayerAnswers,
 } from "./gameLogic";
 
@@ -112,22 +113,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
             totalRounds: result.room.totalRounds,
           });
 
-          // Start 25-second timer
+          // Start 50-second timer
           const room = result.room;
           room.timer = setTimeout(() => {
             // Time's up - calculate scores for whoever has submitted
             const results = calculateRoundScores(data.roomId);
+            const currentRoom = getRoom(data.roomId);
+            if (!currentRoom) return;
             io.to(data.roomId).emit("round_results", {
               results,
-              round: room.currentRound,
-              totalRounds: room.totalRounds,
-              players: room.players.map((p) => ({
+              round: currentRoom.currentRound,
+              totalRounds: currentRoom.totalRounds,
+              players: currentRoom.players.map((p) => ({
                 id: p.id,
                 name: p.name,
                 score: p.score,
               })),
             });
-          }, 26000);
+          }, 51000);
         } catch (e) {
           cb({ success: false, error: "server_error" });
         }
@@ -199,24 +202,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             cb?.({ isGameOver: false, letter: room.currentLetter });
 
-            // Start new 25-second timer
+            // Start new 50-second timer
             room.timer = setTimeout(() => {
               const results = calculateRoundScores(data.roomId);
               const updatedRoom = getRoom(data.roomId);
+              if (!updatedRoom) return;
               io.to(data.roomId).emit("round_results", {
                 results,
-                round: updatedRoom?.currentRound || 0,
-                totalRounds: updatedRoom?.totalRounds || 5,
-                players: updatedRoom?.players.map((p) => ({
+                round: updatedRoom.currentRound,
+                totalRounds: updatedRoom.totalRounds,
+                players: updatedRoom.players.map((p) => ({
                   id: p.id,
                   name: p.name,
                   score: p.score,
-                })) || [],
+                })),
               });
-            }, 26000);
+            }, 51000);
           }
         } catch (e) {
           console.error("next_round error:", e);
+        }
+      }
+    );
+
+    // Quick match - find or create an available room
+    socket.on(
+      "quick_match",
+      (
+        data: { playerName: string; playerSkin: string },
+        cb: (res: { success: boolean; roomId?: string; room?: ReturnType<typeof sanitizeRoom>; created?: boolean; error?: string }) => void
+      ) => {
+        try {
+          // Find a waiting room with fewer than 8 players
+          const availableRoom = findAvailableRoom();
+          if (availableRoom) {
+            const result = joinRoom(availableRoom.id, socket.id, data.playerName, data.playerSkin);
+            if (result.success && result.room) {
+              socket.join(availableRoom.id);
+              cb({ success: true, roomId: availableRoom.id, room: sanitizeRoom(result.room), created: false });
+              io.to(availableRoom.id).emit("room_updated", sanitizeRoom(result.room));
+              io.to(availableRoom.id).emit("player_joined", { playerName: data.playerName });
+            } else {
+              // That room became unavailable; create a new one
+              const newRoom = createRoom(socket.id, data.playerName, data.playerSkin);
+              socket.join(newRoom.id);
+              cb({ success: true, roomId: newRoom.id, room: sanitizeRoom(newRoom), created: true });
+              io.to(newRoom.id).emit("room_updated", sanitizeRoom(newRoom));
+            }
+          } else {
+            const newRoom = createRoom(socket.id, data.playerName, data.playerSkin);
+            socket.join(newRoom.id);
+            cb({ success: true, roomId: newRoom.id, room: sanitizeRoom(newRoom), created: true });
+            io.to(newRoom.id).emit("room_updated", sanitizeRoom(newRoom));
+          }
+        } catch (e) {
+          cb({ success: false, error: "server_error" });
+        }
+      }
+    );
+
+    // Leave room
+    socket.on(
+      "leave_room",
+      (data: { roomId: string }) => {
+        const room = removePlayer(data.roomId, socket.id);
+        socket.leave(data.roomId);
+        if (room) {
+          io.to(data.roomId).emit("room_updated", sanitizeRoom(room));
+          io.to(data.roomId).emit("player_left", { playerId: socket.id });
         }
       }
     );
