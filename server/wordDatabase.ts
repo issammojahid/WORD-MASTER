@@ -77,8 +77,8 @@ export function validateWord(
   category: WordCategory,
   letter: string
 ): { valid: boolean; reason?: string } {
-  if (!word || word.trim().length === 0) {
-    return { valid: false, reason: "empty" };
+  if (!word || word.trim().length < 2) {
+    return { valid: false, reason: "too_short" };
   }
 
   const normWord = normalize(word);

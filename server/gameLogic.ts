@@ -166,7 +166,7 @@ export function removePlayer(roomId: string, playerId: string): Room | null {
 export function startGame(roomId: string): { success: boolean; room?: Room; error?: string } {
   const room = rooms.get(roomId);
   if (!room) return { success: false, error: "room_not_found" };
-  if (room.players.length < 2) return { success: false, error: "need_more_players" };
+  if (room.players.length < 2) return { success: false, error: "need_more_players" }; // host can start with 2+
 
   const usedLetters: string[] = [];
   room.state = "playing";
