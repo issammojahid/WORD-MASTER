@@ -1,0 +1,63 @@
+Starting project at /home/runner/workspace
+React Compiler enabled
+Metro is running in CI mode, reloads are disabled. Remove CI=true to enable watch mode.
+Starting Metro Bundler
+The following packages should be updated for best compatibility with the installed expo version:
+  expo@54.0.32 - expected version: ~54.0.33
+  expo-glass-effect@0.1.8 - expected version: ~0.1.9
+  expo-router@6.0.22 - expected version: ~6.0.23
+  react-native-keyboard-controller@1.20.6 - expected version: 1.18.5
+Your project may not work correctly until you install the expected versions of the packages.
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+Android node_modules/expo-router/entry.js ░
+░░░░░░░░░░░░░░░  0.0% (0/1)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ░
+░░░░░░░░░░░░░░░  3.8% ( 38/195)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ▓
+▓░░░░░░░░░░░░░░ 16.5% (139/342)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ▓
+▓▓▓░░░░░░░░░░░░ 28.1% (249/470)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ▓
+▓▓▓▓░░░░░░░░░░░ 34.3% (369/630)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ▓
+▓▓▓▓▓▓░░░░░░░░░ 47.5% (510/740)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ▓
+▓▓▓▓▓▓▓░░░░░░░░ 53.2% (626/858)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ▓
+▓▓▓▓▓▓▓░░░░░░░░ 54.5% (710/962)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ▓
+▓▓▓▓▓▓▓▓▓░░░░░░ 65.0% ( 860/1067)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ▓
+▓▓▓▓▓▓▓▓▓▓░░░░░ 69.4% ( 978/1174)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ▓
+▓▓▓▓▓▓▓▓▓▓▓░░░░ 75.0% (1088/1256)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ▓
+▓▓▓▓▓▓▓▓▓▓▓▓░░░ 82.8% (1161/1276)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ▓
+▓▓▓▓▓▓▓▓▓▓▓▓░░░ 84.3% (1286/1401)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ▓
+▓▓▓▓▓▓▓▓▓▓▓▓░░░ 86.8% (1415/1519)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ▓
+▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 89.9% (1489/1570)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ▓
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 95.0% (1565/1606)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ▓
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 97.1% (1645/1669)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ▓
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.8% (1694/1696)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ▓
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1695/1696)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ▓
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1725/1726)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ▓
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1726/1726)
+[43D[2A[0JAndroid Bundled 2705ms node_modules/expo-router/entry.js (1726 modules)
+Android node_modules/expo-router/entry.js ▓
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1726/1726)
+[43D[2A[0JAndroid node_modules/expo-router/entry.js ░
+░░░░░░░░░░░░░░░  0.0% (0/1)
+[43D[2A[0JAndroid Bundled 79ms node_modules/expo-router/entry.js (1 module)
+Android node_modules/expo-router/entry.js ░
+░░░░░░░░░░░░░░░  0.0% (0/1)
+[43D[2A[0JAndroid Bundled 74ms node_modules/expo-router/entry.js (1 module)
