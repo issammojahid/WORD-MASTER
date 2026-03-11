@@ -16,6 +16,9 @@ import {
 } from "./gameLogic";
 import { validateWord, CATEGORY_MAP, type WordCategory } from "./wordDatabase";
 
+// Track which room each socket is currently in
+const socketRoomMap = new Map<string, string>();
+
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
@@ -97,6 +100,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const room = createRoom(socket.id, data.playerName, data.playerSkin);
           socket.join(room.id);
+          socketRoomMap.set(socket.id, room.id);
+          console.log(`[create_room] Socket ${socket.id} created room ${room.id}. Players: ${room.players.map(p => p.name).join(", ")}`);
           cb({ success: true, roomId: room.id });
           io.to(room.id).emit("room_updated", sanitizeRoom(room));
         } catch (e) {
@@ -119,6 +124,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return;
           }
           socket.join(data.roomId);
+          socketRoomMap.set(socket.id, data.roomId);
+          console.log(`[join_room] Socket ${socket.id} joined room ${data.roomId}. Players: ${result.room.players.map(p => p.name).join(", ")}`);
           cb({ success: true, room: sanitizeRoom(result.room) });
           io.to(data.roomId).emit("room_updated", sanitizeRoom(result.room));
           io.to(data.roomId).emit("player_joined", {
@@ -270,12 +277,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cb: (res: { success: boolean; roomId?: string; room?: ReturnType<typeof sanitizeRoom>; created?: boolean; error?: string }) => void
       ) => {
         try {
+          // Prevent duplicate matchmaking: if this socket is already in a room, return it
+          const existingRoomId = socketRoomMap.get(socket.id);
+          if (existingRoomId) {
+            const existingRoom = getRoom(existingRoomId);
+            if (existingRoom && existingRoom.state === "waiting") {
+              console.log(`[quick_match] Socket ${socket.id} already in room ${existingRoomId}, skipping duplicate join. Players: ${existingRoom.players.map(p => p.name).join(", ")}`);
+              cb({ success: true, roomId: existingRoomId, room: sanitizeRoom(existingRoom), created: false });
+              return;
+            }
+            // Room no longer valid (game started or gone), clear the mapping
+            socketRoomMap.delete(socket.id);
+          }
+
           // Find a waiting room with fewer than 8 players
           const availableRoom = findAvailableRoom();
           if (availableRoom) {
             const result = joinRoom(availableRoom.id, socket.id, data.playerName, data.playerSkin);
             if (result.success && result.room) {
               socket.join(availableRoom.id);
+              socketRoomMap.set(socket.id, availableRoom.id);
+              console.log(`[quick_match] Socket ${socket.id} joined existing room ${availableRoom.id}. Players: ${result.room.players.map(p => p.name).join(", ")}`);
               cb({ success: true, roomId: availableRoom.id, room: sanitizeRoom(result.room), created: false });
               io.to(availableRoom.id).emit("room_updated", sanitizeRoom(result.room));
               io.to(availableRoom.id).emit("player_joined", { playerName: data.playerName });
@@ -283,12 +305,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               // That room became unavailable; create a new one
               const newRoom = createRoom(socket.id, data.playerName, data.playerSkin);
               socket.join(newRoom.id);
+              socketRoomMap.set(socket.id, newRoom.id);
+              console.log(`[quick_match] Socket ${socket.id} created new room ${newRoom.id} (fallback). Players: ${newRoom.players.map(p => p.name).join(", ")}`);
               cb({ success: true, roomId: newRoom.id, room: sanitizeRoom(newRoom), created: true });
               io.to(newRoom.id).emit("room_updated", sanitizeRoom(newRoom));
             }
           } else {
             const newRoom = createRoom(socket.id, data.playerName, data.playerSkin);
             socket.join(newRoom.id);
+            socketRoomMap.set(socket.id, newRoom.id);
+            console.log(`[quick_match] Socket ${socket.id} created new room ${newRoom.id}. Players: ${newRoom.players.map(p => p.name).join(", ")}`);
             cb({ success: true, roomId: newRoom.id, room: sanitizeRoom(newRoom), created: true });
             io.to(newRoom.id).emit("room_updated", sanitizeRoom(newRoom));
           }
@@ -304,6 +330,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       (data: { roomId: string }) => {
         const room = removePlayer(data.roomId, socket.id);
         socket.leave(data.roomId);
+        socketRoomMap.delete(socket.id);
+        console.log(`[leave_room] Socket ${socket.id} left room ${data.roomId}. Remaining: ${room ? room.players.map(p => p.name).join(", ") : "room deleted"}`);
         if (room) {
           io.to(data.roomId).emit("room_updated", sanitizeRoom(room));
           io.to(data.roomId).emit("player_left", { playerId: socket.id });
@@ -341,16 +369,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Disconnect
     socket.on("disconnect", () => {
       console.log("Socket disconnected:", socket.id);
-      // Find rooms this player is in
-      const roomsToUpdate: string[] = [];
-      // We iterate via the socket's joined rooms
+
+      // Clean up from socketRoomMap first
+      const trackedRoomId = socketRoomMap.get(socket.id);
+      socketRoomMap.delete(socket.id);
+
+      // Build list of rooms to clean up: prefer our tracked map, fallback to socket rooms
+      const roomsToUpdate = new Set<string>();
+      if (trackedRoomId) {
+        roomsToUpdate.add(trackedRoomId);
+      }
       for (const [roomId] of (socket as any).rooms || []) {
         if (roomId !== socket.id) {
-          roomsToUpdate.push(roomId);
+          roomsToUpdate.add(roomId);
         }
       }
+
       for (const roomId of roomsToUpdate) {
         const room = removePlayer(roomId, socket.id);
+        console.log(`[disconnect] Removed socket ${socket.id} from room ${roomId}. Remaining: ${room ? room.players.map(p => p.name).join(", ") : "room deleted"}`);
         if (room) {
           io.to(roomId).emit("room_updated", sanitizeRoom(room));
           io.to(roomId).emit("player_left", { playerId: socket.id });

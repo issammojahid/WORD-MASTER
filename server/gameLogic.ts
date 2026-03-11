@@ -113,6 +113,15 @@ export function createRoom(hostId: string, hostName: string, hostSkin: string): 
   return room;
 }
 
+function makeUniqueName(existingNames: string[], desiredName: string): string {
+  if (!existingNames.includes(desiredName)) return desiredName;
+  let counter = 2;
+  while (existingNames.includes(`${desiredName}_${counter}`)) {
+    counter++;
+  }
+  return `${desiredName}_${counter}`;
+}
+
 export function joinRoom(
   roomId: string,
   playerId: string,
@@ -124,14 +133,18 @@ export function joinRoom(
   if (room.players.length >= 8) return { success: false, error: "room_full" };
   if (room.state !== "waiting") return { success: false, error: "game_in_progress" };
 
-  // Check if player already in room
+  // Check if player already in room (by socket id)
   if (room.players.find((p) => p.id === playerId)) {
     return { success: true, room };
   }
 
+  // Ensure unique username
+  const existingNames = room.players.map((p) => p.name);
+  const uniqueName = makeUniqueName(existingNames, playerName);
+
   room.players.push({
     id: playerId,
-    name: playerName,
+    name: uniqueName,
     skin: playerSkin,
     score: 0,
     roundScores: [],
