@@ -53,6 +53,8 @@ export default function LobbyScreen() {
 
   // Store roomId in a ref so game_started handler never has stale closure
   const roomIdRef = useRef<string | null>(null);
+  // Guard against double-tap on matchmaking/create buttons
+  const actionInProgressRef = useRef(false);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
@@ -63,7 +65,28 @@ export default function LobbyScreen() {
     const socket = getSocket();
     setSocketId(socket.id || null);
 
-    const handleConnect = () => setSocketId(socket.id || null);
+    const handleConnect = () => {
+      setSocketId(socket.id || null);
+      // If we were in a room before reconnecting, rejoin it to avoid duplicate socket entries
+      const currentRoomId = roomIdRef.current;
+      if (currentRoomId) {
+        socket.emit(
+          "join_room",
+          { roomId: currentRoomId, playerName: profile.name, playerSkin: profile.equippedSkin },
+          (res: { success: boolean; room?: RoomData; error?: string }) => {
+            if (res.success && res.room) {
+              setRoom(res.room);
+            } else {
+              // Room no longer exists; reset to select screen
+              roomIdRef.current = null;
+              setRoom(null);
+              setTab("select");
+            }
+          }
+        );
+      }
+    };
+
     const handleRoomUpdated = (roomData: RoomData) => setRoom(roomData);
 
     const handleGameStarted = (data: { letter: string; round: number; totalRounds: number }) => {
@@ -98,6 +121,8 @@ export default function LobbyScreen() {
   };
 
   const handleCreateRoom = () => {
+    if (actionInProgressRef.current) return;
+    actionInProgressRef.current = true;
     setLoading(true);
     setError(null);
     const socket = getSocket();
@@ -105,6 +130,7 @@ export default function LobbyScreen() {
       "create_room",
       { playerName: profile.name, playerSkin: profile.equippedSkin },
       (res: { success: boolean; roomId?: string; room?: RoomData; error?: string }) => {
+        actionInProgressRef.current = false;
         setLoading(false);
         if (res.success && res.roomId) {
           roomIdRef.current = res.roomId;
@@ -160,6 +186,8 @@ export default function LobbyScreen() {
   };
 
   const handleQuickMatch = () => {
+    if (actionInProgressRef.current) return;
+    actionInProgressRef.current = true;
     setTab("matchmaking");
     setMatchmakingStatus("جاري البحث عن غرفة متاحة...");
     setLoading(true);
@@ -168,6 +196,7 @@ export default function LobbyScreen() {
       "quick_match",
       { playerName: profile.name, playerSkin: profile.equippedSkin },
       (res: { success: boolean; roomId?: string; room?: RoomData; created?: boolean; error?: string }) => {
+        actionInProgressRef.current = false;
         setLoading(false);
         if (res.success && res.roomId && res.room) {
           roomIdRef.current = res.roomId;

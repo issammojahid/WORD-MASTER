@@ -179,7 +179,11 @@ export function removePlayer(roomId: string, playerId: string): Room | null {
 export function startGame(roomId: string): { success: boolean; room?: Room; error?: string } {
   const room = rooms.get(roomId);
   if (!room) return { success: false, error: "room_not_found" };
-  if (room.players.length < 2) return { success: false, error: "need_more_players" }; // host can start with 2+
+  // Deduplicate players by socket id before checking count (safety net)
+  const uniqueIds = new Set(room.players.map((p) => p.id));
+  room.players = room.players.filter((p, idx, arr) => arr.findIndex((x) => x.id === p.id) === idx);
+  console.log(`[startGame] Room ${roomId}: ${room.players.length} unique players (${uniqueIds.size} unique IDs)`);
+  if (room.players.length < 2) return { success: false, error: "need_more_players" };
 
   const usedLetters: string[] = [];
   room.state = "playing";

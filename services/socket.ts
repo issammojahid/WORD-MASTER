@@ -4,13 +4,14 @@ import { getApiUrl } from "@/lib/query-client";
 let socket: Socket | null = null;
 
 export function getSocket(): Socket {
-  if (!socket || !socket.connected) {
+  if (!socket) {
     const baseUrl = getApiUrl();
     socket = io(baseUrl, {
       transports: ["websocket", "polling"],
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: 10,
+      timeout: 10000,
     });
   }
   return socket;
