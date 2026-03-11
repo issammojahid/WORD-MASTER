@@ -56,10 +56,10 @@ const rawDatabase = loadWordDatabase();
 function normalize(word: string): string {
   return word
     .trim()
-    .replace(/[\u064B-\u065F\u0670]/g, "")   // strip harakat
-    .replace(/[أإآٱ]/g, "ا")                   // normalize alef variants → bare alef (ا)
-    .replace(/ى/g, "ي")                        // alef maqsura → ya
-    .replace(/ة/g, "ه")                        // ta marbuta → ha (for loose matching)
+    .replace(/[\u064B-\u065F\u0670]/g, "")
+    .replace(/[أإآٱ]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ة/g, "ه")
     .toLowerCase();
 }
 
@@ -73,7 +73,6 @@ for (const cat of Object.keys(rawDatabase) as WordCategory[]) {
   normalizedSets[cat] = new Set(words.map(normalize));
 }
 
-// Also normalize the round letter for consistent comparisons
 function normalizeLetter(letter: string): string {
   return letter
     .trim()
@@ -82,8 +81,6 @@ function normalizeLetter(letter: string): string {
     .toLowerCase();
 }
 
-// Strip leading ال (definite article) for letter-start comparisons
-// e.g. "المغرب" → "مغرب" so the letter م matches
 function stripArticle(normWord: string): string {
   if (normWord.startsWith("ال")) return normWord.slice(2);
   return normWord;
@@ -101,38 +98,30 @@ export function validateWord(
   const normWord = normalize(word);
   const normLetter = normalizeLetter(letter);
 
-  // 1. Check the word (or word stripped of leading ال) starts with the required letter
   const wordRoot = stripArticle(normWord);
   if (!normWord.startsWith(normLetter) && !wordRoot.startsWith(normLetter)) {
     return { valid: false, reason: "wrong_letter" };
   }
 
-  // 2. Check exact match (original word)
   if (exactSets[category].has(word.trim())) {
     return { valid: true };
   }
 
-  // 3. Check normalized match
   if (normalizedSets[category].has(normWord)) {
     return { valid: true };
   }
 
-  // 4. Check match after stripping ال (e.g. user types "مغرب" but db has "المغرب")
-  //    or user types "المغرب" but db has "مغرب"
   const stripped = stripArticle(normWord);
   if (stripped !== normWord) {
-    // word had ال — check stripped version in db
     if (normalizedSets[category].has(stripped)) {
       return { valid: true };
     }
   } else {
-    // word had no ال — check "ال" + word in db
     if (normalizedSets[category].has("ال" + normWord)) {
       return { valid: true };
     }
   }
 
-  // 5. Not in database
   return { valid: false, reason: "not_in_database" };
 }
 
