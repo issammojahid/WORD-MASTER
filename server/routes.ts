@@ -19,6 +19,8 @@ import { validateWord, CATEGORY_MAP, type WordCategory } from "./wordDatabase";
 // Track which room each socket is currently in
 const socketRoomMap = new Map<string, string>();
 
+const MIN_PLAYERS = 2;
+
 // Global matchmaking queue
 type QueueEntry = { id: string; name: string; skin: string };
 let matchmakingQueue: QueueEntry[] = [];
@@ -127,14 +129,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
             cb({ success: false, error: result.error });
             return;
           }
+
+          // Deduplicate by socket.id (safety net)
+          const uniquePlayers = result.room.players.filter(
+            (p, idx, arr) => arr.findIndex((x) => x.id === p.id) === idx
+          );
+          result.room.players = uniquePlayers;
+
           socket.join(data.roomId);
           socketRoomMap.set(socket.id, data.roomId);
-          console.log(`[join_room] Socket ${socket.id} joined room ${data.roomId}. Players: ${result.room.players.map(p => p.name).join(", ")}`);
+          console.log(`[join_room] Socket ${socket.id} joined room ${data.roomId}. Players (${result.room.players.length}): ${result.room.players.map(p => p.name).join(", ")}`);
+
           cb({ success: true, room: sanitizeRoom(result.room) });
           io.to(data.roomId).emit("room_updated", sanitizeRoom(result.room));
-          io.to(data.roomId).emit("player_joined", {
-            playerName: data.playerName,
-          });
+          io.to(data.roomId).emit("player_joined", { playerName: data.playerName });
+
+          // Auto-start when MIN_PLAYERS unique real players are in the room
+          if (result.room.players.length >= MIN_PLAYERS && result.room.state === "waiting") {
+            const gameResult = startGame(data.roomId);
+            if (gameResult.success && gameResult.room) {
+              console.log(`[join_room] Auto-starting game in room ${data.roomId} with ${gameResult.room.players.length} players`);
+              io.to(data.roomId).emit("game_started", {
+                letter: gameResult.room.currentLetter,
+                round: gameResult.room.currentRound,
+                totalRounds: gameResult.room.totalRounds,
+              });
+
+              // 51-second server-side timer
+              gameResult.room.timer = setTimeout(() => {
+                const results = calculateRoundScores(data.roomId);
+                const updatedRoom = getRoom(data.roomId);
+                if (!updatedRoom) return;
+                io.to(data.roomId).emit("round_results", {
+                  results,
+                  round: updatedRoom.currentRound,
+                  totalRounds: updatedRoom.totalRounds,
+                  players: updatedRoom.players.map((p) => ({ id: p.id, name: p.name, score: p.score })),
+                });
+              }, 51000);
+            }
+          }
         } catch (e) {
           cb({ success: false, error: "server_error" });
         }
