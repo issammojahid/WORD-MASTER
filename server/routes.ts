@@ -19,6 +19,10 @@ import { validateWord, CATEGORY_MAP, type WordCategory } from "./wordDatabase";
 // Track which room each socket is currently in
 const socketRoomMap = new Map<string, string>();
 
+// Global matchmaking queue
+type QueueEntry = { id: string; name: string; skin: string };
+let matchmakingQueue: QueueEntry[] = [];
+
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
@@ -366,9 +370,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     );
 
+    // ── NEW MATCHMAKING SYSTEM ──────────────────────────────────────────
+    // findMatch: add player to global queue; create room when 2 are ready
+    socket.on(
+      "findMatch",
+      (data: { playerName: string; playerSkin: string }) => {
+        // Never add the same socket twice
+        if (matchmakingQueue.find((p) => p.id === socket.id)) {
+          console.log(`[findMatch] Socket ${socket.id} already in queue – ignored`);
+          return;
+        }
+
+        matchmakingQueue.push({ id: socket.id, name: data.playerName, skin: data.playerSkin });
+        console.log(`[findMatch] Queue: ${matchmakingQueue.map((p) => p.name).join(", ")} (${matchmakingQueue.length} players)`);
+
+        // Enough players → create match
+        if (matchmakingQueue.length >= 2) {
+          const matched = matchmakingQueue.splice(0, 2);
+          console.log(`[findMatch] Match created: ${matched.map((p) => p.name).join(" vs ")}`);
+
+          // Create room with first player as host, join second
+          const room = createRoom(matched[0].id, matched[0].name, matched[0].skin);
+          joinRoom(room.id, matched[1].id, matched[1].name, matched[1].skin);
+
+          // Join both sockets to the Socket.io room
+          for (const player of matched) {
+            const s = io.sockets.sockets.get(player.id);
+            if (s) {
+              s.join(room.id);
+              socketRoomMap.set(player.id, room.id);
+            }
+          }
+
+          // Start the game immediately
+          const gameResult = startGame(room.id);
+          if (!gameResult.success || !gameResult.room) {
+            console.error(`[findMatch] startGame failed for room ${room.id}`);
+            return;
+          }
+
+          const gameData = {
+            roomId: room.id,
+            letter: gameResult.room.currentLetter,
+            round: gameResult.room.currentRound,
+            totalRounds: gameResult.room.totalRounds,
+            players: gameResult.room.players.map((p) => ({ id: p.id, name: p.name, skin: p.skin })),
+          };
+
+          io.to(room.id).emit("matchFound", gameData);
+
+          console.log(`[findMatch] Room ${room.id}: matchFound emitted, letter=${gameData.letter}`);
+
+          // 51-second server-side timer
+          gameResult.room.timer = setTimeout(() => {
+            const results = calculateRoundScores(room.id);
+            const updatedRoom = getRoom(room.id);
+            if (!updatedRoom) return;
+            io.to(room.id).emit("round_results", {
+              results,
+              round: updatedRoom.currentRound,
+              totalRounds: updatedRoom.totalRounds,
+              players: updatedRoom.players.map((p) => ({ id: p.id, name: p.name, score: p.score })),
+            });
+          }, 51000);
+        }
+      }
+    );
+
+    // cancelMatch: remove from queue (e.g. user pressed back)
+    socket.on("cancelMatch", () => {
+      matchmakingQueue = matchmakingQueue.filter((p) => p.id !== socket.id);
+      console.log(`[cancelMatch] Socket ${socket.id} removed from queue. Queue: ${matchmakingQueue.length}`);
+    });
+    // ────────────────────────────────────────────────────────────────────
+
     // Disconnect
     socket.on("disconnect", () => {
       console.log("Socket disconnected:", socket.id);
+
+      // Remove from matchmaking queue
+      matchmakingQueue = matchmakingQueue.filter((p) => p.id !== socket.id);
 
       // Clean up from socketRoomMap first
       const trackedRoomId = socketRoomMap.get(socket.id);

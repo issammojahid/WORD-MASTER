@@ -67,7 +67,7 @@ export default function LobbyScreen() {
 
     const handleConnect = () => {
       setSocketId(socket.id || null);
-      // If we were in a room before reconnecting, rejoin it to avoid duplicate socket entries
+      // If we were in a room before reconnecting, rejoin it
       const currentRoomId = roomIdRef.current;
       if (currentRoomId) {
         socket.emit(
@@ -77,7 +77,6 @@ export default function LobbyScreen() {
             if (res.success && res.room) {
               setRoom(res.room);
             } else {
-              // Room no longer exists; reset to select screen
               roomIdRef.current = null;
               setRoom(null);
               setTab("select");
@@ -89,6 +88,7 @@ export default function LobbyScreen() {
 
     const handleRoomUpdated = (roomData: RoomData) => setRoom(roomData);
 
+    // Legacy: manual room start
     const handleGameStarted = (data: { letter: string; round: number; totalRounds: number }) => {
       const currentRoomId = roomIdRef.current;
       if (!currentRoomId) return;
@@ -103,14 +103,36 @@ export default function LobbyScreen() {
       });
     };
 
+    // New matchmaking: navigate straight to game when match is found
+    const handleMatchFound = (data: {
+      roomId: string;
+      letter: string;
+      round: number;
+      totalRounds: number;
+    }) => {
+      actionInProgressRef.current = false;
+      roomIdRef.current = data.roomId;
+      router.replace({
+        pathname: "/game",
+        params: {
+          roomId: data.roomId,
+          letter: data.letter,
+          round: String(data.round),
+          totalRounds: String(data.totalRounds),
+        },
+      });
+    };
+
     socket.on("connect", handleConnect);
     socket.on("room_updated", handleRoomUpdated);
     socket.on("game_started", handleGameStarted);
+    socket.on("matchFound", handleMatchFound);
 
     return () => {
       socket.off("connect", handleConnect);
       socket.off("room_updated", handleRoomUpdated);
       socket.off("game_started", handleGameStarted);
+      socket.off("matchFound", handleMatchFound);
     };
   }, []);
 
@@ -189,30 +211,19 @@ export default function LobbyScreen() {
     if (actionInProgressRef.current) return;
     actionInProgressRef.current = true;
     setTab("matchmaking");
-    setMatchmakingStatus("جاري البحث عن غرفة متاحة...");
+    setMatchmakingStatus("جاري البحث عن لاعب...");
     setLoading(true);
     const socket = getSocket();
-    socket.emit(
-      "quick_match",
-      { playerName: profile.name, playerSkin: profile.equippedSkin },
-      (res: { success: boolean; roomId?: string; room?: RoomData; created?: boolean; error?: string }) => {
-        actionInProgressRef.current = false;
-        setLoading(false);
-        if (res.success && res.roomId && res.room) {
-          roomIdRef.current = res.roomId;
-          setRoom(res.room);
-          if (res.created) {
-            setMatchmakingStatus("تم إنشاء غرفة جديدة! في انتظار لاعبين آخرين...");
-          } else {
-            setMatchmakingStatus("تم العثور على غرفة! في انتظار بدء اللعبة...");
-          }
-          setTab("waiting");
-        } else {
-          setTab("select");
-          setError(res.error || t.connectionError);
-        }
-      }
-    );
+    // New queue-based matchmaking: emit once, wait for matchFound event
+    socket.emit("findMatch", { playerName: profile.name, playerSkin: profile.equippedSkin });
+  };
+
+  const handleCancelMatchmaking = () => {
+    const socket = getSocket();
+    socket.emit("cancelMatch");
+    actionInProgressRef.current = false;
+    setTab("select");
+    setLoading(false);
   };
 
   const handleStartGame = () => {
@@ -333,7 +344,7 @@ export default function LobbyScreen() {
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => { setTab("select"); setLoading(false); }}>
+          <TouchableOpacity style={styles.backBtn} onPress={handleCancelMatchmaking}>
             <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>المباراة السريعة</Text>
@@ -345,7 +356,7 @@ export default function LobbyScreen() {
           </View>
           <Text style={styles.matchmakingTitle}>جاري البحث...</Text>
           <Text style={styles.matchmakingStatus}>{matchmakingStatus}</Text>
-          <TouchableOpacity style={styles.cancelBtn} onPress={() => { setTab("select"); setLoading(false); }}>
+          <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelMatchmaking}>
             <Text style={styles.cancelBtnText}>{t.cancel}</Text>
           </TouchableOpacity>
         </View>
