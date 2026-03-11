@@ -21,6 +21,26 @@ const socketRoomMap = new Map<string, string>();
 
 const MIN_PLAYERS = 2;
 
+// Countdown then emit game_started — used by both join_room and findMatch flows
+function emitCountdownThenStart(
+  io: SocketIOServer,
+  roomId: string,
+  players: { id: string; name: string; skin: string }[],
+  onStart: () => void
+) {
+  let count = 3;
+  io.to(roomId).emit("countdown", { count, players });
+  const tick = setInterval(() => {
+    count--;
+    if (count <= 0) {
+      clearInterval(tick);
+      onStart();
+    } else {
+      io.to(roomId).emit("countdown", { count, players });
+    }
+  }, 1000);
+}
+
 // Global matchmaking queue
 type QueueEntry = { id: string; name: string; skin: string };
 let matchmakingQueue: QueueEntry[] = [];
@@ -146,16 +166,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Auto-start when MIN_PLAYERS unique real players are in the room
           if (result.room.players.length >= MIN_PLAYERS && result.room.state === "waiting") {
-            const gameResult = startGame(data.roomId);
-            if (gameResult.success && gameResult.room) {
-              console.log(`[join_room] Auto-starting game in room ${data.roomId} with ${gameResult.room.players.length} players`);
+            const players = result.room.players.map((p) => ({ id: p.id, name: p.name, skin: p.skin }));
+            console.log(`[join_room] Countdown starting for room ${data.roomId}`);
+            emitCountdownThenStart(io, data.roomId, players, () => {
+              const gameResult = startGame(data.roomId);
+              if (!gameResult.success || !gameResult.room) return;
+              console.log(`[join_room] Game started in room ${data.roomId}`);
               io.to(data.roomId).emit("game_started", {
                 letter: gameResult.room.currentLetter,
                 round: gameResult.room.currentRound,
                 totalRounds: gameResult.room.totalRounds,
               });
-
-              // 51-second server-side timer
               gameResult.room.timer = setTimeout(() => {
                 const results = calculateRoundScores(data.roomId);
                 const updatedRoom = getRoom(data.roomId);
@@ -167,7 +188,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   players: updatedRoom.players.map((p) => ({ id: p.id, name: p.name, score: p.score })),
                 });
               }, 51000);
-            }
+            });
           }
         } catch (e) {
           cb({ success: false, error: "server_error" });
@@ -273,6 +294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 name: p.name,
                 score: p.score,
                 coins: p.coins,
+                skin: p.skin,
               })),
             });
             cb?.({ isGameOver: true });
@@ -436,37 +458,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
 
-          // Start the game immediately
-          const gameResult = startGame(room.id);
-          if (!gameResult.success || !gameResult.room) {
-            console.error(`[findMatch] startGame failed for room ${room.id}`);
-            return;
-          }
-
-          const gameData = {
-            roomId: room.id,
-            letter: gameResult.room.currentLetter,
-            round: gameResult.room.currentRound,
-            totalRounds: gameResult.room.totalRounds,
-            players: gameResult.room.players.map((p) => ({ id: p.id, name: p.name, skin: p.skin })),
-          };
-
-          io.to(room.id).emit("matchFound", gameData);
-
-          console.log(`[findMatch] Room ${room.id}: matchFound emitted, letter=${gameData.letter}`);
-
-          // 51-second server-side timer
-          gameResult.room.timer = setTimeout(() => {
-            const results = calculateRoundScores(room.id);
-            const updatedRoom = getRoom(room.id);
-            if (!updatedRoom) return;
-            io.to(room.id).emit("round_results", {
-              results,
-              round: updatedRoom.currentRound,
-              totalRounds: updatedRoom.totalRounds,
-              players: updatedRoom.players.map((p) => ({ id: p.id, name: p.name, score: p.score })),
-            });
-          }, 51000);
+          // Countdown then start
+          const roomPlayers = room.players.map((p) => ({ id: p.id, name: p.name, skin: p.skin }));
+          console.log(`[findMatch] Countdown starting for room ${room.id}`);
+          emitCountdownThenStart(io, room.id, roomPlayers, () => {
+            const gameResult = startGame(room.id);
+            if (!gameResult.success || !gameResult.room) {
+              console.error(`[findMatch] startGame failed for room ${room.id}`);
+              return;
+            }
+            const gameData = {
+              roomId: room.id,
+              letter: gameResult.room.currentLetter,
+              round: gameResult.room.currentRound,
+              totalRounds: gameResult.room.totalRounds,
+              players: gameResult.room.players.map((p) => ({ id: p.id, name: p.name, skin: p.skin })),
+            };
+            io.to(room.id).emit("matchFound", gameData);
+            console.log(`[findMatch] Room ${room.id}: matchFound emitted, letter=${gameData.letter}`);
+            gameResult.room.timer = setTimeout(() => {
+              const results = calculateRoundScores(room.id);
+              const updatedRoom = getRoom(room.id);
+              if (!updatedRoom) return;
+              io.to(room.id).emit("round_results", {
+                results,
+                round: updatedRoom.currentRound,
+                totalRounds: updatedRoom.totalRounds,
+                players: updatedRoom.players.map((p) => ({ id: p.id, name: p.name, score: p.score })),
+              });
+            }, 51000);
+          });
         }
       }
     );

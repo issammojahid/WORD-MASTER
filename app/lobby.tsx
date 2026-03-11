@@ -50,6 +50,8 @@ export default function LobbyScreen() {
   const [error, setError] = useState<string | null>(null);
   const [socketId, setSocketId] = useState<string | null>(null);
   const [matchmakingStatus, setMatchmakingStatus] = useState("جاري البحث عن لاعبين...");
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [countdownPlayers, setCountdownPlayers] = useState<{ id: string; name: string; skin: string }[]>([]);
 
   // Store roomId in a ref so game_started handler never has stale closure
   const roomIdRef = useRef<string | null>(null);
@@ -123,16 +125,23 @@ export default function LobbyScreen() {
       });
     };
 
+    const handleCountdown = (data: { count: number; players?: { id: string; name: string; skin: string }[] }) => {
+      setCountdown(data.count);
+      if (data.players) setCountdownPlayers(data.players);
+    };
+
     socket.on("connect", handleConnect);
     socket.on("room_updated", handleRoomUpdated);
     socket.on("game_started", handleGameStarted);
     socket.on("matchFound", handleMatchFound);
+    socket.on("countdown", handleCountdown);
 
     return () => {
       socket.off("connect", handleConnect);
       socket.off("room_updated", handleRoomUpdated);
       socket.off("game_started", handleGameStarted);
       socket.off("matchFound", handleMatchFound);
+      socket.off("countdown", handleCountdown);
     };
   }, []);
 
@@ -255,6 +264,42 @@ export default function LobbyScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Alert.alert(t.roomCode, room.id);
   };
+
+  // Countdown overlay — shown when game is about to start
+  if (countdown !== null) {
+    const countColors: Record<number, string> = { 3: Colors.emerald, 2: Colors.gold, 1: Colors.ruby };
+    const color = countColors[countdown] || Colors.gold;
+    return (
+      <View style={[styles.container, styles.countdownContainer, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+        {/* Players vs */}
+        {countdownPlayers.length >= 2 && (
+          <View style={styles.vsRow}>
+            {countdownPlayers.map((p, idx) => {
+              const skin = SKINS.find((s) => s.id === p.skin) || SKINS[0];
+              const isMe = p.id === socketId;
+              return (
+                <React.Fragment key={p.id}>
+                  {idx === 1 && <Text style={styles.vsText}>VS</Text>}
+                  <View style={styles.vsPlayer}>
+                    <View style={[styles.vsAvatar, { backgroundColor: skin.color + "33" }]}>
+                      <Text style={styles.vsEmoji}>{skin.emoji}</Text>
+                    </View>
+                    <Text style={[styles.vsName, isMe && { color: Colors.gold }]}>{p.name}{isMe ? " (أنت)" : ""}</Text>
+                  </View>
+                </React.Fragment>
+              );
+            })}
+          </View>
+        )}
+
+        <Text style={styles.countdownLabel}>اللعبة تبدأ في</Text>
+        <View style={[styles.countdownCircle, { borderColor: color }]}>
+          <Text style={[styles.countdownNumber, { color }]}>{countdown}</Text>
+        </View>
+        <Text style={styles.countdownSub}>استعد!</Text>
+      </View>
+    );
+  }
 
   // Waiting room screen
   if (tab === "waiting" && room) {
@@ -552,6 +597,17 @@ const styles = StyleSheet.create({
   errorText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.ruby, textAlign: "center" },
   backLinkBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 8 },
   backLinkText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textMuted },
+  countdownContainer: { flex: 1, alignItems: "center", justifyContent: "center", gap: 24 },
+  countdownLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 18, color: Colors.textSecondary },
+  countdownCircle: { width: 140, height: 140, borderRadius: 70, borderWidth: 4, justifyContent: "center", alignItems: "center", backgroundColor: Colors.card },
+  countdownNumber: { fontFamily: "Cairo_700Bold", fontSize: 72, lineHeight: 80 },
+  countdownSub: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary },
+  vsRow: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 8 },
+  vsPlayer: { alignItems: "center", gap: 8 },
+  vsAvatar: { width: 72, height: 72, borderRadius: 36, justifyContent: "center", alignItems: "center" },
+  vsEmoji: { fontSize: 36 },
+  vsName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "center", maxWidth: 100 },
+  vsText: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.ruby },
   roomCodeCard: { backgroundColor: Colors.card, borderRadius: 20, padding: 20, alignItems: "center", marginHorizontal: 16, marginBottom: 20, borderWidth: 2, borderColor: Colors.gold + "40" },
   roomCodeLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginBottom: 8 },
   roomCodeBig: { fontFamily: "Cairo_700Bold", fontSize: 48, color: Colors.gold, letterSpacing: 12, marginBottom: 4 },

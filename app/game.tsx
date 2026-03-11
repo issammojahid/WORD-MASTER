@@ -16,7 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { usePlayer } from "@/contexts/PlayerContext";
+import { usePlayer, SKINS } from "@/contexts/PlayerContext";
 import Colors from "@/constants/colors";
 import { getSocket } from "@/services/socket";
 import { GAME_CATEGORIES, GameCategory } from "@/constants/i18n";
@@ -59,7 +59,7 @@ export default function GameScreen() {
   const [gamePlayers, setGamePlayers] = useState<{ id: string; name: string; score: number }[]>([]);
   const [isGameOver, setIsGameOver] = useState(false);
   const [gameOverPlayers, setGameOverPlayers] = useState<
-    { id: string; name: string; score: number; coins: number }[]
+    { id: string; name: string; score: number; coins: number; skin: string }[]
   >([]);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -223,36 +223,78 @@ export default function GameScreen() {
     timeLeft > 15 ? Colors.timerGreen : timeLeft > 8 ? Colors.timerYellow : Colors.timerRed;
   const timerProgress = timeLeft / ROUND_TIME;
 
-  // Game over screen
+  // Game over screen — podium + medals
   if (isGameOver) {
     const sortedPlayers = [...gameOverPlayers].sort((a, b) => b.score - a.score);
+    const medals = ["🥇", "🥈", "🥉"];
+    const myIdx = sortedPlayers.findIndex((p) => p.id === socketId);
+    const amWinner = myIdx === 0;
+    const podiumPlayers = sortedPlayers.slice(0, 3);
+    const podiumOrder = [1, 0, 2]; // visual podium order: 2nd, 1st, 3rd
+    const podiumHeights = [90, 130, 70];
 
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
         <ScrollView contentContainerStyle={styles.gameOverContent} showsVerticalScrollIndicator={false}>
-          <Text style={styles.gameOverTitle}>{t.gameOver}</Text>
-          <View style={styles.trophyCircle}>
-            <Ionicons name="trophy" size={56} color={Colors.gold} />
-          </View>
 
-          {sortedPlayers[0] && (
-            <View style={styles.winnerCard}>
-              <Text style={styles.winnerLabel}>{t.winner}</Text>
-              <Text style={styles.winnerName}>{sortedPlayers[0].name}</Text>
-              <Text style={styles.winnerScore}>{sortedPlayers[0].score} {t.points}</Text>
+          {/* Header */}
+          <Text style={styles.gameOverTitle}>{t.gameOver}</Text>
+          {amWinner ? (
+            <Text style={styles.gameOverSub}>🏆 أنت الفائز!</Text>
+          ) : myIdx === 1 ? (
+            <Text style={styles.gameOverSub}>🥈 المركز الثاني — أحسنت!</Text>
+          ) : myIdx === 2 ? (
+            <Text style={styles.gameOverSub}>🥉 المركز الثالث — لا بأس!</Text>
+          ) : (
+            <Text style={styles.gameOverSub}>حاول مرة أخرى!</Text>
+          )}
+
+          {/* Podium visual */}
+          {podiumPlayers.length >= 2 && (
+            <View style={styles.podiumRow}>
+              {podiumOrder.map((pIdx) => {
+                const p = podiumPlayers[pIdx];
+                if (!p) return null;
+                const isMe = p.id === socketId;
+                const skin = SKINS.find((s) => s.id === p.skin) || SKINS[0];
+                const h = podiumHeights[pIdx];
+                const isFirst = pIdx === 0;
+                return (
+                  <View key={p.id} style={styles.podiumSlot}>
+                    <Text style={styles.podiumMedal}>{medals[pIdx] || "🎖️"}</Text>
+                    <View style={[styles.podiumAvatar, isFirst && styles.podiumAvatarFirst, { backgroundColor: skin.color + "33" }]}>
+                      <Text style={[styles.podiumEmoji, isFirst && styles.podiumEmojiFirst]}>{skin.emoji}</Text>
+                    </View>
+                    <Text style={[styles.podiumName, isMe && { color: Colors.gold }]} numberOfLines={1}>
+                      {p.name}
+                    </Text>
+                    <Text style={styles.podiumScore}>{p.score}</Text>
+                    <View style={[styles.podiumBase, { height: h }, isFirst && styles.podiumBaseFirst]}>
+                      <Text style={styles.podiumRank}>{pIdx + 1}</Text>
+                    </View>
+                  </View>
+                );
+              })}
             </View>
           )}
 
+          {/* Full rankings list */}
           <View style={styles.finalRankings}>
             {sortedPlayers.map((p, idx) => {
               const isMe = p.id === socketId;
               const rankColors = [Colors.rank1, Colors.rank2, Colors.rank3];
+              const skin = SKINS.find((s) => s.id === p.skin) || SKINS[0];
               return (
                 <View key={p.id} style={[styles.finalRankRow, isMe && styles.finalRankRowMe]}>
                   <Text style={[styles.finalRankNum, { color: rankColors[idx] || Colors.textMuted }]}>
-                    {idx + 1}
+                    {medals[idx] || `${idx + 1}`}
                   </Text>
-                  <Text style={styles.finalRankName}>{p.name}{isMe ? " ★" : ""}</Text>
+                  <View style={[styles.finalRankAvatar, { backgroundColor: skin.color + "22" }]}>
+                    <Text style={styles.finalRankEmoji}>{skin.emoji}</Text>
+                  </View>
+                  <Text style={[styles.finalRankName, isMe && { color: Colors.gold }]} numberOfLines={1}>
+                    {p.name}{isMe ? " (أنت)" : ""}
+                  </Text>
                   <View style={styles.finalRankRight}>
                     <Text style={styles.finalRankScore}>{p.score}</Text>
                     <View style={styles.coinRewardBadge}>
@@ -265,7 +307,9 @@ export default function GameScreen() {
             })}
           </View>
 
+          {/* Buttons */}
           <TouchableOpacity style={styles.playAgainBtn} onPress={handlePlayAgain}>
+            <Ionicons name="refresh" size={18} color={Colors.background} style={{ marginRight: 8 }} />
             <Text style={styles.playAgainBtnText}>{t.playAgain}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.homeBtn} onPress={() => router.replace("/")}>
@@ -603,7 +647,8 @@ const styles = StyleSheet.create({
   },
   waitingNextRoundText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
   gameOverContent: { padding: 20, alignItems: "center", paddingBottom: 40 },
-  gameOverTitle: { fontFamily: "Cairo_700Bold", fontSize: 32, color: Colors.textPrimary, textAlign: "center", marginBottom: 20 },
+  gameOverTitle: { fontFamily: "Cairo_700Bold", fontSize: 28, color: Colors.textPrimary, textAlign: "center", marginBottom: 6 },
+  gameOverSub: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: Colors.textSecondary, textAlign: "center", marginBottom: 20 },
   trophyCircle: {
     width: 100,
     height: 100,
@@ -628,11 +673,25 @@ const styles = StyleSheet.create({
   winnerLabel: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, marginBottom: 4 },
   winnerName: { fontFamily: "Cairo_700Bold", fontSize: 24, color: Colors.gold, marginBottom: 4 },
   winnerScore: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: Colors.textSecondary },
+  podiumRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center", gap: 8, width: "100%", marginBottom: 24 },
+  podiumSlot: { alignItems: "center", flex: 1 },
+  podiumMedal: { fontSize: 24, marginBottom: 4 },
+  podiumAvatar: { width: 52, height: 52, borderRadius: 26, justifyContent: "center", alignItems: "center", marginBottom: 4 },
+  podiumAvatarFirst: { width: 64, height: 64, borderRadius: 32 },
+  podiumEmoji: { fontSize: 26 },
+  podiumEmojiFirst: { fontSize: 32 },
+  podiumName: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textPrimary, textAlign: "center", marginBottom: 2 },
+  podiumScore: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textSecondary, marginBottom: 4 },
+  podiumBase: { width: "100%", borderTopLeftRadius: 8, borderTopRightRadius: 8, justifyContent: "center", alignItems: "center", backgroundColor: Colors.cardBorder },
+  podiumBaseFirst: { backgroundColor: Colors.gold + "60" },
+  podiumRank: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary },
   finalRankings: { width: "100%", gap: 10, marginBottom: 24 },
-  finalRankRow: { backgroundColor: Colors.card, borderRadius: 14, padding: 14, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: Colors.cardBorder },
-  finalRankRowMe: { borderColor: Colors.gold + "60" },
-  finalRankNum: { fontFamily: "Cairo_700Bold", fontSize: 20, width: 36, textAlign: "center" },
-  finalRankName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary, paddingHorizontal: 10 },
+  finalRankRow: { backgroundColor: Colors.card, borderRadius: 14, padding: 12, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: Colors.cardBorder, gap: 10 },
+  finalRankRowMe: { borderColor: Colors.gold + "60", backgroundColor: Colors.gold + "08" },
+  finalRankNum: { fontFamily: "Cairo_700Bold", fontSize: 20, width: 32, textAlign: "center" },
+  finalRankAvatar: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
+  finalRankEmoji: { fontSize: 18 },
+  finalRankName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
   finalRankRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   finalRankScore: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
   coinRewardBadge: {
@@ -656,6 +715,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   playAgainBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.black },
   homeBtn: { backgroundColor: Colors.card, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 40, borderWidth: 1, borderColor: Colors.cardBorder },
