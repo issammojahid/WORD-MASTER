@@ -184,22 +184,13 @@ export default function HomeScreen() {
           <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
             <TouchableOpacity
               style={[styles.primaryBtn]}
-              onPress={() => handleButton(() => router.push("/lobby"))}
+              onPress={() => handleButton(() => router.push("/offline"))}
               activeOpacity={0.85}
             >
-              <Ionicons name="wifi" size={22} color={Colors.black} style={{ marginRight: 8 }} />
-              <Text style={styles.primaryBtnText}>{t.playOnline}</Text>
+              <Ionicons name="play" size={22} color={Colors.black} style={{ marginRight: 8 }} />
+              <Text style={styles.primaryBtnText}>{t.playOffline}</Text>
             </TouchableOpacity>
           </Animated.View>
-
-          <TouchableOpacity
-            style={styles.secondaryBtn}
-            onPress={() => handleButton(() => router.push("/offline"))}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="person" size={20} color={Colors.textPrimary} style={{ marginRight: 8 }} />
-            <Text style={styles.secondaryBtnText}>{t.playOffline}</Text>
-          </TouchableOpacity>
 
           <View style={styles.smallButtonsRow}>
             <TouchableOpacity
