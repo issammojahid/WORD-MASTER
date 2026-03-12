@@ -98,6 +98,15 @@ export default function HomeScreen() {
       onPress: handleQuickMatchPress,
     },
     {
+      id: "rapid",
+      title: "الوضع السريع",
+      subtitle: "أول كلمة صحيحة تربح! 5 جولات بـ10 ثوان",
+      icon: "timer",
+      iconColor: Colors.ruby,
+      bg: Colors.ruby + "18",
+      onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/rapid"); },
+    },
+    {
       id: "friends",
       title: "غرفة أصدقاء",
       subtitle: "أنشئ غرفة وادعو أصدقاءك",

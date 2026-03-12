@@ -15,6 +15,7 @@ import {
   type PlayerAnswers,
 } from "./gameLogic";
 import { validateWord, CATEGORY_MAP, type WordCategory } from "./wordDatabase";
+import { ARABIC_LETTERS } from "./gameLogic";
 import { db } from "./db";
 import { playerProfiles, dailySpins, winStreaks } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -23,6 +24,44 @@ import { eq } from "drizzle-orm";
 const socketRoomMap = new Map<string, string>();
 
 const MIN_PLAYERS = 2;
+
+// ── RAPID MODE ─────────────────────────────────────────────────────────
+const RAPID_CATEGORIES = ["girlName", "boyName", "animal", "fruit", "vegetable", "object", "city", "country"];
+const RAPID_ROUND_TIME = 10;
+const RAPID_TOTAL_ROUNDS = 5;
+const RAPID_COINS_WIN = 15;
+const RAPID_COINS_LOSE = 5;
+const RAPID_XP_WIN = 30;
+const RAPID_XP_LOSE = 10;
+
+type RapidQueueEntry = { id: string; name: string; skin: string; playerId?: string };
+let rapidQueue: RapidQueueEntry[] = [];
+
+type RapidRoom = {
+  id: string;
+  players: { socketId: string; name: string; skin: string; playerId?: string }[];
+  scores: Record<string, number>;
+  currentRound: number;
+  currentLetter: string;
+  currentCategory: string;
+  roundTimer: ReturnType<typeof setTimeout> | null;
+  roundWon: boolean;
+};
+
+const rapidRooms = new Map<string, RapidRoom>();
+
+function pickRapidLetter(usedLetters: string[] = []): string {
+  const available = ARABIC_LETTERS.filter((l) => !usedLetters.includes(l));
+  const pool = available.length > 0 ? available : ARABIC_LETTERS;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function pickRapidCategory(usedCategories: string[] = []): string {
+  const available = RAPID_CATEGORIES.filter((c) => !usedCategories.includes(c));
+  const pool = available.length > 0 ? available : RAPID_CATEGORIES;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+// ────────────────────────────────────────────────────────────────────────
 
 // Countdown then emit game_started — used by both join_room and findMatch flows
 function emitCountdownThenStart(
@@ -584,12 +623,148 @@ export async function registerRoutes(app: Express): Promise<Server> {
       socket.to(data.roomId).emit("voice_data", { audio: data.audio, from: socket.id, isSpeaking: data.isSpeaking });
     });
 
+    // ── RAPID MODE SOCKET EVENTS ────────────────────────────────────────
+    socket.on("rapid_join", (data: { playerName: string; playerSkin: string; playerId?: string }) => {
+      if (rapidQueue.find((p) => p.id === socket.id)) return;
+      const entry: RapidQueueEntry = { id: socket.id, name: data.playerName, skin: data.playerSkin, playerId: data.playerId };
+      rapidQueue.push(entry);
+      console.log(`[rapid_join] Queue: ${rapidQueue.length}`);
+
+      const matchIdx = rapidQueue.findIndex((p) => p.id !== socket.id);
+      if (matchIdx === -1) return;
+
+      const opponent = rapidQueue[matchIdx];
+      rapidQueue = rapidQueue.filter((p) => p.id !== socket.id && p.id !== opponent.id);
+
+      const roomId = "rapid_" + Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
+      const rapidRoom: RapidRoom = {
+        id: roomId,
+        players: [
+          { socketId: entry.id, name: entry.name, skin: entry.skin, playerId: entry.playerId },
+          { socketId: opponent.id, name: opponent.name, skin: opponent.skin, playerId: opponent.playerId },
+        ],
+        scores: { [entry.id]: 0, [opponent.id]: 0 },
+        currentRound: 0,
+        currentLetter: "",
+        currentCategory: "",
+        roundTimer: null,
+        roundWon: false,
+      };
+      rapidRooms.set(roomId, rapidRoom);
+
+      const s1 = io.sockets.sockets.get(entry.id);
+      const s2 = io.sockets.sockets.get(opponent.id);
+      if (s1) s1.join(roomId);
+      if (s2) s2.join(roomId);
+
+      io.to(entry.id).emit("rapid_matched", {
+        rapidRoomId: roomId,
+        opponent: { id: opponent.id, name: opponent.name, skin: opponent.skin },
+      });
+      io.to(opponent.id).emit("rapid_matched", {
+        rapidRoomId: roomId,
+        opponent: { id: entry.id, name: entry.name, skin: entry.skin },
+      });
+
+      console.log(`[rapid] Match: ${entry.name} vs ${opponent.name} in ${roomId}`);
+
+      setTimeout(() => startRapidRound(io, roomId), 3500);
+    });
+
+    socket.on("rapid_cancel", () => {
+      rapidQueue = rapidQueue.filter((p) => p.id !== socket.id);
+      console.log(`[rapid_cancel] Socket ${socket.id} removed from rapid queue`);
+    });
+
+    socket.on("rapid_word", (data: { rapidRoomId: string; word: string; category: string }) => {
+      const room = rapidRooms.get(data.rapidRoomId);
+      if (!room || room.roundWon) return;
+
+      if (!room.players.some((p) => p.socketId === socket.id)) return;
+
+      if (data.category !== room.currentCategory) {
+        socket.emit("rapid_word_result", { valid: false, reason: "wrong_category" });
+        return;
+      }
+
+      const dbCategory = CATEGORY_MAP[room.currentCategory] as WordCategory | undefined;
+      if (!dbCategory) {
+        socket.emit("rapid_word_result", { valid: false, reason: "unknown_category" });
+        return;
+      }
+      const validation = validateWord(data.word, dbCategory, room.currentLetter);
+      if (!validation.valid) {
+        socket.emit("rapid_word_result", { valid: false, reason: validation.reason });
+        return;
+      }
+
+      room.roundWon = true;
+      socket.emit("rapid_word_result", { valid: true });
+
+      room.scores[socket.id] = (room.scores[socket.id] || 0) + 1;
+
+      if (room.roundTimer) { clearTimeout(room.roundTimer); room.roundTimer = null; }
+
+      const resultData = {
+        round: room.currentRound,
+        winnerId: socket.id,
+        winnerName: room.players.find((p) => p.socketId === socket.id)?.name || "",
+        word: data.word,
+        category: data.category,
+        scores: { ...room.scores },
+        isDraw: false,
+      };
+      io.to(data.rapidRoomId).emit("rapid_round_result", resultData);
+      console.log(`[rapid] Round ${room.currentRound} won by ${resultData.winnerName} with "${data.word}" in ${data.rapidRoomId}`);
+
+      setTimeout(() => {
+        if (room.currentRound >= RAPID_TOTAL_ROUNDS) {
+          endRapidGame(io, data.rapidRoomId);
+        } else {
+          startRapidRound(io, data.rapidRoomId);
+        }
+      }, 2500);
+    });
+
+    socket.on("rapid_leave", (data: { rapidRoomId: string }) => {
+      const room = rapidRooms.get(data.rapidRoomId);
+      if (!room) return;
+      if (room.roundTimer) clearTimeout(room.roundTimer);
+
+      const remaining = room.players.find((p) => p.socketId !== socket.id);
+      if (remaining) {
+        room.scores[remaining.socketId] = RAPID_TOTAL_ROUNDS;
+        endRapidGame(io, data.rapidRoomId);
+      } else {
+        rapidRooms.delete(data.rapidRoomId);
+      }
+    });
+    // ────────────────────────────────────────────────────────────────────
+
     // Disconnect
     socket.on("disconnect", () => {
       console.log("Socket disconnected:", socket.id);
 
       // Remove from matchmaking queue
       matchmakingQueue = matchmakingQueue.filter((p) => p.id !== socket.id);
+
+      // Remove from rapid matchmaking queue
+      rapidQueue = rapidQueue.filter((p) => p.id !== socket.id);
+
+      // Handle rapid room disconnect
+      for (const [roomId, room] of rapidRooms) {
+        const isInRoom = room.players.some((p) => p.socketId === socket.id);
+        if (isInRoom) {
+          if (room.roundTimer) clearTimeout(room.roundTimer);
+          const remaining = room.players.find((p) => p.socketId !== socket.id);
+          if (remaining) {
+            room.scores[remaining.socketId] = RAPID_TOTAL_ROUNDS;
+            endRapidGame(io, roomId);
+          } else {
+            rapidRooms.delete(roomId);
+          }
+        }
+      }
 
       // Clean up from socketRoomMap first
       const trackedRoomId = socketRoomMap.get(socket.id);
@@ -616,6 +791,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
   });
+
+  // ── RAPID MODE HELPERS ────────────────────────────────────────────────
+  function startRapidRound(ioRef: SocketIOServer, roomId: string) {
+    const room = rapidRooms.get(roomId);
+    if (!room) return;
+
+    room.currentRound += 1;
+    room.currentLetter = pickRapidLetter();
+    room.currentCategory = pickRapidCategory();
+    room.roundWon = false;
+
+    ioRef.to(roomId).emit("rapid_round_start", {
+      round: room.currentRound,
+      letter: room.currentLetter,
+      category: room.currentCategory,
+      timeLimit: RAPID_ROUND_TIME,
+    });
+    console.log(`[rapid] Round ${room.currentRound} started in ${roomId}: letter=${room.currentLetter}, category=${room.currentCategory}`);
+
+    room.roundTimer = setTimeout(() => {
+      if (room.roundWon) return;
+      room.roundWon = true;
+      const resultData = {
+        round: room.currentRound,
+        winnerId: null,
+        winnerName: "",
+        word: "",
+        category: room.currentCategory,
+        scores: { ...room.scores },
+        isDraw: true,
+      };
+      ioRef.to(roomId).emit("rapid_round_result", resultData);
+      console.log(`[rapid] Round ${room.currentRound} timeout (draw) in ${roomId}`);
+
+      setTimeout(() => {
+        if (room.currentRound >= RAPID_TOTAL_ROUNDS) {
+          endRapidGame(ioRef, roomId);
+        } else {
+          startRapidRound(ioRef, roomId);
+        }
+      }, 2500);
+    }, RAPID_ROUND_TIME * 1000);
+  }
+
+  function endRapidGame(ioRef: SocketIOServer, roomId: string) {
+    const room = rapidRooms.get(roomId);
+    if (!room) return;
+    if (room.roundTimer) { clearTimeout(room.roundTimer); room.roundTimer = null; }
+
+    const scores = room.scores;
+    const playerIds = Object.keys(scores);
+    let winnerId: string | null = null;
+    if (playerIds.length === 2) {
+      if (scores[playerIds[0]] > scores[playerIds[1]]) winnerId = playerIds[0];
+      else if (scores[playerIds[1]] > scores[playerIds[0]]) winnerId = playerIds[1];
+    }
+
+    ioRef.to(roomId).emit("rapid_game_over", {
+      winnerId,
+      scores: { ...scores },
+      coinsEarned: RAPID_COINS_WIN,
+      xpEarned: RAPID_XP_WIN,
+    });
+    console.log(`[rapid] Game over in ${roomId}: winner=${winnerId || "draw"}`);
+    rapidRooms.delete(roomId);
+  }
+  // ────────────────────────────────────────────────────────────────────────
 
   // REST API routes
   app.get("/api/room/:id", (req, res) => {
