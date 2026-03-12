@@ -547,33 +547,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           cb({ success: true, room: sanitizeRoom(result.room) });
           io.to(data.roomId).emit("room_updated", sanitizeRoom(result.room));
           io.to(data.roomId).emit("player_joined", { playerName: data.playerName });
-
-          // Auto-start when MIN_PLAYERS unique real players are in the room
-          if (result.room.players.length >= MIN_PLAYERS && result.room.state === "waiting") {
-            const players = result.room.players.map((p) => ({ id: p.id, name: p.name, skin: p.skin }));
-            console.log(`[join_room] Countdown starting for room ${data.roomId}`);
-            emitCountdownThenStart(io, data.roomId, players, () => {
-              const gameResult = startGame(data.roomId);
-              if (!gameResult.success || !gameResult.room) return;
-              console.log(`[join_room] Game started in room ${data.roomId}`);
-              io.to(data.roomId).emit("game_started", {
-                letter: gameResult.room.currentLetter,
-                round: gameResult.room.currentRound,
-                totalRounds: gameResult.room.totalRounds,
-              });
-              gameResult.room.timer = setTimeout(() => {
-                const results = calculateRoundScores(data.roomId);
-                const updatedRoom = getRoom(data.roomId);
-                if (!updatedRoom) return;
-                io.to(data.roomId).emit("round_results", {
-                  results,
-                  round: updatedRoom.currentRound,
-                  totalRounds: updatedRoom.totalRounds,
-                  players: updatedRoom.players.map((p) => ({ id: p.id, name: p.name, score: p.score })),
-                });
-              }, 51000);
-            });
-          }
         } catch (e) {
           cb({ success: false, error: "server_error" });
         }
