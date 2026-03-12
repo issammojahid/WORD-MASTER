@@ -187,7 +187,11 @@ export default function GameScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     });
 
-    socket.on("game_over", (data: { players: { id: string; name: string; score: number; coins: number; skin?: string }[] }) => {
+    socket.on("game_over", (data: {
+      players: { id: string; name: string; score: number; coins: number; skin?: string }[];
+      tournamentId?: string | null;
+      tournamentMatchId?: string | null;
+    }) => {
       stopTimer();
       setIsGameOver(true);
       setGameOverPlayers(data.players.map((p) => ({ ...p, skin: p.skin || "default" })));
@@ -209,6 +213,16 @@ export default function GameScreen() {
             totalScore: profile.totalScore + me.score,
           });
         });
+
+        if (data.tournamentId && data.tournamentMatchId && won) {
+          socket.emit("tournament_match_result", {
+            tournamentId: data.tournamentId,
+            matchId: data.tournamentMatchId,
+            winnerId: profile.id,
+            winnerName: sorted[0].name,
+            roomId,
+          });
+        }
       }
     });
 

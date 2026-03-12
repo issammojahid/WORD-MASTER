@@ -659,6 +659,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const { isGameOver, room } = nextRound(data.roomId);
           if (isGameOver && room) {
+            const tournamentInfo = roomTournamentMap.get(data.roomId);
             io.to(data.roomId).emit("game_over", {
               players: room.players.map((p) => ({
                 id: p.id,
@@ -667,22 +668,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 coins: p.coins,
                 skin: p.skin,
               })),
+              tournamentId: tournamentInfo?.tournamentId || null,
+              tournamentMatchId: tournamentInfo?.matchId || null,
             });
-
-            const tournamentInfo = roomTournamentMap.get(data.roomId);
-            if (tournamentInfo) {
-              const sorted = [...room.players].sort((a, b) => b.score - a.score);
-              const winner = sorted[0];
-              if (winner) {
-                const active = activeTournaments.get(tournamentInfo.tournamentId);
-                if (active) {
-                  const winnerPlayer = active.players.find(p => p.socketId === winner.id);
-                  const winnerId = winnerPlayer?.playerId || winner.id;
-                  handleTournamentMatchResult(io, tournamentInfo.tournamentId, tournamentInfo.matchId, winnerId, winner.name);
-                }
-              }
-              roomTournamentMap.delete(data.roomId);
-            }
 
             cb?.({ isGameOver: true });
           } else if (room) {
@@ -944,6 +932,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const player = active.players.find(p => p.playerId === data.playerId);
           if (player) player.socketId = socket.id;
         }
+      }
+    });
+
+    socket.on("tournament_match_result", async (data: {
+      tournamentId: string;
+      matchId: string;
+      winnerId: string;
+      winnerName: string;
+      roomId: string;
+    }) => {
+      try {
+        const active = activeTournaments.get(data.tournamentId);
+        if (!active) return;
+        const match = active.matches.find(m => m.id === data.matchId);
+        if (!match || match.status === "completed") return;
+        if (data.winnerId !== match.player1Id && data.winnerId !== match.player2Id) return;
+        await handleTournamentMatchResult(io, data.tournamentId, data.matchId, data.winnerId, data.winnerName);
+        roomTournamentMap.delete(data.roomId);
+      } catch (e) {
+        console.error("tournament_match_result error:", e);
       }
     });
 

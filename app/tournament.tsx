@@ -121,16 +121,34 @@ export default function TournamentScreen() {
   useEffect(() => {
     const socket = getSocket();
 
-    const handleMatchFound = (data: { roomId: string; tournamentId?: string; tournamentRound?: string }) => {
+    const handleMatchFound = (data: {
+      roomId: string;
+      letter: string;
+      round: number;
+      totalRounds: number;
+      tournamentId?: string;
+      tournamentRound?: string;
+    }) => {
       if (data.tournamentId) {
         router.replace({
-          pathname: "/lobby",
-          params: { coinEntry: "0" },
+          pathname: "/game",
+          params: {
+            roomId: data.roomId,
+            letter: data.letter,
+            round: String(data.round),
+            totalRounds: String(data.totalRounds),
+            coinEntry: "0",
+          },
         });
       }
     };
 
     socket.on("matchFound", handleMatchFound);
+
+    const handleCountdown = (data: { count: number }) => {
+      setActiveTournament(prev => prev ? { ...prev, status: `match_starting_${data.count}` } : prev);
+    };
+    socket.on("countdown", handleCountdown);
 
     const handleTournamentUpdate = (data: {
       tournamentId: string;
@@ -172,6 +190,7 @@ export default function TournamentScreen() {
 
     return () => {
       socket.off("matchFound", handleMatchFound);
+      socket.off("countdown", handleCountdown);
       socket.off("tournament_update", handleTournamentUpdate);
       socket.off("tournament_player_joined", handlePlayerJoined);
       socket.off("tournament_started", handleTournamentStarted);
