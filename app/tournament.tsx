@@ -20,6 +20,25 @@ import Colors from "@/constants/colors";
 import { getApiUrl, apiRequest } from "@/lib/query-client";
 import { getSocket } from "@/services/socket";
 
+// ─── Bracket layout constants ────────────────────────────────────────────────
+const BK_MATCH_H = 62;
+const BK_MATCH_W = 112;
+const BK_QF_GAP = 46;
+const BK_LABEL_H = 26;
+const BK_CONN_W = 20;
+const BK_COL_H = BK_MATCH_H * 2 + BK_QF_GAP;      // 170
+const BK_SEC_H = BK_LABEL_H + BK_COL_H;            // 196
+const BK_QF0_CY = BK_LABEL_H + BK_MATCH_H / 2;     // 57
+const BK_QF1_CY = BK_LABEL_H + BK_MATCH_H + BK_QF_GAP + BK_MATCH_H / 2; // 165
+const BK_CONN_TOP = BK_QF0_CY;                      // 57
+const BK_CONN_H = BK_QF1_CY - BK_QF0_CY;           // 108
+const BK_SF_CY = BK_LABEL_H + BK_COL_H / 2;        // 111  (must == connector center)
+const BK_CENTER_LINE_MT = BK_SF_CY - 1;             // 110
+
+const BK_LINE = Colors.gold;
+const BK_LINE_OP = 0.8;
+// ─────────────────────────────────────────────────────────────────────────────
+
 const ROUND_LABELS: Record<string, string> = {
   quarter: "ربع النهائي",
   semi: "نصف النهائي",
@@ -273,18 +292,15 @@ export default function TournamentScreen() {
     fetchTournamentDetail(id);
   };
 
-  const getMatchesForRound = (round: string) => {
-    if (!activeTournament) return [];
-    return activeTournament.matches.filter(m => m.roundName === round);
-  };
-
-  const isMyMatch = (match: TournamentMatch) => {
-    return match.player1Id === playerId || match.player2Id === playerId;
-  };
-
   const amInTournament = activeTournament?.players.some(p => p.playerId === playerId) || false;
 
+  // ─── Detail View ────────────────────────────────────────────────────────────
   if (viewMode === "detail" && activeTournament) {
+    const isOpen = activeTournament.status === "open";
+    const isCompleted = activeTournament.status === "completed";
+    const finalMatch = activeTournament.matches.find(m => m.roundName === "final");
+    const currentRoundLabel = ROUND_LABELS[activeTournament.currentRound] || activeTournament.currentRound;
+
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
         <View style={styles.header}>
@@ -297,30 +313,90 @@ export default function TournamentScreen() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView
-          contentContainerStyle={styles.detailContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.statusCard}>
-            <View style={[styles.statusDot, { backgroundColor: activeTournament.status === "in_progress" ? Colors.emerald : activeTournament.status === "completed" ? Colors.gold : Colors.sapphire }]} />
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+
+          {/* Status Card */}
+          <View style={[styles.statusCard, { marginHorizontal: 16 }]}>
+            <View style={[styles.statusDot, {
+              backgroundColor: isCompleted ? Colors.gold : isOpen ? Colors.sapphire : Colors.emerald,
+            }]} />
             <Text style={styles.statusText}>
-              {activeTournament.status === "open" ? `في انتظار اللاعبين (${activeTournament.players.length}/8)` :
-               activeTournament.status === "in_progress" ? `${ROUND_LABELS[activeTournament.currentRound] || activeTournament.currentRound} جارٍ` :
-               "البطولة انتهت"}
+              {isOpen
+                ? `في انتظار اللاعبين (${activeTournament.players.length}/8)`
+                : isCompleted
+                ? "انتهت البطولة"
+                : `${currentRoundLabel} — جارٍ الآن`}
             </Text>
           </View>
 
-          {activeTournament.status === "completed" && activeTournament.matches.find(m => m.roundName === "final")?.winnerId && (
-            <View style={styles.winnerBanner}>
+          {/* Winner Banner */}
+          {isCompleted && finalMatch?.winnerName && (
+            <View style={[styles.winnerBanner, { marginHorizontal: 16 }]}>
               <Text style={styles.winnerEmoji}>🏆</Text>
-              <Text style={styles.winnerTitle}>الفائز بالبطولة</Text>
-              <Text style={styles.winnerName}>
-                {activeTournament.matches.find(m => m.roundName === "final")?.winnerName}
-              </Text>
+              <Text style={styles.winnerTitle}>بطل البطولة</Text>
+              <Text style={styles.winnerName}>{finalMatch.winnerName}</Text>
             </View>
           )}
 
-          <View style={styles.prizesCard}>
+          {/* ── Visual Bracket (in_progress or completed) ── */}
+          {!isOpen && activeTournament.matches.length > 0 && (
+            <View style={styles.bracketSection}>
+              <Text style={styles.bracketSectionTitle}>جدول البطولة</Text>
+              <TournamentBracket matches={activeTournament.matches} myId={playerId} />
+            </View>
+          )}
+
+          {/* Waiting state for open tournaments */}
+          {isOpen && (
+            <View style={[styles.waitingCard, { marginHorizontal: 16 }]}>
+              <Text style={styles.waitingTitle}>في انتظار اللاعبين</Text>
+              <View style={styles.waitingSlots}>
+                {Array.from({ length: 8 }).map((_, i) => {
+                  const player = activeTournament.players[i];
+                  const skin = player ? (SKINS.find(s => s.id === player.skin) || SKINS[0]) : null;
+                  return (
+                    <View key={i} style={[styles.waitingSlot, player && styles.waitingSlotFilled]}>
+                      {player ? (
+                        <>
+                          <Text style={styles.waitingSlotEmoji}>{skin?.emoji}</Text>
+                          <Text style={styles.waitingSlotName} numberOfLines={1}>
+                            {player.playerId === playerId ? `${player.name} ✓` : player.name}
+                          </Text>
+                        </>
+                      ) : (
+                        <Text style={styles.waitingSlotEmpty}>انتظار...</Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* Players Grid */}
+          {!isOpen && (
+            <View style={{ marginHorizontal: 16, marginTop: 8 }}>
+              <Text style={styles.sectionTitle}>اللاعبون</Text>
+              <View style={styles.playersGrid}>
+                {activeTournament.players.map((p) => {
+                  const skin = SKINS.find(s => s.id === p.skin) || SKINS[0];
+                  const isMe = p.playerId === playerId;
+                  return (
+                    <View key={p.playerId} style={[styles.playerChip, p.eliminated && styles.playerChipEliminated, isMe && styles.playerChipMe]}>
+                      <Text style={styles.playerChipEmoji}>{skin.emoji}</Text>
+                      <Text style={[styles.playerChipName, p.eliminated && styles.playerChipNameEliminated]} numberOfLines={1}>
+                        {p.name}{isMe ? " (أنت)" : ""}
+                      </Text>
+                      {p.eliminated && <Ionicons name="close-circle" size={14} color={Colors.ruby} />}
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* Prizes */}
+          <View style={[styles.prizesCard, { marginHorizontal: 16, marginTop: 12 }]}>
             <Text style={styles.prizesTitle}>الجوائز</Text>
             <View style={styles.prizeRow}>
               <Text style={styles.prizeEmoji}>🥇</Text>
@@ -336,74 +412,12 @@ export default function TournamentScreen() {
             </View>
           </View>
 
-          <Text style={styles.sectionTitle}>اللاعبون</Text>
-          <View style={styles.playersGrid}>
-            {activeTournament.players.map((p) => {
-              const skin = SKINS.find(s => s.id === p.skin) || SKINS[0];
-              const isMe = p.playerId === playerId;
-              return (
-                <View key={p.playerId} style={[styles.playerChip, p.eliminated && styles.playerChipEliminated, isMe && styles.playerChipMe]}>
-                  <Text style={styles.playerChipEmoji}>{skin.emoji}</Text>
-                  <Text style={[styles.playerChipName, p.eliminated && styles.playerChipNameEliminated]} numberOfLines={1}>
-                    {p.name}{isMe ? " (أنت)" : ""}
-                  </Text>
-                  {p.eliminated && <Ionicons name="close-circle" size={14} color={Colors.ruby} />}
-                </View>
-              );
-            })}
-          </View>
-
-          {activeTournament.status !== "open" && (
-            <>
-              {(["quarter", "semi", "final"] as const).map((round) => {
-                const roundMatches = getMatchesForRound(round);
-                if (roundMatches.length === 0) return null;
-                return (
-                  <View key={round} style={styles.bracketRound}>
-                    <View style={styles.roundHeader}>
-                      <View style={[styles.roundDot, {
-                        backgroundColor: activeTournament.currentRound === round ? Colors.gold :
-                          roundMatches.every(m => m.status === "completed") ? Colors.emerald : Colors.textMuted
-                      }]} />
-                      <Text style={styles.roundTitle}>{ROUND_LABELS[round]}</Text>
-                    </View>
-                    {roundMatches.map((match) => {
-                      const isMine = isMyMatch(match);
-                      return (
-                        <View key={match.id} style={[styles.matchCard, isMine && styles.matchCardMine]}>
-                          <MatchSlot
-                            name={match.player1Name}
-                            isWinner={match.winnerId === match.player1Id && match.winnerId !== null}
-                            isLoser={match.winnerId !== null && match.winnerId !== match.player1Id}
-                            isMe={match.player1Id === playerId}
-                          />
-                          <View style={styles.matchVs}>
-                            <Text style={styles.matchVsText}>VS</Text>
-                          </View>
-                          <MatchSlot
-                            name={match.player2Name}
-                            isWinner={match.winnerId === match.player2Id && match.winnerId !== null}
-                            isLoser={match.winnerId !== null && match.winnerId !== match.player2Id}
-                            isMe={match.player2Id === playerId}
-                          />
-                          {match.status === "completed" && (
-                            <View style={styles.matchResultBadge}>
-                              <Ionicons name="checkmark-circle" size={14} color={Colors.emerald} />
-                            </View>
-                          )}
-                        </View>
-                      );
-                    })}
-                  </View>
-                );
-              })}
-            </>
-          )}
         </ScrollView>
       </View>
     );
   }
 
+  // ─── List View ───────────────────────────────────────────────────────────────
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
       <View style={styles.header}>
@@ -538,18 +552,190 @@ export default function TournamentScreen() {
   );
 }
 
-function MatchSlot({ name, isWinner, isLoser, isMe }: { name: string | null; isWinner: boolean; isLoser: boolean; isMe: boolean }) {
+// ─── Bracket Match Card ───────────────────────────────────────────────────────
+function BracketMatchCard({ match, myId }: { match: TournamentMatch | undefined; myId: string }) {
+  if (!match) return <View style={{ width: BK_MATCH_W, height: BK_MATCH_H }} />;
+
+  const p1Won = match.winnerId === match.player1Id && match.winnerId != null;
+  const p2Won = match.winnerId === match.player2Id && match.winnerId != null;
+  const p1IsMe = match.player1Id === myId;
+  const p2IsMe = match.player2Id === myId;
+  const isMyMatch = (p1IsMe || p2IsMe) && (!!match.player1Id || !!match.player2Id);
+  const isCompleted = match.status === "completed";
+
   return (
-    <View style={[styles.matchSlot, isWinner && styles.matchSlotWinner, isLoser && styles.matchSlotLoser, isMe && styles.matchSlotMe]}>
-      <Text style={[styles.matchSlotName, isLoser && styles.matchSlotNameLoser, isMe && { color: Colors.gold }]} numberOfLines={1}>
-        {name || "—"}
-      </Text>
-      {isWinner && <Ionicons name="checkmark-circle" size={14} color={Colors.emerald} />}
-      {isLoser && <Ionicons name="close-circle" size={14} color={Colors.ruby} />}
+    <View style={[bk.card, isMyMatch && bk.myCard]}>
+      <View style={[bk.slot, p1Won && bk.slotWin, !p1Won && isCompleted && bk.slotLose]}>
+        {p1Won && <Text style={bk.crown}>👑</Text>}
+        <Text
+          style={[bk.name, p1IsMe && bk.meText, p1Won && bk.winName, !p1Won && isCompleted && bk.loseName]}
+          numberOfLines={1}
+        >
+          {match.player1Name || "؟"}
+        </Text>
+      </View>
+      <View style={bk.divider} />
+      <View style={[bk.slot, p2Won && bk.slotWin, !p2Won && isCompleted && bk.slotLose]}>
+        {p2Won && <Text style={bk.crown}>👑</Text>}
+        <Text
+          style={[bk.name, p2IsMe && bk.meText, p2Won && bk.winName, !p2Won && isCompleted && bk.loseName]}
+          numberOfLines={1}
+        >
+          {match.player2Name || "؟"}
+        </Text>
+      </View>
     </View>
   );
 }
 
+// ─── Tournament Bracket Visualization ────────────────────────────────────────
+function TournamentBracket({ matches, myId }: { matches: TournamentMatch[]; myId: string }) {
+  const getM = (round: string, idx: number) =>
+    matches.find(m => m.roundName === round && m.matchIndex === idx);
+
+  const qf0 = getM("quarter", 0);
+  const qf1 = getM("quarter", 1);
+  const qf2 = getM("quarter", 2);
+  const qf3 = getM("quarter", 3);
+  const sf0 = getM("semi", 0);
+  const sf1 = getM("semi", 1);
+  const fin = getM("final", 0);
+
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}
+    >
+      <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+
+        {/* ── Left QF Column ── */}
+        <View style={{ width: BK_MATCH_W }}>
+          <Text style={bk.colLabel}>ربع النهائي</Text>
+          <BracketMatchCard match={qf0} myId={myId} />
+          <View style={{ height: BK_QF_GAP }} />
+          <BracketMatchCard match={qf1} myId={myId} />
+        </View>
+
+        {/* ── Left QF → SF Connector ── */}
+        <View style={{ width: BK_CONN_W, height: BK_CONN_H, marginTop: BK_CONN_TOP }}>
+          <View style={{ flex: 1, borderTopWidth: 2, borderRightWidth: 2, borderColor: BK_LINE, opacity: BK_LINE_OP }} />
+          <View style={{ flex: 1, borderBottomWidth: 2, borderRightWidth: 2, borderColor: BK_LINE, opacity: BK_LINE_OP }} />
+        </View>
+
+        {/* ── Left Semi Column ── */}
+        <View style={{ width: BK_MATCH_W, height: BK_SEC_H }}>
+          <Text style={bk.colLabel}>نصف النهائي</Text>
+          <View style={{ flex: 1, justifyContent: "center" }}>
+            <BracketMatchCard match={sf0} myId={myId} />
+          </View>
+        </View>
+
+        {/* ── SF → Final connector (horizontal line) ── */}
+        <View style={{ width: BK_CONN_W, height: 2, backgroundColor: BK_LINE, opacity: BK_LINE_OP, marginTop: BK_CENTER_LINE_MT }} />
+
+        {/* ── Final Column ── */}
+        <View style={{ width: BK_MATCH_W, height: BK_SEC_H }}>
+          <Text style={bk.colLabel}>النهائي</Text>
+          <View style={{ flex: 1, justifyContent: "center" }}>
+            <BracketMatchCard match={fin} myId={myId} />
+          </View>
+        </View>
+
+        {/* ── Final → SF connector (horizontal line) ── */}
+        <View style={{ width: BK_CONN_W, height: 2, backgroundColor: BK_LINE, opacity: BK_LINE_OP, marginTop: BK_CENTER_LINE_MT }} />
+
+        {/* ── Right Semi Column ── */}
+        <View style={{ width: BK_MATCH_W, height: BK_SEC_H }}>
+          <Text style={bk.colLabel}>نصف النهائي</Text>
+          <View style={{ flex: 1, justifyContent: "center" }}>
+            <BracketMatchCard match={sf1} myId={myId} />
+          </View>
+        </View>
+
+        {/* ── Right SF → QF Connector (mirror) ── */}
+        <View style={{ width: BK_CONN_W, height: BK_CONN_H, marginTop: BK_CONN_TOP }}>
+          <View style={{ flex: 1, borderTopWidth: 2, borderLeftWidth: 2, borderColor: BK_LINE, opacity: BK_LINE_OP }} />
+          <View style={{ flex: 1, borderBottomWidth: 2, borderLeftWidth: 2, borderColor: BK_LINE, opacity: BK_LINE_OP }} />
+        </View>
+
+        {/* ── Right QF Column ── */}
+        <View style={{ width: BK_MATCH_W }}>
+          <Text style={bk.colLabel}>ربع النهائي</Text>
+          <BracketMatchCard match={qf2} myId={myId} />
+          <View style={{ height: BK_QF_GAP }} />
+          <BracketMatchCard match={qf3} myId={myId} />
+        </View>
+
+      </View>
+    </ScrollView>
+  );
+}
+
+// ─── Bracket StyleSheet ───────────────────────────────────────────────────────
+const bk = StyleSheet.create({
+  card: {
+    width: BK_MATCH_W,
+    height: BK_MATCH_H,
+    backgroundColor: Colors.card,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    overflow: "hidden",
+  },
+  myCard: {
+    borderColor: Colors.gold + "70",
+    borderWidth: 1.5,
+  },
+  slot: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    gap: 4,
+  },
+  slotWin: {
+    backgroundColor: Colors.emerald + "22",
+  },
+  slotLose: {
+    backgroundColor: Colors.ruby + "12",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.cardBorder,
+  },
+  crown: {
+    fontSize: 10,
+  },
+  name: {
+    flex: 1,
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 11,
+    color: Colors.textPrimary,
+  },
+  meText: {
+    color: Colors.gold,
+  },
+  winName: {
+    color: Colors.emerald,
+    fontFamily: "Cairo_700Bold",
+  },
+  loseName: {
+    textDecorationLine: "line-through",
+    color: Colors.textMuted,
+  },
+  colLabel: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 10,
+    color: Colors.textMuted,
+    textAlign: "center",
+    marginBottom: 6,
+    height: BK_LABEL_H - 6,
+    textAlignVertical: "bottom",
+  },
+});
+
+// ─── Main StyleSheet ──────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: {
@@ -572,7 +758,6 @@ const styles = StyleSheet.create({
   },
   coinsText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.gold },
   listContent: { paddingHorizontal: 16, paddingBottom: 40 },
-  detailContent: { paddingHorizontal: 16, paddingBottom: 40 },
 
   infoCard: {
     backgroundColor: Colors.card, borderRadius: 20, padding: 24, alignItems: "center",
@@ -617,21 +802,59 @@ const styles = StyleSheet.create({
 
   statusCard: {
     flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: Colors.card,
-    borderRadius: 12, padding: 14, marginBottom: 16,
+    borderRadius: 12, padding: 14, marginBottom: 12,
   },
   statusDot: { width: 10, height: 10, borderRadius: 5 },
   statusText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
 
   winnerBanner: {
     backgroundColor: Colors.gold + "18", borderRadius: 16, padding: 20, alignItems: "center",
-    marginBottom: 16, borderWidth: 1, borderColor: Colors.gold + "40",
+    marginBottom: 12, borderWidth: 1, borderColor: Colors.gold + "40",
   },
   winnerEmoji: { fontSize: 40, marginBottom: 8 },
   winnerTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.gold },
   winnerName: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary, marginTop: 4 },
 
+  bracketSection: {
+    marginBottom: 12,
+    backgroundColor: Colors.backgroundSecondary,
+    borderRadius: 16,
+    marginHorizontal: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+  },
+  bracketSectionTitle: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 14,
+    color: Colors.textSecondary,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 4,
+    textAlign: "right",
+  },
+
+  waitingCard: {
+    backgroundColor: Colors.card, borderRadius: 16, padding: 16, marginBottom: 12,
+    borderWidth: 1, borderColor: Colors.cardBorder,
+  },
+  waitingTitle: {
+    fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary,
+    textAlign: "center", marginBottom: 14,
+  },
+  waitingSlots: { gap: 8 },
+  waitingSlot: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: Colors.backgroundTertiary, borderRadius: 10, padding: 10,
+    borderWidth: 1, borderColor: Colors.cardBorder,
+  },
+  waitingSlotFilled: { borderColor: Colors.sapphire + "50" },
+  waitingSlotEmoji: { fontSize: 18 },
+  waitingSlotName: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, flex: 1 },
+  waitingSlotEmpty: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, flex: 1 },
+
   prizesCard: {
-    backgroundColor: Colors.card, borderRadius: 16, padding: 16, marginBottom: 16,
+    backgroundColor: Colors.card, borderRadius: 16, padding: 16,
     borderWidth: 1, borderColor: Colors.cardBorder,
   },
   prizesTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.gold, marginBottom: 10 },
@@ -639,9 +862,9 @@ const styles = StyleSheet.create({
   prizeEmoji: { fontSize: 18 },
   prizeText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
 
-  sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textSecondary, textAlign: "right", marginBottom: 10 },
+  sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textSecondary, textAlign: "right", marginBottom: 10 },
 
-  playersGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
+  playersGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   playerChip: {
     flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.card,
     borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8,
@@ -652,30 +875,6 @@ const styles = StyleSheet.create({
   playerChipEmoji: { fontSize: 16 },
   playerChipName: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary, maxWidth: 80 },
   playerChipNameEliminated: { textDecorationLine: "line-through", color: Colors.textMuted },
-
-  bracketRound: { marginBottom: 20 },
-  roundHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
-  roundDot: { width: 8, height: 8, borderRadius: 4 },
-  roundTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary },
-
-  matchCard: {
-    backgroundColor: Colors.card, borderRadius: 14, padding: 14, marginBottom: 10,
-    borderWidth: 1, borderColor: Colors.cardBorder,
-  },
-  matchCardMine: { borderColor: Colors.gold + "50" },
-  matchVs: { alignItems: "center", paddingVertical: 4 },
-  matchVsText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.textMuted },
-  matchSlot: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10,
-    backgroundColor: Colors.backgroundTertiary,
-  },
-  matchSlotWinner: { backgroundColor: Colors.emerald + "18" },
-  matchSlotLoser: { backgroundColor: Colors.ruby + "12" },
-  matchSlotMe: { borderWidth: 1, borderColor: Colors.gold + "40" },
-  matchSlotName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, flex: 1 },
-  matchSlotNameLoser: { textDecorationLine: "line-through", color: Colors.textMuted },
-  matchResultBadge: { position: "absolute", top: 8, right: 8 },
 
   modalOverlay: {
     flex: 1, justifyContent: "center", alignItems: "center",
@@ -700,9 +899,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalConfirmText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.black },
-
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.5)",
+    ...StyleSheet.absoluteFillObject, backgroundColor: Colors.overlay,
     justifyContent: "center", alignItems: "center",
   },
 });
