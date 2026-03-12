@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Animated,
   Keyboard,
   Platform,
+  Modal,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,6 +24,15 @@ import { GAME_CATEGORIES, GameCategory } from "@/constants/i18n";
 
 const ROUND_TIME = 50;
 
+const QUICK_MESSAGES = [
+  "برافو! 👏",
+  "حظ سعيد! 🍀",
+  "هههه 😂",
+  "سهلة! 😎",
+  "ماشاء الله 🌟",
+  "اوف 😬",
+];
+
 type CategoryStatus = "idle" | "correct" | "duplicate" | "empty" | "invalid";
 
 type RoundResult = {
@@ -32,6 +42,13 @@ type RoundResult = {
   scores: Record<string, number>;
   roundTotal: number;
   status: Record<string, CategoryStatus>;
+};
+
+type ChatBubble = {
+  id: string;
+  message: string;
+  playerName: string;
+  isMe: boolean;
 };
 
 export default function GameScreen() {
@@ -46,9 +63,7 @@ export default function GameScreen() {
   const { profile, updateProfile, addCoins, addXp } = usePlayer();
   const socket = getSocket();
 
-  const [answers, setAnswers] = useState<Record<GameCategory, string>>(
-    {} as Record<GameCategory, string>
-  );
+  const [answers, setAnswers] = useState<Record<GameCategory, string>>({} as Record<GameCategory, string>);
   const [timeLeft, setTimeLeft] = useState(ROUND_TIME);
   const [submitted, setSubmitted] = useState(false);
   const [submittedPlayers, setSubmittedPlayers] = useState<string[]>([]);
@@ -62,6 +77,9 @@ export default function GameScreen() {
     { id: string; name: string; score: number; coins: number; skin: string }[]
   >([]);
 
+  const [showChatPanel, setShowChatPanel] = useState(false);
+  const [chatBubbles, setChatBubbles] = useState<ChatBubble[]>([]);
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const letterAnim = useRef(new Animated.Value(0)).current;
   const answersRef = useRef<Record<GameCategory, string>>({} as Record<GameCategory, string>);
@@ -71,37 +89,21 @@ export default function GameScreen() {
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
-  // Keep refs in sync
-  useEffect(() => {
-    answersRef.current = answers;
-  }, [answers]);
+  useEffect(() => { answersRef.current = answers; }, [answers]);
+  useEffect(() => { submittedRef.current = submitted; }, [submitted]);
 
-  useEffect(() => {
-    submittedRef.current = submitted;
-  }, [submitted]);
-
-  // Letter entrance animation
   useEffect(() => {
     letterAnim.setValue(0);
-    Animated.spring(letterAnim, {
-      toValue: 1,
-      tension: 100,
-      friction: 8,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(letterAnim, { toValue: 1, tension: 100, friction: 8, useNativeDriver: true }).start();
   }, [currentLetter]);
 
-  // Start timer when round changes
   useEffect(() => {
     startTimer();
     return () => stopTimer();
   }, [currentRound]);
 
   const stopTimer = () => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
   };
 
   const startTimer = () => {
@@ -111,15 +113,10 @@ export default function GameScreen() {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           stopTimer();
-          // Use refs to avoid stale closure
-          if (!submittedRef.current) {
-            doSubmit(answersRef.current);
-          }
+          if (!submittedRef.current) doSubmit(answersRef.current);
           return 0;
         }
-        if (prev <= 5) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
+        if (prev <= 5) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         return prev - 1;
       });
     }, 1000);
@@ -140,72 +137,81 @@ export default function GameScreen() {
     doSubmit(answersRef.current);
   };
 
+  const sendQuickChat = (message: string) => {
+    setShowChatPanel(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const bubbleId = Date.now().toString();
+    const bubble: ChatBubble = { id: bubbleId, message, playerName: profile.name, isMe: true };
+    addChatBubble(bubble);
+    socket.emit("quick_chat", { roomId, message, playerName: profile.name });
+  };
+
+  const addChatBubble = (bubble: ChatBubble) => {
+    setChatBubbles((prev) => [...prev, bubble]);
+    setTimeout(() => {
+      setChatBubbles((prev) => prev.filter((b) => b.id !== bubble.id));
+    }, 3500);
+  };
+
   useEffect(() => {
     socket.on("player_submitted", ({ playerId }: { playerId: string }) => {
-      setSubmittedPlayers((prev) =>
-        prev.includes(playerId) ? prev : [...prev, playerId]
-      );
+      setSubmittedPlayers((prev) => prev.includes(playerId) ? prev : [...prev, playerId]);
     });
 
-    socket.on(
-      "round_results",
-      (data: {
-        results: RoundResult[];
-        round: number;
-        totalRounds: number;
-        players: { id: string; name: string; score: number }[];
-      }) => {
-        stopTimer();
-        setRoundResults(data.results);
-        setGamePlayers(data.players);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-    );
+    socket.on("round_results", (data: {
+      results: RoundResult[];
+      round: number;
+      totalRounds: number;
+      players: { id: string; name: string; score: number }[];
+    }) => {
+      stopTimer();
+      setRoundResults(data.results);
+      setGamePlayers(data.players);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    });
 
-    socket.on(
-      "new_round",
-      (data: { letter: string; round: number; totalRounds: number }) => {
-        // Reset state for new round — startTimer is triggered by the currentRound useEffect
-        setCurrentLetter(data.letter);
-        setCurrentRound(data.round);
-        setAnswers({} as Record<GameCategory, string>);
-        setSubmitted(false);
-        submittedRef.current = false;
-        setSubmittedPlayers([]);
-        setRoundResults(null);
-        setTimeLeft(ROUND_TIME);
-        letterAnim.setValue(0);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        // NOTE: Do NOT call startTimer() here — the useEffect([currentRound]) handles it
-      }
-    );
+    socket.on("new_round", (data: { letter: string; round: number; totalRounds: number }) => {
+      setCurrentLetter(data.letter);
+      setCurrentRound(data.round);
+      setAnswers({} as Record<GameCategory, string>);
+      setSubmitted(false);
+      submittedRef.current = false;
+      setSubmittedPlayers([]);
+      setRoundResults(null);
+      setTimeLeft(ROUND_TIME);
+      setChatBubbles([]);
+      letterAnim.setValue(0);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    });
 
-    socket.on(
-      "game_over",
-      (data: { players: { id: string; name: string; score: number; coins: number }[] }) => {
-        stopTimer();
-        setIsGameOver(true);
-        setGameOverPlayers(data.players);
-
-        const me = data.players.find((p) => p.id === socketId);
-        if (me) {
-          addCoins(me.coins);
-          addXp(Math.floor(me.score / 2));
-          const rank = data.players.sort((a, b) => b.score - a.score).findIndex((p) => p.id === socketId);
-          updateProfile({
-            gamesPlayed: profile.gamesPlayed + 1,
-            wins: rank === 0 ? profile.wins + 1 : profile.wins,
-            totalScore: profile.totalScore + me.score,
-          });
-        }
+    socket.on("game_over", (data: { players: { id: string; name: string; score: number; coins: number; skin?: string }[] }) => {
+      stopTimer();
+      setIsGameOver(true);
+      setGameOverPlayers(data.players.map((p) => ({ ...p, skin: p.skin || "default" })));
+      const me = data.players.find((p) => p.id === socketId);
+      if (me) {
+        addCoins(me.coins);
+        addXp(Math.floor(me.score / 2));
+        const rank = data.players.sort((a, b) => b.score - a.score).findIndex((p) => p.id === socketId);
+        updateProfile({
+          gamesPlayed: profile.gamesPlayed + 1,
+          wins: rank === 0 ? profile.wins + 1 : profile.wins,
+          totalScore: profile.totalScore + me.score,
+        });
       }
-    );
+    });
+
+    socket.on("quick_chat", (data: { message: string; playerName: string }) => {
+      const bubbleId = Date.now().toString() + Math.random();
+      addChatBubble({ id: bubbleId, message: data.message, playerName: data.playerName, isMe: false });
+    });
 
     return () => {
       socket.off("player_submitted");
       socket.off("round_results");
       socket.off("new_round");
       socket.off("game_over");
+      socket.off("quick_chat");
     };
   }, [socketId]);
 
@@ -219,37 +225,28 @@ export default function GameScreen() {
     router.replace("/lobby");
   };
 
-  const timerColor =
-    timeLeft > 15 ? Colors.timerGreen : timeLeft > 8 ? Colors.timerYellow : Colors.timerRed;
+  const timerColor = timeLeft > 15 ? Colors.timerGreen : timeLeft > 8 ? Colors.timerYellow : Colors.timerRed;
   const timerProgress = timeLeft / ROUND_TIME;
 
-  // Game over screen — podium + medals
+  // Game over screen
   if (isGameOver) {
     const sortedPlayers = [...gameOverPlayers].sort((a, b) => b.score - a.score);
     const medals = ["🥇", "🥈", "🥉"];
     const myIdx = sortedPlayers.findIndex((p) => p.id === socketId);
     const amWinner = myIdx === 0;
     const podiumPlayers = sortedPlayers.slice(0, 3);
-    const podiumOrder = [1, 0, 2]; // visual podium order: 2nd, 1st, 3rd
+    const podiumOrder = [1, 0, 2];
     const podiumHeights = [90, 130, 70];
 
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
         <ScrollView contentContainerStyle={styles.gameOverContent} showsVerticalScrollIndicator={false}>
-
-          {/* Header */}
           <Text style={styles.gameOverTitle}>{t.gameOver}</Text>
-          {amWinner ? (
-            <Text style={styles.gameOverSub}>🏆 أنت الفائز!</Text>
-          ) : myIdx === 1 ? (
-            <Text style={styles.gameOverSub}>🥈 المركز الثاني — أحسنت!</Text>
-          ) : myIdx === 2 ? (
-            <Text style={styles.gameOverSub}>🥉 المركز الثالث — لا بأس!</Text>
-          ) : (
-            <Text style={styles.gameOverSub}>حاول مرة أخرى!</Text>
-          )}
+          {amWinner ? <Text style={styles.gameOverSub}>🏆 أنت الفائز!</Text>
+            : myIdx === 1 ? <Text style={styles.gameOverSub}>🥈 المركز الثاني — أحسنت!</Text>
+            : myIdx === 2 ? <Text style={styles.gameOverSub}>🥉 المركز الثالث — لا بأس!</Text>
+            : <Text style={styles.gameOverSub}>حاول مرة أخرى!</Text>}
 
-          {/* Podium visual */}
           {podiumPlayers.length >= 2 && (
             <View style={styles.podiumRow}>
               {podiumOrder.map((pIdx) => {
@@ -265,9 +262,7 @@ export default function GameScreen() {
                     <View style={[styles.podiumAvatar, isFirst && styles.podiumAvatarFirst, { backgroundColor: skin.color + "33" }]}>
                       <Text style={[styles.podiumEmoji, isFirst && styles.podiumEmojiFirst]}>{skin.emoji}</Text>
                     </View>
-                    <Text style={[styles.podiumName, isMe && { color: Colors.gold }]} numberOfLines={1}>
-                      {p.name}
-                    </Text>
+                    <Text style={[styles.podiumName, isMe && { color: Colors.gold }]} numberOfLines={1}>{p.name}</Text>
                     <Text style={styles.podiumScore}>{p.score}</Text>
                     <View style={[styles.podiumBase, { height: h }, isFirst && styles.podiumBaseFirst]}>
                       <Text style={styles.podiumRank}>{pIdx + 1}</Text>
@@ -278,7 +273,6 @@ export default function GameScreen() {
             </View>
           )}
 
-          {/* Full rankings list */}
           <View style={styles.finalRankings}>
             {sortedPlayers.map((p, idx) => {
               const isMe = p.id === socketId;
@@ -286,9 +280,7 @@ export default function GameScreen() {
               const skin = SKINS.find((s) => s.id === p.skin) || SKINS[0];
               return (
                 <View key={p.id} style={[styles.finalRankRow, isMe && styles.finalRankRowMe]}>
-                  <Text style={[styles.finalRankNum, { color: rankColors[idx] || Colors.textMuted }]}>
-                    {medals[idx] || `${idx + 1}`}
-                  </Text>
+                  <Text style={[styles.finalRankNum, { color: rankColors[idx] || Colors.textMuted }]}>{medals[idx] || `${idx + 1}`}</Text>
                   <View style={[styles.finalRankAvatar, { backgroundColor: skin.color + "22" }]}>
                     <Text style={styles.finalRankEmoji}>{skin.emoji}</Text>
                   </View>
@@ -307,7 +299,6 @@ export default function GameScreen() {
             })}
           </View>
 
-          {/* Buttons */}
           <TouchableOpacity style={styles.playAgainBtn} onPress={handlePlayAgain}>
             <Ionicons name="refresh" size={18} color={Colors.background} style={{ marginRight: 8 }} />
             <Text style={styles.playAgainBtnText}>{t.playAgain}</Text>
@@ -323,15 +314,11 @@ export default function GameScreen() {
   // Round results screen
   if (roundResults) {
     const isHost = socketId && gamePlayers.length > 0 && gamePlayers[0].id === socketId;
-
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
         <View style={styles.roundResultsHeader}>
-          <Text style={styles.roundResultsTitle}>
-            {t.results} - {t.round} {currentRound}/{numTotalRounds}
-          </Text>
+          <Text style={styles.roundResultsTitle}>{t.results} - {t.round} {currentRound}/{numTotalRounds}</Text>
         </View>
-
         <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.roundResultsContent} showsVerticalScrollIndicator={false}>
           {roundResults.map((result) => {
             const isMe = result.playerId === socketId;
@@ -347,20 +334,13 @@ export default function GameScreen() {
                   const ans = result.answers[cat] || "";
                   const sc = result.scores[cat] || 0;
                   const st = result.status[cat] || "empty";
-                  const statusColor =
-                    st === "correct" ? Colors.scoreCorrect
-                      : st === "duplicate" ? Colors.scoreDuplicate
-                      : Colors.scoreEmpty;
+                  const statusColor = st === "correct" ? Colors.scoreCorrect : st === "duplicate" ? Colors.scoreDuplicate : Colors.scoreEmpty;
                   return (
                     <View key={cat} style={styles.resultCatRow}>
                       <Text style={styles.resultCatName}>{t[cat as keyof typeof t] as string}</Text>
-                      <Text style={[styles.resultAnswer, !ans && styles.resultAnswerEmpty]}>
-                        {ans || "—"}
-                      </Text>
+                      <Text style={[styles.resultAnswer, !ans && styles.resultAnswerEmpty]}>{ans || "—"}</Text>
                       <View style={[styles.resultScoreBadge, { backgroundColor: statusColor + "22" }]}>
-                        <Text style={[styles.resultScoreText, { color: statusColor }]}>
-                          {sc > 0 ? `+${sc}` : "0"}
-                        </Text>
+                        <Text style={[styles.resultScoreText, { color: statusColor }]}>{sc > 0 ? `+${sc}` : "0"}</Text>
                       </View>
                     </View>
                   );
@@ -368,7 +348,6 @@ export default function GameScreen() {
               </View>
             );
           })}
-
           <View style={styles.scoreSummary}>
             <Text style={styles.scoreSummaryTitle}>المجموع الكلي</Text>
             {[...gamePlayers].sort((a, b) => b.score - a.score).map((p, idx) => (
@@ -380,12 +359,9 @@ export default function GameScreen() {
             ))}
           </View>
         </ScrollView>
-
         {isHost ? (
           <TouchableOpacity style={styles.nextRoundBtn} onPress={handleNextRound}>
-            <Text style={styles.nextRoundBtnText}>
-              {currentRound >= numTotalRounds ? t.gameOver : t.nextRound}
-            </Text>
+            <Text style={styles.nextRoundBtnText}>{currentRound >= numTotalRounds ? t.gameOver : t.nextRound}</Text>
             <Ionicons name="arrow-forward" size={20} color={Colors.black} style={{ marginLeft: 8 }} />
           </TouchableOpacity>
         ) : (
@@ -400,55 +376,51 @@ export default function GameScreen() {
   // Game play screen
   return (
     <View style={[styles.container, { paddingTop: topInset }]}>
+
+      {/* ─── CHAT BUBBLES OVERLAY ─── */}
+      {chatBubbles.length > 0 && (
+        <View style={styles.bubblesOverlay} pointerEvents="none">
+          {chatBubbles.map((bubble) => (
+            <ChatBubbleView key={bubble.id} bubble={bubble} />
+          ))}
+        </View>
+      )}
+
       <View style={styles.gameTopBar}>
         <Animated.View
-          style={[
-            styles.letterDisplay,
-            {
-              transform: [
-                { scale: letterAnim },
-                {
-                  rotate: letterAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ["20deg", "0deg"],
-                  }),
-                },
-              ],
-            },
-          ]}
+          style={[styles.letterDisplay, {
+            transform: [
+              { scale: letterAnim },
+              { rotate: letterAnim.interpolate({ inputRange: [0, 1], outputRange: ["20deg", "0deg"] }) },
+            ],
+          }]}
         >
           <Text style={styles.letterText}>{currentLetter}</Text>
         </Animated.View>
 
         <View style={styles.gameInfoRight}>
-          <Text style={styles.roundLabel}>
-            {t.round} {currentRound}/{numTotalRounds}
-          </Text>
+          <Text style={styles.roundLabel}>{t.round} {currentRound}/{numTotalRounds}</Text>
           <View style={styles.timerContainer}>
             <View style={styles.timerTrack}>
-              <View
-                style={[
-                  styles.timerFill,
-                  {
-                    width: `${timerProgress * 100}%` as any,
-                    backgroundColor: timerColor,
-                  },
-                ]}
-              />
+              <View style={[styles.timerFill, { width: `${timerProgress * 100}%` as any, backgroundColor: timerColor }]} />
             </View>
-            <Text style={[styles.timerText, { color: timerColor }]}>
-              {timeLeft}
-            </Text>
+            <Text style={[styles.timerText, { color: timerColor }]}>{timeLeft}</Text>
           </View>
         </View>
+
+        {/* Quick chat button */}
+        <TouchableOpacity
+          style={styles.chatBtn}
+          onPress={() => setShowChatPanel(true)}
+        >
+          <Ionicons name="chatbubble-ellipses" size={20} color={Colors.textSecondary} />
+        </TouchableOpacity>
       </View>
 
       {submittedPlayers.length > 0 && (
         <View style={styles.submittedBar}>
           <Ionicons name="checkmark-circle" size={14} color={Colors.emerald} />
-          <Text style={styles.submittedText}>
-            {submittedPlayers.length} {t.players} أرسلوا إجاباتهم
-          </Text>
+          <Text style={styles.submittedText}>{submittedPlayers.length} {t.players} أرسلوا إجاباتهم</Text>
         </View>
       )}
 
@@ -469,11 +441,7 @@ export default function GameScreen() {
                 !!(answers[cat]) && styles.categoryInputFilled,
               ]}
               value={answers[cat] || ""}
-              onChangeText={(val) => {
-                if (!submitted) {
-                  setAnswers((prev) => ({ ...prev, [cat]: val }));
-                }
-              }}
+              onChangeText={(val) => { if (!submitted) setAnswers((prev) => ({ ...prev, [cat]: val })); }}
               placeholder={`${currentLetter}...`}
               placeholderTextColor={Colors.inputPlaceholder}
               editable={!submitted}
@@ -486,10 +454,7 @@ export default function GameScreen() {
       </KeyboardAwareScrollView>
 
       {!submitted ? (
-        <TouchableOpacity
-          style={[styles.submitBtn, { bottom: bottomInset + 12 }]}
-          onPress={handleSubmit}
-        >
+        <TouchableOpacity style={[styles.submitBtn, { bottom: bottomInset + 12 }]} onPress={handleSubmit}>
           <Ionicons name="send" size={20} color={Colors.black} style={{ marginRight: 8 }} />
           <Text style={styles.submitBtnText}>{t.submit}</Text>
         </TouchableOpacity>
@@ -499,107 +464,148 @@ export default function GameScreen() {
           <Text style={styles.submittedStateText}>تم الإرسال! في انتظار اللاعبين الآخرين...</Text>
         </View>
       )}
+
+      {/* ─── QUICK CHAT PANEL ─── */}
+      <Modal visible={showChatPanel} transparent animationType="slide" onRequestClose={() => setShowChatPanel(false)}>
+        <TouchableOpacity style={styles.chatPanelOverlay} activeOpacity={1} onPress={() => setShowChatPanel(false)}>
+          <View style={styles.chatPanel}>
+            <Text style={styles.chatPanelTitle}>رسالة سريعة</Text>
+            <View style={styles.chatMessagesGrid}>
+              {QUICK_MESSAGES.map((msg) => (
+                <TouchableOpacity key={msg} style={styles.chatMessageBtn} onPress={() => sendQuickChat(msg)}>
+                  <Text style={styles.chatMessageText}>{msg}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
+  );
+}
+
+function ChatBubbleView({ bubble }: { bubble: ChatBubble }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(opacity, { toValue: 1, useNativeDriver: true }),
+      Animated.spring(translateY, { toValue: 0, useNativeDriver: true }),
+    ]).start();
+    const t = setTimeout(() => {
+      Animated.timing(opacity, { toValue: 0, duration: 400, useNativeDriver: true }).start();
+    }, 3000);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <Animated.View
+      style={[
+        styles.chatBubble,
+        bubble.isMe ? styles.chatBubbleMe : styles.chatBubbleOther,
+        { opacity, transform: [{ translateY }] },
+      ]}
+    >
+      <Text style={styles.chatBubbleSender}>{bubble.playerName}</Text>
+      <Text style={styles.chatBubbleMessage}>{bubble.message}</Text>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+
+  // Chat bubbles overlay
+  bubblesOverlay: {
+    position: "absolute", top: 100, left: 16, right: 16, zIndex: 100,
+    flexDirection: "column", gap: 8, alignItems: "flex-end",
+  },
+  chatBubble: {
+    maxWidth: "60%", borderRadius: 16, padding: 10,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
+  },
+  chatBubbleMe: { backgroundColor: Colors.gold, alignSelf: "flex-end" },
+  chatBubbleOther: { backgroundColor: Colors.card, alignSelf: "flex-start", borderWidth: 1, borderColor: Colors.cardBorder },
+  chatBubbleSender: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.black + "88", marginBottom: 2 },
+  chatBubbleMessage: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.black },
+
+  // Game top bar
   gameTopBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: Colors.backgroundSecondary,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.cardBorder,
+    flexDirection: "row", alignItems: "center", paddingHorizontal: 12,
+    paddingVertical: 12, backgroundColor: Colors.backgroundSecondary,
+    borderBottomWidth: 1, borderBottomColor: Colors.cardBorder,
   },
   letterDisplay: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: Colors.gold,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-    shadowColor: Colors.gold,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 8,
+    width: 64, height: 64, borderRadius: 32, backgroundColor: Colors.gold,
+    justifyContent: "center", alignItems: "center", marginRight: 12,
+    shadowColor: Colors.gold, shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4, shadowRadius: 10, elevation: 8,
   },
-  letterText: { fontFamily: "Cairo_700Bold", fontSize: 40, color: Colors.black, lineHeight: 52 },
+  letterText: { fontFamily: "Cairo_700Bold", fontSize: 36, color: Colors.black, lineHeight: 48 },
   gameInfoRight: { flex: 1 },
   roundLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, marginBottom: 8, textAlign: "right" },
   timerContainer: { flexDirection: "row", alignItems: "center", gap: 10 },
   timerTrack: { flex: 1, height: 8, backgroundColor: Colors.cardBorder, borderRadius: 4, overflow: "hidden" },
   timerFill: { height: "100%", borderRadius: 4 },
   timerText: { fontFamily: "Cairo_700Bold", fontSize: 22, minWidth: 32, textAlign: "center" },
+  chatBtn: {
+    width: 38, height: 38, borderRadius: 12, backgroundColor: Colors.card,
+    justifyContent: "center", alignItems: "center", marginLeft: 8,
+    borderWidth: 1, borderColor: Colors.cardBorder,
+  },
+
   submittedBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: Colors.emerald + "15",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: Colors.emerald + "15", paddingHorizontal: 16, paddingVertical: 8,
   },
   submittedText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.emerald },
   inputsContent: { padding: 12, gap: 8 },
   categoryInputRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   categoryLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary, width: 72, textAlign: "right" },
   categoryInput: {
-    flex: 1,
-    backgroundColor: Colors.inputBg,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.inputBorder,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 16,
-    fontFamily: "Cairo_400Regular",
-    color: Colors.inputText,
+    flex: 1, backgroundColor: Colors.inputBg, borderRadius: 12, borderWidth: 1,
+    borderColor: Colors.inputBorder, paddingHorizontal: 14, paddingVertical: 10,
+    fontSize: 16, fontFamily: "Cairo_400Regular", color: Colors.inputText,
   },
   categoryInputFilled: { borderColor: Colors.gold + "80", backgroundColor: Colors.gold + "10" },
   categoryInputSubmitted: { opacity: 0.6 },
   submitBtn: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    backgroundColor: Colors.gold,
-    borderRadius: 16,
-    paddingVertical: 16,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: Colors.gold,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
+    position: "absolute", left: 16, right: 16, backgroundColor: Colors.gold,
+    borderRadius: 16, paddingVertical: 16, flexDirection: "row",
+    justifyContent: "center", alignItems: "center",
+    shadowColor: Colors.gold, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
   },
   submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.black },
   submittedState: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    backgroundColor: Colors.emerald + "22",
-    borderRadius: 16,
-    paddingVertical: 16,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 10,
-    borderWidth: 1,
-    borderColor: Colors.emerald + "40",
+    position: "absolute", left: 16, right: 16, backgroundColor: Colors.emerald + "22",
+    borderRadius: 16, paddingVertical: 16, flexDirection: "row",
+    justifyContent: "center", alignItems: "center", gap: 10,
+    borderWidth: 1, borderColor: Colors.emerald + "40",
   },
   submittedStateText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.emerald },
-  roundResultsHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.cardBorder,
-    backgroundColor: Colors.backgroundSecondary,
+
+  // Quick chat panel
+  chatPanelOverlay: {
+    flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)",
   },
+  chatPanel: {
+    backgroundColor: Colors.backgroundSecondary, borderTopLeftRadius: 24,
+    borderTopRightRadius: 24, padding: 20, paddingBottom: 40,
+    borderTopWidth: 1, borderColor: Colors.cardBorder,
+  },
+  chatPanelTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary, textAlign: "center", marginBottom: 16 },
+  chatMessagesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center" },
+  chatMessageBtn: {
+    backgroundColor: Colors.card, borderRadius: 20, paddingHorizontal: 16,
+    paddingVertical: 10, borderWidth: 1, borderColor: Colors.cardBorder,
+  },
+  chatMessageText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
+
+  // Round results
+  roundResultsHeader: { paddingHorizontal: 16, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: Colors.cardBorder, backgroundColor: Colors.backgroundSecondary },
   roundResultsTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "center" },
   roundResultsContent: { padding: 12, gap: 12, paddingBottom: 100 },
   resultPlayerCard: { backgroundColor: Colors.card, borderRadius: 16, padding: 14, borderWidth: 1, borderColor: Colors.cardBorder },
@@ -621,58 +627,20 @@ const styles = StyleSheet.create({
   scoreSummaryName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary, paddingHorizontal: 10 },
   scoreSummaryTotal: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary },
   nextRoundBtn: {
-    backgroundColor: Colors.gold,
-    borderRadius: 16,
-    paddingVertical: 16,
-    marginHorizontal: 16,
-    marginVertical: 12,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: Colors.gold,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
+    backgroundColor: Colors.gold, borderRadius: 16, paddingVertical: 16,
+    marginHorizontal: 16, marginVertical: 12, flexDirection: "row",
+    justifyContent: "center", alignItems: "center",
+    shadowColor: Colors.gold, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
   },
   nextRoundBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.black },
-  waitingNextRound: {
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    backgroundColor: Colors.card,
-    marginHorizontal: 16,
-    marginVertical: 12,
-    borderRadius: 16,
-    alignItems: "center",
-  },
+  waitingNextRound: { paddingVertical: 16, paddingHorizontal: 16, backgroundColor: Colors.card, marginHorizontal: 16, marginVertical: 12, borderRadius: 16, alignItems: "center" },
   waitingNextRoundText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
+
+  // Game over
   gameOverContent: { padding: 20, alignItems: "center", paddingBottom: 40 },
   gameOverTitle: { fontFamily: "Cairo_700Bold", fontSize: 28, color: Colors.textPrimary, textAlign: "center", marginBottom: 6 },
   gameOverSub: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: Colors.textSecondary, textAlign: "center", marginBottom: 20 },
-  trophyCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: Colors.gold + "22",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-    borderWidth: 2,
-    borderColor: Colors.gold + "40",
-  },
-  winnerCard: {
-    backgroundColor: Colors.gold + "15",
-    borderRadius: 16,
-    padding: 20,
-    alignItems: "center",
-    width: "100%",
-    borderWidth: 1,
-    borderColor: Colors.gold + "30",
-    marginBottom: 20,
-  },
-  winnerLabel: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, marginBottom: 4 },
-  winnerName: { fontFamily: "Cairo_700Bold", fontSize: 24, color: Colors.gold, marginBottom: 4 },
-  winnerScore: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: Colors.textSecondary },
   podiumRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center", gap: 8, width: "100%", marginBottom: 24 },
   podiumSlot: { alignItems: "center", flex: 1 },
   podiumMedal: { fontSize: 24, marginBottom: 4 },
@@ -694,30 +662,14 @@ const styles = StyleSheet.create({
   finalRankName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
   finalRankRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   finalRankScore: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
-  coinRewardBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: Colors.gold + "22",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    gap: 3,
-  },
+  coinRewardBadge: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.gold + "22", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, gap: 3 },
   coinRewardText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.gold },
   playAgainBtn: {
-    backgroundColor: Colors.gold,
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 40,
-    marginBottom: 12,
-    shadowColor: Colors.gold,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: Colors.gold, borderRadius: 16, paddingVertical: 16,
+    paddingHorizontal: 40, marginBottom: 12,
+    shadowColor: Colors.gold, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
   },
   playAgainBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.black },
   homeBtn: { backgroundColor: Colors.card, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 40, borderWidth: 1, borderColor: Colors.cardBorder },

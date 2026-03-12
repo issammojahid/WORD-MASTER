@@ -1,0 +1,195 @@
+IMPORTANT: Do NOT modify the multiplayer server or networking system.
+
+This project already has a working Railway server and multiplayer system.
+
+The following systems MUST NOT be changed:
+
+- Railway server configuration
+- socket.io server
+- matchmaking logic
+- room creation
+- multiplayer networking
+- API routes
+
+These systems are already working correctly.
+
+Your task is ONLY to improve:
+
+• WORD DATABASE
+• WORD VALIDATION
+• LANDING PAGE UI
+• CHAT VISUAL BEHAVIOR
+• VOICE CHAT IN FRIEND ROOMS
+
+Do NOT modify gameplay logic or multiplayer networking.
+
+---
+
+1) EXPAND WORD DATABASE
+
+Add more Arabic words to the existing database.
+
+Support all Arabic letters:
+
+ا ب ت ث ج ح خ د ذ ر ز س ش ص ض ط ظ ع غ ف ق ك ل م ن ه و ي
+
+Each letter must contain at least 30 words.
+
+Total database size should be around:
+
+800 – 1000 Arabic words.
+
+Store the words in a structured JSON file such as:
+
+words.json
+
+Example structure:
+
+words = {
+"ا": ["أسد","أرض","أمل","أمير","أرز"],
+"ب": ["باب","بحر","بيت","بصل","بدر"],
+"ت": ["تفاح","تمر","تاجر","تنين","تاج"]
+}
+
+---
+
+2) WORD VALIDATION
+
+When a player submits a word:
+
+Check:
+
+1) Word starts with the required letter
+2) Word exists in the database
+3) Word length must be greater than 1 character
+
+Reject single letters such as:
+
+"م"
+
+If word is not in database show message:
+
+"الكلمة غير موجودة"
+
+---
+
+3) LANDING PAGE LAYOUT IMPROVEMENT
+
+Improve the home screen layout without removing any current features.
+
+Top section:
+
+Left side:
+
+- Player avatar
+- Username
+- Level badge
+- Small XP progress bar
+
+Right side:
+
+- Coins counter
+- Settings icon
+
+---
+
+4) GAME MODES CAROUSEL
+
+The main game modes should appear as swipeable cards.
+
+Players should be able to swipe left and right.
+
+Example modes:
+
+- مباراة سريعة
+- Online Tournaments
+- Rapid Mode
+
+Cards must move horizontally when the user swipes:
+
+Swipe → left or right.
+
+---
+
+5) SHOP ACCESS FROM COINS
+
+The shop should open when clicking on the coins.
+
+Example behavior:
+
+If player clicks the coins counter:
+
+Open the shop screen automatically.
+
+The shop button should also remain available in the features grid.
+
+---
+
+6) RAPID MODE CHAT VISUAL
+
+When a player sends a quick chat message in Rapid Mode:
+
+Example message:
+
+"Hello"
+
+The message should appear above the opponent player area.
+
+Position example:
+
+Top right side of the screen for the opponent.
+
+The chat bubble disappears after a few seconds.
+
+This keeps the screen clean.
+
+---
+
+7) VOICE CHAT IN FRIEND ROOMS
+
+Voice chat should only exist in FRIEND ROOMS.
+
+When a player creates a friend room:
+
+Show a voice chat button.
+
+Players can speak before the match starts.
+
+Voice chat should remain active:
+
+• before the match
+• during the match
+
+Add:
+
+- microphone button
+- speaking indicator when someone talks
+- mute button
+
+Voice chat should NOT exist in Quick Match or Rapid Mode.
+
+---
+
+8) UI CLEANUP
+
+Improve spacing between elements.
+
+Avoid crowded layout.
+
+Keep design simple and mobile-friendly.
+
+Buttons must be centered and evenly spaced.
+
+---
+
+IMPORTANT AGAIN
+
+Do NOT modify:
+
+- multiplayer server
+- matchmaking logic
+- sockets
+- railway server
+- room logic
+
+Only improve database, validation, UI layout, swipe game modes, chat visuals, and voice chat in friend rooms.

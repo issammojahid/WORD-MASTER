@@ -8,6 +8,15 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
 - **Backend**: Express.js with Socket.io for real-time multiplayer
 - **State**: AsyncStorage for persistence, React Context for shared state
 - **Fonts**: Cairo (Arabic-friendly Google Font)
+- **Audio**: expo-av (v15.0.x) for voice chat (mic recording + playback)
+- **File I/O**: expo-file-system/legacy for base64 audio chunk encoding
+
+## Recent Features Added
+
+- **Home screen**: Swipeable FlatList game modes carousel (مباراة سريعة / غرفة أصدقاء / وضع محلي) with dot indicators, coins badge → shop navigation, profile/XP bar
+- **Quick chat**: Preset Arabic message bubbles in game (floating overlay, 3.5s auto-dismiss), speech bubble icon button, received from opponents via socket relay
+- **Voice chat**: Push-to-talk voice in friend rooms (lobby), mic permission request, real-time chunk streaming via socket, speaking indicators per player, mute toggle
+- **Server relays**: `quick_chat` and `voice_data` socket events added to routes.ts (relay-only, no game logic touched)
 
 ## Project Structure
 

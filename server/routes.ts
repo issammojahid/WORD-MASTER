@@ -499,6 +499,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
     // ────────────────────────────────────────────────────────────────────
 
+    // Quick chat relay — forward chat message to all players in the room
+    socket.on("quick_chat", (data: { roomId: string; message: string; playerName: string }) => {
+      socket.to(data.roomId).emit("quick_chat", { message: data.message, playerName: data.playerName });
+    });
+
+    // Voice data relay — forward audio chunks to all players in the room
+    socket.on("voice_data", (data: { roomId: string; audio: string; isSpeaking: boolean }) => {
+      socket.to(data.roomId).emit("voice_data", { audio: data.audio, from: socket.id, isSpeaking: data.isSpeaking });
+    });
+
     // Disconnect
     socket.on("disconnect", () => {
       console.log("Socket disconnected:", socket.id);
