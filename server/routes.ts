@@ -632,9 +632,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/player/:id", async (req, res) => {
     try {
-      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, req.params.id));
+      let [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, req.params.id));
       if (!profile) {
-        return res.status(404).json({ error: "not_found" });
+        [profile] = await db.insert(playerProfiles).values({ id: req.params.id }).returning();
       }
       res.json(profile);
     } catch (e) {
