@@ -139,7 +139,7 @@ export default function FriendsScreen() {
       <View style={styles.playSection}>
         <TouchableOpacity
           style={styles.playBtn}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/lobby"); }}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push({ pathname: "/lobby", params: { action: "create" } }); }}
           activeOpacity={0.8}
         >
           <Ionicons name="add-circle" size={22} color={Colors.emerald} />
@@ -148,7 +148,7 @@ export default function FriendsScreen() {
         <View style={styles.playDivider} />
         <TouchableOpacity
           style={styles.playBtn}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/lobby"); }}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push({ pathname: "/lobby", params: { action: "join" } }); }}
           activeOpacity={0.8}
         >
           <Ionicons name="enter" size={22} color={Colors.gold} />

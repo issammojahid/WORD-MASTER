@@ -146,3 +146,16 @@ export const playerAchievements = pgTable("player_achievements", {
 });
 
 export type PlayerAchievement = typeof playerAchievements.$inferSelect;
+
+// ── ROOM INVITES ────────────────────────────────────────────────────────────
+export const roomInvites = pgTable("room_invites", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fromPlayerId: varchar("from_player_id").notNull(),
+  toPlayerId: varchar("to_player_id").notNull(),
+  roomId: varchar("room_id").notNull(),
+  fromPlayerName: text("from_player_name").notNull(),
+  status: text("status").notNull().default("pending"), // pending | accepted | declined
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type RoomInvite = typeof roomInvites.$inferSelect;

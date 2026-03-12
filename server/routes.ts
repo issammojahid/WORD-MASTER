@@ -17,7 +17,7 @@ import {
 import { validateWord, CATEGORY_MAP, type WordCategory } from "./wordDatabase";
 import { ARABIC_LETTERS } from "./gameLogic";
 import { db } from "./db";
-import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, playerDailyTasks, playerAchievements } from "@shared/schema";
+import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, playerDailyTasks, playerAchievements, roomInvites } from "@shared/schema";
 import { eq, and, desc, or, ilike, ne } from "drizzle-orm";
 
 // ── DAILY TASK DEFINITIONS ──────────────────────────────────────────────────
@@ -1886,6 +1886,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, coinsEarned: def.rewardCoins, xpEarned: def.rewardXp });
     } catch (e) {
       console.error("POST /api/achievements/claim error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // ── ROOM INVITES ──────────────────────────────────────────────────────────
+  app.post("/api/room-invites", async (req, res) => {
+    try {
+      const { fromPlayerId, toPlayerId, roomId, fromPlayerName } = req.body;
+      if (!fromPlayerId || !toPlayerId || !roomId || !fromPlayerName) {
+        return res.status(400).json({ error: "missing_fields" });
+      }
+      // Cancel any existing pending invite from same player to same room
+      await db.update(roomInvites).set({ status: "cancelled" })
+        .where(and(eq(roomInvites.fromPlayerId, fromPlayerId), eq(roomInvites.toPlayerId, toPlayerId), eq(roomInvites.status, "pending")));
+      const [invite] = await db.insert(roomInvites)
+        .values({ fromPlayerId, toPlayerId, roomId, fromPlayerName, status: "pending" })
+        .returning();
+      res.json({ success: true, inviteId: invite.id });
+    } catch (e) {
+      console.error("POST /api/room-invites error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.get("/api/room-invites/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const pending = await db.select().from(roomInvites)
+        .where(and(eq(roomInvites.toPlayerId, playerId), eq(roomInvites.status, "pending")))
+        .orderBy(desc(roomInvites.createdAt))
+        .limit(5);
+      // Filter client-side to invites created within last 5 minutes
+      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+      const fresh = pending.filter(i => new Date(i.createdAt).getTime() > fiveMinutesAgo);
+      res.json(fresh);
+    } catch (e) {
+      console.error("GET /api/room-invites error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.put("/api/room-invites/:inviteId/respond", async (req, res) => {
+    try {
+      const { inviteId } = req.params;
+      const { action } = req.body; // "accept" | "decline"
+      const status = action === "accept" ? "accepted" : "declined";
+      const [invite] = await db.update(roomInvites).set({ status })
+        .where(eq(roomInvites.id, inviteId)).returning();
+      if (!invite) return res.status(404).json({ error: "not_found" });
+      res.json({ success: true, roomId: invite.roomId, action });
+    } catch (e) {
+      console.error("PUT /api/room-invites respond error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });

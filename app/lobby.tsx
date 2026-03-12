@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   Animated,
+  Modal,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -46,13 +47,19 @@ export default function LobbyScreen() {
   const insets = useSafeAreaInsets();
   const { t, isRTL } = useLanguage();
   const { profile, playerId } = usePlayer();
-  const params = useLocalSearchParams<{ coinEntry?: string }>();
+  const params = useLocalSearchParams<{ coinEntry?: string; action?: string; join?: string }>();
   const coinEntry = params.coinEntry ? parseInt(params.coinEntry, 10) : 0;
   const [tab, setTab] = useState<TabMode>("select");
   const [joinCode, setJoinCode] = useState("");
   const [room, setRoom] = useState<RoomData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Invite Friend modal state
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [friends, setFriends] = useState<{ id: string; name: string; skin: string; level: number }[]>([]);
+  const [inviteSending, setInviteSending] = useState<string | null>(null);
+  const [inviteSent, setInviteSent] = useState<Set<string>>(new Set());
   const [socketId, setSocketId] = useState<string | null>(null);
   const [matchmakingStatus, setMatchmakingStatus] = useState("جاري البحث عن لاعبين...");
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -279,9 +286,49 @@ export default function LobbyScreen() {
   // Auto-start matchmaking when coinEntry is provided (Quick Match mode)
   useEffect(() => {
     if (coinEntry >= 0 && params.coinEntry !== undefined) {
-      // Small delay to ensure socket is ready
       const t = setTimeout(() => {
         handleQuickMatch();
+      }, 300);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
+  // Auto-create room when action=create, or show join tab when action=join
+  useEffect(() => {
+    if (params.action === "create") {
+      setTab("create");
+      setLoading(true);
+      const t = setTimeout(() => handleCreateRoom(), 300);
+      return () => clearTimeout(t);
+    } else if (params.action === "join") {
+      setTab("join");
+    }
+  }, []);
+
+  // Auto-join room when join=ROOMID (from invite accept)
+  useEffect(() => {
+    if (params.join) {
+      const roomCode = params.join.toUpperCase();
+      const t = setTimeout(() => {
+        setLoading(true);
+        setError(null);
+        const socket = getSocket();
+        socket.emit(
+          "join_room",
+          { roomId: roomCode, playerName: profile.name, playerSkin: profile.equippedSkin },
+          (res: { success: boolean; room?: RoomData; error?: string }) => {
+            setLoading(false);
+            if (res.success && res.room) {
+              roomIdRef.current = res.room.id;
+              setRoom(res.room);
+              setTab("waiting");
+            } else {
+              setError(res.error === "room_not_found" ? "الغرفة غير موجودة أو انتهت"
+                : res.error === "room_full" ? "الغرفة ممتلئة"
+                : "فشل الانضمام للغرفة");
+            }
+          }
+        );
       }, 300);
       return () => clearTimeout(t);
     }
@@ -399,6 +446,46 @@ export default function LobbyScreen() {
     Alert.alert(t.roomCode, room.id);
   };
 
+  const loadFriends = async () => {
+    try {
+      const { getApiUrl } = await import("@/lib/query-client");
+      const url = new URL(`/api/friends/${playerId}`, getApiUrl());
+      const res = await fetch(url.toString());
+      const data = await res.json();
+      const accepted = (Array.isArray(data) ? data : [])
+        .filter((f: { status: string }) => f.status === "accepted")
+        .map((f: { player: { id: string; name: string; skin: string; level: number } }) => f.player);
+      setFriends(accepted);
+    } catch {}
+  };
+
+  const openInviteModal = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setInviteSent(new Set());
+    setShowInviteModal(true);
+    loadFriends();
+  };
+
+  const sendInvite = async (friendId: string) => {
+    if (!room || inviteSending === friendId) return;
+    setInviteSending(friendId);
+    try {
+      const { getApiUrl } = await import("@/lib/query-client");
+      const url = new URL("/api/room-invites", getApiUrl());
+      await fetch(url.toString(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fromPlayerId: playerId, toPlayerId: friendId, roomId: room.id, fromPlayerName: profile.name }),
+      });
+      setInviteSent((prev) => { const next = new Set(prev); next.add(friendId); return next; });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      Alert.alert("خطأ", "فشل إرسال الدعوة");
+    } finally {
+      setInviteSending(null);
+    }
+  };
+
   // Countdown overlay (only for matchmaking, not friend rooms)
   if (countdown !== null && tab === "matchmaking") {
     const countColors: Record<number, string> = { 3: Colors.emerald, 2: Colors.gold, 1: Colors.ruby };
@@ -437,14 +524,74 @@ export default function LobbyScreen() {
   if (tab === "waiting" && room) {
     const amHost = isHost(room);
     const canStart = room.players.length >= 2;
+    const filledSlots = room.players;
+    const emptySlots = Math.max(0, 2 - filledSlots.length);
 
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+        {/* ─── Invite Friend Modal ─── */}
+        <Modal visible={showInviteModal} transparent animationType="slide" onRequestClose={() => setShowInviteModal(false)}>
+          <View style={styles.inviteOverlay}>
+            <View style={styles.inviteSheet}>
+              <View style={styles.inviteHeader}>
+                <Text style={styles.inviteTitle}>دعوة صديق</Text>
+                <TouchableOpacity onPress={() => setShowInviteModal(false)}>
+                  <Ionicons name="close" size={22} color={Colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+              {friends.length === 0 ? (
+                <View style={styles.inviteEmpty}>
+                  <Text style={styles.inviteEmptyText}>لا يوجد أصدقاء مضافون بعد</Text>
+                  <Text style={styles.inviteEmptyHint}>أضف أصدقاء من قائمة الأصدقاء</Text>
+                </View>
+              ) : (
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {friends.map((friend) => {
+                    const skin = SKINS.find((s) => s.id === friend.skin) || SKINS[0];
+                    const sent = inviteSent.has(friend.id);
+                    const sending = inviteSending === friend.id;
+                    return (
+                      <View key={friend.id} style={styles.inviteFriendRow}>
+                        <View style={[styles.inviteAvatar, { backgroundColor: skin.color + "33" }]}>
+                          <Text style={styles.inviteAvatarEmoji}>{skin.emoji}</Text>
+                        </View>
+                        <View style={styles.inviteFriendInfo}>
+                          <Text style={styles.inviteFriendName}>{friend.name}</Text>
+                          <Text style={styles.inviteFriendLevel}>المستوى {friend.level}</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={[styles.inviteBtn, sent && styles.inviteBtnSent]}
+                          onPress={() => sendInvite(friend.id)}
+                          disabled={sent || sending}
+                        >
+                          {sending ? (
+                            <ActivityIndicator size="small" color={Colors.black} />
+                          ) : sent ? (
+                            <>
+                              <Ionicons name="checkmark" size={14} color={Colors.emerald} />
+                              <Text style={[styles.inviteBtnText, { color: Colors.emerald }]}>أُرسلت</Text>
+                            </>
+                          ) : (
+                            <>
+                              <Ionicons name="paper-plane" size={14} color={Colors.black} />
+                              <Text style={styles.inviteBtnText}>دعوة</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+              )}
+            </View>
+          </View>
+        </Modal>
+
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
             <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t.waitingForPlayers}</Text>
+          <Text style={styles.headerTitle}>غرفة الأصدقاء</Text>
           <TouchableOpacity style={styles.codeBtn} onPress={copyRoomCode}>
             <Text style={styles.codeText}>{room.id}</Text>
             <Ionicons name="copy-outline" size={14} color={Colors.gold} style={{ marginLeft: 4 }} />
@@ -452,10 +599,50 @@ export default function LobbyScreen() {
         </View>
 
         <View style={styles.roomCodeCard}>
-          <Text style={styles.roomCodeLabel}>{t.roomCode}</Text>
+          <Text style={styles.roomCodeLabel}>رمز الغرفة</Text>
           <Text style={styles.roomCodeBig}>{room.id}</Text>
-          <Text style={styles.roomCodeHint}>شارك الرمز مع أصدقائك</Text>
+          <TouchableOpacity style={styles.copyCodeBtn} onPress={copyRoomCode}>
+            <Ionicons name="copy-outline" size={16} color={Colors.gold} />
+            <Text style={styles.copyCodeText}>نسخ الرمز</Text>
+          </TouchableOpacity>
         </View>
+
+        {/* Player Slots */}
+        <View style={styles.playerSlotsContainer}>
+          {filledSlots.map((player) => {
+            const skin = SKINS.find((s) => s.id === player.skin) || SKINS[0];
+            const isMe = player.id === socketId;
+            return (
+              <View key={player.id} style={styles.playerSlot}>
+                <View style={[styles.playerSlotAvatar, { backgroundColor: skin.color + "33", borderColor: player.isHost ? Colors.gold : skin.color + "60" }]}>
+                  <Text style={styles.playerSlotEmoji}>{skin.emoji}</Text>
+                  {player.isHost && <View style={styles.hostCrown}><Text style={{ fontSize: 10 }}>👑</Text></View>}
+                </View>
+                <Text style={[styles.playerSlotName, isMe && { color: Colors.gold }]} numberOfLines={1}>
+                  {player.name}{isMe ? " (أنت)" : ""}
+                </Text>
+                <Text style={styles.playerSlotStatus}>{player.isHost ? "مضيف" : "لاعب"}</Text>
+              </View>
+            );
+          })}
+          {Array.from({ length: emptySlots }).map((_, i) => (
+            <TouchableOpacity key={`empty-${i}`} style={styles.playerSlotEmpty} onPress={amHost ? openInviteModal : undefined} activeOpacity={amHost ? 0.7 : 1}>
+              <View style={styles.playerSlotEmptyAvatar}>
+                <Ionicons name="person-add" size={28} color={Colors.textMuted} />
+              </View>
+              <Text style={styles.playerSlotEmptyText}>{amHost ? "اضغط لدعوة" : "في الانتظار..."}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Invite Friend button (host only) */}
+        {amHost && (
+          <TouchableOpacity style={styles.inviteFriendBtn} onPress={openInviteModal}>
+            <Ionicons name="person-add" size={18} color={Colors.sapphire} />
+            <Text style={styles.inviteFriendBtnText}>دعوة صديق</Text>
+          </TouchableOpacity>
+        )}
+
 
         {/* ─── VOICE CHAT PANEL (friend rooms only) ─── */}
         <View style={styles.voiceChatCard}>
@@ -847,4 +1034,42 @@ const styles = StyleSheet.create({
   vsEmoji: { fontSize: 36 },
   vsName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, textAlign: "center", maxWidth: 100 },
   vsText: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.ruby },
+
+  // Room code copy button
+  copyCodeBtn: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 8, backgroundColor: Colors.gold + "15", paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 },
+  copyCodeText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.gold },
+
+  // Player Slots
+  playerSlotsContainer: { flexDirection: "row", justifyContent: "center", gap: 16, paddingHorizontal: 16, paddingVertical: 12 },
+  playerSlot: { flex: 1, alignItems: "center", backgroundColor: Colors.card, borderRadius: 16, padding: 14, borderWidth: 1.5, borderColor: Colors.cardBorder },
+  playerSlotAvatar: { width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center", borderWidth: 2, marginBottom: 8, position: "relative" },
+  playerSlotEmoji: { fontSize: 30 },
+  hostCrown: { position: "absolute", top: -6, right: -6 },
+  playerSlotName: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "center" },
+  playerSlotStatus: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, marginTop: 2 },
+  playerSlotEmpty: { flex: 1, alignItems: "center", backgroundColor: Colors.backgroundSecondary, borderRadius: 16, padding: 14, borderWidth: 1.5, borderColor: Colors.cardBorder, borderStyle: "dashed" },
+  playerSlotEmptyAvatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: Colors.backgroundTertiary, justifyContent: "center", alignItems: "center", marginBottom: 8 },
+  playerSlotEmptyText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center" },
+
+  // Invite Friend button
+  inviteFriendBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, marginBottom: 4, paddingVertical: 12, borderRadius: 14, backgroundColor: Colors.sapphire + "18", borderWidth: 1, borderColor: Colors.sapphire + "40" },
+  inviteFriendBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.sapphire },
+
+  // Invite Friend Modal
+  inviteOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
+  inviteSheet: { backgroundColor: Colors.backgroundSecondary, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40, maxHeight: "70%" },
+  inviteHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
+  inviteTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
+  inviteEmpty: { alignItems: "center", paddingVertical: 40, gap: 8 },
+  inviteEmptyText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textSecondary },
+  inviteEmptyHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  inviteFriendRow: { flexDirection: "row", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.cardBorder, gap: 12 },
+  inviteAvatar: { width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center" },
+  inviteAvatarEmoji: { fontSize: 22 },
+  inviteFriendInfo: { flex: 1 },
+  inviteFriendName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
+  inviteFriendLevel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  inviteBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: Colors.gold, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
+  inviteBtnSent: { backgroundColor: Colors.emerald + "20", borderWidth: 1, borderColor: Colors.emerald + "40" },
+  inviteBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.black },
 });
