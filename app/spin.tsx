@@ -107,13 +107,17 @@ export default function SpinScreen() {
             lastSpinAt: data.profile.lastSpinAt,
           });
         }
+      } else if (res.status === 429) {
+        const data = await res.json().catch(() => ({}));
+        if (data.nextSpinAt) {
+          updateProfile({ lastSpinAt: new Date(data.nextSpinAt - 24 * 60 * 60 * 1000).toISOString() });
+        }
+        setCanSpin(false);
+        setSpinning(false);
+        return;
       } else {
-        const segIdx = Math.floor(Math.random() * WHEEL_SEGMENTS.length);
-        const seg = WHEEL_SEGMENTS[segIdx];
-        serverReward = { type: seg.type, amount: seg.amount, label: seg.label };
-        if (seg.type === "coins") addCoins(seg.amount);
-        else addXp(seg.amount);
-        updateProfile({ lastSpinAt: new Date().toISOString() });
+        setSpinning(false);
+        return;
       }
 
       const targetIdx = serverReward ? WHEEL_SEGMENTS.findIndex(s => s.type === serverReward!.type && s.amount === serverReward!.amount) : 0;

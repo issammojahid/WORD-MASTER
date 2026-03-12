@@ -259,8 +259,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
       }
     }
+    const entryFee = coinEntry || 0;
+    const netCoins = coinsEarned + streakBonus - entryFee;
     updateProfile({
-      coins: profile.coins + coinsEarned + streakBonus,
+      coins: profile.coins + netCoins,
       xp: profile.xp + xpEarned,
       level: calculateLevel(profile.xp + xpEarned),
       totalScore: profile.totalScore + score,

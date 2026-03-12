@@ -469,14 +469,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // findMatch: add player to global queue; create room when 2 are ready
     socket.on(
       "findMatch",
-      (data: { playerName: string; playerSkin: string; coinEntry?: number; playerId?: string }) => {
+      async (data: { playerName: string; playerSkin: string; coinEntry?: number; playerId?: string }) => {
         // Never add the same socket twice
         if (matchmakingQueue.find((p) => p.id === socket.id)) {
           console.log(`[findMatch] Socket ${socket.id} already in queue – ignored`);
           return;
         }
 
-        const entry: QueueEntry = { id: socket.id, name: data.playerName, skin: data.playerSkin, coinEntry: data.coinEntry || 0, playerId: data.playerId };
+        const requestedEntry = data.coinEntry || 0;
+        if (requestedEntry > 0 && data.playerId) {
+          try {
+            const [p] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, data.playerId));
+            if (!p || p.coins < requestedEntry) {
+              socket.emit("matchError", { error: "insufficient_coins" });
+              return;
+            }
+          } catch {}
+        }
+
+        const entry: QueueEntry = { id: socket.id, name: data.playerName, skin: data.playerSkin, coinEntry: requestedEntry, playerId: data.playerId };
         matchmakingQueue.push(entry);
         console.log(`[findMatch] Queue: ${matchmakingQueue.map((p) => `${p.name}(${p.coinEntry || 0})`).join(", ")} (${matchmakingQueue.length} players)`);
 
@@ -496,6 +507,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           if (myCoinEntry > 0) {
             roomCoinEntries.set(room.id, myCoinEntry);
+            for (const player of matched) {
+              if (player.playerId) {
+                db.select().from(playerProfiles).where(eq(playerProfiles.id, player.playerId)).then(([p]) => {
+                  if (p && p.coins >= myCoinEntry) {
+                    db.update(playerProfiles).set({ coins: p.coins - myCoinEntry, updatedAt: new Date() }).where(eq(playerProfiles.id, player.playerId!)).catch(() => {});
+                  }
+                }).catch(() => {});
+              }
+            }
           }
 
           // Join both sockets to the Socket.io room

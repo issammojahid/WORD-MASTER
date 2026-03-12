@@ -251,12 +251,19 @@ export default function LobbyScreen() {
       if (data.players) setCountdownPlayers(data.players);
     };
 
+    const handleMatchError = (data: { error: string }) => {
+      setLoading(false);
+      setMatchmakingStatus(data.error === "insufficient_coins" ? "رصيدك غير كافي لهذه المباراة" : "خطأ في المطابقة");
+      setTab("menu");
+    };
+
     socket.on("connect", handleConnect);
     socket.on("room_updated", handleRoomUpdated);
     socket.on("game_started", handleGameStarted);
     socket.on("matchFound", handleMatchFound);
     socket.on("countdown", handleCountdown);
     socket.on("voice_data", handleVoiceData);
+    socket.on("matchError", handleMatchError);
 
     return () => {
       socket.off("connect", handleConnect);
@@ -265,6 +272,7 @@ export default function LobbyScreen() {
       socket.off("matchFound", handleMatchFound);
       socket.off("countdown", handleCountdown);
       socket.off("voice_data", handleVoiceData);
+      socket.off("matchError", handleMatchError);
     };
   }, []);
 
