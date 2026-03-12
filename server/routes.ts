@@ -47,14 +47,27 @@ type RapidRoom = {
   roundTimer: ReturnType<typeof setTimeout> | null;
   roundWon: boolean;
   lastAttempts: Record<string, string>;
+  letterQueue: string[];
+  letterIndex: number;
 };
 
 const rapidRooms = new Map<string, RapidRoom>();
 
-function pickRapidLetter(usedLetters: string[] = []): string {
-  const available = ARABIC_LETTERS.filter((l) => !usedLetters.includes(l));
-  const pool = available.length > 0 ? available : ARABIC_LETTERS;
-  return pool[Math.floor(Math.random() * pool.length)];
+function shuffleArr<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function getNextRapidLetter(room: RapidRoom): string {
+  if (room.letterIndex >= room.letterQueue.length) {
+    room.letterQueue = shuffleArr(ARABIC_LETTERS);
+    room.letterIndex = 0;
+  }
+  return room.letterQueue[room.letterIndex++];
 }
 
 function pickRapidCategory(usedCategories: string[] = []): string {
@@ -982,6 +995,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         roundTimer: null,
         roundWon: false,
         lastAttempts: {},
+        letterQueue: shuffleArr(ARABIC_LETTERS),
+        letterIndex: 0,
       };
       rapidRooms.set(roomId, rapidRoom);
 
@@ -1138,7 +1153,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!room) return;
 
     room.currentRound += 1;
-    room.currentLetter = pickRapidLetter();
+    room.currentLetter = getNextRapidLetter(room);
     room.currentCategory = pickRapidCategory();
     room.roundWon = false;
     room.lastAttempts = {};

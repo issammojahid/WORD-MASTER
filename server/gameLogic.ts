@@ -60,6 +60,8 @@ export type Room = {
   submittedAnswers: Map<string, PlayerAnswers>;
   roundStartTime: number;
   timer: ReturnType<typeof setTimeout> | null;
+  letterQueue: string[];
+  letterIndex: number;
 };
 
 const rooms = new Map<string, Room>();
@@ -73,10 +75,21 @@ function generateRoomCode(): string {
   return code;
 }
 
-function pickRandomLetter(usedLetters: string[] = []): string {
-  const available = ARABIC_LETTERS.filter((l) => !usedLetters.includes(l));
-  const pool = available.length > 0 ? available : ARABIC_LETTERS;
-  return pool[Math.floor(Math.random() * pool.length)];
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function getNextLetter(room: Room): string {
+  if (room.letterIndex >= room.letterQueue.length) {
+    room.letterQueue = shuffleArray(ARABIC_LETTERS);
+    room.letterIndex = 0;
+  }
+  return room.letterQueue[room.letterIndex++];
 }
 
 export function createRoom(hostId: string, hostName: string, hostSkin: string): Room {
@@ -85,6 +98,7 @@ export function createRoom(hostId: string, hostName: string, hostSkin: string): 
     code = generateRoomCode();
   }
 
+  const initialQueue = shuffleArray(ARABIC_LETTERS);
   const room: Room = {
     id: code,
     players: [
@@ -100,13 +114,15 @@ export function createRoom(hostId: string, hostName: string, hostSkin: string): 
       },
     ],
     state: "waiting",
-    currentLetter: pickRandomLetter(),
+    currentLetter: initialQueue[0],
     currentRound: 0,
     totalRounds: 5,
     roundResults: [],
     submittedAnswers: new Map(),
     roundStartTime: 0,
     timer: null,
+    letterQueue: initialQueue,
+    letterIndex: 1,
   };
 
   rooms.set(code, room);
@@ -185,10 +201,11 @@ export function startGame(roomId: string): { success: boolean; room?: Room; erro
   console.log(`[startGame] Room ${roomId}: ${room.players.length} unique players (${uniqueIds.size} unique IDs)`);
   if (room.players.length < 2) return { success: false, error: "need_more_players" };
 
-  const usedLetters: string[] = [];
+  room.letterQueue = shuffleArray(ARABIC_LETTERS);
+  room.letterIndex = 0;
   room.state = "playing";
   room.currentRound = 1;
-  room.currentLetter = pickRandomLetter(usedLetters);
+  room.currentLetter = getNextLetter(room);
   room.submittedAnswers.clear();
   room.roundStartTime = Date.now();
 
@@ -312,9 +329,8 @@ export function nextRound(roomId: string): { isGameOver: boolean; room: Room | n
     return { isGameOver: true, room };
   }
 
-  const usedLetters = room.roundResults.map((_, i) => room.currentLetter);
   room.currentRound += 1;
-  room.currentLetter = pickRandomLetter(usedLetters);
+  room.currentLetter = getNextLetter(room);
   room.submittedAnswers.clear();
   room.state = "playing";
   room.roundStartTime = Date.now();
@@ -339,10 +355,11 @@ export function resetRoom(roomId: string): Room | null {
   const room = rooms.get(roomId);
   if (!room) return null;
 
-  const usedLetters: string[] = [];
+  room.letterQueue = shuffleArray(ARABIC_LETTERS);
+  room.letterIndex = 0;
   room.state = "waiting";
   room.currentRound = 0;
-  room.currentLetter = pickRandomLetter(usedLetters);
+  room.currentLetter = getNextLetter(room);
   room.submittedAnswers.clear();
   room.roundResults = [];
 

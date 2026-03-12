@@ -82,10 +82,13 @@ type RoundResultEntry = {
   total: number;
 };
 
-function pickRandomLetter(used: string[] = []): string {
-  const available = ARABIC_LETTERS.filter((l) => !used.includes(l));
-  const pool = available.length > 0 ? available : ARABIC_LETTERS;
-  return pool[Math.floor(Math.random() * pool.length)];
+function shuffleLetters(arr: string[]): string[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 export default function OfflineScreen() {
@@ -93,10 +96,20 @@ export default function OfflineScreen() {
   const { t } = useLanguage();
   const { profile, addCoins, addXp, updateProfile } = usePlayer();
 
+  const letterQueueRef = useRef<string[]>(shuffleLetters(ARABIC_LETTERS));
+  const letterIndexRef = useRef<number>(0);
+
+  function getNextLetter(): string {
+    if (letterIndexRef.current >= letterQueueRef.current.length) {
+      letterQueueRef.current = shuffleLetters(ARABIC_LETTERS);
+      letterIndexRef.current = 0;
+    }
+    return letterQueueRef.current[letterIndexRef.current++];
+  }
+
   const [phase, setPhase] = useState<"playing" | "results" | "gameOver">("playing");
   const [currentRound, setCurrentRound] = useState(1);
-  const [usedLetters, setUsedLetters] = useState<string[]>([]);
-  const [currentLetter, setCurrentLetter] = useState(() => pickRandomLetter());
+  const [currentLetter, setCurrentLetter] = useState(() => getNextLetter());
   const [answers, setAnswers] = useState<Record<GameCategory, string>>({} as Record<GameCategory, string>);
   const [timeLeft, setTimeLeft] = useState(ROUND_TIME);
   const [submitted, setSubmitted] = useState(false);
@@ -254,9 +267,7 @@ export default function OfflineScreen() {
       updateProfile({ gamesPlayed: profile.gamesPlayed + 1, wins: myRank === 0 ? profile.wins + 1 : profile.wins, totalScore: profile.totalScore + myTotal });
       return;
     }
-    const nextLetter = pickRandomLetter([...usedLetters, currentLetter]);
-    setUsedLetters((prev) => [...prev, currentLetter]);
-    setCurrentLetter(nextLetter);
+    setCurrentLetter(getNextLetter());
     setCurrentRound((prev) => prev + 1);
     setAnswers({} as Record<GameCategory, string>);
     setSubmitted(false);
@@ -265,11 +276,11 @@ export default function OfflineScreen() {
   };
 
   const resetGame = () => {
-    const first = pickRandomLetter();
+    letterQueueRef.current = shuffleLetters(ARABIC_LETTERS);
+    letterIndexRef.current = 0;
     setPhase("playing");
     setCurrentRound(1);
-    setUsedLetters([]);
-    setCurrentLetter(first);
+    setCurrentLetter(getNextLetter());
     setAnswers({} as Record<GameCategory, string>);
     setSubmitted(false);
     setRoundResults(null);
