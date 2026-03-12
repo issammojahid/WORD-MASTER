@@ -1,0 +1,134 @@
+IMPORTANT: Do NOT modify the multiplayer server or networking system.
+
+This project already has a working Railway server and multiplayer system.
+
+The following systems MUST NOT be changed:
+
+- Railway server configuration
+- socket.io server
+- matchmaking logic
+- room creation
+- multiplayer networking
+- API routes
+
+These systems are already working correctly.
+
+Your task is ONLY to improve the WORD DATABASE and WORD VALIDATION system so that players can successfully score when writing correct words.
+
+---
+
+PROBLEM
+
+Currently players sometimes write correct Arabic words but the game does not count them because the word is not present in the database.
+
+This creates a bad gameplay experience.
+
+The goal is to expand the database and improve validation so that most normal Arabic words are accepted.
+
+---
+
+1) EXPAND THE WORD DATABASE
+
+Create a larger Arabic word database.
+
+Support all Arabic letters:
+
+ا ب ت ث ج ح خ د ذ ر ز س ش ص ض ط ظ ع غ ف ق ك ل م ن ه و ي
+
+Each letter must contain at least:
+
+30–40 words.
+
+Total database size should be around:
+
+1000+ words.
+
+Store the words in a structured JSON file.
+
+Example:
+
+words.json
+
+Example structure:
+
+{
+"ا": ["أسد","أرنب","أمل","أرض","أمير"],
+"ب": ["باب","بحر","بيت","بصل","بدر"],
+"ت": ["تفاح","تمر","تاجر","تنين","تاج"]
+}
+
+---
+
+2) CATEGORY SUPPORT (FOR GAME MODES)
+
+Each letter should contain words that can work for the game categories.
+
+Example categories:
+
+- اسم بنت
+- اسم ولد
+- حيوان
+- فاكهة
+- خضرة
+- شيء
+- مدينة
+- دولة
+
+Ensure the database contains enough words to support these categories.
+
+---
+
+3) WORD VALIDATION IMPROVEMENT
+
+When a player writes a word the system must check:
+
+1) Word starts with the required letter
+2) Word length is greater than 1 character
+3) Word exists in the database
+
+Example logic:
+
+if(words[letter].includes(playerWord)){
+acceptWord()
+}
+
+If the word is not in the database show message:
+
+"الكلمة غير موجودة في القاموس"
+
+---
+
+4) FUTURE FLEXIBILITY
+
+The database should be easy to expand later.
+
+Developers should be able to simply add more words inside words.json without changing game logic.
+
+---
+
+5) BOT SUPPORT
+
+Bots should also select words from the same database.
+
+Example:
+
+const possibleWords = words[letter]
+
+const randomWord =
+possibleWords[Math.floor(Math.random() * possibleWords.length)]
+
+This ensures bots always respond with valid words.
+
+---
+
+IMPORTANT AGAIN
+
+Do NOT modify:
+
+- multiplayer networking
+- matchmaking system
+- railway server
+- socket logic
+- room creation
+
+Only expand the word database and improve validation logic.
