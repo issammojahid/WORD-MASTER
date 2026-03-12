@@ -24,8 +24,8 @@ import Colors from "@/constants/colors";
 import { MAPS } from "@/constants/i18n";
 
 const { width } = Dimensions.get("window");
-const CARD_WIDTH = width - 64;
-const CARD_MARGIN = 12;
+const CARD_WIDTH = width * 0.82;
+const CARD_MARGIN = 10;
 
 const COIN_ENTRIES = [
   { entry: 0, reward: 0, label: "مجاني" },
@@ -35,13 +35,43 @@ const COIN_ENTRIES = [
   { entry: 1000, reward: 2500, label: "1000" },
 ];
 
+const POPUP_PANELS = [
+  {
+    id: "road",
+    icon: "📦",
+    title: "طريق الكنز",
+    subtitle: "أكمل المراحل واربح جوائز حصرية",
+    reward: "🪙 حتى 500 عملة",
+    color: "#F59E0B",
+    onPress: () => router.push("/shop"),
+  },
+  {
+    id: "daily",
+    icon: "🎁",
+    title: "مكافأة يومية",
+    subtitle: "العب يومياً واحصل على مكافأتك",
+    reward: "🎁 مكافأة يومية مجانية",
+    color: "#10B981",
+    onPress: () => router.push("/spin"),
+  },
+  {
+    id: "challenges",
+    icon: "🎯",
+    title: "التحديات",
+    subtitle: "أتمم تحديات اليوم واكسب المزيد",
+    reward: "⭐ نقاط XP مضاعفة",
+    color: "#8B5CF6",
+    onPress: () => router.push("/leaderboard"),
+  },
+];
+
 type GameMode = {
   id: string;
   title: string;
   subtitle: string;
-  icon: string;
-  iconColor: string;
-  bg: string;
+  emoji: string;
+  gradient: string[];
+  accent: string;
   onPress: () => void;
 };
 
@@ -55,11 +85,14 @@ export default function HomeScreen() {
   const [showCoinEntryModal, setShowCoinEntryModal] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(0);
   const [tournamentWins, setTournamentWins] = useState(0);
+  const [showWelcomePopup, setShowWelcomePopup] = useState(false);
+  const hasShownPopup = useRef(false);
   const floatAnim = useRef(new Animated.Value(0)).current;
   const carouselRef = useRef<FlatList>(null);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+  const NAV_BAR_HEIGHT = 60 + bottomInset;
 
   const mapConfig = MAPS.find((m) => m.id === selectedMap) || MAPS[0];
   const equippedSkin = SKINS.find((s) => s.id === profile.equippedSkin) || SKINS[0];
@@ -68,10 +101,18 @@ export default function HomeScreen() {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(floatAnim, { toValue: -8, duration: 2200, useNativeDriver: true }),
-        Animated.timing(floatAnim, { toValue: 0, duration: 2200, useNativeDriver: true }),
+        Animated.timing(floatAnim, { toValue: -6, duration: 2400, useNativeDriver: true }),
+        Animated.timing(floatAnim, { toValue: 0, duration: 2400, useNativeDriver: true }),
       ])
     ).start();
+
+    const timer = setTimeout(() => {
+      if (!hasShownPopup.current) {
+        hasShownPopup.current = true;
+        setShowWelcomePopup(true);
+      }
+    }, 800);
+
     (async () => {
       try {
         const { getApiUrl } = await import("@/lib/query-client");
@@ -84,6 +125,8 @@ export default function HomeScreen() {
         }
       } catch {}
     })();
+
+    return () => clearTimeout(timer);
   }, []);
 
   const handleQuickMatchPress = () => {
@@ -94,9 +137,7 @@ export default function HomeScreen() {
   const handleStartMatch = () => {
     setShowCoinEntryModal(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    if (selectedEntry > 0 && profile.coins < selectedEntry) {
-      return;
-    }
+    if (selectedEntry > 0 && profile.coins < selectedEntry) return;
     router.push({ pathname: "/lobby", params: { coinEntry: String(selectedEntry) } });
   };
 
@@ -105,46 +146,37 @@ export default function HomeScreen() {
       id: "quick",
       title: "مباراة سريعة",
       subtitle: "العب مع لاعبين عشوائيين فوراً",
-      icon: "flash",
-      iconColor: Colors.gold,
-      bg: Colors.gold + "18",
+      emoji: "⚡",
+      gradient: [Colors.gold + "30", Colors.gold + "10"],
+      accent: Colors.gold,
       onPress: handleQuickMatchPress,
     },
     {
       id: "rapid",
       title: "الوضع السريع",
-      subtitle: "أول كلمة صحيحة تربح! 5 جولات بـ10 ثوان",
-      icon: "timer",
-      iconColor: Colors.ruby,
-      bg: Colors.ruby + "18",
+      subtitle: "أول كلمة صحيحة تربح في 10 ثوان",
+      emoji: "🚀",
+      gradient: [Colors.ruby + "30", Colors.ruby + "10"],
+      accent: Colors.ruby,
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/rapid"); },
     },
     {
-      id: "tournament",
-      title: "البطولة",
-      subtitle: "8 لاعبين، 3 جولات إقصائية، جائزة كبرى!",
-      icon: "trophy",
-      iconColor: Colors.gold,
-      bg: Colors.gold + "18",
-      onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/tournament"); },
-    },
-    {
       id: "friends",
-      title: "غرفة أصدقاء",
-      subtitle: "أنشئ غرفة وادعو أصدقاءك",
-      icon: "people",
-      iconColor: Colors.emerald,
-      bg: Colors.emerald + "18",
+      title: "اللعب مع الأصدقاء",
+      subtitle: "أنشئ غرفة وادعُ أصدقاءك",
+      emoji: "👥",
+      gradient: [Colors.emerald + "30", Colors.emerald + "10"],
+      accent: Colors.emerald,
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/lobby"); },
     },
     {
-      id: "offline",
-      title: "وضع محلي",
-      subtitle: "العب بدون إنترنت ضد الذكاء الاصطناعي",
-      icon: "person",
-      iconColor: Colors.sapphire,
-      bg: Colors.sapphire + "18",
-      onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/offline"); },
+      id: "tournament",
+      title: "البطولات",
+      subtitle: "8 لاعبين، 3 جولات إقصائية، جائزة كبرى",
+      emoji: "🏆",
+      gradient: ["#7C3AED30", "#7C3AED10"],
+      accent: "#7C3AED",
+      onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/tournament"); },
     },
   ];
 
@@ -163,10 +195,13 @@ export default function HomeScreen() {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: topInset + 8, paddingBottom: bottomInset + 20 }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: topInset + 8, paddingBottom: NAV_BAR_HEIGHT + 20 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* TOP BAR */}
+        {/* ── TOP BAR ─────────────────────────────────────── */}
         <View style={styles.topBar}>
           <TouchableOpacity
             style={styles.profileRow}
@@ -202,16 +237,13 @@ export default function HomeScreen() {
               <Ionicons name="star" size={14} color={Colors.gold} />
               <Text style={styles.coinsText}>{profile.coins}</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.settingsBtn}
-              onPress={() => router.push("/settings")}
-            >
+            <TouchableOpacity style={styles.settingsBtn} onPress={() => router.push("/settings")}>
               <Ionicons name="settings-outline" size={20} color={Colors.textSecondary} />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* WIN STREAK BAR */}
+        {/* ── WIN STREAK ──────────────────────────────────── */}
         {profile.winStreak >= 2 && (
           <View style={styles.streakBar}>
             <Ionicons name="flame" size={18} color={Colors.ruby} />
@@ -226,7 +258,7 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* LOGO */}
+        {/* ── LOGO ────────────────────────────────────────── */}
         <Animated.View style={[styles.logoContainer, { transform: [{ translateY: floatAnim }] }]}>
           <View style={styles.letterCircle}>
             <Text style={styles.logoLetter}>ح</Text>
@@ -235,7 +267,7 @@ export default function HomeScreen() {
           <Text style={styles.appSubtitle}>{t.homeSubtitle}</Text>
         </Animated.View>
 
-        {/* GAME MODES CAROUSEL */}
+        {/* ── GAME MODES CAROUSEL ─────────────────────────── */}
         <View style={styles.carouselSection}>
           <Text style={styles.carouselTitle}>اختر وضع اللعب</Text>
           <FlatList
@@ -250,71 +282,52 @@ export default function HomeScreen() {
             onScroll={handleScroll}
             scrollEventThrottle={16}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[styles.modeCard, { backgroundColor: item.bg, borderColor: item.iconColor + "40" }]}
-                onPress={item.onPress}
-                activeOpacity={0.85}
-              >
-                <View style={[styles.modeIconCircle, { backgroundColor: item.iconColor + "22" }]}>
-                  <Ionicons name={item.icon as any} size={36} color={item.iconColor} />
-                </View>
-                <Text style={[styles.modeTitle, { color: item.iconColor }]}>{item.title}</Text>
-                <Text style={styles.modeSubtitle}>{item.subtitle}</Text>
-                <View style={[styles.modePlayBtn, { backgroundColor: item.iconColor }]}>
-                  <Ionicons name="play" size={14} color={Colors.black} />
-                  <Text style={styles.modePlayText}>العب الآن</Text>
-                </View>
-              </TouchableOpacity>
-            )}
+            renderItem={({ item, index }) => {
+              const isActive = activeModeIdx === index;
+              return (
+                <TouchableOpacity
+                  style={[
+                    styles.modeCard,
+                    {
+                      borderColor: item.accent + "50",
+                      backgroundColor: isActive ? item.accent + "20" : Colors.card + "90",
+                      transform: [{ scale: isActive ? 1 : 0.95 }],
+                    },
+                  ]}
+                  onPress={item.onPress}
+                  activeOpacity={0.88}
+                >
+                  <View style={[styles.modeEmojiCircle, { backgroundColor: item.accent + "20" }]}>
+                    <Text style={styles.modeEmoji}>{item.emoji}</Text>
+                  </View>
+                  <Text style={[styles.modeTitle, { color: item.accent }]}>{item.title}</Text>
+                  <Text style={styles.modeSubtitle}>{item.subtitle}</Text>
+                  <TouchableOpacity
+                    style={[styles.modePlayBtn, { backgroundColor: item.accent }]}
+                    onPress={item.onPress}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="play" size={15} color="#fff" />
+                    <Text style={styles.modePlayText}>العب الآن</Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              );
+            }}
           />
           <View style={styles.dotsRow}>
-            {gameModes.map((_, idx) => (
+            {gameModes.map((m, idx) => (
               <View
                 key={idx}
-                style={[styles.dot, activeModeIdx === idx && styles.dotActive]}
+                style={[
+                  styles.dot,
+                  activeModeIdx === idx && [styles.dotActive, { backgroundColor: gameModes[idx].accent }],
+                ]}
               />
             ))}
           </View>
         </View>
 
-        {/* QUICK ACCESS BUTTONS */}
-        <View style={styles.quickRow}>
-          <TouchableOpacity
-            style={styles.quickBtn}
-            onPress={() => router.push("/leaderboard")}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="trophy" size={22} color={Colors.gold} />
-            <Text style={styles.quickBtnText}>{t.leaderboard}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.quickBtn, styles.spinBtn]}
-            onPress={() => router.push("/spin")}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="gift" size={22} color={Colors.ruby} />
-            <Text style={styles.quickBtnText}>العجلة</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.quickBtn}
-            onPress={() => router.push("/shop")}
-            activeOpacity={0.85}
-          >
-            <MaterialCommunityIcons name="shopping" size={22} color={Colors.emerald} />
-            <Text style={styles.quickBtnText}>{t.shop}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.quickBtn}
-            onPress={() => router.push("/settings")}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="settings-outline" size={22} color={Colors.textSecondary} />
-            <Text style={styles.quickBtnText}>{t.settings}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* STATS */}
+        {/* ── STATS ROW ───────────────────────────────────── */}
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{profile.gamesPlayed}</Text>
@@ -328,12 +341,12 @@ export default function HomeScreen() {
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{profile.totalScore}</Text>
-            <Text style={styles.statLabel}>نقاط كلية</Text>
+            <Text style={styles.statLabel}>نقاط</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{profile.bestStreak}</Text>
-            <Text style={styles.statLabel}>أفضل سلسلة</Text>
+            <Text style={styles.statLabel}>سلسلة</Text>
           </View>
           {tournamentWins > 0 && (
             <>
@@ -347,7 +360,82 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      {/* NAME MODAL */}
+      {/* ── BOTTOM NAVIGATION BAR ───────────────────────── */}
+      <View style={[styles.bottomNav, { paddingBottom: bottomInset, height: NAV_BAR_HEIGHT }]}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/shop")} activeOpacity={0.7}>
+          <MaterialCommunityIcons name="shopping" size={24} color={Colors.textMuted} />
+          <Text style={styles.navLabel}>المتجر</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/lobby")} activeOpacity={0.7}>
+          <Ionicons name="people-outline" size={24} color={Colors.textMuted} />
+          <Text style={styles.navLabel}>الأصدقاء</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItemCenter} onPress={() => {}} activeOpacity={0.9}>
+          <View style={styles.navHomeBtn}>
+            <Ionicons name="home" size={26} color={Colors.black} />
+          </View>
+          <Text style={[styles.navLabel, { color: Colors.gold }]}>الرئيسية</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/leaderboard")} activeOpacity={0.7}>
+          <Ionicons name="star-outline" size={24} color={Colors.textMuted} />
+          <Text style={styles.navLabel}>الأحداث</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/spin")} activeOpacity={0.7}>
+          <Ionicons name="color-palette-outline" size={24} color={Colors.textMuted} />
+          <Text style={styles.navLabel}>مجموعاتي</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ── WELCOME POPUP ───────────────────────────────── */}
+      <Modal
+        visible={showWelcomePopup}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowWelcomePopup(false)}
+      >
+        <View style={styles.popupOverlay}>
+          <View style={styles.popupCard}>
+            <TouchableOpacity
+              style={styles.popupClose}
+              onPress={() => setShowWelcomePopup(false)}
+            >
+              <Ionicons name="close" size={20} color={Colors.textPrimary} />
+            </TouchableOpacity>
+            <Text style={styles.popupHeading}>مرحباً بك! 👋</Text>
+            <Text style={styles.popupSub}>اختر من المزايا المتاحة اليوم</Text>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.popupPanels}
+            >
+              {POPUP_PANELS.map((panel) => (
+                <View key={panel.id} style={[styles.popupPanel, { borderColor: panel.color + "50" }]}>
+                  <View style={[styles.popupPanelIcon, { backgroundColor: panel.color + "20" }]}>
+                    <Text style={styles.popupPanelEmoji}>{panel.icon}</Text>
+                  </View>
+                  <View style={styles.popupPanelBody}>
+                    <Text style={[styles.popupPanelTitle, { color: panel.color }]}>{panel.title}</Text>
+                    <Text style={styles.popupPanelSub}>{panel.subtitle}</Text>
+                    <Text style={styles.popupPanelReward}>{panel.reward}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.popupPlayBtn, { backgroundColor: panel.color }]}
+                    onPress={() => {
+                      setShowWelcomePopup(false);
+                      panel.onPress();
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="play" size={14} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── NAME MODAL ──────────────────────────────────── */}
       <Modal visible={showNameModal} transparent animationType="fade" onRequestClose={() => setShowNameModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -379,8 +467,13 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      {/* COIN ENTRY MODAL */}
-      <Modal visible={showCoinEntryModal} transparent animationType="fade" onRequestClose={() => setShowCoinEntryModal(false)}>
+      {/* ── COIN ENTRY MODAL ────────────────────────────── */}
+      <Modal
+        visible={showCoinEntryModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCoinEntryModal(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>اختر رسم الدخول</Text>
@@ -499,100 +592,168 @@ const styles = StyleSheet.create({
   },
   streakText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.ruby, flex: 1 },
   streakRewardHint: {
-    backgroundColor: Colors.ruby + "22", borderRadius: 8,
-    paddingHorizontal: 8, paddingVertical: 3,
+    backgroundColor: Colors.ruby + "22", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
   },
   streakRewardHintText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.ruby },
 
-  logoContainer: { alignItems: "center", marginBottom: 28 },
+  logoContainer: { alignItems: "center", marginBottom: 22 },
   letterCircle: {
-    width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.gold,
-    justifyContent: "center", alignItems: "center", marginBottom: 12,
+    width: 74, height: 74, borderRadius: 37, backgroundColor: Colors.gold,
+    justifyContent: "center", alignItems: "center", marginBottom: 10,
     shadowColor: Colors.gold, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4, shadowRadius: 16, elevation: 10,
   },
-  logoLetter: { fontFamily: "Cairo_700Bold", fontSize: 44, color: Colors.black, lineHeight: 56 },
-  appName: { fontFamily: "Cairo_700Bold", fontSize: 26, color: Colors.textPrimary, textAlign: "center" },
-  appSubtitle: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", marginTop: 3 },
+  logoLetter: { fontFamily: "Cairo_700Bold", fontSize: 42, color: Colors.black, lineHeight: 54 },
+  appName: { fontFamily: "Cairo_700Bold", fontSize: 24, color: Colors.textPrimary, textAlign: "center" },
+  appSubtitle: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "center", marginTop: 2 },
 
   carouselSection: { width: "100%", marginBottom: 20 },
-  carouselTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textSecondary, marginBottom: 12, textAlign: "right" },
-  carouselContent: { paddingHorizontal: 0, gap: 0 },
+  carouselTitle: {
+    fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textSecondary,
+    marginBottom: 12, textAlign: "right",
+  },
+  carouselContent: { paddingHorizontal: 0 },
   modeCard: {
     width: CARD_WIDTH,
     marginHorizontal: CARD_MARGIN,
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 24,
+    padding: 24,
     alignItems: "center",
-    borderWidth: 1,
-    gap: 8,
+    borderWidth: 1.5,
+    gap: 10,
+    minHeight: 230,
+    justifyContent: "center",
   },
-  modeIconCircle: { width: 72, height: 72, borderRadius: 36, justifyContent: "center", alignItems: "center", marginBottom: 4 },
-  modeTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, textAlign: "center" },
+  modeEmojiCircle: {
+    width: 80, height: 80, borderRadius: 40,
+    justifyContent: "center", alignItems: "center", marginBottom: 4,
+  },
+  modeEmoji: { fontSize: 40 },
+  modeTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, textAlign: "center" },
   modeSubtitle: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center" },
   modePlayBtn: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, marginTop: 6,
+    flexDirection: "row", alignItems: "center", gap: 8,
+    paddingHorizontal: 28, paddingVertical: 12, borderRadius: 14, marginTop: 4,
   },
-  modePlayText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.black },
+  modePlayText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 
-  dotsRow: { flexDirection: "row", justifyContent: "center", gap: 6, marginTop: 12 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.cardBorder },
-  dotActive: { width: 20, backgroundColor: Colors.gold },
-
-  quickRow: { flexDirection: "row", width: "100%", gap: 10, marginBottom: 16 },
-  quickBtn: {
-    flex: 1, backgroundColor: Colors.card + "90", borderRadius: 14,
-    paddingVertical: 14, alignItems: "center", justifyContent: "center",
-    gap: 6, borderWidth: 1, borderColor: Colors.cardBorder,
-  },
-  spinBtn: { borderColor: Colors.ruby + "30" },
-  quickBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary },
+  dotsRow: { flexDirection: "row", justifyContent: "center", gap: 6, marginTop: 14 },
+  dot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: Colors.cardBorder },
+  dotActive: { width: 22, borderRadius: 4 },
 
   statsRow: {
     flexDirection: "row", backgroundColor: Colors.card + "70", borderRadius: 16,
-    paddingVertical: 16, paddingHorizontal: 20, width: "100%",
-    justifyContent: "space-around", borderWidth: 1, borderColor: Colors.cardBorder + "40",
+    paddingVertical: 16, paddingHorizontal: 16, width: "100%",
+    borderWidth: 1, borderColor: Colors.cardBorder,
   },
-  statItem: { alignItems: "center", gap: 2 },
-  statValue: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
-  statDivider: { width: 1, backgroundColor: Colors.cardBorder },
+  statItem: { flex: 1, alignItems: "center" },
+  statValue: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary },
+  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, marginTop: 2 },
+  statDivider: { width: 1, backgroundColor: Colors.cardBorder, marginVertical: 4 },
 
-  modalOverlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: "center", alignItems: "center", padding: 24 },
+  bottomNav: {
+    position: "absolute", bottom: 0, left: 0, right: 0,
+    flexDirection: "row", alignItems: "flex-start", justifyContent: "space-around",
+    backgroundColor: Colors.card,
+    borderTopWidth: 1, borderTopColor: Colors.cardBorder,
+    paddingTop: 10,
+    shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12, shadowRadius: 12, elevation: 20,
+  },
+  navItem: { alignItems: "center", gap: 3, flex: 1 },
+  navItemCenter: { alignItems: "center", gap: 3, flex: 1, marginTop: -16 },
+  navHomeBtn: {
+    width: 54, height: 54, borderRadius: 27, backgroundColor: Colors.gold,
+    justifyContent: "center", alignItems: "center",
+    shadowColor: Colors.gold, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5, shadowRadius: 10, elevation: 12,
+  },
+  navLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.textMuted },
+
+  popupOverlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center", alignItems: "center", padding: 24,
+  },
+  popupCard: {
+    width: "100%", backgroundColor: Colors.card, borderRadius: 24,
+    padding: 20, maxHeight: "80%",
+  },
+  popupClose: {
+    position: "absolute", top: 14, right: 14, zIndex: 10,
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: Colors.cardBorder + "80",
+    justifyContent: "center", alignItems: "center",
+  },
+  popupHeading: {
+    fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary,
+    textAlign: "center", marginBottom: 4, marginTop: 4,
+  },
+  popupSub: {
+    fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary,
+    textAlign: "center", marginBottom: 16,
+  },
+  popupPanels: { gap: 12, paddingBottom: 4 },
+  popupPanel: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    backgroundColor: Colors.background + "80", borderRadius: 16,
+    padding: 14, borderWidth: 1,
+  },
+  popupPanelIcon: {
+    width: 52, height: 52, borderRadius: 16,
+    justifyContent: "center", alignItems: "center",
+  },
+  popupPanelEmoji: { fontSize: 26 },
+  popupPanelBody: { flex: 1 },
+  popupPanelTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, marginBottom: 2 },
+  popupPanelSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary },
+  popupPanelReward: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, marginTop: 3 },
+  popupPlayBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    justifyContent: "center", alignItems: "center",
+  },
+
+  modalOverlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center", alignItems: "center", padding: 24,
+  },
   modalCard: {
-    backgroundColor: Colors.backgroundSecondary, borderRadius: 20, padding: 24,
-    width: "100%", borderWidth: 1, borderColor: Colors.cardBorder,
+    width: "100%", backgroundColor: Colors.card, borderRadius: 20, padding: 24,
   },
-  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, textAlign: "center", marginBottom: 16 },
+  modalTitle: {
+    fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary,
+    textAlign: "center", marginBottom: 16,
+  },
   nameInput: {
-    backgroundColor: Colors.inputBg, borderRadius: 12, borderWidth: 1,
-    borderColor: Colors.inputBorder, paddingHorizontal: 16, paddingVertical: 12,
-    fontSize: 16, fontFamily: "Cairo_400Regular", color: Colors.inputText, marginBottom: 16,
+    borderWidth: 1, borderColor: Colors.cardBorder, borderRadius: 12,
+    padding: 12, fontFamily: "Cairo_400Regular", fontSize: 16,
+    color: Colors.textPrimary, marginBottom: 16,
   },
-  modalButtons: { flexDirection: "row", gap: 10 },
-  modalCancel: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: Colors.card, alignItems: "center" },
+  modalButtons: { flexDirection: "row", gap: 12 },
+  modalCancel: {
+    flex: 1, paddingVertical: 12, borderRadius: 12,
+    backgroundColor: Colors.cardBorder, alignItems: "center",
+  },
   modalCancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
-  modalConfirm: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: Colors.gold, alignItems: "center" },
+  modalConfirm: {
+    flex: 1, paddingVertical: 12, borderRadius: 12,
+    backgroundColor: Colors.gold, alignItems: "center",
+  },
   modalConfirmText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.black },
 
   coinEntryBalance: {
-    fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.gold,
-    textAlign: "center", marginBottom: 16,
+    fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary,
+    textAlign: "center", marginBottom: 14,
   },
-  coinEntryGrid: { gap: 10, marginBottom: 20 },
+  coinEntryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16, justifyContent: "center" },
   coinEntryOption: {
-    backgroundColor: Colors.card, borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: Colors.cardBorder, flexDirection: "row",
-    alignItems: "center", justifyContent: "space-between",
+    width: "44%", padding: 12, borderRadius: 12, alignItems: "center",
+    borderWidth: 1.5, borderColor: Colors.cardBorder, backgroundColor: Colors.background,
   },
-  coinEntryOptionSelected: {
-    borderColor: Colors.gold, backgroundColor: Colors.gold + "15",
-  },
+  coinEntryOptionSelected: { borderColor: Colors.gold, backgroundColor: Colors.gold + "15" },
   coinEntryOptionDisabled: { opacity: 0.4 },
-  coinEntryLabel: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary },
+  coinEntryLabel: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
   coinEntryLabelSelected: { color: Colors.gold },
-  coinEntryReward: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
+  coinEntryReward: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 3 },
   coinEntryRewardSelected: { color: Colors.gold },
-  coinEntryFree: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.emerald },
+  coinEntryFree: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.emerald, marginTop: 3 },
 });
