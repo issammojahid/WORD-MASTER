@@ -9,8 +9,9 @@ import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
 import { NativeTabs, Icon, Label } from "expo-router/unstable-native-tabs";
 import { BlurView } from "expo-blur";
-import { SymbolView } from "expo-symbols";
 import { Platform, StyleSheet, useColorScheme, View } from "react-native";
+import { SymbolView } from "expo-symbols";
+import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function NativeTabLayout() {
@@ -32,26 +33,34 @@ function ClassicTabLayout() {
   const colorScheme = useColorScheme();
   const safeAreaInsets = useSafeAreaInsets();
   const isDark = colorScheme === "dark";
+  const isIOS = Platform.OS === "ios";
+  const isWeb = Platform.OS === "web";
 
   return (
     <Tabs
       screenOptions={{
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: Platform.select({
-            ios: "transparent",
-            android: isDark ? "#000" : "#fff",
-          }),
-          borderTopWidth: 0,
+          backgroundColor: isIOS ? "transparent" : isDark ? "#000" : "#fff",
+          borderTopWidth: isWeb ? 1 : 0,
+          borderTopColor: isDark ? "#333" : "#ccc",
           elevation: 0,
           paddingBottom: safeAreaInsets.bottom,
+          ...(isWeb ? { height: 84 } : {}),
         },
         tabBarBackground: () =>
-          Platform.OS === "ios" ? (
+          isIOS ? (
             <BlurView
               intensity={100}
               tint={isDark ? "dark" : "light"}
               style={StyleSheet.absoluteFill}
+            />
+          ) : isWeb ? (
+            <View
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: isDark ? "#000" : "#fff" },
+              ]}
             />
           ) : null,
       }}
@@ -60,9 +69,12 @@ function ClassicTabLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color }) => (
-            <SymbolView name="house" tintColor={color} size={24} />
-          ),
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="house" tintColor={color} size={24} />
+            ) : (
+              <Feather name="home" size={22} color={color} />
+            ),
         }}
       />
     </Tabs>
@@ -161,7 +173,7 @@ function ClassicTabLayout() {
 - Set `tabBarActiveTintColor` and `tabBarInactiveTintColor` explicitly - web defaults may not match your theme
 - Add `borderTopWidth: 1` on web for visual separation
 - Add `height: 84` on web to inset the tab bar content
-- **`SymbolView` only works on iOS** - use `@expo/vector-icons` (e.g., `Ionicons`) for tab icons on web/Android
+- **`SymbolView` only renders on iOS** - use a `Platform.OS === "ios"` ternary with `Feather` from `@expo/vector-icons` for tab icons on web/Android
 
 ## Search Tab
 
