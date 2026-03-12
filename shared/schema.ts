@@ -40,3 +40,24 @@ export const playerProfiles = pgTable("player_profiles", {
 
 export type PlayerProfile = typeof playerProfiles.$inferSelect;
 export type InsertPlayerProfile = typeof playerProfiles.$inferInsert;
+
+export const dailySpins = pgTable("daily_spins", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: varchar("player_id").notNull(),
+  rewardType: text("reward_type").notNull(),
+  rewardAmount: integer("reward_amount").notNull(),
+  spunAt: timestamp("spun_at").notNull().default(sql`now()`),
+});
+
+export type DailySpin = typeof dailySpins.$inferSelect;
+
+export const winStreaks = pgTable("win_streaks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: varchar("player_id").notNull(),
+  streakLength: integer("streak_length").notNull(),
+  bonusAwarded: integer("bonus_awarded").notNull().default(0),
+  milestone: integer("milestone").notNull().default(0),
+  awardedAt: timestamp("awarded_at").notNull().default(sql`now()`),
+});
+
+export type WinStreak = typeof winStreaks.$inferSelect;
