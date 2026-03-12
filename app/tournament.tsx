@@ -114,10 +114,23 @@ export default function TournamentScreen() {
 
   useEffect(() => {
     fetchTournaments();
+    const socket = getSocket();
+    socket.emit("tournament_register_socket", { playerId });
   }, []);
 
   useEffect(() => {
     const socket = getSocket();
+
+    const handleMatchFound = (data: { roomId: string; tournamentId?: string; tournamentRound?: string }) => {
+      if (data.tournamentId) {
+        router.replace({
+          pathname: "/lobby",
+          params: { coinEntry: "0" },
+        });
+      }
+    };
+
+    socket.on("matchFound", handleMatchFound);
 
     const handleTournamentUpdate = (data: {
       tournamentId: string;
@@ -158,6 +171,7 @@ export default function TournamentScreen() {
     socket.on("tournament_started", handleTournamentStarted);
 
     return () => {
+      socket.off("matchFound", handleMatchFound);
       socket.off("tournament_update", handleTournamentUpdate);
       socket.off("tournament_player_joined", handlePlayerJoined);
       socket.off("tournament_started", handleTournamentStarted);
@@ -448,7 +462,7 @@ export default function TournamentScreen() {
                       </View>
                     </View>
                     <View style={styles.progressBar}>
-                      <View style={[styles.progressFill, { width: `${(t.playerCount / t.maxPlayers) * 100}%` as any }]} />
+                      <View style={[styles.progressFill, { width: `${(t.playerCount / t.maxPlayers) * 100}%` }]} />
                     </View>
                   </>
                 )}
@@ -553,7 +567,7 @@ const styles = StyleSheet.create({
   tournamentCardJoined: { borderColor: Colors.emerald + "50" },
   joinedBadge: {
     backgroundColor: Colors.emerald + "22", paddingHorizontal: 8, paddingVertical: 2,
-    borderRadius: 8, marginLeft: "auto" as any,
+    borderRadius: 8, marginLeft: "auto",
   },
   joinedBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.emerald },
   createText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.gold, marginTop: 8 },

@@ -54,6 +54,7 @@ export default function HomeScreen() {
   const [activeModeIdx, setActiveModeIdx] = useState(0);
   const [showCoinEntryModal, setShowCoinEntryModal] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(0);
+  const [tournamentWins, setTournamentWins] = useState(0);
   const floatAnim = useRef(new Animated.Value(0)).current;
   const carouselRef = useRef<FlatList>(null);
 
@@ -71,6 +72,18 @@ export default function HomeScreen() {
         Animated.timing(floatAnim, { toValue: 0, duration: 2200, useNativeDriver: true }),
       ])
     ).start();
+    (async () => {
+      try {
+        const { getApiUrl } = await import("@/lib/query-client");
+        const res = await fetch(new URL(`/api/player/${profile.id}/tournaments`, getApiUrl()).toString());
+        if (res.ok) {
+          const data = await res.json();
+          const arr = Array.isArray(data) ? data : (data.tournaments || []);
+          const wins = arr.filter((t: { placement: number | null }) => t.placement === 1).length;
+          setTournamentWins(wins);
+        }
+      } catch {}
+    })();
   }, []);
 
   const handleQuickMatchPress = () => {
@@ -322,6 +335,15 @@ export default function HomeScreen() {
             <Text style={styles.statValue}>{profile.bestStreak}</Text>
             <Text style={styles.statLabel}>أفضل سلسلة</Text>
           </View>
+          {tournamentWins > 0 && (
+            <>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={[styles.statValue, { color: Colors.gold }]}>🏆 {tournamentWins}</Text>
+                <Text style={styles.statLabel}>بطولات</Text>
+              </View>
+            </>
+          )}
         </View>
       </ScrollView>
 

@@ -93,6 +93,8 @@ type ActiveTournament = {
 
 const activeTournaments = new Map<string, ActiveTournament>();
 const playerTournamentMap = new Map<string, string>();
+const roomTournamentMap = new Map<string, { tournamentId: string; matchId: string }>();
+const tournamentPlayerSocketMap = new Map<string, string>();
 
 function generateTournamentBracket(tournamentId: string, players: { playerId: string; name: string }[]): ActiveTournament["matches"] {
   const shuffled = [...players].sort(() => Math.random() - 0.5);
@@ -192,6 +194,163 @@ function advanceTournamentWinner(tournament: ActiveTournament, matchId: string, 
     if (currentIdx < roundOrder.length - 1) {
       tournament.currentRound = roundOrder[currentIdx + 1];
     }
+  }
+}
+async function handleTournamentMatchResult(
+  io: SocketIOServer,
+  tournamentId: string,
+  matchId: string,
+  winnerId: string,
+  winnerName: string,
+) {
+  const active = activeTournaments.get(tournamentId);
+  if (!active) return;
+
+  const match = active.matches.find(m => m.id === matchId);
+  if (!match || match.status === "completed") return;
+  if (winnerId !== match.player1Id && winnerId !== match.player2Id) return;
+
+  advanceTournamentWinner(active, matchId, winnerId, winnerName);
+
+  await db.update(tournamentMatches).set({
+    winnerId,
+    winnerName,
+    status: "completed",
+    completedAt: new Date(),
+  }).where(eq(tournamentMatches.id, matchId)).catch(() => {});
+
+  if (match.roundName === "quarter" || match.roundName === "semi") {
+    const nextRoundName = match.roundName === "quarter" ? "semi" : "final";
+    const nextIdx = match.roundName === "quarter" ? Math.floor(match.matchIndex / 2) : 0;
+    const slot = match.roundName === "quarter" ? (match.matchIndex % 2 === 0 ? "player1" : "player2") : (match.matchIndex === 0 ? "player1" : "player2");
+    const nextMatch = active.matches.find(m => m.roundName === nextRoundName && m.matchIndex === nextIdx);
+    if (nextMatch) {
+      const p1Update = slot === "player1" ? { player1Id: winnerId, player1Name: winnerName } : {};
+      const p2Update = slot === "player2" ? { player2Id: winnerId, player2Name: winnerName } : {};
+      await db.update(tournamentMatches).set({ ...p1Update, ...p2Update }).where(eq(tournamentMatches.id, nextMatch.id)).catch(() => {});
+    }
+  }
+
+  if (active.status === "completed") {
+    await db.update(tournaments).set({
+      status: "completed",
+      winnerId,
+      winnerName,
+      completedAt: new Date(),
+    }).where(eq(tournaments.id, tournamentId)).catch(() => {});
+
+    const finalMatch = active.matches.find(m => m.roundName === "final");
+    const finalLoserId = finalMatch ? (finalMatch.player1Id === winnerId ? finalMatch.player2Id : finalMatch.player1Id) : null;
+    const semiLosers = active.matches
+      .filter(m => m.roundName === "semi" && m.winnerId)
+      .map(m => m.player1Id === m.winnerId ? m.player2Id : m.player1Id)
+      .filter(Boolean) as string[];
+
+    const placements: { pid: string; rank: 1 | 2 | 3 }[] = [
+      { pid: winnerId, rank: 1 },
+    ];
+    if (finalLoserId) placements.push({ pid: finalLoserId, rank: 2 });
+    for (const sl of semiLosers) {
+      if (sl !== winnerId && sl !== finalLoserId) {
+        placements.push({ pid: sl, rank: 3 });
+      }
+    }
+
+    for (const { pid, rank } of placements) {
+      const prize = TOURNAMENT_PRIZES[rank] || 0;
+      const xp = TOURNAMENT_XP[rank] || 0;
+      try {
+        const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, pid));
+        if (profile) {
+          await db.update(playerProfiles).set({
+            coins: profile.coins + prize,
+            xp: profile.xp + xp,
+            level: Math.floor((profile.xp + xp) / 100) + 1,
+            updatedAt: new Date(),
+          }).where(eq(playerProfiles.id, pid));
+        }
+      } catch {}
+      await db.update(tournamentPlayers).set({ placement: rank }).where(
+        and(eq(tournamentPlayers.tournamentId, tournamentId), eq(tournamentPlayers.playerId, pid))
+      ).catch(() => {});
+    }
+
+    for (const p of active.players) {
+      playerTournamentMap.delete(p.playerId);
+      tournamentPlayerSocketMap.delete(p.playerId);
+    }
+    activeTournaments.delete(tournamentId);
+  } else {
+    const readyMatches = active.matches.filter(
+      m => m.roundName === active.currentRound && m.status === "pending" && m.player1Id && m.player2Id
+    );
+    if (readyMatches.length > 0) {
+      setTimeout(() => startTournamentRoundMatches(io, active), 5000);
+    }
+  }
+
+  io.emit("tournament_update", {
+    tournamentId,
+    matches: active.matches,
+    currentRound: active.currentRound,
+    status: active.status,
+    winnerId: active.status === "completed" ? winnerId : null,
+    winnerName: active.status === "completed" ? winnerName : null,
+  });
+}
+
+function startTournamentRoundMatches(
+  io: SocketIOServer,
+  tournament: ActiveTournament,
+) {
+  const roundMatches = tournament.matches.filter(
+    m => m.roundName === tournament.currentRound && m.status === "pending" && m.player1Id && m.player2Id
+  );
+
+  for (const match of roundMatches) {
+    const p1 = tournament.players.find(p => p.playerId === match.player1Id);
+    const p2 = tournament.players.find(p => p.playerId === match.player2Id);
+    if (!p1 || !p2) continue;
+
+    const room = createRoom(p1.socketId, p1.name, p1.skin);
+    joinRoom(room.id, p2.socketId, p2.name, p2.skin);
+    match.roomId = room.id;
+    match.status = "in_progress";
+
+    roomTournamentMap.set(room.id, { tournamentId: tournament.id, matchId: match.id });
+
+    const s1 = io.sockets.sockets.get(p1.socketId);
+    const s2 = io.sockets.sockets.get(p2.socketId);
+    if (s1) { s1.join(room.id); socketRoomMap.set(p1.socketId, room.id); }
+    if (s2) { s2.join(room.id); socketRoomMap.set(p2.socketId, room.id); }
+
+    const roomPlayers = room.players.map(p => ({ id: p.id, name: p.name, skin: p.skin }));
+    emitCountdownThenStart(io, room.id, roomPlayers, () => {
+      const gameResult = startGame(room.id);
+      if (!gameResult.success || !gameResult.room) return;
+      const gameData = {
+        roomId: room.id,
+        letter: gameResult.room.currentLetter,
+        round: gameResult.room.currentRound,
+        totalRounds: gameResult.room.totalRounds,
+        players: gameResult.room.players.map(p => ({ id: p.id, name: p.name, skin: p.skin })),
+        coinEntry: 0,
+        tournamentId: tournament.id,
+        tournamentRound: match.roundName,
+      };
+      io.to(room.id).emit("matchFound", gameData);
+      gameResult.room.timer = setTimeout(() => {
+        const results = calculateRoundScores(room.id);
+        const updatedRoom = getRoom(room.id);
+        if (!updatedRoom) return;
+        io.to(room.id).emit("round_results", {
+          results,
+          round: updatedRoom.currentRound,
+          totalRounds: updatedRoom.totalRounds,
+          players: updatedRoom.players.map(p => ({ id: p.id, name: p.name, score: p.score })),
+        });
+      }, 51000);
+    });
   }
 }
 // ────────────────────────────────────────────────────────────────────────
@@ -509,6 +668,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 skin: p.skin,
               })),
             });
+
+            const tournamentInfo = roomTournamentMap.get(data.roomId);
+            if (tournamentInfo) {
+              const sorted = [...room.players].sort((a, b) => b.score - a.score);
+              const winner = sorted[0];
+              if (winner) {
+                const active = activeTournaments.get(tournamentInfo.tournamentId);
+                if (active) {
+                  const winnerPlayer = active.players.find(p => p.socketId === winner.id);
+                  const winnerId = winnerPlayer?.playerId || winner.id;
+                  handleTournamentMatchResult(io, tournamentInfo.tournamentId, tournamentInfo.matchId, winnerId, winner.name);
+                }
+              }
+              roomTournamentMap.delete(data.roomId);
+            }
+
             cb?.({ isGameOver: true });
           } else if (room) {
             io.to(data.roomId).emit("new_round", {
@@ -760,6 +935,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       socket.to(data.roomId).emit("voice_data", { audio: data.audio, from: socket.id, isSpeaking: data.isSpeaking });
     });
 
+    socket.on("tournament_register_socket", (data: { playerId: string }) => {
+      tournamentPlayerSocketMap.set(data.playerId, socket.id);
+      const tournamentId = playerTournamentMap.get(data.playerId);
+      if (tournamentId) {
+        const active = activeTournaments.get(tournamentId);
+        if (active) {
+          const player = active.players.find(p => p.playerId === data.playerId);
+          if (player) player.socketId = socket.id;
+        }
+      }
+    });
+
     // ── RAPID MODE SOCKET EVENTS ────────────────────────────────────────
     function handleRapidJoin(socketId: string, playerName: string, playerSkin: string, playerId?: string) {
       if (rapidQueue.find((p) => p.id === socketId)) return;
@@ -920,7 +1107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (trackedRoomId) {
         roomsToUpdate.add(trackedRoomId);
       }
-      for (const [roomId] of (socket as any).rooms || []) {
+      for (const roomId of socket.rooms) {
         if (roomId !== socket.id) {
           roomsToUpdate.add(roomId);
         }
@@ -1298,6 +1485,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const seed = existingPlayers.length + 1;
       await db.insert(tournamentPlayers).values({ tournamentId, playerId, playerName, playerSkin, seed });
+      tournamentPlayerSocketMap.set(playerId, socketId);
 
       const newPrizePool = t.prizePool + TOURNAMENT_ENTRY_FEE;
       await db.update(tournaments).set({ prizePool: newPrizePool }).where(eq(tournaments.id, tournamentId));
@@ -1324,7 +1512,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const activePlayers = allPlayers.map(p => ({
           playerId: p.playerId,
-          socketId: "",
+          socketId: tournamentPlayerSocketMap.get(p.playerId) || "",
           name: p.playerName,
           skin: p.playerSkin,
           eliminated: false,
@@ -1342,6 +1530,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         io.emit("tournament_started", { tournamentId, bracket, players: activePlayers.map(p => ({ playerId: p.playerId, name: p.name, skin: p.skin })) });
+
+        setTimeout(() => startTournamentRoundMatches(io, active), 3000);
       }
 
       io.emit("tournament_player_joined", { tournamentId, playerCount: allPlayers.length, maxPlayers: TOURNAMENT_SIZE, playerName });
@@ -1372,87 +1562,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "winner_not_in_match" });
       }
 
-      advanceTournamentWinner(active, matchId, winnerId, winnerName);
+      await handleTournamentMatchResult(io, tournamentId, matchId, winnerId, winnerName);
 
-      await db.update(tournamentMatches).set({
-        winnerId,
-        winnerName,
-        status: "completed",
-        completedAt: new Date(),
-      }).where(eq(tournamentMatches.id, matchId));
-
-      if (match.roundName === "quarter" || match.roundName === "semi") {
-        const nextRoundName = match.roundName === "quarter" ? "semi" : "final";
-        const nextIdx = match.roundName === "quarter" ? Math.floor(match.matchIndex / 2) : 0;
-        const slot = match.roundName === "quarter" ? (match.matchIndex % 2 === 0 ? "player1" : "player2") : (match.matchIndex === 0 ? "player1" : "player2");
-        const nextMatch = active.matches.find(m => m.roundName === nextRoundName && m.matchIndex === nextIdx);
-        if (nextMatch) {
-          const updateData: Record<string, unknown> = {};
-          updateData[`${slot}Id`] = winnerId;
-          updateData[`${slot}Name`] = winnerName;
-          await db.update(tournamentMatches).set(updateData as any).where(eq(tournamentMatches.id, nextMatch.id));
-        }
-      }
-
-      if (active.status === "completed") {
-        await db.update(tournaments).set({
-          status: "completed",
-          winnerId,
-          winnerName,
-          completedAt: new Date(),
-        }).where(eq(tournaments.id, tournamentId));
-
-        const finalMatch = active.matches.find(m => m.roundName === "final");
-        const finalLoserId = finalMatch ? (finalMatch.player1Id === winnerId ? finalMatch.player2Id : finalMatch.player1Id) : null;
-        const semiLosers = active.matches
-          .filter(m => m.roundName === "semi" && m.winnerId)
-          .map(m => m.player1Id === m.winnerId ? m.player2Id : m.player1Id)
-          .filter(Boolean) as string[];
-
-        const placements: { pid: string; rank: 1 | 2 | 3 }[] = [
-          { pid: winnerId, rank: 1 },
-        ];
-        if (finalLoserId) placements.push({ pid: finalLoserId, rank: 2 });
-        for (const sl of semiLosers) {
-          if (sl !== winnerId && sl !== finalLoserId) {
-            placements.push({ pid: sl, rank: 3 });
-          }
-        }
-
-        for (const { pid, rank } of placements) {
-          const prize = TOURNAMENT_PRIZES[rank] || 0;
-          const xp = TOURNAMENT_XP[rank] || 0;
-          try {
-            const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, pid));
-            if (profile) {
-              await db.update(playerProfiles).set({
-                coins: profile.coins + prize,
-                xp: profile.xp + xp,
-                level: Math.floor((profile.xp + xp) / 100) + 1,
-                updatedAt: new Date(),
-              }).where(eq(playerProfiles.id, pid));
-            }
-          } catch {}
-          await db.update(tournamentPlayers).set({ placement: rank }).where(
-            and(eq(tournamentPlayers.tournamentId, tournamentId), eq(tournamentPlayers.playerId, pid))
-          );
-        }
-
-        for (const p of active.players) {
-          playerTournamentMap.delete(p.playerId);
-        }
-      }
-
-      io.emit("tournament_update", {
-        tournamentId,
-        matches: active.matches,
-        currentRound: active.currentRound,
-        status: active.status,
-        winnerId: active.status === "completed" ? winnerId : null,
-        winnerName: active.status === "completed" ? winnerName : null,
-      });
-
-      res.json({ success: true, status: active.status, currentRound: active.currentRound });
+      const updatedActive = activeTournaments.get(tournamentId);
+      res.json({ success: true, status: updatedActive?.status || "unknown", currentRound: updatedActive?.currentRound || "unknown" });
     } catch (e) {
       console.error("POST /api/tournament/:id/match-result error:", e);
       res.status(500).json({ error: "server_error" });
