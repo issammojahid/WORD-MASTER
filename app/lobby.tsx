@@ -359,8 +359,12 @@ export default function LobbyScreen() {
     const socket = getSocket();
     socket.emit("cancelMatch");
     actionInProgressRef.current = false;
-    setTab("select");
     setLoading(false);
+    if (params.coinEntry !== undefined) {
+      router.back();
+    } else {
+      setTab("select");
+    }
   };
 
   const handleStartGame = () => {
