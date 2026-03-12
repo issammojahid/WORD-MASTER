@@ -184,11 +184,9 @@ export default function RapidScreen() {
       setPhase("game_over");
       phaseRef.current = "game_over";
       rapidRoomIdRef.current = null;
+      reportGameResult(won, myFinalScore, data.coinsEarned, data.xpEarned);
       if (won) {
-        reportGameResult(true, myFinalScore, data.coinsEarned, data.xpEarned);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } else {
-        reportGameResult(false, myFinalScore, Math.floor(data.coinsEarned / 2), Math.floor(data.xpEarned / 2));
       }
     };
 

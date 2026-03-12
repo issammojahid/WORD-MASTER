@@ -863,12 +863,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       else if (scores[playerIds[1]] > scores[playerIds[0]]) winnerId = playerIds[1];
     }
 
-    ioRef.to(roomId).emit("rapid_game_over", {
-      winnerId,
-      scores: { ...scores },
-      coinsEarned: RAPID_COINS_WIN,
-      xpEarned: RAPID_XP_WIN,
-    });
+    const rewards: Record<string, { coins: number; xp: number }> = {};
+    for (const pid of playerIds) {
+      if (pid === winnerId) {
+        rewards[pid] = { coins: RAPID_COINS_WIN, xp: RAPID_XP_WIN };
+      } else {
+        rewards[pid] = { coins: RAPID_COINS_LOSE, xp: RAPID_XP_LOSE };
+      }
+    }
+    if (!winnerId) {
+      for (const pid of playerIds) {
+        rewards[pid] = { coins: RAPID_COINS_LOSE, xp: RAPID_XP_LOSE };
+      }
+    }
+
+    for (const pid of playerIds) {
+      const s = ioRef.sockets.sockets.get(pid);
+      if (s) {
+        s.emit("rapid_game_over", {
+          winnerId,
+          scores: { ...scores },
+          coinsEarned: rewards[pid].coins,
+          xpEarned: rewards[pid].xp,
+        });
+      }
+    }
     console.log(`[rapid] Game over in ${roomId}: winner=${winnerId || "draw"}`);
     rapidRooms.delete(roomId);
   }
