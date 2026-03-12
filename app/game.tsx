@@ -61,7 +61,7 @@ export default function GameScreen() {
   }>();
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
-  const { profile, updateProfile, addCoins, addXp, reportGameResult } = usePlayer();
+  const { profile, playerId, updateProfile, addCoins, addXp, reportGameResult } = usePlayer();
   const gameCoinEntry = coinEntryParam ? parseInt(coinEntryParam, 10) : 0;
   const socket = getSocket();
 
@@ -214,11 +214,11 @@ export default function GameScreen() {
           });
         });
 
-        if (data.tournamentId && data.tournamentMatchId && won) {
+        if (data.tournamentId && data.tournamentMatchId && won && playerId) {
           socket.emit("tournament_match_result", {
             tournamentId: data.tournamentId,
             matchId: data.tournamentMatchId,
-            winnerId: profile.id,
+            winnerId: playerId,
             winnerName: sorted[0].name,
             roomId,
           });

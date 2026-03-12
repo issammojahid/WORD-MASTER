@@ -48,7 +48,7 @@ type GameMode = {
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { t, selectedMap } = useLanguage();
-  const { profile, setPlayerName } = usePlayer();
+  const { profile, playerId, setPlayerName } = usePlayer();
   const [showNameModal, setShowNameModal] = useState(false);
   const [nameInput, setNameInput] = useState(profile.name);
   const [activeModeIdx, setActiveModeIdx] = useState(0);
@@ -75,7 +75,7 @@ export default function HomeScreen() {
     (async () => {
       try {
         const { getApiUrl } = await import("@/lib/query-client");
-        const res = await fetch(new URL(`/api/player/${profile.id}/tournaments`, getApiUrl()).toString());
+        const res = await fetch(new URL(`/api/player/${playerId}/tournaments`, getApiUrl()).toString());
         if (res.ok) {
           const data = await res.json();
           const arr = Array.isArray(data) ? data : (data.tournaments || []);
