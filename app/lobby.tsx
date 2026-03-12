@@ -254,7 +254,7 @@ export default function LobbyScreen() {
     const handleMatchError = (data: { error: string }) => {
       setLoading(false);
       setMatchmakingStatus(data.error === "insufficient_coins" ? "رصيدك غير كافي لهذه المباراة" : "خطأ في المطابقة");
-      setTab("menu");
+      setTab("select");
     };
 
     socket.on("connect", handleConnect);

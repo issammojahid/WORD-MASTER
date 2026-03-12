@@ -92,8 +92,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         setPlayerId(id);
 
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
+        let parsed: Partial<PlayerProfile> | undefined;
         if (stored) {
-          const parsed = JSON.parse(stored);
+          parsed = JSON.parse(stored);
           setProfile({ ...defaultProfile, ...parsed });
         }
 
