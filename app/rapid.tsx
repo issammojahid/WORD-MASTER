@@ -45,6 +45,7 @@ type RoundResultData = {
   category: string;
   scores: Record<string, number>;
   isDraw: boolean;
+  attempts?: Record<string, string>;
 };
 
 type OpponentInfo = {
@@ -94,7 +95,7 @@ export default function RapidScreen() {
       socketIdRef.current = socket.id || null;
     };
 
-    const handleRapidMatched = (data: {
+    const handleRapidStart = (data: {
       rapidRoomId: string;
       opponent: OpponentInfo;
     }) => {
@@ -106,7 +107,7 @@ export default function RapidScreen() {
       setCountdownNum(3);
     };
 
-    const handleRapidRoundStart = (data: {
+    const handleRapidLetter = (data: {
       round: number;
       letter: string;
       category: string;
@@ -192,22 +193,23 @@ export default function RapidScreen() {
     };
 
     socket.on("connect", handleConnect);
-    socket.on("rapid_matched", handleRapidMatched);
-    socket.on("rapid_round_start", handleRapidRoundStart);
+    socket.on("rapid_start", handleRapidStart);
+    socket.on("rapid_letter", handleRapidLetter);
     socket.on("rapid_word_result", handleRapidWordResult);
     socket.on("rapid_round_result", handleRapidRoundResult);
     socket.on("rapid_game_over", handleRapidGameOver);
 
-    socket.emit("rapid_join", {
+    socket.emit("findMatch", {
       playerName: profile.name,
       playerSkin: profile.equippedSkin,
       playerId,
+      mode: "rapid",
     });
 
     return () => {
       socket.off("connect", handleConnect);
-      socket.off("rapid_matched", handleRapidMatched);
-      socket.off("rapid_round_start", handleRapidRoundStart);
+      socket.off("rapid_start", handleRapidStart);
+      socket.off("rapid_letter", handleRapidLetter);
       socket.off("rapid_word_result", handleRapidWordResult);
       socket.off("rapid_round_result", handleRapidRoundResult);
       socket.off("rapid_game_over", handleRapidGameOver);
@@ -343,6 +345,8 @@ export default function RapidScreen() {
   if (phase === "round_result") {
     const isWinner = roundResult?.winnerId === socketIdRef.current;
     const isDraw = roundResult?.isDraw;
+    const myAttempt = socketIdRef.current && roundResult?.attempts ? roundResult.attempts[socketIdRef.current] : null;
+    const oppAttempt = opponent && roundResult?.attempts ? roundResult.attempts[Object.keys(roundResult.attempts).find((k) => k !== socketIdRef.current) || ""] : null;
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
         <View style={styles.roundResultContent}>
@@ -375,9 +379,26 @@ export default function RapidScreen() {
               <Text style={[styles.resultBadgeText, { color: Colors.ruby }]}>خسرت الجولة 😔</Text>
             </View>
           )}
-          {roundResult?.word ? (
-            <Text style={styles.winningWord}>الكلمة: {roundResult.word}</Text>
-          ) : null}
+          <View style={styles.attemptsSection}>
+            {roundResult?.word ? (
+              <View style={styles.attemptRow}>
+                <Ionicons name="checkmark-circle" size={18} color={Colors.emerald} />
+                <Text style={styles.attemptWinning}>{roundResult.word}</Text>
+              </View>
+            ) : null}
+            {!isDraw && !isWinner && myAttempt ? (
+              <View style={styles.attemptRow}>
+                <Ionicons name="close-circle" size={18} color={Colors.ruby} />
+                <Text style={styles.attemptLosing}>{myAttempt}</Text>
+              </View>
+            ) : null}
+            {!isDraw && isWinner && oppAttempt ? (
+              <View style={styles.attemptRow}>
+                <Ionicons name="close-circle" size={18} color={Colors.ruby} />
+                <Text style={styles.attemptLosing}>{oppAttempt}</Text>
+              </View>
+            ) : null}
+          </View>
         </View>
       </View>
     );
@@ -797,10 +818,30 @@ const styles = StyleSheet.create({
     fontFamily: "Cairo_700Bold",
     fontSize: 16,
   },
-  winningWord: {
+  attemptsSection: {
+    gap: 8,
+    marginTop: 4,
+    alignItems: "center",
+  },
+  attemptRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: Colors.card,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  attemptWinning: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 16,
+    color: Colors.emerald,
+  },
+  attemptLosing: {
     fontFamily: "Cairo_600SemiBold",
-    fontSize: 14,
-    color: Colors.textSecondary,
+    fontSize: 15,
+    color: Colors.ruby,
+    textDecorationLine: "line-through",
   },
 
   gameOverContent: {

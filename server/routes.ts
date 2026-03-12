@@ -46,6 +46,7 @@ type RapidRoom = {
   currentCategory: string;
   roundTimer: ReturnType<typeof setTimeout> | null;
   roundWon: boolean;
+  lastAttempts: Record<string, string>;
 };
 
 const rapidRooms = new Map<string, RapidRoom>();
@@ -509,7 +510,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // findMatch: add player to global queue; create room when 2 are ready
     socket.on(
       "findMatch",
-      async (data: { playerName: string; playerSkin: string; coinEntry?: number; playerId?: string }) => {
+      async (data: { playerName: string; playerSkin: string; coinEntry?: number; playerId?: string; mode?: string }) => {
+        if (data.mode === "rapid") {
+          handleRapidJoin(socket.id, data.playerName, data.playerSkin, data.playerId);
+          return;
+        }
         // Never add the same socket twice
         if (matchmakingQueue.find((p) => p.id === socket.id)) {
           console.log(`[findMatch] Socket ${socket.id} already in queue – ignored`);
@@ -624,17 +629,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // ── RAPID MODE SOCKET EVENTS ────────────────────────────────────────
-    socket.on("rapid_join", (data: { playerName: string; playerSkin: string; playerId?: string }) => {
-      if (rapidQueue.find((p) => p.id === socket.id)) return;
-      const entry: RapidQueueEntry = { id: socket.id, name: data.playerName, skin: data.playerSkin, playerId: data.playerId };
+    function handleRapidJoin(socketId: string, playerName: string, playerSkin: string, playerId?: string) {
+      if (rapidQueue.find((p) => p.id === socketId)) return;
+      const entry: RapidQueueEntry = { id: socketId, name: playerName, skin: playerSkin, playerId };
       rapidQueue.push(entry);
       console.log(`[rapid_join] Queue: ${rapidQueue.length}`);
 
-      const matchIdx = rapidQueue.findIndex((p) => p.id !== socket.id);
+      const matchIdx = rapidQueue.findIndex((p) => p.id !== socketId);
       if (matchIdx === -1) return;
 
       const opponent = rapidQueue[matchIdx];
-      rapidQueue = rapidQueue.filter((p) => p.id !== socket.id && p.id !== opponent.id);
+      rapidQueue = rapidQueue.filter((p) => p.id !== socketId && p.id !== opponent.id);
 
       const roomId = "rapid_" + Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
       const rapidRoom: RapidRoom = {
@@ -649,6 +654,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         currentCategory: "",
         roundTimer: null,
         roundWon: false,
+        lastAttempts: {},
       };
       rapidRooms.set(roomId, rapidRoom);
 
@@ -657,11 +663,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (s1) s1.join(roomId);
       if (s2) s2.join(roomId);
 
-      io.to(entry.id).emit("rapid_matched", {
+      io.to(entry.id).emit("rapid_start", {
         rapidRoomId: roomId,
         opponent: { id: opponent.id, name: opponent.name, skin: opponent.skin },
       });
-      io.to(opponent.id).emit("rapid_matched", {
+      io.to(opponent.id).emit("rapid_start", {
         rapidRoomId: roomId,
         opponent: { id: entry.id, name: entry.name, skin: entry.skin },
       });
@@ -669,6 +675,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[rapid] Match: ${entry.name} vs ${opponent.name} in ${roomId}`);
 
       setTimeout(() => startRapidRound(io, roomId), 3500);
+    }
+
+    socket.on("rapid_join", (data: { playerName: string; playerSkin: string; playerId?: string }) => {
+      handleRapidJoin(socket.id, data.playerName, data.playerSkin, data.playerId);
     });
 
     socket.on("rapid_cancel", () => {
@@ -692,6 +702,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         socket.emit("rapid_word_result", { valid: false, reason: "unknown_category" });
         return;
       }
+      room.lastAttempts[socket.id] = data.word;
+
       const validation = validateWord(data.word, dbCategory, room.currentLetter);
       if (!validation.valid) {
         socket.emit("rapid_word_result", { valid: false, reason: validation.reason });
@@ -713,6 +725,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         category: data.category,
         scores: { ...room.scores },
         isDraw: false,
+        attempts: { ...room.lastAttempts },
       };
       io.to(data.rapidRoomId).emit("rapid_round_result", resultData);
       console.log(`[rapid] Round ${room.currentRound} won by ${resultData.winnerName} with "${data.word}" in ${data.rapidRoomId}`);
@@ -801,8 +814,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     room.currentLetter = pickRapidLetter();
     room.currentCategory = pickRapidCategory();
     room.roundWon = false;
+    room.lastAttempts = {};
 
-    ioRef.to(roomId).emit("rapid_round_start", {
+    ioRef.to(roomId).emit("rapid_letter", {
       round: room.currentRound,
       letter: room.currentLetter,
       category: room.currentCategory,
@@ -821,6 +835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         category: room.currentCategory,
         scores: { ...room.scores },
         isDraw: true,
+        attempts: { ...room.lastAttempts },
       };
       ioRef.to(roomId).emit("rapid_round_result", resultData);
       console.log(`[rapid] Round ${room.currentRound} timeout (draw) in ${roomId}`);
