@@ -1,0 +1,236 @@
+IMPORTANT: Do NOT modify the multiplayer server or networking system.
+
+This project already has a working Railway server and multiplayer system.
+
+The following systems MUST NOT be changed:
+
+- Railway server configuration
+- socket.io server
+- matchmaking logic
+- room creation
+- multiplayer networking
+- API routes
+
+These systems are already working correctly.
+
+Your task is to extend the gameplay systems and add new features without breaking existing multiplayer logic.
+
+---
+
+1) COIN ENTRY MATCH SYSTEM
+
+Online matches should no longer be free.
+
+Players must select a coin entry before starting a match.
+
+Example entry options:
+
+- 50 coins → winner receives 100 coins
+- 100 coins → winner receives 200 coins
+- 500 coins → winner receives 1000 coins
+- 1000 coins → winner receives 2500 coins
+
+Flow:
+
+1. Player selects entry amount
+2. Matchmaking finds another player with the same entry
+3. Both players pay the entry coins
+4. Winner receives the reward
+
+Coins must be deducted only after a match is successfully created.
+
+---
+
+2) RAPID MODE
+
+Add a fast game mode called "Rapid Mode".
+
+Rules:
+
+- One random Arabic letter appears
+- Players type words starting with that letter
+- The first correct word wins immediately
+
+Example:
+
+Letter: م
+
+Player 1 writes:
+موز
+
+Player 2 writes:
+مدينة
+
+The player who submits a correct word first wins the round.
+
+Rapid mode should be fast and competitive.
+
+---
+
+3) TOURNAMENT MODE
+
+Add an online tournament mode.
+
+Players join tournaments using coins.
+
+Example:
+
+Entry fee: 100 coins
+Players: 8
+Prize: 1200 coins
+
+Tournament structure:
+
+Quarter Final
+↓
+Semi Final
+↓
+Final
+
+Winner receives:
+
+- coins
+- XP
+- trophy
+
+Use the existing room and multiplayer systems for tournament matches.
+
+Do NOT modify the existing networking logic.
+
+---
+
+4) DAILY SPIN
+
+Add a daily reward wheel.
+
+Players can spin once every 24 hours.
+
+Possible rewards:
+
+- coins
+- XP
+- skins
+- boosts
+
+Display a countdown timer until the next spin.
+
+---
+
+5) WIN STREAK SYSTEM
+
+Track consecutive wins.
+
+Example rewards:
+
+3 wins → +50 coins
+5 wins → +100 coins
+10 wins → +300 coins
+
+Show streak progress in the player profile.
+
+---
+
+6) LEADERBOARD
+
+Add a leaderboard showing top players.
+
+Categories:
+
+- Most coins
+- Most wins
+- Highest XP
+
+Update leaderboard regularly.
+
+---
+
+7) PLAYER CUSTOMIZATION
+
+Add cosmetic customization options.
+
+Players can buy:
+
+- avatars
+- avatar frames
+- backgrounds
+- letter skins
+
+Example skins:
+
+- gold letters
+- neon letters
+- fire letters
+
+These can be purchased using coins.
+
+---
+
+8) FRIENDS SYSTEM
+
+Allow players to:
+
+- add friends
+- invite friends to matches
+- play private matches
+
+Friend matches should support chat and voice chat.
+
+---
+
+9) CLAN SYSTEM
+
+Allow players to create or join clans.
+
+Example:
+
+Clan Morocco
+
+Clan members can compete together and appear on clan leaderboards.
+
+---
+
+10) RANKED MODE
+
+Add competitive ranks.
+
+Example ranks:
+
+Bronze
+Silver
+Gold
+Diamond
+Master
+
+Players gain rank points when winning ranked matches.
+
+---
+
+11) LUCKY LETTER FEATURE
+
+Every hour a special letter becomes active.
+
+Example:
+
+Lucky Letter: س
+
+All correct words starting with that letter give bonus coins.
+
+Example reward:
+
+3× coin multiplier.
+
+This encourages players to keep playing.
+
+---
+
+IMPORTANT AGAIN
+
+Do NOT modify:
+
+- railway server
+- socket.io logic
+- matchmaking system
+- room creation logic
+- multiplayer networking
+
+Only extend gameplay features and UI.
