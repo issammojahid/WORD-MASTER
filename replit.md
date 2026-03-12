@@ -92,6 +92,16 @@ In your Expo app, change the server URL to your Railway domain:
 The server automatically allows all `*.railway.app` and `*.up.railway.app` domains.
 No extra configuration needed for CORS.
 
+## Config Files Note
+
+The project uses `"type": "module"` in `package.json` (for ES modules). Config files that use CommonJS syntax have been renamed to `.cjs` to avoid conflicts:
+- `babel.config.cjs` (Babel configuration)
+- `metro.config.cjs` (Metro bundler configuration)
+- `eslint.config.cjs` (ESLint configuration)
+- `scripts/build.cjs` (static build script)
+
+Babel and Metro both support `.cjs` config files automatically.
+
 ## Building Android APK
 
 ```bash
