@@ -27,6 +27,14 @@ const { width } = Dimensions.get("window");
 const CARD_WIDTH = width - 64;
 const CARD_MARGIN = 12;
 
+const COIN_ENTRIES = [
+  { entry: 0, reward: 0, label: "مجاني" },
+  { entry: 50, reward: 100, label: "50" },
+  { entry: 100, reward: 200, label: "100" },
+  { entry: 500, reward: 1000, label: "500" },
+  { entry: 1000, reward: 2500, label: "1000" },
+];
+
 type GameMode = {
   id: string;
   title: string;
@@ -44,6 +52,8 @@ export default function HomeScreen() {
   const [showNameModal, setShowNameModal] = useState(false);
   const [nameInput, setNameInput] = useState(profile.name);
   const [activeModeIdx, setActiveModeIdx] = useState(0);
+  const [showCoinEntryModal, setShowCoinEntryModal] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState(0);
   const floatAnim = useRef(new Animated.Value(0)).current;
   const carouselRef = useRef<FlatList>(null);
 
@@ -63,6 +73,20 @@ export default function HomeScreen() {
     ).start();
   }, []);
 
+  const handleQuickMatchPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowCoinEntryModal(true);
+  };
+
+  const handleStartMatch = () => {
+    setShowCoinEntryModal(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    if (selectedEntry > 0 && profile.coins < selectedEntry) {
+      return;
+    }
+    router.push({ pathname: "/lobby", params: { coinEntry: String(selectedEntry) } });
+  };
+
   const gameModes: GameMode[] = [
     {
       id: "quick",
@@ -71,7 +95,7 @@ export default function HomeScreen() {
       icon: "flash",
       iconColor: Colors.gold,
       bg: Colors.gold + "18",
-      onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/lobby"); },
+      onPress: handleQuickMatchPress,
     },
     {
       id: "friends",
@@ -99,6 +123,8 @@ export default function HomeScreen() {
     setActiveModeIdx(Math.max(0, Math.min(idx, gameModes.length - 1)));
   };
 
+  const streakIcon = profile.winStreak >= 10 ? "🔥🔥🔥" : profile.winStreak >= 5 ? "🔥🔥" : profile.winStreak >= 3 ? "🔥" : "";
+
   return (
     <View style={[styles.container, { backgroundColor: mapConfig.color }]}>
       <View style={styles.hexDecorTopRight} />
@@ -109,7 +135,7 @@ export default function HomeScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingTop: topInset + 8, paddingBottom: bottomInset + 20 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* ─── TOP BAR: avatar/name left | coins+settings right ─── */}
+        {/* TOP BAR */}
         <View style={styles.topBar}>
           <TouchableOpacity
             style={styles.profileRow}
@@ -154,7 +180,22 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ─── LOGO ─── */}
+        {/* WIN STREAK BAR */}
+        {profile.winStreak >= 2 && (
+          <View style={styles.streakBar}>
+            <Ionicons name="flame" size={18} color={Colors.ruby} />
+            <Text style={styles.streakText}>{streakIcon} سلسلة {profile.winStreak} انتصارات</Text>
+            {profile.winStreak >= 3 && (
+              <View style={styles.streakRewardHint}>
+                <Text style={styles.streakRewardHintText}>
+                  {profile.winStreak < 5 ? "3 ← +50🪙" : profile.winStreak < 10 ? "5 ← +100🪙" : "10 ← +300🪙"} ✓
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* LOGO */}
         <Animated.View style={[styles.logoContainer, { transform: [{ translateY: floatAnim }] }]}>
           <View style={styles.letterCircle}>
             <Text style={styles.logoLetter}>ح</Text>
@@ -163,7 +204,7 @@ export default function HomeScreen() {
           <Text style={styles.appSubtitle}>{t.homeSubtitle}</Text>
         </Animated.View>
 
-        {/* ─── GAME MODES CAROUSEL ─── */}
+        {/* GAME MODES CAROUSEL */}
         <View style={styles.carouselSection}>
           <Text style={styles.carouselTitle}>اختر وضع اللعب</Text>
           <FlatList
@@ -196,7 +237,6 @@ export default function HomeScreen() {
               </TouchableOpacity>
             )}
           />
-          {/* Dots indicator */}
           <View style={styles.dotsRow}>
             {gameModes.map((_, idx) => (
               <View
@@ -207,7 +247,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ─── QUICK ACCESS BUTTONS ─── */}
+        {/* QUICK ACCESS BUTTONS */}
         <View style={styles.quickRow}>
           <TouchableOpacity
             style={styles.quickBtn}
@@ -216,6 +256,14 @@ export default function HomeScreen() {
           >
             <Ionicons name="trophy" size={22} color={Colors.gold} />
             <Text style={styles.quickBtnText}>{t.leaderboard}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.quickBtn, styles.spinBtn]}
+            onPress={() => router.push("/spin")}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="gift" size={22} color={Colors.ruby} />
+            <Text style={styles.quickBtnText}>العجلة</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.quickBtn}
@@ -235,7 +283,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ─── STATS ─── */}
+        {/* STATS */}
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{profile.gamesPlayed}</Text>
@@ -251,10 +299,15 @@ export default function HomeScreen() {
             <Text style={styles.statValue}>{profile.totalScore}</Text>
             <Text style={styles.statLabel}>نقاط كلية</Text>
           </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{profile.bestStreak}</Text>
+            <Text style={styles.statLabel}>أفضل سلسلة</Text>
+          </View>
         </View>
       </ScrollView>
 
-      {/* ─── NAME MODAL ─── */}
+      {/* NAME MODAL */}
       <Modal visible={showNameModal} transparent animationType="fade" onRequestClose={() => setShowNameModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
@@ -285,6 +338,61 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* COIN ENTRY MODAL */}
+      <Modal visible={showCoinEntryModal} transparent animationType="fade" onRequestClose={() => setShowCoinEntryModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>اختر رسم الدخول</Text>
+            <Text style={styles.coinEntryBalance}>رصيدك: {profile.coins} 🪙</Text>
+            <View style={styles.coinEntryGrid}>
+              {COIN_ENTRIES.map((opt) => {
+                const selected = selectedEntry === opt.entry;
+                const canAfford = profile.coins >= opt.entry;
+                return (
+                  <TouchableOpacity
+                    key={opt.entry}
+                    style={[
+                      styles.coinEntryOption,
+                      selected && styles.coinEntryOptionSelected,
+                      !canAfford && opt.entry > 0 && styles.coinEntryOptionDisabled,
+                    ]}
+                    onPress={() => { if (canAfford || opt.entry === 0) setSelectedEntry(opt.entry); }}
+                    disabled={!canAfford && opt.entry > 0}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.coinEntryLabel, selected && styles.coinEntryLabelSelected]}>
+                      {opt.entry === 0 ? "🆓" : `🪙 ${opt.label}`}
+                    </Text>
+                    {opt.reward > 0 && (
+                      <Text style={[styles.coinEntryReward, selected && styles.coinEntryRewardSelected]}>
+                        الجائزة: {opt.reward}
+                      </Text>
+                    )}
+                    {opt.entry === 0 && (
+                      <Text style={styles.coinEntryFree}>بدون رسوم</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancel} onPress={() => setShowCoinEntryModal(false)}>
+                <Text style={styles.modalCancelText}>{t.cancel}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalConfirm, selectedEntry > profile.coins && { opacity: 0.5 }]}
+                onPress={handleStartMatch}
+                disabled={selectedEntry > profile.coins}
+              >
+                <Text style={styles.modalConfirmText}>
+                  {selectedEntry > 0 ? `ادفع ${selectedEntry} والعب` : "ابدأ"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -303,10 +411,9 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "15deg" }],
   },
 
-  // Top Bar
   topBar: {
     width: "100%", flexDirection: "row", alignItems: "center",
-    justifyContent: "space-between", marginBottom: 20, gap: 10,
+    justifyContent: "space-between", marginBottom: 12, gap: 10,
   },
   profileRow: {
     flex: 1, flexDirection: "row", alignItems: "center",
@@ -344,7 +451,19 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card + "80", justifyContent: "center", alignItems: "center",
   },
 
-  // Logo
+  streakBar: {
+    width: "100%", flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: Colors.ruby + "18", borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 10, marginBottom: 12,
+    borderWidth: 1, borderColor: Colors.ruby + "30",
+  },
+  streakText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.ruby, flex: 1 },
+  streakRewardHint: {
+    backgroundColor: Colors.ruby + "22", borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  streakRewardHintText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.ruby },
+
   logoContainer: { alignItems: "center", marginBottom: 28 },
   letterCircle: {
     width: 80, height: 80, borderRadius: 40, backgroundColor: Colors.gold,
@@ -356,7 +475,6 @@ const styles = StyleSheet.create({
   appName: { fontFamily: "Cairo_700Bold", fontSize: 26, color: Colors.textPrimary, textAlign: "center" },
   appSubtitle: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", marginTop: 3 },
 
-  // Carousel
   carouselSection: { width: "100%", marginBottom: 20 },
   carouselTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textSecondary, marginBottom: 12, textAlign: "right" },
   carouselContent: { paddingHorizontal: 0, gap: 0 },
@@ -382,16 +500,15 @@ const styles = StyleSheet.create({
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.cardBorder },
   dotActive: { width: 20, backgroundColor: Colors.gold },
 
-  // Quick access
   quickRow: { flexDirection: "row", width: "100%", gap: 10, marginBottom: 16 },
   quickBtn: {
     flex: 1, backgroundColor: Colors.card + "90", borderRadius: 14,
     paddingVertical: 14, alignItems: "center", justifyContent: "center",
     gap: 6, borderWidth: 1, borderColor: Colors.cardBorder,
   },
+  spinBtn: { borderColor: Colors.ruby + "30" },
   quickBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary },
 
-  // Stats
   statsRow: {
     flexDirection: "row", backgroundColor: Colors.card + "70", borderRadius: 16,
     paddingVertical: 16, paddingHorizontal: 20, width: "100%",
@@ -402,7 +519,6 @@ const styles = StyleSheet.create({
   statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
   statDivider: { width: 1, backgroundColor: Colors.cardBorder },
 
-  // Modal
   modalOverlay: { flex: 1, backgroundColor: Colors.overlay, justifyContent: "center", alignItems: "center", padding: 24 },
   modalCard: {
     backgroundColor: Colors.backgroundSecondary, borderRadius: 20, padding: 24,
@@ -419,4 +535,24 @@ const styles = StyleSheet.create({
   modalCancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
   modalConfirm: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: Colors.gold, alignItems: "center" },
   modalConfirmText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.black },
+
+  coinEntryBalance: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.gold,
+    textAlign: "center", marginBottom: 16,
+  },
+  coinEntryGrid: { gap: 10, marginBottom: 20 },
+  coinEntryOption: {
+    backgroundColor: Colors.card, borderRadius: 14, padding: 14,
+    borderWidth: 1, borderColor: Colors.cardBorder, flexDirection: "row",
+    alignItems: "center", justifyContent: "space-between",
+  },
+  coinEntryOptionSelected: {
+    borderColor: Colors.gold, backgroundColor: Colors.gold + "15",
+  },
+  coinEntryOptionDisabled: { opacity: 0.4 },
+  coinEntryLabel: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary },
+  coinEntryLabelSelected: { color: Colors.gold },
+  coinEntryReward: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
+  coinEntryRewardSelected: { color: Colors.gold },
+  coinEntryFree: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.emerald },
 });

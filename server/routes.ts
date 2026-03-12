@@ -15,6 +15,9 @@ import {
   type PlayerAnswers,
 } from "./gameLogic";
 import { validateWord, CATEGORY_MAP, type WordCategory } from "./wordDatabase";
+import { db } from "./db";
+import { playerProfiles } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 // Track which room each socket is currently in
 const socketRoomMap = new Map<string, string>();
@@ -42,8 +45,44 @@ function emitCountdownThenStart(
 }
 
 // Global matchmaking queue
-type QueueEntry = { id: string; name: string; skin: string };
+type QueueEntry = { id: string; name: string; skin: string; coinEntry?: number; playerId?: string };
 let matchmakingQueue: QueueEntry[] = [];
+
+const COIN_ENTRY_OPTIONS = [
+  { entry: 50, reward: 100 },
+  { entry: 100, reward: 200 },
+  { entry: 500, reward: 1000 },
+  { entry: 1000, reward: 2500 },
+];
+
+const SPIN_REWARDS = [
+  { type: "coins" as const, amount: 25, label: "25 عملة", weight: 25 },
+  { type: "coins" as const, amount: 50, label: "50 عملة", weight: 20 },
+  { type: "coins" as const, amount: 100, label: "100 عملة", weight: 15 },
+  { type: "coins" as const, amount: 200, label: "200 عملة", weight: 8 },
+  { type: "coins" as const, amount: 500, label: "500 عملة", weight: 3 },
+  { type: "xp" as const, amount: 50, label: "50 XP", weight: 15 },
+  { type: "xp" as const, amount: 100, label: "100 XP", weight: 10 },
+  { type: "xp" as const, amount: 200, label: "200 XP", weight: 4 },
+];
+
+const STREAK_MILESTONES = [
+  { wins: 3, reward: 50 },
+  { wins: 5, reward: 100 },
+  { wins: 10, reward: 300 },
+];
+
+function pickSpinReward() {
+  const totalWeight = SPIN_REWARDS.reduce((s, r) => s + r.weight, 0);
+  let rnd = Math.random() * totalWeight;
+  for (const reward of SPIN_REWARDS) {
+    rnd -= reward.weight;
+    if (rnd <= 0) return reward;
+  }
+  return SPIN_REWARDS[0];
+}
+
+const roomCoinEntries = new Map<string, number>();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -430,24 +469,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // findMatch: add player to global queue; create room when 2 are ready
     socket.on(
       "findMatch",
-      (data: { playerName: string; playerSkin: string }) => {
+      (data: { playerName: string; playerSkin: string; coinEntry?: number; playerId?: string }) => {
         // Never add the same socket twice
         if (matchmakingQueue.find((p) => p.id === socket.id)) {
           console.log(`[findMatch] Socket ${socket.id} already in queue – ignored`);
           return;
         }
 
-        matchmakingQueue.push({ id: socket.id, name: data.playerName, skin: data.playerSkin });
-        console.log(`[findMatch] Queue: ${matchmakingQueue.map((p) => p.name).join(", ")} (${matchmakingQueue.length} players)`);
+        const entry: QueueEntry = { id: socket.id, name: data.playerName, skin: data.playerSkin, coinEntry: data.coinEntry || 0, playerId: data.playerId };
+        matchmakingQueue.push(entry);
+        console.log(`[findMatch] Queue: ${matchmakingQueue.map((p) => `${p.name}(${p.coinEntry || 0})`).join(", ")} (${matchmakingQueue.length} players)`);
 
-        // Enough players → create match
-        if (matchmakingQueue.length >= 2) {
-          const matched = matchmakingQueue.splice(0, 2);
-          console.log(`[findMatch] Match created: ${matched.map((p) => p.name).join(" vs ")}`);
+        // Find a match with same coinEntry
+        const myCoinEntry = entry.coinEntry || 0;
+        const matchIdx = matchmakingQueue.findIndex((p) => p.id !== socket.id && (p.coinEntry || 0) === myCoinEntry);
+
+        if (matchIdx !== -1) {
+          const opponent = matchmakingQueue[matchIdx];
+          matchmakingQueue = matchmakingQueue.filter((p) => p.id !== socket.id && p.id !== opponent.id);
+          const matched = [entry, opponent];
+          console.log(`[findMatch] Match created: ${matched.map((p) => p.name).join(" vs ")} (entry: ${myCoinEntry})`);
 
           // Create room with first player as host, join second
           const room = createRoom(matched[0].id, matched[0].name, matched[0].skin);
           joinRoom(room.id, matched[1].id, matched[1].name, matched[1].skin);
+
+          if (myCoinEntry > 0) {
+            roomCoinEntries.set(room.id, myCoinEntry);
+          }
 
           // Join both sockets to the Socket.io room
           for (const player of matched) {
@@ -473,9 +522,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               round: gameResult.room.currentRound,
               totalRounds: gameResult.room.totalRounds,
               players: gameResult.room.players.map((p) => ({ id: p.id, name: p.name, skin: p.skin })),
+              coinEntry: myCoinEntry,
             };
             io.to(room.id).emit("matchFound", gameData);
-            console.log(`[findMatch] Room ${room.id}: matchFound emitted, letter=${gameData.letter}`);
+            console.log(`[findMatch] Room ${room.id}: matchFound emitted, letter=${gameData.letter}, coinEntry=${myCoinEntry}`);
             gameResult.room.timer = setTimeout(() => {
               const results = calculateRoundScores(room.id);
               const updatedRoom = getRoom(room.id);
@@ -553,6 +603,155 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  app.get("/api/player/:id", async (req, res) => {
+    try {
+      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, req.params.id));
+      if (!profile) {
+        return res.status(404).json({ error: "not_found" });
+      }
+      res.json(profile);
+    } catch (e) {
+      console.error("GET /api/player error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.put("/api/player/:id", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const data = req.body;
+      const [existing] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, id));
+      if (!existing) {
+        const [created] = await db.insert(playerProfiles).values({
+          id,
+          name: data.name || "لاعب",
+          coins: data.coins ?? 100,
+          xp: data.xp ?? 0,
+          level: data.level ?? 1,
+          equippedSkin: data.equippedSkin || "student",
+          ownedSkins: data.ownedSkins || ["student"],
+          totalScore: data.totalScore ?? 0,
+          gamesPlayed: data.gamesPlayed ?? 0,
+          wins: data.wins ?? 0,
+          winStreak: data.winStreak ?? 0,
+          bestStreak: data.bestStreak ?? 0,
+          lastStreakReward: data.lastStreakReward ?? 0,
+        }).returning();
+        return res.json(created);
+      }
+      const updateData: Record<string, unknown> = { updatedAt: new Date() };
+      const allowedFields = ["name", "coins", "xp", "level", "equippedSkin", "ownedSkins", "totalScore", "gamesPlayed", "wins", "winStreak", "bestStreak", "lastStreakReward"];
+      for (const key of allowedFields) {
+        if (data[key] !== undefined) updateData[key] = data[key];
+      }
+      const [updated] = await db.update(playerProfiles).set(updateData).where(eq(playerProfiles.id, id)).returning();
+      res.json(updated);
+    } catch (e) {
+      console.error("PUT /api/player error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.post("/api/player/:id/spin", async (req, res) => {
+    try {
+      const id = req.params.id;
+      let [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, id));
+      if (!profile) {
+        [profile] = await db.insert(playerProfiles).values({ id }).returning();
+      }
+      if (profile.lastSpinAt) {
+        const elapsed = Date.now() - new Date(profile.lastSpinAt).getTime();
+        if (elapsed < 24 * 60 * 60 * 1000) {
+          const nextSpinAt = new Date(profile.lastSpinAt).getTime() + 24 * 60 * 60 * 1000;
+          return res.status(429).json({ error: "too_early", nextSpinAt });
+        }
+      }
+      const reward = pickSpinReward();
+      const updates: Record<string, unknown> = { lastSpinAt: new Date(), updatedAt: new Date() };
+      if (reward.type === "coins") {
+        updates.coins = profile.coins + reward.amount;
+      } else {
+        updates.xp = profile.xp + reward.amount;
+        updates.level = Math.floor((profile.xp + reward.amount) / 100) + 1;
+      }
+      const [updated] = await db.update(playerProfiles).set(updates).where(eq(playerProfiles.id, id)).returning();
+      res.json({ reward, profile: updated });
+    } catch (e) {
+      console.error("POST /api/player/:id/spin error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.get("/api/player/:id/streak", async (req, res) => {
+    try {
+      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, req.params.id));
+      if (!profile) {
+        return res.json({ winStreak: 0, bestStreak: 0, lastStreakReward: 0, milestones: STREAK_MILESTONES });
+      }
+      res.json({
+        winStreak: profile.winStreak,
+        bestStreak: profile.bestStreak,
+        lastStreakReward: profile.lastStreakReward,
+        milestones: STREAK_MILESTONES,
+      });
+    } catch (e) {
+      console.error("GET /api/player/:id/streak error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.post("/api/player/:id/game-result", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const { won, score, coinsEarned, xpEarned, coinEntry } = req.body as {
+        won: boolean; score: number; coinsEarned: number; xpEarned: number; coinEntry?: number;
+      };
+      let [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, id));
+      if (!profile) {
+        [profile] = await db.insert(playerProfiles).values({ id }).returning();
+      }
+      const newStreak = won ? profile.winStreak + 1 : 0;
+      const newBest = Math.max(newStreak, profile.bestStreak);
+      let streakBonus = 0;
+      let newLastReward = profile.lastStreakReward;
+      if (won) {
+        for (const m of STREAK_MILESTONES) {
+          if (newStreak >= m.wins && m.wins > profile.lastStreakReward) {
+            streakBonus += m.reward;
+            newLastReward = m.wins;
+          }
+        }
+      } else {
+        newLastReward = 0;
+      }
+      const totalCoins = coinsEarned + streakBonus + (won && coinEntry ? (COIN_ENTRY_OPTIONS.find(o => o.entry === coinEntry)?.reward || 0) : 0);
+      const [updated] = await db.update(playerProfiles).set({
+        coins: profile.coins + totalCoins,
+        xp: profile.xp + xpEarned,
+        level: Math.floor((profile.xp + xpEarned) / 100) + 1,
+        totalScore: profile.totalScore + score,
+        gamesPlayed: profile.gamesPlayed + 1,
+        wins: won ? profile.wins + 1 : profile.wins,
+        winStreak: newStreak,
+        bestStreak: newBest,
+        lastStreakReward: newLastReward,
+        updatedAt: new Date(),
+      }).where(eq(playerProfiles.id, id)).returning();
+      res.json({ profile: updated, streakBonus, coinEntryReward: won && coinEntry ? (COIN_ENTRY_OPTIONS.find(o => o.entry === coinEntry)?.reward || 0) : 0 });
+    } catch (e) {
+      console.error("POST /api/player/:id/game-result error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.get("/api/coin-entries", (_req, res) => {
+    res.json(COIN_ENTRY_OPTIONS);
+  });
+
+  app.get("/api/spin-rewards", (_req, res) => {
+    res.json(SPIN_REWARDS.map(r => ({ type: r.type, amount: r.amount, label: r.label })));
   });
 
   return httpServer;

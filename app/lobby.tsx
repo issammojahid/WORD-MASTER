@@ -11,7 +11,7 @@ import {
   Platform,
   Animated,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -45,7 +45,9 @@ type TabMode = "select" | "create" | "join" | "waiting" | "matchmaking";
 export default function LobbyScreen() {
   const insets = useSafeAreaInsets();
   const { t, isRTL } = useLanguage();
-  const { profile } = usePlayer();
+  const { profile, playerId } = usePlayer();
+  const params = useLocalSearchParams<{ coinEntry?: string }>();
+  const coinEntry = params.coinEntry ? parseInt(params.coinEntry, 10) : 0;
   const [tab, setTab] = useState<TabMode>("select");
   const [joinCode, setJoinCode] = useState("");
   const [room, setRoom] = useState<RoomData | null>(null);
@@ -235,12 +237,12 @@ export default function LobbyScreen() {
       });
     };
 
-    const handleMatchFound = (data: { roomId: string; letter: string; round: number; totalRounds: number }) => {
+    const handleMatchFound = (data: { roomId: string; letter: string; round: number; totalRounds: number; coinEntry?: number }) => {
       actionInProgressRef.current = false;
       roomIdRef.current = data.roomId;
       router.replace({
         pathname: "/game",
-        params: { roomId: data.roomId, letter: data.letter, round: String(data.round), totalRounds: String(data.totalRounds) },
+        params: { roomId: data.roomId, letter: data.letter, round: String(data.round), totalRounds: String(data.totalRounds), coinEntry: String(data.coinEntry || coinEntry || 0) },
       });
     };
 
@@ -331,7 +333,7 @@ export default function LobbyScreen() {
     setMatchmakingStatus("جاري البحث عن لاعب...");
     setLoading(true);
     const socket = getSocket();
-    socket.emit("findMatch", { playerName: profile.name, playerSkin: profile.equippedSkin });
+    socket.emit("findMatch", { playerName: profile.name, playerSkin: profile.equippedSkin, coinEntry, playerId });
   };
 
   const handleCancelMatchmaking = () => {

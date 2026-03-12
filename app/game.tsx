@@ -52,15 +52,17 @@ type ChatBubble = {
 };
 
 export default function GameScreen() {
-  const { roomId, letter, round, totalRounds } = useLocalSearchParams<{
+  const { roomId, letter, round, totalRounds, coinEntry: coinEntryParam } = useLocalSearchParams<{
     roomId: string;
     letter: string;
     round: string;
     totalRounds: string;
+    coinEntry?: string;
   }>();
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
-  const { profile, updateProfile, addCoins, addXp } = usePlayer();
+  const { profile, updateProfile, addCoins, addXp, reportGameResult } = usePlayer();
+  const gameCoinEntry = coinEntryParam ? parseInt(coinEntryParam, 10) : 0;
   const socket = getSocket();
 
   const [answers, setAnswers] = useState<Record<GameCategory, string>>({} as Record<GameCategory, string>);
@@ -79,6 +81,7 @@ export default function GameScreen() {
 
   const [showChatPanel, setShowChatPanel] = useState(false);
   const [chatBubbles, setChatBubbles] = useState<ChatBubble[]>([]);
+  const [streakReward, setStreakReward] = useState<{ streakBonus: number; coinEntryReward: number } | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const letterAnim = useRef(new Animated.Value(0)).current;
@@ -190,13 +193,21 @@ export default function GameScreen() {
       setGameOverPlayers(data.players.map((p) => ({ ...p, skin: p.skin || "default" })));
       const me = data.players.find((p) => p.id === socketId);
       if (me) {
-        addCoins(me.coins);
-        addXp(Math.floor(me.score / 2));
-        const rank = data.players.sort((a, b) => b.score - a.score).findIndex((p) => p.id === socketId);
-        updateProfile({
-          gamesPlayed: profile.gamesPlayed + 1,
-          wins: rank === 0 ? profile.wins + 1 : profile.wins,
-          totalScore: profile.totalScore + me.score,
+        const sorted = [...data.players].sort((a, b) => b.score - a.score);
+        const rank = sorted.findIndex((p) => p.id === socketId);
+        const won = rank === 0;
+        reportGameResult(won, me.score, me.coins, Math.floor(me.score / 2), gameCoinEntry).then((result) => {
+          if (result.streakBonus > 0 || result.coinEntryReward > 0) {
+            setStreakReward({ streakBonus: result.streakBonus, coinEntryReward: result.coinEntryReward });
+          }
+        }).catch(() => {
+          addCoins(me.coins);
+          addXp(Math.floor(me.score / 2));
+          updateProfile({
+            gamesPlayed: profile.gamesPlayed + 1,
+            wins: won ? profile.wins + 1 : profile.wins,
+            totalScore: profile.totalScore + me.score,
+          });
         });
       }
     });
@@ -298,6 +309,30 @@ export default function GameScreen() {
               );
             })}
           </View>
+
+          {streakReward && (streakReward.streakBonus > 0 || streakReward.coinEntryReward > 0) && (
+            <View style={styles.bonusBanner}>
+              {streakReward.streakBonus > 0 && (
+                <View style={styles.bonusRow}>
+                  <Ionicons name="flame" size={18} color={Colors.ruby} />
+                  <Text style={styles.bonusText}>مكافأة السلسلة: +{streakReward.streakBonus} 🪙</Text>
+                </View>
+              )}
+              {streakReward.coinEntryReward > 0 && (
+                <View style={styles.bonusRow}>
+                  <Ionicons name="trophy" size={18} color={Colors.gold} />
+                  <Text style={styles.bonusText}>جائزة المباراة: +{streakReward.coinEntryReward} 🪙</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {gameCoinEntry > 0 && (
+            <View style={styles.coinEntryInfo}>
+              <Ionicons name="star" size={14} color={Colors.gold} />
+              <Text style={styles.coinEntryInfoText}>مباراة بدخول {gameCoinEntry} عملة</Text>
+            </View>
+          )}
 
           <TouchableOpacity style={styles.playAgainBtn} onPress={handlePlayAgain}>
             <Ionicons name="refresh" size={18} color={Colors.background} style={{ marginRight: 8 }} />
@@ -662,6 +697,18 @@ const styles = StyleSheet.create({
   finalRankName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
   finalRankRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   finalRankScore: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
+  bonusBanner: {
+    backgroundColor: Colors.gold + "15", borderRadius: 14, padding: 14,
+    width: "100%", gap: 8, borderWidth: 1, borderColor: Colors.gold + "30", marginBottom: 16,
+  },
+  bonusRow: { flexDirection: "row", alignItems: "center", gap: 8, justifyContent: "center" },
+  bonusText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.gold },
+  coinEntryInfo: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: Colors.card, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8,
+    marginBottom: 16,
+  },
+  coinEntryInfoText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textSecondary },
   coinRewardBadge: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.gold + "22", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, gap: 3 },
   coinRewardText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.gold },
   playAgainBtn: {
