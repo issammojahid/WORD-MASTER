@@ -61,3 +61,48 @@ export const winStreaks = pgTable("win_streaks", {
 });
 
 export type WinStreak = typeof winStreaks.$inferSelect;
+
+export const tournaments = pgTable("tournaments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  status: text("status").notNull().default("open"),
+  entryFee: integer("entry_fee").notNull().default(100),
+  prizePool: integer("prize_pool").notNull().default(0),
+  winnerId: varchar("winner_id"),
+  winnerName: text("winner_name"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+});
+
+export type Tournament = typeof tournaments.$inferSelect;
+
+export const tournamentPlayers = pgTable("tournament_players", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tournamentId: varchar("tournament_id").notNull(),
+  playerId: varchar("player_id").notNull(),
+  playerName: text("player_name").notNull(),
+  playerSkin: text("player_skin").notNull().default("student"),
+  seed: integer("seed").notNull().default(0),
+  eliminated: integer("eliminated").notNull().default(0),
+  placement: integer("placement"),
+  joinedAt: timestamp("joined_at").notNull().default(sql`now()`),
+});
+
+export type TournamentPlayer = typeof tournamentPlayers.$inferSelect;
+
+export const tournamentMatches = pgTable("tournament_matches", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tournamentId: varchar("tournament_id").notNull(),
+  roundName: text("round_name").notNull(),
+  matchIndex: integer("match_index").notNull(),
+  player1Id: varchar("player1_id"),
+  player1Name: text("player1_name"),
+  player2Id: varchar("player2_id"),
+  player2Name: text("player2_name"),
+  winnerId: varchar("winner_id"),
+  winnerName: text("winner_name"),
+  roomId: varchar("room_id"),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  completedAt: timestamp("completed_at"),
+});

@@ -13,8 +13,9 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
 
 ## Recent Features Added
 
+- **Tournament Mode**: 8-player knockout tournaments with quarter/semi/final bracket, 100 coin entry fee, prize pool distribution (500/200/100 for 1st/2nd/3rd), bracket visualization, real-time updates via `tournament_update`/`tournament_started`/`tournament_player_joined` socket events, DB persistence (tournaments/tournament_players/tournament_matches tables), `app/tournament.tsx` screen
 - **Rapid Mode**: Best-of-5 speed rounds (10s each), first correct word wins the round, separate matchmaking queue (`rapid_join`/`rapid_cancel`/`rapid_word`/`rapid_leave` socket events), `app/rapid.tsx` game screen, server validation enforces room membership + category match
-- **Home screen**: Swipeable FlatList game modes carousel (مباراة سريعة / الوضع السريع / غرفة أصدقاء / وضع محلي) with dot indicators, coins badge → shop navigation, profile/XP bar
+- **Home screen**: Swipeable FlatList game modes carousel (مباراة سريعة / الوضع السريع / البطولة / غرفة أصدقاء / وضع محلي) with dot indicators, coins badge → shop navigation, profile/XP bar
 - **Quick chat**: Preset Arabic message bubbles in game (floating overlay, 3.5s auto-dismiss), speech bubble icon button, received from opponents via socket relay
 - **Voice chat**: Push-to-talk voice in friend rooms (lobby), mic permission request, real-time chunk streaming via socket, speaking indicators per player, mute toggle
 - **Server relays**: `quick_chat` and `voice_data` socket events added to routes.ts (relay-only, no game logic touched)
@@ -27,6 +28,7 @@ app/               # Expo Router screens
   lobby.tsx        # Multiplayer lobby (create/join rooms)
   game.tsx         # Main game screen + inline results
   rapid.tsx        # Rapid Mode game screen (best of 5, 10s rounds)
+  tournament.tsx   # Tournament bracket screen (8 players, 3 rounds)
   offline.tsx      # Offline mode with AI opponents
   leaderboard.tsx  # Player rankings
   shop.tsx         # Skin shop

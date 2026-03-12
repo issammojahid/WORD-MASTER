@@ -107,6 +107,15 @@ export default function HomeScreen() {
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/rapid"); },
     },
     {
+      id: "tournament",
+      title: "البطولة",
+      subtitle: "8 لاعبين، 3 جولات إقصائية، جائزة كبرى!",
+      icon: "trophy",
+      iconColor: Colors.gold,
+      bg: Colors.gold + "18",
+      onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/tournament"); },
+    },
+    {
       id: "friends",
       title: "غرفة أصدقاء",
       subtitle: "أنشئ غرفة وادعو أصدقاءك",

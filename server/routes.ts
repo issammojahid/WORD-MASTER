@@ -17,8 +17,8 @@ import {
 import { validateWord, CATEGORY_MAP, type WordCategory } from "./wordDatabase";
 import { ARABIC_LETTERS } from "./gameLogic";
 import { db } from "./db";
-import { playerProfiles, dailySpins, winStreaks } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches } from "@shared/schema";
+import { eq, and, desc } from "drizzle-orm";
 
 // Track which room each socket is currently in
 const socketRoomMap = new Map<string, string>();
@@ -61,6 +61,138 @@ function pickRapidCategory(usedCategories: string[] = []): string {
   const available = RAPID_CATEGORIES.filter((c) => !usedCategories.includes(c));
   const pool = available.length > 0 ? available : RAPID_CATEGORIES;
   return pool[Math.floor(Math.random() * pool.length)];
+}
+// ────────────────────────────────────────────────────────────────────────
+
+// ── TOURNAMENT MODE ──────────────────────────────────────────────────
+const TOURNAMENT_SIZE = 8;
+const TOURNAMENT_ENTRY_FEE = 100;
+const TOURNAMENT_PRIZES = { 1: 500, 2: 200, 3: 100 };
+const TOURNAMENT_XP = { 1: 150, 2: 75, 3: 50 };
+const TOURNAMENT_ROUNDS = ["quarter", "semi", "final"] as const;
+
+type ActiveTournament = {
+  id: string;
+  players: { playerId: string; socketId: string; name: string; skin: string; eliminated: boolean }[];
+  matches: {
+    id: string;
+    roundName: string;
+    matchIndex: number;
+    player1Id: string | null;
+    player1Name: string | null;
+    player2Id: string | null;
+    player2Name: string | null;
+    winnerId: string | null;
+    winnerName: string | null;
+    roomId: string | null;
+    status: string;
+  }[];
+  currentRound: string;
+  status: string;
+};
+
+const activeTournaments = new Map<string, ActiveTournament>();
+const playerTournamentMap = new Map<string, string>();
+
+function generateTournamentBracket(tournamentId: string, players: { playerId: string; name: string }[]): ActiveTournament["matches"] {
+  const shuffled = [...players].sort(() => Math.random() - 0.5);
+  const matches: ActiveTournament["matches"] = [];
+  for (let i = 0; i < 4; i++) {
+    matches.push({
+      id: `${tournamentId}_q${i}`,
+      roundName: "quarter",
+      matchIndex: i,
+      player1Id: shuffled[i * 2]?.playerId || null,
+      player1Name: shuffled[i * 2]?.name || null,
+      player2Id: shuffled[i * 2 + 1]?.playerId || null,
+      player2Name: shuffled[i * 2 + 1]?.name || null,
+      winnerId: null,
+      winnerName: null,
+      roomId: null,
+      status: "pending",
+    });
+  }
+  for (let i = 0; i < 2; i++) {
+    matches.push({
+      id: `${tournamentId}_s${i}`,
+      roundName: "semi",
+      matchIndex: i,
+      player1Id: null,
+      player1Name: null,
+      player2Id: null,
+      player2Name: null,
+      winnerId: null,
+      winnerName: null,
+      roomId: null,
+      status: "pending",
+    });
+  }
+  matches.push({
+    id: `${tournamentId}_f0`,
+    roundName: "final",
+    matchIndex: 0,
+    player1Id: null,
+    player1Name: null,
+    player2Id: null,
+    player2Name: null,
+    winnerId: null,
+    winnerName: null,
+    roomId: null,
+    status: "pending",
+  });
+  return matches;
+}
+
+function advanceTournamentWinner(tournament: ActiveTournament, matchId: string, winnerId: string, winnerName: string) {
+  const match = tournament.matches.find(m => m.id === matchId);
+  if (!match) return;
+  match.winnerId = winnerId;
+  match.winnerName = winnerName;
+  match.status = "completed";
+
+  const loserId = match.player1Id === winnerId ? match.player2Id : match.player1Id;
+  if (loserId) {
+    const loserPlayer = tournament.players.find(p => p.playerId === loserId);
+    if (loserPlayer) loserPlayer.eliminated = true;
+  }
+
+  if (match.roundName === "quarter") {
+    const semiIndex = Math.floor(match.matchIndex / 2);
+    const semiMatch = tournament.matches.find(m => m.roundName === "semi" && m.matchIndex === semiIndex);
+    if (semiMatch) {
+      if (match.matchIndex % 2 === 0) {
+        semiMatch.player1Id = winnerId;
+        semiMatch.player1Name = winnerName;
+      } else {
+        semiMatch.player2Id = winnerId;
+        semiMatch.player2Name = winnerName;
+      }
+    }
+  } else if (match.roundName === "semi") {
+    const finalMatch = tournament.matches.find(m => m.roundName === "final");
+    if (finalMatch) {
+      if (match.matchIndex === 0) {
+        finalMatch.player1Id = winnerId;
+        finalMatch.player1Name = winnerName;
+      } else {
+        finalMatch.player2Id = winnerId;
+        finalMatch.player2Name = winnerName;
+      }
+    }
+  } else if (match.roundName === "final") {
+    tournament.status = "completed";
+    tournament.currentRound = "completed";
+  }
+
+  const currentRoundMatches = tournament.matches.filter(m => m.roundName === tournament.currentRound);
+  const allDone = currentRoundMatches.every(m => m.status === "completed");
+  if (allDone && tournament.status !== "completed") {
+    const roundOrder = ["quarter", "semi", "final"];
+    const currentIdx = roundOrder.indexOf(tournament.currentRound);
+    if (currentIdx < roundOrder.length - 1) {
+      tournament.currentRound = roundOrder[currentIdx + 1];
+    }
+  }
 }
 // ────────────────────────────────────────────────────────────────────────
 
@@ -1067,6 +1199,282 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/spin-rewards", (_req, res) => {
     res.json(SPIN_REWARDS.map(r => ({ type: r.type, amount: r.amount, label: r.label })));
+  });
+
+  app.get("/api/tournaments/open", async (_req, res) => {
+    try {
+      const openTournaments = await db.select().from(tournaments).where(eq(tournaments.status, "open")).orderBy(desc(tournaments.createdAt));
+      const result = [];
+      for (const t of openTournaments) {
+        const players = await db.select().from(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, t.id));
+        result.push({ ...t, playerCount: players.length, maxPlayers: TOURNAMENT_SIZE, entryFee: t.entryFee });
+      }
+      result.push({ id: "__create__", status: "create", playerCount: 0, maxPlayers: TOURNAMENT_SIZE, entryFee: TOURNAMENT_ENTRY_FEE, prizePool: 0, createdAt: new Date().toISOString() });
+      res.json(result);
+    } catch (e) {
+      console.error("GET /api/tournaments/open error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.get("/api/tournament/:id", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const active = activeTournaments.get(id);
+      if (active) {
+        return res.json({
+          id: active.id,
+          status: active.status,
+          currentRound: active.currentRound,
+          players: active.players.map(p => ({ playerId: p.playerId, name: p.name, skin: p.skin, eliminated: p.eliminated })),
+          matches: active.matches,
+          prizes: TOURNAMENT_PRIZES,
+        });
+      }
+      const [t] = await db.select().from(tournaments).where(eq(tournaments.id, id));
+      if (!t) return res.status(404).json({ error: "not_found" });
+      const players = await db.select().from(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, id));
+      const matches = await db.select().from(tournamentMatches).where(eq(tournamentMatches.tournamentId, id));
+      res.json({
+        ...t,
+        players: players.map(p => ({ playerId: p.playerId, name: p.playerName, skin: p.playerSkin, eliminated: p.eliminated === 1 })),
+        matches: matches.map(m => ({
+          id: m.id,
+          roundName: m.roundName,
+          matchIndex: m.matchIndex,
+          player1Id: m.player1Id,
+          player1Name: m.player1Name,
+          player2Id: m.player2Id,
+          player2Name: m.player2Name,
+          winnerId: m.winnerId,
+          winnerName: m.winnerName,
+          roomId: m.roomId,
+          status: m.status,
+        })),
+        prizes: TOURNAMENT_PRIZES,
+      });
+    } catch (e) {
+      console.error("GET /api/tournament/:id error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.post("/api/tournament/create", async (_req, res) => {
+    try {
+      const [t] = await db.insert(tournaments).values({
+        entryFee: TOURNAMENT_ENTRY_FEE,
+        prizePool: 0,
+        status: "open",
+      }).returning();
+      res.json(t);
+    } catch (e) {
+      console.error("POST /api/tournament/create error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.post("/api/tournament/:id/join", async (req, res) => {
+    try {
+      const tournamentId = req.params.id;
+      const { playerId, playerName, playerSkin, socketId } = req.body as {
+        playerId: string;
+        playerName: string;
+        playerSkin: string;
+        socketId: string;
+      };
+
+      const [t] = await db.select().from(tournaments).where(eq(tournaments.id, tournamentId));
+      if (!t) return res.status(404).json({ error: "not_found" });
+      if (t.status !== "open") return res.status(400).json({ error: "tournament_closed" });
+
+      const existingPlayers = await db.select().from(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, tournamentId));
+      if (existingPlayers.some(p => p.playerId === playerId)) return res.status(400).json({ error: "already_joined" });
+      if (existingPlayers.length >= TOURNAMENT_SIZE) return res.status(400).json({ error: "tournament_full" });
+
+      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      if (!profile || profile.coins < TOURNAMENT_ENTRY_FEE) return res.status(400).json({ error: "insufficient_coins" });
+
+      await db.update(playerProfiles).set({ coins: profile.coins - TOURNAMENT_ENTRY_FEE, updatedAt: new Date() }).where(eq(playerProfiles.id, playerId));
+
+      const seed = existingPlayers.length + 1;
+      await db.insert(tournamentPlayers).values({ tournamentId, playerId, playerName, playerSkin, seed });
+
+      const newPrizePool = t.prizePool + TOURNAMENT_ENTRY_FEE;
+      await db.update(tournaments).set({ prizePool: newPrizePool }).where(eq(tournaments.id, tournamentId));
+
+      const allPlayers = await db.select().from(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, tournamentId));
+
+      if (allPlayers.length >= TOURNAMENT_SIZE) {
+        await db.update(tournaments).set({ status: "in_progress", startedAt: new Date() }).where(eq(tournaments.id, tournamentId));
+
+        const bracket = generateTournamentBracket(tournamentId, allPlayers.map(p => ({ playerId: p.playerId, name: p.playerName })));
+        for (const m of bracket) {
+          await db.insert(tournamentMatches).values({
+            id: m.id,
+            tournamentId,
+            roundName: m.roundName,
+            matchIndex: m.matchIndex,
+            player1Id: m.player1Id,
+            player1Name: m.player1Name,
+            player2Id: m.player2Id,
+            player2Name: m.player2Name,
+            status: m.status,
+          });
+        }
+
+        const activePlayers = allPlayers.map(p => ({
+          playerId: p.playerId,
+          socketId: "",
+          name: p.playerName,
+          skin: p.playerSkin,
+          eliminated: false,
+        }));
+        const active: ActiveTournament = {
+          id: tournamentId,
+          players: activePlayers,
+          matches: bracket,
+          currentRound: "quarter",
+          status: "in_progress",
+        };
+        activeTournaments.set(tournamentId, active);
+        for (const p of allPlayers) {
+          playerTournamentMap.set(p.playerId, tournamentId);
+        }
+
+        io.emit("tournament_started", { tournamentId, bracket, players: activePlayers.map(p => ({ playerId: p.playerId, name: p.name, skin: p.skin })) });
+      }
+
+      io.emit("tournament_player_joined", { tournamentId, playerCount: allPlayers.length, maxPlayers: TOURNAMENT_SIZE, playerName });
+
+      res.json({ success: true, playerCount: allPlayers.length, coins: profile.coins - TOURNAMENT_ENTRY_FEE });
+    } catch (e) {
+      console.error("POST /api/tournament/:id/join error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.post("/api/tournament/:id/match-result", async (req, res) => {
+    try {
+      const tournamentId = req.params.id;
+      const { matchId, winnerId, winnerName } = req.body as {
+        matchId: string;
+        winnerId: string;
+        winnerName: string;
+      };
+
+      const active = activeTournaments.get(tournamentId);
+      if (!active) return res.status(404).json({ error: "tournament_not_active" });
+
+      const match = active.matches.find(m => m.id === matchId);
+      if (!match) return res.status(404).json({ error: "match_not_found" });
+      if (match.status === "completed") return res.status(400).json({ error: "match_already_completed" });
+      if (winnerId !== match.player1Id && winnerId !== match.player2Id) {
+        return res.status(400).json({ error: "winner_not_in_match" });
+      }
+
+      advanceTournamentWinner(active, matchId, winnerId, winnerName);
+
+      await db.update(tournamentMatches).set({
+        winnerId,
+        winnerName,
+        status: "completed",
+        completedAt: new Date(),
+      }).where(eq(tournamentMatches.id, matchId));
+
+      if (match.roundName === "quarter" || match.roundName === "semi") {
+        const nextRoundName = match.roundName === "quarter" ? "semi" : "final";
+        const nextIdx = match.roundName === "quarter" ? Math.floor(match.matchIndex / 2) : 0;
+        const slot = match.roundName === "quarter" ? (match.matchIndex % 2 === 0 ? "player1" : "player2") : (match.matchIndex === 0 ? "player1" : "player2");
+        const nextMatch = active.matches.find(m => m.roundName === nextRoundName && m.matchIndex === nextIdx);
+        if (nextMatch) {
+          const updateData: Record<string, unknown> = {};
+          updateData[`${slot}Id`] = winnerId;
+          updateData[`${slot}Name`] = winnerName;
+          await db.update(tournamentMatches).set(updateData as any).where(eq(tournamentMatches.id, nextMatch.id));
+        }
+      }
+
+      if (active.status === "completed") {
+        await db.update(tournaments).set({
+          status: "completed",
+          winnerId,
+          winnerName,
+          completedAt: new Date(),
+        }).where(eq(tournaments.id, tournamentId));
+
+        const finalMatch = active.matches.find(m => m.roundName === "final");
+        const finalLoserId = finalMatch ? (finalMatch.player1Id === winnerId ? finalMatch.player2Id : finalMatch.player1Id) : null;
+        const semiLosers = active.matches
+          .filter(m => m.roundName === "semi" && m.winnerId)
+          .map(m => m.player1Id === m.winnerId ? m.player2Id : m.player1Id)
+          .filter(Boolean) as string[];
+
+        const placements: { pid: string; rank: 1 | 2 | 3 }[] = [
+          { pid: winnerId, rank: 1 },
+        ];
+        if (finalLoserId) placements.push({ pid: finalLoserId, rank: 2 });
+        for (const sl of semiLosers) {
+          if (sl !== winnerId && sl !== finalLoserId) {
+            placements.push({ pid: sl, rank: 3 });
+          }
+        }
+
+        for (const { pid, rank } of placements) {
+          const prize = TOURNAMENT_PRIZES[rank] || 0;
+          const xp = TOURNAMENT_XP[rank] || 0;
+          try {
+            const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, pid));
+            if (profile) {
+              await db.update(playerProfiles).set({
+                coins: profile.coins + prize,
+                xp: profile.xp + xp,
+                level: Math.floor((profile.xp + xp) / 100) + 1,
+                updatedAt: new Date(),
+              }).where(eq(playerProfiles.id, pid));
+            }
+          } catch {}
+          await db.update(tournamentPlayers).set({ placement: rank }).where(
+            and(eq(tournamentPlayers.tournamentId, tournamentId), eq(tournamentPlayers.playerId, pid))
+          );
+        }
+
+        for (const p of active.players) {
+          playerTournamentMap.delete(p.playerId);
+        }
+      }
+
+      io.emit("tournament_update", {
+        tournamentId,
+        matches: active.matches,
+        currentRound: active.currentRound,
+        status: active.status,
+        winnerId: active.status === "completed" ? winnerId : null,
+        winnerName: active.status === "completed" ? winnerName : null,
+      });
+
+      res.json({ success: true, status: active.status, currentRound: active.currentRound });
+    } catch (e) {
+      console.error("POST /api/tournament/:id/match-result error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.get("/api/player/:id/tournaments", async (req, res) => {
+    try {
+      const playerId = req.params.id;
+      const entries = await db.select().from(tournamentPlayers).where(eq(tournamentPlayers.playerId, playerId));
+      const result = [];
+      for (const entry of entries) {
+        const [t] = await db.select().from(tournaments).where(eq(tournaments.id, entry.tournamentId));
+        if (t) {
+          result.push({ ...t, placement: entry.placement, eliminated: entry.eliminated === 1 });
+        }
+      }
+      res.json(result);
+    } catch (e) {
+      console.error("GET /api/player/:id/tournaments error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
   });
 
   return httpServer;
