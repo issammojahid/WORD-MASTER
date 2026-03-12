@@ -27,14 +27,6 @@ const { width } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.82;
 const CARD_MARGIN = 10;
 
-const COIN_ENTRIES = [
-  { entry: 0, reward: 0, label: "مجاني" },
-  { entry: 50, reward: 100, label: "50" },
-  { entry: 100, reward: 200, label: "100" },
-  { entry: 500, reward: 1000, label: "500" },
-  { entry: 1000, reward: 2500, label: "1000" },
-];
-
 const POPUP_PANELS = [
   {
     id: "road",
@@ -82,8 +74,6 @@ export default function HomeScreen() {
   const [showNameModal, setShowNameModal] = useState(false);
   const [nameInput, setNameInput] = useState(profile.name);
   const [activeModeIdx, setActiveModeIdx] = useState(0);
-  const [showCoinEntryModal, setShowCoinEntryModal] = useState(false);
-  const [selectedEntry, setSelectedEntry] = useState(0);
   const [tournamentWins, setTournamentWins] = useState(0);
   const [currentPopupIdx, setCurrentPopupIdx] = useState<number | null>(null);
   const hasShownPopup = useRef(false);
@@ -164,14 +154,7 @@ export default function HomeScreen() {
 
   const handleQuickMatchPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setShowCoinEntryModal(true);
-  };
-
-  const handleStartMatch = () => {
-    setShowCoinEntryModal(false);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    if (selectedEntry > 0 && profile.coins < selectedEntry) return;
-    router.push({ pathname: "/lobby", params: { coinEntry: String(selectedEntry) } });
+    router.push("/league");
   };
 
   const gameModes: GameMode[] = [
@@ -524,65 +507,6 @@ export default function HomeScreen() {
         </View>
       </Modal>
 
-      {/* ── COIN ENTRY MODAL ────────────────────────────── */}
-      <Modal
-        visible={showCoinEntryModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowCoinEntryModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>اختر رسم الدخول</Text>
-            <Text style={styles.coinEntryBalance}>رصيدك: {profile.coins} 🪙</Text>
-            <View style={styles.coinEntryGrid}>
-              {COIN_ENTRIES.map((opt) => {
-                const selected = selectedEntry === opt.entry;
-                const canAfford = profile.coins >= opt.entry;
-                return (
-                  <TouchableOpacity
-                    key={opt.entry}
-                    style={[
-                      styles.coinEntryOption,
-                      selected && styles.coinEntryOptionSelected,
-                      !canAfford && opt.entry > 0 && styles.coinEntryOptionDisabled,
-                    ]}
-                    onPress={() => { if (canAfford || opt.entry === 0) setSelectedEntry(opt.entry); }}
-                    disabled={!canAfford && opt.entry > 0}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[styles.coinEntryLabel, selected && styles.coinEntryLabelSelected]}>
-                      {opt.entry === 0 ? "🆓" : `🪙 ${opt.label}`}
-                    </Text>
-                    {opt.reward > 0 && (
-                      <Text style={[styles.coinEntryReward, selected && styles.coinEntryRewardSelected]}>
-                        الجائزة: {opt.reward}
-                      </Text>
-                    )}
-                    {opt.entry === 0 && (
-                      <Text style={styles.coinEntryFree}>بدون رسوم</Text>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.modalCancel} onPress={() => setShowCoinEntryModal(false)}>
-                <Text style={styles.modalCancelText}>{t.cancel}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalConfirm, selectedEntry > profile.coins && { opacity: 0.5 }]}
-                onPress={handleStartMatch}
-                disabled={selectedEntry > profile.coins}
-              >
-                <Text style={styles.modalConfirmText}>
-                  {selectedEntry > 0 ? `ادفع ${selectedEntry} والعب` : "ابدأ"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -804,20 +728,4 @@ const styles = StyleSheet.create({
   },
   modalConfirmText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.black },
 
-  coinEntryBalance: {
-    fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary,
-    textAlign: "center", marginBottom: 14,
-  },
-  coinEntryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16, justifyContent: "center" },
-  coinEntryOption: {
-    width: "44%", padding: 12, borderRadius: 12, alignItems: "center",
-    borderWidth: 1.5, borderColor: Colors.cardBorder, backgroundColor: Colors.background,
-  },
-  coinEntryOptionSelected: { borderColor: Colors.gold, backgroundColor: Colors.gold + "15" },
-  coinEntryOptionDisabled: { opacity: 0.4 },
-  coinEntryLabel: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
-  coinEntryLabelSelected: { color: Colors.gold },
-  coinEntryReward: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 3 },
-  coinEntryRewardSelected: { color: Colors.gold },
-  coinEntryFree: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.emerald, marginTop: 3 },
 });
