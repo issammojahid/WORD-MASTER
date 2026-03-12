@@ -276,6 +276,17 @@ export default function LobbyScreen() {
     };
   }, []);
 
+  // Auto-start matchmaking when coinEntry is provided (Quick Match mode)
+  useEffect(() => {
+    if (coinEntry >= 0 && params.coinEntry !== undefined) {
+      // Small delay to ensure socket is ready
+      const t = setTimeout(() => {
+        handleQuickMatch();
+      }, 300);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
   const isHost = (r: RoomData | null) => {
     if (!r || !socketId) return false;
     const me = r.players.find((p) => p.id === socketId);

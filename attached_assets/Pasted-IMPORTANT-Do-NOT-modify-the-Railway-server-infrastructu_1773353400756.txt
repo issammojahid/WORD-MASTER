@@ -1,0 +1,199 @@
+IMPORTANT:
+Do NOT modify the Railway server infrastructure or break the existing multiplayer networking.
+
+The multiplayer system already works. Only fix logic and add missing systems.
+
+---
+
+1) FRIENDS SYSTEM
+
+Create a real friends system.
+
+Players must be able to:
+
+• Search players by username
+• Send friend request
+• Accept friend request
+• Reject friend request
+• Remove friend
+
+Friend list should show:
+
+• Avatar
+• Username
+• Level
+• Online status
+
+Statuses:
+
+🟢 Online
+🎮 In Match
+🔴 Offline
+
+---
+
+2) PLAY WITH FRIENDS (ROOM SYSTEM)
+
+When player clicks:
+
+Friends
+
+Do NOT start matchmaking.
+
+Instead show:
+
+Create Room
+Join Room
+Friends List
+
+Create Room:
+
+Player creates a private room.
+
+Room shows:
+
+Player 1
+Player 2
+
+Player can invite friend.
+
+Friend receives popup:
+
+"Your friend invited you to a match"
+
+Buttons:
+
+Accept
+Decline
+
+---
+
+3) RANDOM ONLINE MATCHMAKING
+
+For:
+
+⚡ Quick Match
+⚡ Rapid Mode
+
+The player must NOT see:
+
+Create Room
+Join Room
+
+Instead the system should directly start:
+
+Searching for player...
+
+Matchmaking server should pair players automatically.
+
+---
+
+4) FIX RAPID MODE MATCHMAKING
+
+Currently Rapid Mode cannot find players.
+
+Fix matchmaking queue.
+
+Ensure that:
+
+Players entering Rapid Mode are added to queue.
+
+When two players exist in queue:
+
+Create match instantly.
+
+---
+
+5) DAILY TASK SYSTEM
+
+Add Daily Tasks.
+
+Examples:
+
+Win 3 matches → +50 coins
+Play 5 matches → +30 coins
+Use 2 cards → +XP
+
+Daily tasks reset every 24 hours.
+
+---
+
+6) ACHIEVEMENTS SYSTEM
+
+Add achievements.
+
+Examples:
+
+Win 10 matches
+Win 50 matches
+Write 100 correct words
+Reach level 10
+
+Rewards:
+
+Coins
+XP
+Avatars
+Frames
+
+---
+
+7) REAL LEADERBOARD
+
+Leaderboard must use database data.
+
+Do NOT hardcode players in code.
+
+Leaderboard types:
+
+Top Coins
+Top Wins
+Top XP
+
+Display:
+
+Rank
+Avatar
+Username
+Score
+
+---
+
+8) TOURNAMENT ROOM FIX
+
+Tournament rooms must NOT stay open forever.
+
+If all players leave room:
+
+Auto delete room.
+
+If room stays inactive for 60 seconds:
+
+Auto delete room.
+
+This prevents ghost rooms.
+
+---
+
+9) ROOM AUTO DELETE SYSTEM
+
+For ALL rooms (friends rooms + tournament rooms):
+
+If player leaves room and no players remain:
+
+Room automatically deletes.
+
+This prevents server memory leaks.
+
+---
+
+IMPORTANT
+
+Do NOT break:
+
+matchmaking
+socket connections
+railway server
+API routes
+
+Only improve logic and add the systems above.

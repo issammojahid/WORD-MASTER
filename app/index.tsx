@@ -61,7 +61,7 @@ const POPUP_PANELS = [
     subtitle: "أتمم تحديات اليوم واكسب المزيد",
     reward: "⭐ نقاط XP مضاعفة",
     color: "#8B5CF6",
-    onPress: () => router.push("/leaderboard"),
+    onPress: () => router.push("/tasks"),
   },
 ];
 
@@ -200,7 +200,7 @@ export default function HomeScreen() {
       emoji: "👥",
       gradient: [Colors.emerald + "30", Colors.emerald + "10"],
       accent: Colors.emerald,
-      onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/lobby"); },
+      onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/friends"); },
     },
     {
       id: "tournament",
@@ -399,7 +399,7 @@ export default function HomeScreen() {
           <MaterialCommunityIcons name="shopping" size={24} color={Colors.textMuted} />
           <Text style={styles.navLabel}>المتجر</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/lobby")} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/friends")} activeOpacity={0.7}>
           <Ionicons name="people-outline" size={24} color={Colors.textMuted} />
           <Text style={styles.navLabel}>الأصدقاء</Text>
         </TouchableOpacity>
@@ -409,13 +409,13 @@ export default function HomeScreen() {
           </View>
           <Text style={[styles.navLabel, { color: Colors.gold }]}>الرئيسية</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/leaderboard")} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/tasks")} activeOpacity={0.7}>
           <Ionicons name="star-outline" size={24} color={Colors.textMuted} />
-          <Text style={styles.navLabel}>الأحداث</Text>
+          <Text style={styles.navLabel}>المهام</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/spin")} activeOpacity={0.7}>
-          <Ionicons name="color-palette-outline" size={24} color={Colors.textMuted} />
-          <Text style={styles.navLabel}>مجموعاتي</Text>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/achievements")} activeOpacity={0.7}>
+          <Ionicons name="trophy-outline" size={24} color={Colors.textMuted} />
+          <Text style={styles.navLabel}>الإنجازات</Text>
         </TouchableOpacity>
       </View>
 

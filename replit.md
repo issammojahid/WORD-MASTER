@@ -13,6 +13,12 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
 
 ## Recent Features Added
 
+- **Friends System**: Search players by name, send/accept/reject/remove friend requests. DB table `friends` with requesterId/receiverId/status. REST endpoints: `/api/players/search`, `/api/friends/:id`, `/api/friends/:id/request/:target`, `/api/friends/request/:id/:action`, `/api/friends/:id/:friendId`. Frontend: `app/friends.tsx` with 3 tabs (friends/search/requests) + Create/Join Room buttons.
+- **Real Leaderboard**: `/api/leaderboard?type=score|wins|xp` queries DB sorted by field. Frontend updated to use real data, shows local player highlighted.
+- **Daily Tasks**: DB table `player_daily_tasks`. 3 tasks (win_3, play_5, score_200). `/api/tasks/:id` and `/api/tasks/:id/:key/claim`. Frontend: `app/tasks.tsx` with claim buttons.
+- **Achievements**: DB table `player_achievements`. 8 achievements (first_win, win_10/50, play_10/100, level_5/10, streak_3). `/api/achievements/:id` and `/api/achievements/:id/claim/:key`. Frontend: `app/achievements.tsx` with filter tabs.
+- **Auto-matchmaking**: lobby.tsx now auto-starts matchmaking when `coinEntry` param is provided (Quick Match mode bypasses select screen).
+- **Nav bar updated**: الأصدقاء→/friends, المهام→/tasks, الإنجازات→/achievements
 - **Tournament Mode**: 8-player knockout tournaments with quarter/semi/final bracket, 100 coin entry fee, prize pool distribution (500/200/100 for 1st/2nd/3rd), bracket visualization, real-time updates via `tournament_update`/`tournament_started`/`tournament_player_joined` socket events, DB persistence (tournaments/tournament_players/tournament_matches tables), `app/tournament.tsx` screen
 - **Rapid Mode**: Best-of-5 speed rounds (10s each), first correct word wins the round, separate matchmaking queue (`rapid_join`/`rapid_cancel`/`rapid_word`/`rapid_leave` socket events), `app/rapid.tsx` game screen, server validation enforces room membership + category match
 - **Home screen**: Swipeable FlatList game modes carousel (مباراة سريعة / الوضع السريع / البطولة / غرفة أصدقاء / وضع محلي) with dot indicators, coins badge → shop navigation, profile/XP bar
@@ -30,7 +36,10 @@ app/               # Expo Router screens
   rapid.tsx        # Rapid Mode game screen (best of 5, 10s rounds)
   tournament.tsx   # Tournament bracket screen (8 players, 3 rounds)
   offline.tsx      # Offline mode with AI opponents
-  leaderboard.tsx  # Player rankings
+  leaderboard.tsx  # Player rankings (real DB data)
+  friends.tsx      # Friends system (search/add/remove + Create/Join room)
+  tasks.tsx        # Daily tasks with claim rewards
+  achievements.tsx # Achievement gallery with claim rewards
   shop.tsx         # Skin shop
   settings.tsx     # Language + map settings
 

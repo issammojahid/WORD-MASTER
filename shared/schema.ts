@@ -106,3 +106,43 @@ export const tournamentMatches = pgTable("tournament_matches", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   completedAt: timestamp("completed_at"),
 });
+
+// ── FRIENDS SYSTEM ─────────────────────────────────────────────────────────
+export const friends = pgTable("friends", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  requesterId: varchar("requester_id").notNull(),
+  receiverId: varchar("receiver_id").notNull(),
+  status: text("status").notNull().default("pending"), // pending | accepted | rejected
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export type Friend = typeof friends.$inferSelect;
+
+// ── DAILY TASKS ────────────────────────────────────────────────────────────
+export const playerDailyTasks = pgTable("player_daily_tasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: varchar("player_id").notNull(),
+  taskKey: text("task_key").notNull(),
+  progress: integer("progress").notNull().default(0),
+  completed: integer("completed").notNull().default(0),
+  claimed: integer("claimed").notNull().default(0),
+  assignedDate: text("assigned_date").notNull(), // YYYY-MM-DD
+  claimedAt: timestamp("claimed_at"),
+});
+
+export type PlayerDailyTask = typeof playerDailyTasks.$inferSelect;
+
+// ── ACHIEVEMENTS ───────────────────────────────────────────────────────────
+export const playerAchievements = pgTable("player_achievements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: varchar("player_id").notNull(),
+  achievementKey: text("achievement_key").notNull(),
+  progress: integer("progress").notNull().default(0),
+  unlocked: integer("unlocked").notNull().default(0),
+  claimed: integer("claimed").notNull().default(0),
+  unlockedAt: timestamp("unlocked_at"),
+  claimedAt: timestamp("claimed_at"),
+});
+
+export type PlayerAchievement = typeof playerAchievements.$inferSelect;

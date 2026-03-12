@@ -17,8 +17,27 @@ import {
 import { validateWord, CATEGORY_MAP, type WordCategory } from "./wordDatabase";
 import { ARABIC_LETTERS } from "./gameLogic";
 import { db } from "./db";
-import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches } from "@shared/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, playerDailyTasks, playerAchievements } from "@shared/schema";
+import { eq, and, desc, or, ilike, ne } from "drizzle-orm";
+
+// ── DAILY TASK DEFINITIONS ──────────────────────────────────────────────────
+const DAILY_TASK_DEFS = [
+  { key: "win_3", titleAr: "اربح 3 مباريات", descAr: "فُز بـ 3 مباريات اليوم", target: 3, type: "wins", rewardCoins: 50, rewardXp: 0, icon: "🏆" },
+  { key: "play_5", titleAr: "العب 5 مباريات", descAr: "شارك في 5 مباريات اليوم", target: 5, type: "games", rewardCoins: 30, rewardXp: 20, icon: "🎮" },
+  { key: "score_200", titleAr: "اكسب 200 نقطة", descAr: "حصّل 200 نقطة في مبارياتك", target: 200, type: "score", rewardCoins: 40, rewardXp: 30, icon: "⭐" },
+] as const;
+
+// ── ACHIEVEMENT DEFINITIONS ─────────────────────────────────────────────────
+const ACHIEVEMENT_DEFS = [
+  { key: "first_win", titleAr: "أول انتصار", descAr: "فُز بأول مباراة لك", target: 1, type: "wins", rewardCoins: 50, rewardXp: 50, icon: "🥇" },
+  { key: "win_10", titleAr: "10 انتصارات", descAr: "اربح 10 مباريات", target: 10, type: "wins", rewardCoins: 200, rewardXp: 100, icon: "🏆" },
+  { key: "win_50", titleAr: "50 انتصاراً", descAr: "اربح 50 مباراة", target: 50, type: "wins", rewardCoins: 500, rewardXp: 300, icon: "👑" },
+  { key: "play_10", titleAr: "10 مباريات", descAr: "شارك في 10 مباريات", target: 10, type: "games", rewardCoins: 100, rewardXp: 50, icon: "🎮" },
+  { key: "play_100", titleAr: "100 مباراة", descAr: "شارك في 100 مباراة", target: 100, type: "games", rewardCoins: 300, rewardXp: 200, icon: "💯" },
+  { key: "level_5", titleAr: "المستوى 5", descAr: "ابلغ المستوى الخامس", target: 5, type: "level", rewardCoins: 150, rewardXp: 0, icon: "⚡" },
+  { key: "level_10", titleAr: "المستوى 10", descAr: "ابلغ المستوى العاشر", target: 10, type: "level", rewardCoins: 500, rewardXp: 0, icon: "🌟" },
+  { key: "streak_3", titleAr: "3 انتصارات متتالية", descAr: "اربح 3 مباريات على التوالي", target: 3, type: "streak", rewardCoins: 100, rewardXp: 75, icon: "🔥" },
+] as const;
 
 // Track which room each socket is currently in
 const socketRoomMap = new Map<string, string>();
@@ -1582,6 +1601,291 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(result);
     } catch (e) {
       console.error("GET /api/player/:id/tournaments error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // ── LEADERBOARD ───────────────────────────────────────────────────────────
+  app.get("/api/leaderboard", async (req, res) => {
+    try {
+      const type = (req.query.type as string) || "score";
+      let players;
+      if (type === "wins") {
+        players = await db.select().from(playerProfiles).orderBy(desc(playerProfiles.wins)).limit(50);
+      } else if (type === "xp") {
+        players = await db.select().from(playerProfiles).orderBy(desc(playerProfiles.xp)).limit(50);
+      } else {
+        players = await db.select().from(playerProfiles).orderBy(desc(playerProfiles.totalScore)).limit(50);
+      }
+      const result = players.map((p, idx) => ({
+        rank: idx + 1,
+        id: p.id,
+        name: p.name,
+        skin: p.equippedSkin,
+        level: p.level,
+        wins: p.wins,
+        score: p.totalScore,
+        xp: p.xp,
+        gamesPlayed: p.gamesPlayed,
+      }));
+      res.json(result);
+    } catch (e) {
+      console.error("GET /api/leaderboard error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // ── FRIENDS ───────────────────────────────────────────────────────────────
+  app.get("/api/players/search", async (req, res) => {
+    try {
+      const q = (req.query.q as string || "").trim();
+      const myId = (req.query.playerId as string) || "";
+      if (q.length < 2) return res.json([]);
+      const rows = await db.select({
+        id: playerProfiles.id,
+        name: playerProfiles.name,
+        skin: playerProfiles.equippedSkin,
+        level: playerProfiles.level,
+        wins: playerProfiles.wins,
+      }).from(playerProfiles)
+        .where(and(ilike(playerProfiles.name, `%${q}%`), myId ? ne(playerProfiles.id, myId) : undefined))
+        .limit(20);
+      res.json(rows);
+    } catch (e) {
+      console.error("GET /api/players/search error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.get("/api/friends/:playerId", async (req, res) => {
+    try {
+      const playerId = req.params.playerId;
+      const rows = await db.select().from(friends).where(
+        or(eq(friends.requesterId, playerId), eq(friends.receiverId, playerId))
+      );
+      const result = [];
+      for (const row of rows) {
+        const otherId = row.requesterId === playerId ? row.receiverId : row.requesterId;
+        const [profile] = await db.select({
+          id: playerProfiles.id,
+          name: playerProfiles.name,
+          skin: playerProfiles.equippedSkin,
+          level: playerProfiles.level,
+          wins: playerProfiles.wins,
+        }).from(playerProfiles).where(eq(playerProfiles.id, otherId));
+        if (profile) {
+          result.push({
+            requestId: row.id,
+            status: row.status,
+            isSender: row.requesterId === playerId,
+            player: profile,
+          });
+        }
+      }
+      res.json(result);
+    } catch (e) {
+      console.error("GET /api/friends error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.post("/api/friends/:playerId/request/:targetId", async (req, res) => {
+    try {
+      const { playerId, targetId } = req.params;
+      if (playerId === targetId) return res.status(400).json({ error: "cannot_add_self" });
+      const existing = await db.select().from(friends).where(
+        or(
+          and(eq(friends.requesterId, playerId), eq(friends.receiverId, targetId)),
+          and(eq(friends.requesterId, targetId), eq(friends.receiverId, playerId))
+        )
+      );
+      if (existing.length > 0) return res.status(400).json({ error: "already_exists", status: existing[0].status });
+      const [row] = await db.insert(friends).values({ requesterId: playerId, receiverId: targetId, status: "pending" }).returning();
+      res.json({ success: true, requestId: row.id });
+    } catch (e) {
+      console.error("POST /api/friends/request error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.put("/api/friends/request/:requestId/:action", async (req, res) => {
+    try {
+      const { requestId, action } = req.params;
+      if (action !== "accept" && action !== "reject") return res.status(400).json({ error: "invalid_action" });
+      const newStatus = action === "accept" ? "accepted" : "rejected";
+      await db.update(friends).set({ status: newStatus, updatedAt: new Date() }).where(eq(friends.id, requestId));
+      res.json({ success: true });
+    } catch (e) {
+      console.error("PUT /api/friends/request error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.delete("/api/friends/:playerId/:friendId", async (req, res) => {
+    try {
+      const { playerId, friendId } = req.params;
+      await db.delete(friends).where(
+        or(
+          and(eq(friends.requesterId, playerId), eq(friends.receiverId, friendId)),
+          and(eq(friends.requesterId, friendId), eq(friends.receiverId, playerId))
+        )
+      );
+      res.json({ success: true });
+    } catch (e) {
+      console.error("DELETE /api/friends error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // ── DAILY TASKS ───────────────────────────────────────────────────────────
+  function getTodayDate() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  app.get("/api/tasks/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const today = getTodayDate();
+      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      if (!profile) return res.status(404).json({ error: "player_not_found" });
+
+      const existingRows = await db.select().from(playerDailyTasks)
+        .where(and(eq(playerDailyTasks.playerId, playerId), eq(playerDailyTasks.assignedDate, today)));
+
+      if (existingRows.length < DAILY_TASK_DEFS.length) {
+        for (const def of DAILY_TASK_DEFS) {
+          const exists = existingRows.find(r => r.taskKey === def.key);
+          if (!exists) {
+            await db.insert(playerDailyTasks).values({ playerId, taskKey: def.key, assignedDate: today });
+          }
+        }
+      }
+
+      const rows = await db.select().from(playerDailyTasks)
+        .where(and(eq(playerDailyTasks.playerId, playerId), eq(playerDailyTasks.assignedDate, today)));
+
+      const result = DAILY_TASK_DEFS.map(def => {
+        const row = rows.find(r => r.taskKey === def.key);
+        let progress = row?.progress ?? 0;
+        if (def.type === "wins") progress = Math.min(profile.wins, def.target);
+        if (def.type === "games") progress = Math.min(profile.gamesPlayed, def.target);
+        if (def.type === "score") progress = Math.min(profile.totalScore, def.target);
+        return {
+          ...def,
+          rowId: row?.id,
+          progress,
+          completed: progress >= def.target,
+          claimed: row?.claimed === 1,
+        };
+      });
+      res.json(result);
+    } catch (e) {
+      console.error("GET /api/tasks error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.post("/api/tasks/:playerId/:taskKey/claim", async (req, res) => {
+    try {
+      const { playerId, taskKey } = req.params;
+      const today = getTodayDate();
+      const [row] = await db.select().from(playerDailyTasks)
+        .where(and(eq(playerDailyTasks.playerId, playerId), eq(playerDailyTasks.taskKey, taskKey), eq(playerDailyTasks.assignedDate, today)));
+      if (!row) return res.status(404).json({ error: "task_not_found" });
+      if (row.claimed === 1) return res.status(400).json({ error: "already_claimed" });
+      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      if (!profile) return res.status(404).json({ error: "player_not_found" });
+
+      const def = DAILY_TASK_DEFS.find(d => d.key === taskKey);
+      if (!def) return res.status(404).json({ error: "unknown_task" });
+
+      let progress = 0;
+      if (def.type === "wins") progress = profile.wins;
+      if (def.type === "games") progress = profile.gamesPlayed;
+      if (def.type === "score") progress = profile.totalScore;
+      if (progress < def.target) return res.status(400).json({ error: "not_completed" });
+
+      await db.update(playerDailyTasks).set({ claimed: 1, claimedAt: new Date() }).where(eq(playerDailyTasks.id, row.id));
+      await db.update(playerProfiles).set({
+        coins: profile.coins + def.rewardCoins,
+        xp: profile.xp + def.rewardXp,
+        updatedAt: new Date(),
+      }).where(eq(playerProfiles.id, playerId));
+
+      res.json({ success: true, coinsEarned: def.rewardCoins, xpEarned: def.rewardXp });
+    } catch (e) {
+      console.error("POST /api/tasks/claim error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // ── ACHIEVEMENTS ──────────────────────────────────────────────────────────
+  app.get("/api/achievements/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      if (!profile) return res.status(404).json({ error: "player_not_found" });
+
+      const rows = await db.select().from(playerAchievements).where(eq(playerAchievements.playerId, playerId));
+
+      const result = ACHIEVEMENT_DEFS.map(def => {
+        const row = rows.find(r => r.achievementKey === def.key);
+        let progress = 0;
+        if (def.type === "wins") progress = Math.min(profile.wins, def.target);
+        if (def.type === "games") progress = Math.min(profile.gamesPlayed, def.target);
+        if (def.type === "level") progress = Math.min(profile.level, def.target);
+        if (def.type === "streak") progress = Math.min(profile.bestStreak, def.target);
+        const unlocked = progress >= def.target;
+        return {
+          ...def,
+          rowId: row?.id,
+          progress,
+          unlocked,
+          claimed: row?.claimed === 1,
+        };
+      });
+      res.json(result);
+    } catch (e) {
+      console.error("GET /api/achievements error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.post("/api/achievements/:playerId/claim/:key", async (req, res) => {
+    try {
+      const { playerId, key } = req.params;
+      const def = ACHIEVEMENT_DEFS.find(d => d.key === key);
+      if (!def) return res.status(404).json({ error: "unknown_achievement" });
+
+      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      if (!profile) return res.status(404).json({ error: "player_not_found" });
+
+      let progress = 0;
+      if (def.type === "wins") progress = profile.wins;
+      if (def.type === "games") progress = profile.gamesPlayed;
+      if (def.type === "level") progress = profile.level;
+      if (def.type === "streak") progress = profile.bestStreak;
+      if (progress < def.target) return res.status(400).json({ error: "not_unlocked" });
+
+      const [existing] = await db.select().from(playerAchievements)
+        .where(and(eq(playerAchievements.playerId, playerId), eq(playerAchievements.achievementKey, key)));
+      if (existing?.claimed === 1) return res.status(400).json({ error: "already_claimed" });
+
+      if (existing) {
+        await db.update(playerAchievements).set({ claimed: 1, claimedAt: new Date(), unlocked: 1, unlockedAt: new Date() }).where(eq(playerAchievements.id, existing.id));
+      } else {
+        await db.insert(playerAchievements).values({ playerId, achievementKey: key, progress, unlocked: 1, claimed: 1, unlockedAt: new Date(), claimedAt: new Date() });
+      }
+
+      await db.update(playerProfiles).set({
+        coins: profile.coins + def.rewardCoins,
+        xp: profile.xp + def.rewardXp,
+        updatedAt: new Date(),
+      }).where(eq(playerProfiles.id, playerId));
+
+      res.json({ success: true, coinsEarned: def.rewardCoins, xpEarned: def.rewardXp });
+    } catch (e) {
+      console.error("POST /api/achievements/claim error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });
