@@ -374,8 +374,8 @@ export default function LobbyScreen() {
     Alert.alert(t.roomCode, room.id);
   };
 
-  // Countdown overlay
-  if (countdown !== null) {
+  // Countdown overlay (only for matchmaking, not friend rooms)
+  if (countdown !== null && tab === "matchmaking") {
     const countColors: Record<number, string> = { 3: Colors.emerald, 2: Colors.gold, 1: Colors.ruby };
     const color = countColors[countdown] || Colors.gold;
     return (
