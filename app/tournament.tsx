@@ -184,9 +184,20 @@ export default function TournamentScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     };
 
+    const handleTournamentCancelled = (data: { tournamentId: string }) => {
+      setTournaments(prev => prev.filter(t => t.id !== data.tournamentId));
+      if (activeTournament && activeTournament.id === data.tournamentId) {
+        setActiveTournament(null);
+        setViewMode("list");
+        Alert.alert("تم إلغاء البطولة", "تم حذف هذه البطولة لعدم اكتمال اللاعبين.");
+        fetchTournaments();
+      }
+    };
+
     socket.on("tournament_update", handleTournamentUpdate);
     socket.on("tournament_player_joined", handlePlayerJoined);
     socket.on("tournament_started", handleTournamentStarted);
+    socket.on("tournament_cancelled", handleTournamentCancelled);
 
     return () => {
       socket.off("matchFound", handleMatchFound);
@@ -194,6 +205,7 @@ export default function TournamentScreen() {
       socket.off("tournament_update", handleTournamentUpdate);
       socket.off("tournament_player_joined", handlePlayerJoined);
       socket.off("tournament_started", handleTournamentStarted);
+      socket.off("tournament_cancelled", handleTournamentCancelled);
     };
   }, [activeTournament]);
 

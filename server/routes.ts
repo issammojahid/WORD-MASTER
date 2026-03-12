@@ -1942,6 +1942,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Tournament Auto-Cleanup
+  // Removes empty or abandoned open tournament rooms automatically.
+  // Rules:
+  //   1. 0 players → delete immediately
+  //   2. < 2 players and inactive for ≥ 60 seconds → delete
+  // ─────────────────────────────────────────────────────────────────────────
+  async function cleanupAbandonedTournaments() {
+    try {
+      const openTournaments = await db.select().from(tournaments).where(eq(tournaments.status, "open"));
+      const now = Date.now();
+      for (const t of openTournaments) {
+        const players = await db.select().from(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, t.id));
+        const ageMs = now - new Date(t.createdAt).getTime();
+        const shouldDelete =
+          players.length === 0 ||
+          (players.length < 2 && ageMs >= 60_000);
+        if (shouldDelete) {
+          await db.delete(tournamentMatches).where(eq(tournamentMatches.tournamentId, t.id)).catch(() => {});
+          await db.delete(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, t.id)).catch(() => {});
+          await db.delete(tournaments).where(eq(tournaments.id, t.id)).catch(() => {});
+          activeTournaments.delete(t.id);
+          console.log(`[cleanup] Deleted abandoned tournament ${t.id} (players: ${players.length}, age: ${Math.round(ageMs / 1000)}s)`);
+          io.emit("tournament_cancelled", { tournamentId: t.id });
+        }
+      }
+    } catch (e) {
+      console.error("[cleanup] Tournament cleanup error:", e);
+    }
+  }
+
+  cleanupAbandonedTournaments();
+  setInterval(() => cleanupAbandonedTournaments(), 30_000);
+
   return httpServer;
 }
 
