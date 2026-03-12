@@ -85,8 +85,10 @@ export default function HomeScreen() {
   const [showCoinEntryModal, setShowCoinEntryModal] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(0);
   const [tournamentWins, setTournamentWins] = useState(0);
-  const [showWelcomePopup, setShowWelcomePopup] = useState(false);
+  const [currentPopupIdx, setCurrentPopupIdx] = useState<number | null>(null);
   const hasShownPopup = useRef(false);
+  const popupOpacity = useRef(new Animated.Value(0)).current;
+  const popupScale = useRef(new Animated.Value(0.85)).current;
   const floatAnim = useRef(new Animated.Value(0)).current;
   const carouselRef = useRef<FlatList>(null);
 
@@ -97,6 +99,37 @@ export default function HomeScreen() {
   const mapConfig = MAPS.find((m) => m.id === selectedMap) || MAPS[0];
   const equippedSkin = SKINS.find((s) => s.id === profile.equippedSkin) || SKINS[0];
   const xpProgress = (profile.xp % 100) / 100;
+
+  const showPopupAt = (idx: number) => {
+    popupOpacity.setValue(0);
+    popupScale.setValue(0.85);
+    setCurrentPopupIdx(idx);
+  };
+
+  useEffect(() => {
+    if (currentPopupIdx === null) return;
+    Animated.parallel([
+      Animated.timing(popupOpacity, { toValue: 1, duration: 280, useNativeDriver: true }),
+      Animated.spring(popupScale, { toValue: 1, friction: 7, tension: 120, useNativeDriver: true }),
+    ]).start();
+  }, [currentPopupIdx]);
+
+  const dismissPopup = (fromIdx: number, onNavigate?: () => void) => {
+    Animated.parallel([
+      Animated.timing(popupOpacity, { toValue: 0, duration: 220, useNativeDriver: true }),
+      Animated.timing(popupScale, { toValue: 0.88, duration: 220, useNativeDriver: true }),
+    ]).start(() => {
+      setCurrentPopupIdx(null);
+      if (onNavigate) {
+        onNavigate();
+        return;
+      }
+      const nextIdx = fromIdx + 1;
+      if (nextIdx < POPUP_PANELS.length) {
+        setTimeout(() => showPopupAt(nextIdx), 500);
+      }
+    });
+  };
 
   useEffect(() => {
     Animated.loop(
@@ -109,9 +142,9 @@ export default function HomeScreen() {
     const timer = setTimeout(() => {
       if (!hasShownPopup.current) {
         hasShownPopup.current = true;
-        setShowWelcomePopup(true);
+        showPopupAt(0);
       }
-    }, 800);
+    }, 500);
 
     (async () => {
       try {
@@ -386,54 +419,78 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ── WELCOME POPUP ───────────────────────────────── */}
-      <Modal
-        visible={showWelcomePopup}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowWelcomePopup(false)}
-      >
-        <View style={styles.popupOverlay}>
-          <View style={styles.popupCard}>
-            <TouchableOpacity
-              style={styles.popupClose}
-              onPress={() => setShowWelcomePopup(false)}
+      {/* ── SEQUENTIAL POPUP OVERLAY ────────────────────── */}
+      {currentPopupIdx !== null && (() => {
+        const panel = POPUP_PANELS[currentPopupIdx];
+        const idx = currentPopupIdx;
+        return (
+          <Animated.View
+            style={[styles.popupOverlay, { opacity: popupOpacity }]}
+          >
+            <Animated.View
+              style={[
+                styles.popupCard,
+                { borderColor: panel.color + "40", transform: [{ scale: popupScale }] },
+              ]}
             >
-              <Ionicons name="close" size={20} color={Colors.textPrimary} />
-            </TouchableOpacity>
-            <Text style={styles.popupHeading}>مرحباً بك! 👋</Text>
-            <Text style={styles.popupSub}>اختر من المزايا المتاحة اليوم</Text>
+              {/* Close X */}
+              <TouchableOpacity
+                style={styles.popupClose}
+                onPress={() => dismissPopup(idx)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={20} color={Colors.textPrimary} />
+              </TouchableOpacity>
 
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.popupPanels}
-            >
-              {POPUP_PANELS.map((panel) => (
-                <View key={panel.id} style={[styles.popupPanel, { borderColor: panel.color + "50" }]}>
-                  <View style={[styles.popupPanelIcon, { backgroundColor: panel.color + "20" }]}>
-                    <Text style={styles.popupPanelEmoji}>{panel.icon}</Text>
-                  </View>
-                  <View style={styles.popupPanelBody}>
-                    <Text style={[styles.popupPanelTitle, { color: panel.color }]}>{panel.title}</Text>
-                    <Text style={styles.popupPanelSub}>{panel.subtitle}</Text>
-                    <Text style={styles.popupPanelReward}>{panel.reward}</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.popupPlayBtn, { backgroundColor: panel.color }]}
-                    onPress={() => {
-                      setShowWelcomePopup(false);
-                      panel.onPress();
-                    }}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="play" size={14} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+              {/* Icon */}
+              <View style={[styles.popupIconCircle, { backgroundColor: panel.color + "18" }]}>
+                <Text style={styles.popupIconEmoji}>{panel.icon}</Text>
+              </View>
+
+              {/* Text */}
+              <Text style={[styles.popupTitle, { color: panel.color }]}>{panel.title}</Text>
+              <Text style={styles.popupSubtitle}>{panel.subtitle}</Text>
+
+              {/* Reward badge */}
+              <View style={[styles.popupRewardBadge, { backgroundColor: panel.color + "15", borderColor: panel.color + "30" }]}>
+                <Text style={[styles.popupRewardText, { color: panel.color }]}>{panel.reward}</Text>
+              </View>
+
+              {/* Buttons */}
+              <View style={styles.popupButtons}>
+                <TouchableOpacity
+                  style={styles.popupSkipBtn}
+                  onPress={() => dismissPopup(idx)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.popupSkipText}>تخطي</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.popupActionBtn, { backgroundColor: panel.color }]}
+                  onPress={() => dismissPopup(idx, panel.onPress)}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="play" size={16} color="#fff" style={{ marginRight: 6 }} />
+                  <Text style={styles.popupActionText}>العب الآن</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Step dots */}
+              <View style={styles.popupDots}>
+                {POPUP_PANELS.map((_, di) => (
+                  <View
+                    key={di}
+                    style={[
+                      styles.popupDot,
+                      di === idx && [styles.popupDotActive, { backgroundColor: panel.color }],
+                    ]}
+                  />
+                ))}
+              </View>
+            </Animated.View>
+          </Animated.View>
+        );
+      })()}
 
       {/* ── NAME MODAL ──────────────────────────────────── */}
       <Modal visible={showNameModal} transparent animationType="fade" onRequestClose={() => setShowNameModal(false)}>
@@ -671,46 +728,53 @@ const styles = StyleSheet.create({
   navLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.textMuted },
 
   popupOverlay: {
-    flex: 1, backgroundColor: "rgba(0,0,0,0.6)",
-    justifyContent: "center", alignItems: "center", padding: 24,
+    position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "center", alignItems: "center",
+    padding: 28,
   },
   popupCard: {
-    width: "100%", backgroundColor: Colors.card, borderRadius: 24,
-    padding: 20, maxHeight: "80%",
+    width: "100%", backgroundColor: Colors.card, borderRadius: 28,
+    padding: 28, alignItems: "center", borderWidth: 1.5,
   },
   popupClose: {
     position: "absolute", top: 14, right: 14, zIndex: 10,
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: Colors.cardBorder + "80",
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: Colors.cardBorder,
     justifyContent: "center", alignItems: "center",
   },
-  popupHeading: {
-    fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary,
-    textAlign: "center", marginBottom: 4, marginTop: 4,
-  },
-  popupSub: {
-    fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary,
-    textAlign: "center", marginBottom: 16,
-  },
-  popupPanels: { gap: 12, paddingBottom: 4 },
-  popupPanel: {
-    flexDirection: "row", alignItems: "center", gap: 12,
-    backgroundColor: Colors.background + "80", borderRadius: 16,
-    padding: 14, borderWidth: 1,
-  },
-  popupPanelIcon: {
-    width: 52, height: 52, borderRadius: 16,
+  popupIconCircle: {
+    width: 96, height: 96, borderRadius: 48,
     justifyContent: "center", alignItems: "center",
+    marginBottom: 16, marginTop: 8,
   },
-  popupPanelEmoji: { fontSize: 26 },
-  popupPanelBody: { flex: 1 },
-  popupPanelTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, marginBottom: 2 },
-  popupPanelSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary },
-  popupPanelReward: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textMuted, marginTop: 3 },
-  popupPlayBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    justifyContent: "center", alignItems: "center",
+  popupIconEmoji: { fontSize: 48 },
+  popupTitle: {
+    fontFamily: "Cairo_700Bold", fontSize: 24, textAlign: "center", marginBottom: 8,
   },
+  popupSubtitle: {
+    fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary,
+    textAlign: "center", marginBottom: 16, lineHeight: 22,
+  },
+  popupRewardBadge: {
+    paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20,
+    borderWidth: 1, marginBottom: 24,
+  },
+  popupRewardText: { fontFamily: "Cairo_600SemiBold", fontSize: 14 },
+  popupButtons: { flexDirection: "row", gap: 12, width: "100%", marginBottom: 20 },
+  popupSkipBtn: {
+    flex: 1, paddingVertical: 13, borderRadius: 14,
+    backgroundColor: Colors.cardBorder, alignItems: "center",
+  },
+  popupSkipText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
+  popupActionBtn: {
+    flex: 2, paddingVertical: 13, borderRadius: 14,
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+  },
+  popupActionText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
+  popupDots: { flexDirection: "row", gap: 7 },
+  popupDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.cardBorder },
+  popupDotActive: { width: 24, borderRadius: 4 },
 
   modalOverlay: {
     flex: 1, backgroundColor: "rgba(0,0,0,0.6)",
