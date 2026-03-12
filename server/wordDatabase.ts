@@ -22,8 +22,7 @@ export const CATEGORY_MAP: Record<string, WordCategory> = {
   country: "countries",
 };
 
-// Load the word database from JSON
-// Uses process.cwd()-based paths to work in both dev (tsx) and production (esbuild ESM bundle)
+// Load the category-based word database from JSON
 function loadWordDatabase(): Record<WordCategory, string[]> {
   const cwd = process.cwd();
   const candidatePaths = [
@@ -46,11 +45,35 @@ function loadWordDatabase(): Record<WordCategory, string[]> {
   );
 }
 
+// Load the per-letter word database (words.json) — used as a general existence check
+function loadLetterDatabase(): Record<string, string[]> {
+  const cwd = process.cwd();
+  const candidatePaths = [
+    join(cwd, "server", "data", "words.json"),
+    join(cwd, "server_dist", "data", "words.json"),
+    join(cwd, "data", "words.json"),
+  ];
+
+  for (const dbPath of candidatePaths) {
+    try {
+      const raw = readFileSync(dbPath, "utf-8");
+      return JSON.parse(raw) as Record<string, string[]>;
+    } catch {
+      // try next path
+    }
+  }
+
+  // Return empty object if not found (non-fatal)
+  console.warn("words.json not found — per-letter fallback disabled");
+  return {};
+}
+
 const rawDatabase = loadWordDatabase();
+const letterDatabase = loadLetterDatabase();
 
 // Normalize an Arabic string for comparison:
 // - Strip diacritics (harakat/tashkeel)
-// - Normalize alef variants to أ
+// - Normalize alef variants to ا
 // - Normalize ta marbuta
 // - Trim whitespace
 function normalize(word: string): string {
@@ -73,6 +96,12 @@ for (const cat of Object.keys(rawDatabase) as WordCategory[]) {
   normalizedSets[cat] = new Set(words.map(normalize));
 }
 
+// Build per-letter normalized sets from words.json
+const letterNormalizedSets: Record<string, Set<string>> = {};
+for (const [letter, words] of Object.entries(letterDatabase)) {
+  letterNormalizedSets[normalize(letter)] = new Set((words as string[]).map(normalize));
+}
+
 function normalizeLetter(letter: string): string {
   return letter
     .trim()
@@ -91,6 +120,7 @@ export function validateWord(
   category: WordCategory,
   letter: string
 ): { valid: boolean; reason?: string } {
+  // Rule 1: word must have length > 1
   if (!word || word.trim().length < 2) {
     return { valid: false, reason: "too_short" };
   }
@@ -98,11 +128,13 @@ export function validateWord(
   const normWord = normalize(word);
   const normLetter = normalizeLetter(letter);
 
+  // Rule 2: word must start with the required letter (allow ال prefix)
   const wordRoot = stripArticle(normWord);
   if (!normWord.startsWith(normLetter) && !wordRoot.startsWith(normLetter)) {
     return { valid: false, reason: "wrong_letter" };
   }
 
+  // Rule 3: word must exist in database (category-specific check first)
   if (exactSets[category].has(word.trim())) {
     return { valid: true };
   }
@@ -118,6 +150,14 @@ export function validateWord(
     }
   } else {
     if (normalizedSets[category].has("ال" + normWord)) {
+      return { valid: true };
+    }
+  }
+
+  // Fallback: check per-letter words.json (general Arabic word existence check)
+  const letterSet = letterNormalizedSets[normLetter];
+  if (letterSet) {
+    if (letterSet.has(normWord) || letterSet.has(stripped)) {
       return { valid: true };
     }
   }

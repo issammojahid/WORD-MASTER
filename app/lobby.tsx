@@ -56,6 +56,11 @@ export default function LobbyScreen() {
   const [countdown, setCountdown] = useState<number | null>(null);
   const [countdownPlayers, setCountdownPlayers] = useState<{ id: string; name: string; skin: string }[]>([]);
 
+  // Auto-start countdown for friend rooms (host-side only)
+  const [autoStartCountdown, setAutoStartCountdown] = useState<number | null>(null);
+  const autoStartTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoStartInitiatedRef = useRef(false);
+
   // Voice chat state
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -221,9 +226,53 @@ export default function LobbyScreen() {
       }
     };
 
-    const handleRoomUpdated = (roomData: RoomData) => setRoom(roomData);
+    const stopAutoStart = () => {
+      if (autoStartTimerRef.current) {
+        clearInterval(autoStartTimerRef.current);
+        autoStartTimerRef.current = null;
+      }
+      setAutoStartCountdown(null);
+    };
+
+    const handleRoomUpdated = (roomData: RoomData) => {
+      setRoom(roomData);
+
+      // Auto-start logic: if I am the host and there are 2+ players, begin countdown
+      const myId = socket.id;
+      const me = roomData.players.find((p) => p.id === myId);
+      const amHost = me?.isHost ?? false;
+      const hasEnoughPlayers = roomData.players.length >= 2;
+
+      if (amHost && hasEnoughPlayers && !autoStartInitiatedRef.current) {
+        autoStartInitiatedRef.current = true;
+        let secs = 5;
+        setAutoStartCountdown(secs);
+        autoStartTimerRef.current = setInterval(() => {
+          secs -= 1;
+          if (secs <= 0) {
+            stopAutoStart();
+            // Emit start_game automatically
+            socket.emit("start_game", { roomId: roomData.id }, (res: { success: boolean; error?: string }) => {
+              if (!res.success) {
+                autoStartInitiatedRef.current = false;
+              }
+            });
+          } else {
+            setAutoStartCountdown(secs);
+          }
+        }, 1000);
+      }
+
+      // If players drop below 2, cancel the auto-start
+      if (!hasEnoughPlayers && autoStartInitiatedRef.current) {
+        autoStartInitiatedRef.current = false;
+        stopAutoStart();
+      }
+    };
 
     const handleGameStarted = (data: { letter: string; round: number; totalRounds: number }) => {
+      stopAutoStart();
+      autoStartInitiatedRef.current = false;
       const currentRoomId = roomIdRef.current;
       if (!currentRoomId) return;
       stopRecordingLoop();
@@ -356,6 +405,13 @@ export default function LobbyScreen() {
       const socket = getSocket();
       socket.emit("leave_room", { roomId: room.id });
     }
+    // Cancel auto-start
+    if (autoStartTimerRef.current) {
+      clearInterval(autoStartTimerRef.current);
+      autoStartTimerRef.current = null;
+    }
+    autoStartInitiatedRef.current = false;
+    setAutoStartCountdown(null);
     stopRecordingLoop();
     setVoiceEnabled(false);
     setTab("select");
@@ -528,7 +584,35 @@ export default function LobbyScreen() {
           <Text style={styles.minPlayersText}>الحد الأدنى ٢ لاعبين للبدء</Text>
         </View>
 
-        {amHost ? (
+        {/* Auto-start countdown bar — shown to everyone when host is about to start */}
+        {autoStartCountdown !== null && (
+          <View style={styles.autoStartBar}>
+            <View style={styles.autoStartLeft}>
+              <ActivityIndicator size="small" color={Colors.gold} />
+              <View>
+                <Text style={styles.autoStartText}>البدء التلقائي في</Text>
+                <Text style={styles.autoStartCountdown}>{autoStartCountdown} ثانية</Text>
+              </View>
+            </View>
+            {amHost && (
+              <TouchableOpacity
+                style={styles.cancelAutoBtn}
+                onPress={() => {
+                  if (autoStartTimerRef.current) {
+                    clearInterval(autoStartTimerRef.current);
+                    autoStartTimerRef.current = null;
+                  }
+                  autoStartInitiatedRef.current = false;
+                  setAutoStartCountdown(null);
+                }}
+              >
+                <Text style={styles.cancelAutoBtnText}>إلغاء</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
+        {amHost && autoStartCountdown === null ? (
           <TouchableOpacity
             style={[styles.startBtn, !canStart && styles.startBtnDisabled]}
             onPress={handleStartGame}
@@ -543,12 +627,12 @@ export default function LobbyScreen() {
               </>
             )}
           </TouchableOpacity>
-        ) : (
+        ) : !amHost && autoStartCountdown === null ? (
           <View style={styles.waitingBar}>
             <ActivityIndicator size="small" color={Colors.gold} />
             <Text style={styles.waitingText}>في انتظار المضيف لبدء اللعبة...</Text>
           </View>
-        )}
+        ) : null}
       </View>
     );
   }
@@ -799,6 +883,22 @@ const styles = StyleSheet.create({
   startBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.black },
   waitingBar: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 16, paddingHorizontal: 16, backgroundColor: Colors.card, marginHorizontal: 16, borderRadius: 16 },
   waitingText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
+
+  // Auto-start countdown
+  autoStartBar: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    backgroundColor: Colors.gold + "18", marginHorizontal: 16, marginBottom: 8,
+    borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16,
+    borderWidth: 1, borderColor: Colors.gold + "40",
+  },
+  autoStartLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+  autoStartText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
+  autoStartCountdown: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.gold },
+  cancelAutoBtn: {
+    backgroundColor: Colors.card, borderRadius: 10, paddingHorizontal: 14,
+    paddingVertical: 8, borderWidth: 1, borderColor: Colors.cardBorder,
+  },
+  cancelAutoBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
 
   // Matchmaking
   matchmakingContainer: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 20 },
