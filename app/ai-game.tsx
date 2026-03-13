@@ -511,11 +511,9 @@ export default function AIGameScreen() {
           </View>
         </View>
 
-        <View style={styles.tableHeader}>
-          <Text style={styles.tableHeaderText}>الفئة</Text>
-          <Text style={styles.tableHeaderCenter}>🤖</Text>
-          <Text style={styles.tableHeaderText}>إجابتك</Text>
-        </View>
+        {/* AI answer column is intentionally hidden during play.
+            Answers are generated silently in the background and revealed
+            all at once when the player presses "إنهاء الإجابة". */}
 
         <KeyboardAwareScrollView
           contentContainerStyle={[
@@ -526,36 +524,23 @@ export default function AIGameScreen() {
           bottomOffset={20}
           keyboardShouldPersistTaps="handled"
         >
-          {GAME_CATEGORIES.map((cat) => {
-            const aiWord = aiAnswers[cat] || "";
-            const thinking = aiThinking.has(cat) && !submitted;
-            return (
-              <View key={cat} style={styles.catRow}>
-                <Text style={styles.catLabel}>{CAT_LABEL[cat]}</Text>
-                <View style={styles.catAiCol}>
-                  {thinking ? (
-                    <Text style={styles.aiThinking}>•••</Text>
-                  ) : aiWord ? (
-                    <Text style={styles.aiWord}>{aiWord}</Text>
-                  ) : (
-                    <Text style={styles.aiEmpty}>—</Text>
-                  )}
-                </View>
-                <TextInput
-                  style={[styles.catInput, submitted && styles.catInputDisabled]}
-                  value={playerAnswers[cat] || ""}
-                  onChangeText={(text) =>
-                    setPlayerAnswers((prev) => ({ ...prev, [cat]: text }))
-                  }
-                  placeholder={`${currentLetter}...`}
-                  placeholderTextColor={Colors.textMuted}
-                  textAlign="right"
-                  editable={!submitted}
-                  returnKeyType="next"
-                />
-              </View>
-            );
-          })}
+          {GAME_CATEGORIES.map((cat) => (
+            <View key={cat} style={styles.catRow}>
+              <Text style={styles.catLabel}>{CAT_LABEL[cat]}</Text>
+              <TextInput
+                style={[styles.catInput, submitted && styles.catInputDisabled]}
+                value={playerAnswers[cat] || ""}
+                onChangeText={(text) =>
+                  setPlayerAnswers((prev) => ({ ...prev, [cat]: text }))
+                }
+                placeholder={`${currentLetter}...`}
+                placeholderTextColor={Colors.textMuted}
+                textAlign="right"
+                editable={!submitted}
+                returnKeyType="next"
+              />
+            </View>
+          ))}
         </KeyboardAwareScrollView>
 
         {!submitted ? (
