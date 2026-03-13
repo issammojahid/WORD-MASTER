@@ -46,7 +46,7 @@ type TabMode = "select" | "create" | "join" | "waiting" | "matchmaking";
 export default function LobbyScreen() {
   const insets = useSafeAreaInsets();
   const { t, isRTL } = useLanguage();
-  const { profile, playerId } = usePlayer();
+  const { profile, playerId, addCoins } = usePlayer();
   const params = useLocalSearchParams<{ coinEntry?: string; action?: string; join?: string }>();
   const coinEntry = params.coinEntry ? parseInt(params.coinEntry, 10) : 0;
   // Quick match mode: opened from league screen with a coin entry amount
@@ -82,6 +82,9 @@ export default function LobbyScreen() {
   const actionInProgressRef = useRef(false);
   // Tracks active matchmaking so we can re-queue after a socket reconnect
   const isInMatchmakingRef = useRef(isQuickMatchMode);
+  // Coin-safety refs: prevent refund once match has started, and prevent double-refund
+  const matchStartedRef = useRef(false);
+  const refundProcessedRef = useRef(false);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
@@ -258,6 +261,8 @@ export default function LobbyScreen() {
     const handleMatchFound = (data: { roomId: string; letter: string; round: number; totalRounds: number; coinEntry?: number }) => {
       actionInProgressRef.current = false;
       isInMatchmakingRef.current = false;
+      // Match has started — lock out any coin refund
+      matchStartedRef.current = true;
       roomIdRef.current = data.roomId;
       router.replace({
         pathname: "/game",
@@ -428,6 +433,26 @@ export default function LobbyScreen() {
     actionInProgressRef.current = false;
     isInMatchmakingRef.current = false;
     setLoading(false);
+
+    // Refund entry fee only if:
+    //  – there was an entry fee
+    //  – the match has NOT started yet (matchStartedRef guards post-countdown state)
+    //  – we haven't already processed a refund for this session
+    if (coinEntry > 0 && !matchStartedRef.current && !refundProcessedRef.current) {
+      refundProcessedRef.current = true;
+      addCoins(coinEntry);
+      setMatchmakingStatus("تم إلغاء البحث – تم إعادة العملات ✅");
+      // Brief pause so the player can read the confirmation, then navigate away
+      setTimeout(() => {
+        if (params.coinEntry !== undefined) {
+          router.back();
+        } else {
+          setTab("select");
+        }
+      }, 1400);
+      return;
+    }
+
     if (params.coinEntry !== undefined) {
       router.back();
     } else {
