@@ -14,7 +14,6 @@ import {
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  type GestureResponderEvent,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -413,82 +412,253 @@ type GameMode = {
   onPress: () => void;
 };
 
-// ── Card floating particle ─────────────────────────────────────────────────────
-const CARD_SYMBOLS = ["✦", "★", "·", "✦", "·", "★", "✦", "·"];
+// ── Shared card constants ─────────────────────────────────────────────────────
+const ICON_SZ = 80;
+const ICON_OUTER = ICON_SZ + 28; // room for sparkles/glow around icon
 
-const CardParticle = memo(({ x, symbol, delay, accent, size }: {
-  x: number; symbol: string; delay: number; accent: string; size: number;
-}) => {
-  const anim = useRef(new Animated.Value(0)).current;
+// Deterministic background dot positions (no Math.random to avoid re-render drift)
+const DOT_CFG = Array.from({ length: 10 }, (_, i) => ({
+  x:  ((i * 47 + 18) % (CARD_WIDTH - 30)) + 15,
+  bot: ((i * 31) % 38) + 4,
+  sz:  2 + (i % 3),
+  del: i * 320,
+}));
+
+// ── Shared card StyleSheet ─────────────────────────────────────────────────────
+const cSt = StyleSheet.create({
+  shineBar:  { position: "absolute", top: -30, width: 30, height: "160%" as any, backgroundColor: "rgba(255,255,255,0.10)", borderRadius: 6 },
+  btnWrap:   { marginTop: 4 },
+  btnShine:  { position: "absolute", top: -14, width: 20, height: 60, backgroundColor: "rgba(255,255,255,0.30)", borderRadius: 4 },
+  iconOuter: { width: ICON_OUTER, height: ICON_OUTER, alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  iconCircle:{ width: ICON_SZ, height: ICON_SZ, borderRadius: ICON_SZ / 2, justifyContent: "center", alignItems: "center", overflow: "hidden" },
+  iconGlow:  { position: "absolute", width: ICON_OUTER, height: ICON_OUTER, borderRadius: ICON_OUTER / 2 },
+  sparkle:   { position: "absolute", fontSize: 10 },
+  inner:     { paddingHorizontal: 24, paddingVertical: 22, alignItems: "center", gap: 10, minHeight: 232, justifyContent: "center" },
+});
+
+// ── Background floating dot ────────────────────────────────────────────────────
+const CardDot = memo(({ x, bot, sz, del, accent }: { x: number; bot: number; sz: number; del: number; accent: string }) => {
+  const a = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const run = () => {
-      anim.setValue(0);
+      a.setValue(0);
       Animated.sequence([
-        Animated.delay(delay),
-        Animated.timing(anim, { toValue: 1, duration: 3200 + Math.random() * 2000, easing: Easing.linear, useNativeDriver: true }),
+        Animated.delay(del),
+        Animated.timing(a, { toValue: 1, duration: 3000 + sz * 400, easing: Easing.linear, useNativeDriver: true }),
       ]).start(({ finished }) => { if (finished) run(); });
     };
     run();
-    return () => anim.stopAnimation();
+    return () => a.stopAnimation();
   }, []);
   return (
-    <Animated.Text
-      style={{
-        position: "absolute", left: x, bottom: 8, fontSize: size,
-        color: accent, pointerEvents: "none" as any,
-        opacity: anim.interpolate({ inputRange: [0, 0.08, 0.85, 1], outputRange: [0, 0.55, 0.45, 0] }),
-        transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [0, -150] }) }],
-      }}
-    >
-      {symbol}
-    </Animated.Text>
+    <Animated.View pointerEvents="none" style={{
+      position: "absolute", left: x, bottom: bot, width: sz, height: sz, borderRadius: sz / 2,
+      backgroundColor: accent,
+      opacity: a.interpolate({ inputRange: [0, 0.1, 0.8, 1], outputRange: [0, 0.45, 0.35, 0] }),
+      transform: [{ translateY: a.interpolate({ inputRange: [0, 1], outputRange: [0, -130] }) }],
+    }} />
   );
 });
 
-function makeParticles(accent: string) {
-  return Array.from({ length: 8 }, (_, i) => ({
-    x: 12 + i * ((CARD_WIDTH - 24) / 7),
-    symbol: CARD_SYMBOLS[i],
-    delay: i * 350,
-    accent,
-    size: 7 + (i % 3) * 3,
-  }));
-}
-
-// ── Card-level styles (defined once outside component) ────────────────────────
-const cardStyles = StyleSheet.create({
-  cardShineBar: {
-    position: "absolute", top: -20, width: 28, height: "140%" as any,
-    backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 6,
-  },
-  btnWrapper: {
-    marginTop: 4, overflow: "visible",
-  },
-  btnShineBar: {
-    position: "absolute", top: -14, width: 20, height: 60,
-    backgroundColor: "rgba(255,255,255,0.30)", borderRadius: 4,
-  },
+// ── Quick Match icon — lightning bolt with electric flicker ────────────────────
+const QuickIcon = memo(({ accent }: { accent: string }) => {
+  const flicker = useRef(new Animated.Value(1)).current;
+  const glowScl = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const runFlick = () => {
+      Animated.sequence([
+        Animated.timing(flicker, { toValue: 0.55, duration: 55, useNativeDriver: true }),
+        Animated.timing(flicker, { toValue: 1,    duration: 55, useNativeDriver: true }),
+        Animated.timing(flicker, { toValue: 0.70, duration: 40, useNativeDriver: true }),
+        Animated.timing(flicker, { toValue: 1,    duration: 40, useNativeDriver: true }),
+        Animated.delay(3200),
+      ]).start(() => runFlick());
+    };
+    runFlick();
+    Animated.loop(Animated.sequence([
+      Animated.timing(glowScl, { toValue: 1.22, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(glowScl, { toValue: 1,    duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ])).start();
+    return () => [flicker, glowScl].forEach(a => a.stopAnimation());
+  }, []);
+  return (
+    <View style={cSt.iconOuter}>
+      <Animated.View style={[cSt.iconGlow, { backgroundColor: accent + "28", transform: [{ scale: glowScl }] }]} />
+      <LinearGradient colors={[accent + "48", accent + "22"]} style={cSt.iconCircle}>
+        <Animated.View style={{ opacity: flicker }}>
+          <Ionicons name="flash" size={44} color={accent} />
+        </Animated.View>
+      </LinearGradient>
+    </View>
+  );
 });
 
-// ── Premium mode card ─────────────────────────────────────────────────────────
-const MAX_TILT = 8;
+// ── Fast Mode icon — rocket with bob + flame ───────────────────────────────────
+const FastIcon = memo(({ accent }: { accent: string }) => {
+  const bobY   = useRef(new Animated.Value(0)).current;
+  const fScale = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    Animated.loop(Animated.sequence([
+      Animated.timing(bobY, { toValue: -5, duration: 560, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(bobY, { toValue: 0,  duration: 560, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ])).start();
+    Animated.loop(Animated.sequence([
+      Animated.timing(fScale, { toValue: 1.35, duration: 190, useNativeDriver: true }),
+      Animated.timing(fScale, { toValue: 0.75, duration: 190, useNativeDriver: true }),
+      Animated.timing(fScale, { toValue: 1.0,  duration: 190, useNativeDriver: true }),
+    ])).start();
+    return () => [bobY, fScale].forEach(a => a.stopAnimation());
+  }, []);
+  return (
+    <View style={cSt.iconOuter}>
+      <LinearGradient colors={[accent + "48", accent + "22"]} style={cSt.iconCircle}>
+        <Animated.View style={{ transform: [{ translateY: bobY }, { rotate: "-42deg" }] }}>
+          <Ionicons name="rocket" size={40} color={accent} />
+        </Animated.View>
+        <Animated.Text pointerEvents="none" style={{ position: "absolute", bottom: 5, fontSize: 11, transform: [{ scale: fScale }] }}>🔥</Animated.Text>
+      </LinearGradient>
+    </View>
+  );
+});
 
-const ModeCard = memo(({ item, index, isActive }: {
-  item: GameMode; index: number; isActive: boolean;
-}) => {
-  const rotateX  = useRef(new Animated.Value(0)).current;
-  const rotateY  = useRef(new Animated.Value(0)).current;
-  const pressScl = useRef(new Animated.Value(1)).current;
-  const glowAnim = useRef(new Animated.Value(0)).current;
+// ── Friends icon — people silhouettes with bounce ─────────────────────────────
+const FriendsIcon = memo(({ accent }: { accent: string }) => {
+  const bounce = useRef(new Animated.Value(0)).current;
+  const glowScl = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const runBounce = () => {
+      Animated.sequence([
+        Animated.spring(bounce, { toValue: -8, tension: 450, friction: 8, useNativeDriver: true }),
+        Animated.spring(bounce, { toValue: 0,  tension: 450, friction: 8, useNativeDriver: true }),
+        Animated.delay(3000),
+      ]).start(() => runBounce());
+    };
+    runBounce();
+    Animated.loop(Animated.sequence([
+      Animated.timing(glowScl, { toValue: 1.20, duration: 1300, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(glowScl, { toValue: 1,    duration: 1300, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ])).start();
+    return () => [bounce, glowScl].forEach(a => a.stopAnimation());
+  }, []);
+  return (
+    <View style={cSt.iconOuter}>
+      <Animated.View style={[cSt.iconGlow, { backgroundColor: accent + "22", transform: [{ scale: glowScl }] }]} />
+      <LinearGradient colors={[accent + "48", accent + "22"]} style={cSt.iconCircle}>
+        <Animated.View style={{ transform: [{ translateY: bounce }] }}>
+          <Ionicons name="people" size={44} color={accent} />
+        </Animated.View>
+      </LinearGradient>
+    </View>
+  );
+});
+
+// ── Tournament icon — trophy with 6 sparkles + shine ─────────────────────────
+const SPARKLE_OFF = [
+  { dx: 48, dy: 0 }, { dx: 24, dy: -42 }, { dx: -24, dy: -42 },
+  { dx: -48, dy: 0 }, { dx: -24, dy: 42 }, { dx: 24, dy: 42 },
+];
+const TrophySparkle = memo(({ dx, dy, delay, accent }: { dx: number; dy: number; delay: number; accent: string }) => {
+  const a = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const run = () => {
+      a.setValue(0);
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(a, { toValue: 1, duration: 350, useNativeDriver: true }),
+        Animated.delay(500),
+        Animated.timing(a, { toValue: 0, duration: 350, useNativeDriver: true }),
+        Animated.delay(1100),
+      ]).start(() => run());
+    };
+    run();
+    return () => a.stopAnimation();
+  }, []);
+  const cx = ICON_OUTER / 2 + dx - 5;
+  const cy = ICON_OUTER / 2 + dy - 5;
+  return (
+    <Animated.Text style={[cSt.sparkle, {
+      left: cx, top: cy, color: accent, opacity: a,
+      transform: [{ scale: a.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1.3] }) }],
+    }]}>✦</Animated.Text>
+  );
+});
+const TrophyIcon = memo(({ accent }: { accent: string }) => {
+  const shineX = useRef(new Animated.Value(-50)).current;
+  useEffect(() => {
+    const run = () => {
+      shineX.setValue(-50);
+      Animated.sequence([
+        Animated.timing(shineX, { toValue: 90, duration: 700, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.delay(2800),
+      ]).start(() => run());
+    };
+    run();
+    return () => shineX.stopAnimation();
+  }, []);
+  return (
+    <View style={cSt.iconOuter}>
+      <LinearGradient colors={[accent + "48", accent + "22"]} style={[cSt.iconCircle, { overflow: "hidden" }]}>
+        <Ionicons name="trophy" size={44} color={accent} />
+        <Animated.View pointerEvents="none" style={[cSt.btnShine, { transform: [{ translateX: shineX }, { rotate: "20deg" }], backgroundColor: "rgba(255,255,255,0.36)" }]} />
+      </LinearGradient>
+      {SPARKLE_OFF.map((o, i) => <TrophySparkle key={i} dx={o.dx} dy={o.dy} delay={i * 280} accent={accent} />)}
+    </View>
+  );
+});
+
+// ── AI icon — robot with eye blink + digital dots ─────────────────────────────
+const AI_DOTS = [{ r: 10, b: 9 }, { r: 18, b: 6 }, { r: 26, b: 11 }];
+const AIIcon = memo(({ accent }: { accent: string }) => {
+  const blink    = useRef(new Animated.Value(1)).current;
+  const dotPhase = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const runBlink = () => {
+      Animated.sequence([
+        Animated.timing(blink, { toValue: 0.05, duration: 65, useNativeDriver: true }),
+        Animated.timing(blink, { toValue: 1,    duration: 65, useNativeDriver: true }),
+        Animated.delay(3800),
+      ]).start(() => runBlink());
+    };
+    runBlink();
+    Animated.loop(Animated.timing(dotPhase, { toValue: 3, duration: 1100, easing: Easing.linear, useNativeDriver: false })).start();
+    return () => [blink, dotPhase].forEach(a => a.stopAnimation());
+  }, []);
+  return (
+    <View style={cSt.iconOuter}>
+      <LinearGradient colors={[accent + "48", accent + "22"]} style={cSt.iconCircle}>
+        <Animated.View style={{ opacity: blink }}>
+          <MaterialCommunityIcons name="robot" size={46} color={accent} />
+        </Animated.View>
+        {AI_DOTS.map((d, i) => (
+          <Animated.View key={i} style={{
+            position: "absolute", right: d.r, bottom: d.b, width: 5, height: 5, borderRadius: 2.5,
+            backgroundColor: accent,
+            opacity: dotPhase.interpolate({ inputRange: [i, i + 0.5, i + 1, 3], outputRange: [0, 0.9, 0, 0], extrapolate: "clamp" }),
+          }} />
+        ))}
+      </LinearGradient>
+    </View>
+  );
+});
+
+// ── Icon map ───────────────────────────────────────────────────────────────────
+type IconFC = React.MemoExoticComponent<(p: { accent: string }) => React.JSX.Element>;
+const MODE_ICONS: Record<string, IconFC> = {
+  quick: QuickIcon, rapid: FastIcon, friends: FriendsIcon, tournament: TrophyIcon, ai: AIIcon,
+};
+
+// ── Premium flat mode card (no 3D tilt) ───────────────────────────────────────
+const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: number; isActive: boolean }) => {
+  const pressScl  = useRef(new Animated.Value(1)).current;
+  const glowAnim  = useRef(new Animated.Value(0)).current;
   const cardShine = useRef(new Animated.Value(-CARD_WIDTH)).current;
-  const btnPulse = useRef(new Animated.Value(1)).current;
-  const btnShine = useRef(new Animated.Value(-120)).current;
-  const entrY    = useRef(new Animated.Value(55)).current;
-  const entrOp   = useRef(new Animated.Value(0)).current;
-  const particles = useRef(makeParticles(item.accent)).current;
+  const btnPulse  = useRef(new Animated.Value(1)).current;
+  const btnShine  = useRef(new Animated.Value(-120)).current;
+  const entrY     = useRef(new Animated.Value(55)).current;
+  const entrOp    = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // ── Entrance (staggered per index) ───────────────────────────────────────
+    // Entrance stagger
     Animated.sequence([
       Animated.delay(index * 90),
       Animated.parallel([
@@ -497,140 +667,132 @@ const ModeCard = memo(({ item, index, isActive }: {
       ]),
     ]).start();
 
-    // ── Glow pulse ───────────────────────────────────────────────────────────
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glowAnim, { toValue: 1, duration: 2600, useNativeDriver: false }),
-        Animated.timing(glowAnim, { toValue: 0, duration: 2600, useNativeDriver: false }),
-      ])
-    ).start();
+    // Glow overlay pulse
+    Animated.loop(Animated.sequence([
+      Animated.timing(glowAnim, { toValue: 1, duration: 2600, useNativeDriver: false }),
+      Animated.timing(glowAnim, { toValue: 0, duration: 2600, useNativeDriver: false }),
+    ])).start();
 
-    // ── Card gloss sweep ────────────────────────────────────────────────────
-    const runCardShine = () => {
+    // Card gloss sweep
+    const runShine = () => {
       cardShine.setValue(-CARD_WIDTH * 0.6);
       Animated.sequence([
-        Animated.timing(cardShine, { toValue: CARD_WIDTH * 1.6, duration: 800, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-        Animated.delay(4500 + index * 700),
-      ]).start(() => runCardShine());
+        Animated.timing(cardShine, { toValue: CARD_WIDTH * 1.6, duration: 820, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.delay(4600 + index * 700),
+      ]).start(() => runShine());
     };
-    const t0 = setTimeout(() => runCardShine(), index * 500 + 600);
+    const t0 = setTimeout(() => runShine(), index * 500 + 700);
 
-    // ── Button pulse ────────────────────────────────────────────────────────
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(btnPulse, { toValue: 1.065, duration: 680, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(btnPulse, { toValue: 1,     duration: 680, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ])
-    ).start();
+    // Button pulse
+    Animated.loop(Animated.sequence([
+      Animated.timing(btnPulse, { toValue: 1.065, duration: 680, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(btnPulse, { toValue: 1,     duration: 680, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ])).start();
 
-    // ── Button shine ────────────────────────────────────────────────────────
+    // Button shine
     const runBtnShine = () => {
       btnShine.setValue(-120);
       Animated.sequence([
-        Animated.timing(btnShine, { toValue: 220, duration: 650, useNativeDriver: true }),
-        Animated.delay(2600 + index * 300),
+        Animated.timing(btnShine, { toValue: 230, duration: 660, useNativeDriver: true }),
+        Animated.delay(2700 + index * 300),
       ]).start(() => runBtnShine());
     };
     runBtnShine();
 
     return () => {
       clearTimeout(t0);
-      [rotateX, rotateY, pressScl, glowAnim, cardShine, btnPulse, btnShine, entrY, entrOp]
-        .forEach(a => a.stopAnimation());
+      [pressScl, glowAnim, cardShine, btnPulse, btnShine, entrY, entrOp].forEach(a => a.stopAnimation());
     };
   }, []);
 
-  // ── 3D tilt on press ────────────────────────────────────────────────────────
-  const onPressIn = (e: GestureResponderEvent) => {
-    const { locationX, locationY } = e.nativeEvent;
-    const tx = ((locationY - 115) / 115) * -MAX_TILT;
-    const ty = ((locationX - CARD_WIDTH / 2) / (CARD_WIDTH / 2)) * MAX_TILT;
-    Animated.spring(rotateX, { toValue: tx, tension: 320, friction: 10, useNativeDriver: true }).start();
-    Animated.spring(rotateY, { toValue: ty, tension: 320, friction: 10, useNativeDriver: true }).start();
+  const onPressIn = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.spring(pressScl, { toValue: 0.96, tension: 320, friction: 10, useNativeDriver: true }).start();
   };
-
   const onPressOut = () => {
-    Animated.spring(rotateX, { toValue: 0, tension: 180, friction: 8, useNativeDriver: true }).start();
-    Animated.spring(rotateY, { toValue: 0, tension: 180, friction: 8, useNativeDriver: true }).start();
-    Animated.spring(pressScl, { toValue: 1, tension: 180, friction: 8, useNativeDriver: true }).start();
+    Animated.spring(pressScl, { toValue: 1, tension: 200, friction: 8, useNativeDriver: true }).start();
   };
 
-  const rotXDeg = rotateX.interpolate({ inputRange: [-MAX_TILT, MAX_TILT], outputRange: [`-${MAX_TILT}deg`, `${MAX_TILT}deg`] });
-  const rotYDeg = rotateY.interpolate({ inputRange: [-MAX_TILT, MAX_TILT], outputRange: [`-${MAX_TILT}deg`, `${MAX_TILT}deg`] });
-  const glowOp  = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [isActive ? 0.1 : 0.05, isActive ? 0.22 : 0.12] });
+  const glowOp = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.04, isActive ? 0.17 : 0.09] });
+  const Icon   = MODE_ICONS[item.id] ?? QuickIcon;
 
   return (
     <Animated.View style={{
       width: CARD_WIDTH, marginHorizontal: CARD_MARGIN,
-      opacity: entrOp,
-      borderRadius: 24,
+      opacity: entrOp, borderRadius: 26,
       shadowColor: item.accent,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: isActive ? 0.55 : 0.28,
-      shadowRadius: isActive ? 22 : 12,
-      elevation: isActive ? 14 : 7,
-      transform: [
-        { translateY: entrY },
-        { scale: pressScl },
-        { perspective: 900 },
-        { rotateX: rotXDeg },
-        { rotateY: rotYDeg },
-      ],
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: isActive ? 0.58 : 0.24,
+      shadowRadius: isActive ? 22 : 10,
+      elevation: isActive ? 16 : 6,
+      transform: [{ translateY: entrY }, { scale: pressScl }],
     }}>
       <TouchableOpacity
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         onPress={item.onPress}
         activeOpacity={1}
-        style={[
-          styles.modeCard,
-          {
-            overflow: "hidden",
-            borderColor: item.accent + (isActive ? "75" : "45"),
-            backgroundColor: isActive ? item.accent + "1E" : Colors.card + "92",
-          },
-        ]}
+        style={{
+          borderRadius: 26, overflow: "hidden",
+          borderWidth: 1.5,
+          borderColor: isActive ? item.accent + "88" : item.accent + "38",
+        }}
       >
-        {/* Glow overlay */}
-        <Animated.View
-          style={[StyleSheet.absoluteFillObject, { borderRadius: 24, backgroundColor: item.accent, opacity: glowOp }]}
+        {/* Glass gradient background */}
+        <LinearGradient
+          colors={[item.accent + "2A", item.accent + "0E", Colors.card + "F6"]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+        />
+        {/* Frosted glass top-left highlight */}
+        <LinearGradient
+          colors={["rgba(255,255,255,0.11)", "rgba(255,255,255,0.03)", "transparent"]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.75 }}
+          style={StyleSheet.absoluteFillObject}
           pointerEvents="none"
         />
-
-        {/* Card gloss sweep */}
+        {/* Glow colour overlay */}
         <Animated.View
-          style={[cardStyles.cardShineBar, { transform: [{ translateX: cardShine }, { rotate: "20deg" }] }]}
           pointerEvents="none"
+          style={[StyleSheet.absoluteFillObject, { backgroundColor: item.accent, opacity: glowOp }]}
         />
+        {/* Gloss sweep */}
+        <Animated.View
+          pointerEvents="none"
+          style={[cSt.shineBar, { transform: [{ translateX: cardShine }, { rotate: "20deg" }] }]}
+        />
+        {/* Background dots */}
+        {DOT_CFG.map((d, i) => <CardDot key={i} x={d.x} bot={d.bot} sz={d.sz} del={d.del} accent={item.accent} />)}
 
-        {/* Floating particles */}
-        {particles.map((p, i) => <CardParticle key={i} {...p} />)}
+        {/* Card content */}
+        <View style={cSt.inner}>
+          <Icon accent={item.accent} />
+          <Text style={[styles.modeTitle, { color: item.accent }]}>{item.title}</Text>
+          <Text style={styles.modeSubtitle}>{item.subtitle}</Text>
 
-        {/* Emoji */}
-        <View style={[styles.modeEmojiCircle, { backgroundColor: item.accent + "22" }]}>
-          <Text style={styles.modeEmoji}>{item.emoji}</Text>
+          {/* Play button */}
+          <Animated.View style={[cSt.btnWrap, { transform: [{ scale: btnPulse }] }]}>
+            <LinearGradient
+              colors={[item.accent, item.accent + "C2"]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={[styles.modePlayBtn, {
+                overflow: "hidden",
+                shadowColor: item.accent,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.48,
+                shadowRadius: 8,
+                elevation: 6,
+              }]}
+            >
+              <Ionicons name="play" size={15} color="#fff" />
+              <Text style={styles.modePlayText}>العب الآن</Text>
+              <Animated.View
+                pointerEvents="none"
+                style={[cSt.btnShine, { transform: [{ translateX: btnShine }, { rotate: "20deg" }] }]}
+              />
+            </LinearGradient>
+          </Animated.View>
         </View>
-
-        <Text style={[styles.modeTitle, { color: item.accent }]}>{item.title}</Text>
-        <Text style={styles.modeSubtitle}>{item.subtitle}</Text>
-
-        {/* Animated play button */}
-        <Animated.View style={[cardStyles.btnWrapper, { transform: [{ scale: btnPulse }] }]}>
-          <LinearGradient
-            colors={[item.accent, item.accent + "BB"]}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={[styles.modePlayBtn, { overflow: "hidden" }]}
-          >
-            <Ionicons name="play" size={15} color="#fff" />
-            <Text style={styles.modePlayText}>العب الآن</Text>
-            {/* Button shine streak */}
-            <Animated.View
-              style={[cardStyles.btnShineBar, { transform: [{ translateX: btnShine }, { rotate: "20deg" }] }]}
-              pointerEvents="none"
-            />
-          </LinearGradient>
-        </Animated.View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -1083,22 +1245,6 @@ const styles = StyleSheet.create({
     marginBottom: 12, textAlign: "right",
   },
   carouselContent: { paddingHorizontal: 0 },
-  modeCard: {
-    width: CARD_WIDTH,
-    marginHorizontal: CARD_MARGIN,
-    borderRadius: 24,
-    padding: 24,
-    alignItems: "center",
-    borderWidth: 1.5,
-    gap: 10,
-    minHeight: 230,
-    justifyContent: "center",
-  },
-  modeEmojiCircle: {
-    width: 80, height: 80, borderRadius: 40,
-    justifyContent: "center", alignItems: "center", marginBottom: 4,
-  },
-  modeEmoji: { fontSize: 40 },
   modeTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, textAlign: "center" },
   modeSubtitle: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center" },
   modePlayBtn: {
