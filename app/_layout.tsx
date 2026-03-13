@@ -121,14 +121,14 @@ export default function RootLayout() {
       // Hide the native OS splash screen as soon as fonts are ready
       SplashScreen.hideAsync();
 
-      // Show our custom in-app splash for ~2.5 s, then fade it out
+      // Show our custom in-app splash for ~4.5 s, then fade it out
       const displayTimer = setTimeout(() => {
         Animated.timing(splashOpacity, {
           toValue: 0,
-          duration: 600,
+          duration: 700,
           useNativeDriver: true,
         }).start(() => setSplashVisible(false));
-      }, 2500);
+      }, 4500);
 
       return () => clearTimeout(displayTimer);
     }

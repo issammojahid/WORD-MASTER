@@ -14,8 +14,9 @@ const GOLD = "#F5A623";
 const NAVY = "#0D1B2A";
 const CREAM = "#F0E6D3";
 const MUTED = "#6B7E91";
+const GOLD_DIM = "#F5A62340";
 
-// Pre-computed zellige tile positions (seeded, so they're deterministic)
+// Pre-computed zellige tile positions (seeded for determinism)
 const TILES = (() => {
   const COLS = 8;
   const ROWS = 15;
@@ -37,6 +38,40 @@ const TILES = (() => {
   return out;
 })();
 
+// ── Progress bar ──────────────────────────────────────────────────────────────
+function ProgressBar() {
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: 4100,
+      useNativeDriver: false,
+    }).start();
+  }, []);
+
+  const barWidth = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0%", "100%"],
+  });
+
+  return (
+    <View style={styles.progressTrack}>
+      <Animated.View style={[styles.progressFill, { width: barWidth }]} />
+      {/* Shimmer dot at the leading edge */}
+      <Animated.View
+        style={[
+          styles.progressGlow,
+          {
+            left: barWidth,
+            transform: [{ translateX: -6 }],
+          },
+        ]}
+      />
+    </View>
+  );
+}
+
 // ── Pulsing loading dots ──────────────────────────────────────────────────────
 function PulsingDots() {
   const d1 = useRef(new Animated.Value(0.25)).current;
@@ -46,13 +81,13 @@ function PulsingDots() {
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
-        Animated.timing(d1, { toValue: 1, duration: 320, useNativeDriver: true }),
-        Animated.timing(d2, { toValue: 1, duration: 320, useNativeDriver: true }),
-        Animated.timing(d3, { toValue: 1, duration: 320, useNativeDriver: true }),
+        Animated.timing(d1, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.timing(d2, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.timing(d3, { toValue: 1, duration: 300, useNativeDriver: true }),
         Animated.parallel([
-          Animated.timing(d1, { toValue: 0.25, duration: 320, useNativeDriver: true }),
-          Animated.timing(d2, { toValue: 0.25, duration: 320, useNativeDriver: true }),
-          Animated.timing(d3, { toValue: 0.25, duration: 320, useNativeDriver: true }),
+          Animated.timing(d1, { toValue: 0.25, duration: 300, useNativeDriver: true }),
+          Animated.timing(d2, { toValue: 0.25, duration: 300, useNativeDriver: true }),
+          Animated.timing(d3, { toValue: 0.25, duration: 300, useNativeDriver: true }),
         ]),
       ])
     );
@@ -82,11 +117,22 @@ function GoldenDivider() {
 
 // ── Moroccan 8-pointed star motif ─────────────────────────────────────────────
 function StarMotif() {
+  const glow = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glow, { toValue: 1.12, duration: 1200, useNativeDriver: true }),
+        Animated.timing(glow, { toValue: 1, duration: 1200, useNativeDriver: true }),
+      ])
+    ).start();
+    return () => glow.stopAnimation();
+  }, []);
+
   return (
-    <View style={styles.starWrapper}>
+    <Animated.View style={[styles.starWrapper, { transform: [{ scale: glow }] }]}>
       <View style={[styles.starSquare, styles.starSquare0]} />
       <View style={[styles.starSquare, styles.starSquare45]} />
-    </View>
+    </Animated.View>
   );
 }
 
@@ -96,21 +142,21 @@ export default function SplashOverlay() {
   const topInset = insets.top || (typeof window !== "undefined" ? 0 : 44);
 
   const titleOpacity = useRef(new Animated.Value(0)).current;
-  const titleTranslateY = useRef(new Animated.Value(24)).current;
+  const titleTranslateY = useRef(new Animated.Value(28)).current;
   const subOpacity = useRef(new Animated.Value(0)).current;
-  const dotsOpacity = useRef(new Animated.Value(0)).current;
+  const bottomOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.sequence([
-      Animated.delay(200),
+      Animated.delay(300),
       Animated.parallel([
-        Animated.timing(titleOpacity, { toValue: 1, duration: 700, useNativeDriver: true }),
-        Animated.timing(titleTranslateY, { toValue: 0, duration: 700, useNativeDriver: true }),
+        Animated.timing(titleOpacity, { toValue: 1, duration: 900, useNativeDriver: true }),
+        Animated.timing(titleTranslateY, { toValue: 0, duration: 900, useNativeDriver: true }),
       ]),
-      Animated.delay(100),
-      Animated.timing(subOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
-      Animated.delay(100),
-      Animated.timing(dotsOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+      Animated.delay(150),
+      Animated.timing(subOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.delay(150),
+      Animated.timing(bottomOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
     ]).start();
   }, []);
 
@@ -141,13 +187,11 @@ export default function SplashOverlay() {
 
       {/* ── Central content ── */}
       <View style={[styles.center, { paddingTop: topInset }]}>
-        {/* Star motif above title */}
         <StarMotif />
 
         <View style={styles.titleCard}>
           <GoldenDivider />
 
-          {/* Arabic title */}
           <Animated.Text
             style={[
               styles.arabicTitle,
@@ -157,23 +201,27 @@ export default function SplashOverlay() {
             حروف المغرب
           </Animated.Text>
 
-          {/* English subtitle */}
-          <Animated.View style={{ opacity: subOpacity }}>
+          <Animated.View style={{ opacity: subOpacity, alignItems: "center", gap: 4 }}>
             <Text style={styles.englishTitle}>Huroof Al Maghrib</Text>
           </Animated.View>
 
           <GoldenDivider />
         </View>
 
-        {/* Byline */}
         <Animated.Text style={[styles.byline, { opacity: subOpacity }]}>
           by AisoTeam
         </Animated.Text>
       </View>
 
-      {/* ── Loading dots at bottom ── */}
-      <Animated.View style={[styles.loadingArea, { paddingBottom: insets.bottom + 40, opacity: dotsOpacity }]}>
+      {/* ── Loading area at bottom ── */}
+      <Animated.View
+        style={[
+          styles.loadingArea,
+          { paddingBottom: insets.bottom + 48, opacity: bottomOpacity },
+        ]}
+      >
         <Text style={styles.loadingLabel}>جاري التحميل...</Text>
+        <ProgressBar />
         <PulsingDots />
       </Animated.View>
     </View>
@@ -188,7 +236,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  // Background corner ornaments
   cornerOrnament: {
     position: "absolute",
     width: 80,
@@ -200,7 +247,6 @@ const styles = StyleSheet.create({
   cornerBL: { bottom: 40, left: 16, borderBottomWidth: 2, borderLeftWidth: 2, borderBottomLeftRadius: 16 },
   cornerBR: { bottom: 40, right: 16, borderBottomWidth: 2, borderRightWidth: 2, borderBottomRightRadius: 16 },
 
-  // Center layout
   center: {
     flex: 1,
     justifyContent: "center",
@@ -209,7 +255,6 @@ const styles = StyleSheet.create({
     gap: 20,
   },
 
-  // Moroccan star motif
   starWrapper: {
     width: 52,
     height: 52,
@@ -228,10 +273,9 @@ const styles = StyleSheet.create({
   starSquare0: {},
   starSquare45: { transform: [{ rotate: "45deg" }] },
 
-  // Title card
   titleCard: {
     alignItems: "center",
-    gap: 14,
+    gap: 16,
     paddingHorizontal: 16,
   },
   arabicTitle: {
@@ -240,9 +284,9 @@ const styles = StyleSheet.create({
     color: GOLD,
     textAlign: "center",
     letterSpacing: 1,
-    textShadowColor: GOLD + "50",
+    textShadowColor: GOLD + "60",
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 20,
+    textShadowRadius: 22,
   },
   englishTitle: {
     fontFamily: "Cairo_400Regular",
@@ -262,7 +306,6 @@ const styles = StyleSheet.create({
     marginTop: -8,
   },
 
-  // Divider
   dividerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -281,14 +324,14 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "45deg" }],
   },
 
-  // Loading
+  // Loading area
   loadingArea: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
     alignItems: "center",
-    gap: 10,
+    gap: 12,
   },
   loadingLabel: {
     fontFamily: "Cairo_400Regular",
@@ -296,6 +339,31 @@ const styles = StyleSheet.create({
     color: MUTED,
     letterSpacing: 1,
   },
+
+  // Progress bar
+  progressTrack: {
+    width: 200,
+    height: 4,
+    backgroundColor: GOLD + "28",
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: GOLD,
+    borderRadius: 2,
+  },
+  progressGlow: {
+    position: "absolute",
+    top: -3,
+    width: 12,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#fff",
+    opacity: 0.6,
+  },
+
+  // Pulsing dots
   dotsRow: {
     flexDirection: "row",
     gap: 10,

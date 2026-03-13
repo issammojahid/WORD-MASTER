@@ -17,6 +17,7 @@ import {
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePlayer, SKINS } from "@/contexts/PlayerContext";
@@ -35,6 +36,8 @@ const POPUP_PANELS = [
     subtitle: "أكمل المراحل واربح جوائز حصرية",
     reward: "🪙 حتى 500 عملة",
     color: "#F59E0B",
+    gradientFrom: "#3D1500",
+    gradientMid: "#2B1A00",
     onPress: () => router.push("/shop"),
   },
   {
@@ -44,6 +47,8 @@ const POPUP_PANELS = [
     subtitle: "العب يومياً واحصل على مكافأتك",
     reward: "🎁 مكافأة يومية مجانية",
     color: "#10B981",
+    gradientFrom: "#003D20",
+    gradientMid: "#002B18",
     onPress: () => router.push("/spin"),
   },
   {
@@ -53,10 +58,349 @@ const POPUP_PANELS = [
     subtitle: "أتمم تحديات اليوم واكسب المزيد",
     reward: "⭐ نقاط XP مضاعفة",
     color: "#8B5CF6",
+    gradientFrom: "#1E0040",
+    gradientMid: "#12002C",
     onPress: () => router.push("/tasks"),
   },
 ];
 
+// ── Popup particle ─────────────────────────────────────────────────────────────
+type PopupParticleProps = { symbol: string; color: string; startX: number; delay: number };
+
+function PopupParticle({ symbol, color, startX, delay }: PopupParticleProps) {
+  const posY = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = () => {
+      posY.setValue(0);
+      opacity.setValue(0);
+      Animated.parallel([
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(posY, { toValue: -260, duration: 3400, useNativeDriver: true }),
+        ]),
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(opacity, { toValue: 0.95, duration: 350, useNativeDriver: true }),
+          Animated.delay(2700),
+          Animated.timing(opacity, { toValue: 0, duration: 350, useNativeDriver: true }),
+        ]),
+      ]).start(({ finished }) => { if (finished) loop(); });
+    };
+    loop();
+    return () => { posY.stopAnimation(); opacity.stopAnimation(); };
+  }, []);
+
+  return (
+    <Animated.Text
+      style={{
+        position: "absolute",
+        left: startX,
+        bottom: 70,
+        fontSize: 15,
+        color,
+        opacity,
+        transform: [{ translateY: posY }],
+      }}
+    >
+      {symbol}
+    </Animated.Text>
+  );
+}
+
+const POPUP_PARTICLE_DEFS: Record<string, PopupParticleProps[]> = {
+  road: [
+    { symbol: "🪙", color: "#F59E0B", startX: 18,  delay: 0    },
+    { symbol: "✦",  color: "#FCD34D", startX: 70,  delay: 500  },
+    { symbol: "💰", color: "#F59E0B", startX: 140,  delay: 900  },
+    { symbol: "⭐", color: "#FDE68A", startX: 210, delay: 300  },
+    { symbol: "✦",  color: "#F59E0B", startX: 50,  delay: 1400 },
+    { symbol: "🪙", color: "#FCD34D", startX: 260, delay: 700  },
+    { symbol: "✨", color: "#FDE68A", startX: 105,  delay: 1800 },
+    { symbol: "💫", color: "#F59E0B", startX: 310, delay: 1100 },
+  ],
+  daily: [
+    { symbol: "✨", color: "#10B981", startX: 18,  delay: 0    },
+    { symbol: "⭐", color: "#A3E635", startX: 70,  delay: 500  },
+    { symbol: "✦",  color: "#34D399", startX: 140,  delay: 900  },
+    { symbol: "💫", color: "#6EE7B7", startX: 210, delay: 300  },
+    { symbol: "✨", color: "#10B981", startX: 50,  delay: 1400 },
+    { symbol: "⭐", color: "#34D399", startX: 260, delay: 700  },
+    { symbol: "✦",  color: "#A3E635", startX: 105,  delay: 1800 },
+    { symbol: "💫", color: "#6EE7B7", startX: 310, delay: 1100 },
+  ],
+  challenges: [
+    { symbol: "⭐", color: "#A78BFA", startX: 18,  delay: 0    },
+    { symbol: "✦",  color: "#60A5FA", startX: 70,  delay: 500  },
+    { symbol: "💫", color: "#C4B5FD", startX: 140,  delay: 900  },
+    { symbol: "✨", color: "#818CF8", startX: 210, delay: 300  },
+    { symbol: "⭐", color: "#A78BFA", startX: 50,  delay: 1400 },
+    { symbol: "✦",  color: "#60A5FA", startX: 260, delay: 700  },
+    { symbol: "💫", color: "#C4B5FD", startX: 105,  delay: 1800 },
+    { symbol: "✨", color: "#818CF8", startX: 310, delay: 1100 },
+  ],
+};
+
+// ── Feature popup component ───────────────────────────────────────────────────
+type PopupPanel = {
+  id: string; icon: string; title: string; subtitle: string;
+  reward: string; color: string; gradientFrom: string; gradientMid: string;
+  onPress: () => void;
+};
+
+function FeaturePopup({
+  panel, idx, popupOpacity, popupScale, onDismiss,
+}: {
+  panel: PopupPanel;
+  idx: number;
+  popupOpacity: Animated.Value;
+  popupScale: Animated.Value;
+  onDismiss: (nav?: () => void) => void;
+}) {
+  const particles = POPUP_PARTICLE_DEFS[panel.id] || [];
+  const iconY    = useRef(new Animated.Value(0)).current;
+  const iconRot  = useRef(new Animated.Value(0)).current;
+  const iconGlow = useRef(new Animated.Value(1)).current;
+  const btnShine = useRef(new Animated.Value(-160)).current;
+  const btnPulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (panel.id === "challenges") {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(iconY, { toValue: -10, duration: 340, useNativeDriver: true }),
+          Animated.timing(iconY, { toValue: 0,   duration: 340, useNativeDriver: true }),
+          Animated.delay(900),
+        ])
+      ).start();
+    } else if (panel.id === "daily") {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(iconRot, { toValue: -12, duration: 80, useNativeDriver: true }),
+          Animated.timing(iconRot, { toValue:  12, duration: 80, useNativeDriver: true }),
+          Animated.timing(iconRot, { toValue:  -8, duration: 80, useNativeDriver: true }),
+          Animated.timing(iconRot, { toValue:   8, duration: 80, useNativeDriver: true }),
+          Animated.timing(iconRot, { toValue:   0, duration: 80, useNativeDriver: true }),
+          Animated.delay(2000),
+        ])
+      ).start();
+    } else if (panel.id === "road") {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(iconGlow, { toValue: 1.18, duration: 750, useNativeDriver: true }),
+          Animated.timing(iconGlow, { toValue: 1,    duration: 750, useNativeDriver: true }),
+        ])
+      ).start();
+    }
+
+    const runShine = () => {
+      btnShine.setValue(-160);
+      Animated.sequence([
+        Animated.timing(btnShine, { toValue: 270, duration: 750, useNativeDriver: true }),
+        Animated.delay(2200),
+      ]).start(() => runShine());
+    };
+    runShine();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(btnPulse, { toValue: 1.05, duration: 650, useNativeDriver: true }),
+        Animated.timing(btnPulse, { toValue: 1,    duration: 650, useNativeDriver: true }),
+      ])
+    ).start();
+
+    return () => {
+      [iconY, iconRot, iconGlow, btnShine, btnPulse].forEach((a) => a.stopAnimation());
+    };
+  }, []);
+
+  const iconTransform: any[] =
+    panel.id === "challenges" ? [{ translateY: iconY }]
+    : panel.id === "daily"    ? [{ rotate: iconRot.interpolate({ inputRange: [-12, 12], outputRange: ["-12deg", "12deg"] }) }]
+    :                           [{ scale: iconGlow }];
+
+  return (
+    <Animated.View style={[pStyles.overlay, { opacity: popupOpacity }]}>
+      {/* Floating particles */}
+      <View style={pStyles.particlesLayer} pointerEvents="none">
+        {particles.map((p, i) => <PopupParticle key={i} {...p} />)}
+      </View>
+
+      {/* Card with glow shadow */}
+      <Animated.View
+        style={[
+          pStyles.cardWrapper,
+          { transform: [{ scale: popupScale }], shadowColor: panel.color },
+        ]}
+      >
+        <LinearGradient
+          colors={[panel.gradientFrom, panel.gradientMid, "#1A2E43"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[pStyles.card, { borderColor: panel.color + "55" }]}
+        >
+          {/* Close */}
+          <TouchableOpacity
+            style={pStyles.closeBtn}
+            onPress={() => onDismiss()}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <Ionicons name="close" size={20} color={Colors.textPrimary} />
+          </TouchableOpacity>
+
+          {/* Icon circle */}
+          <View
+            style={[
+              pStyles.iconCircle,
+              {
+                backgroundColor: panel.color + "22",
+                borderColor: panel.color + "50",
+                shadowColor: panel.color,
+              },
+            ]}
+          >
+            <Animated.Text style={[pStyles.iconEmoji, { transform: iconTransform }]}>
+              {panel.icon}
+            </Animated.Text>
+          </View>
+
+          {/* Titles */}
+          <Text style={[pStyles.title, { color: panel.color }]}>{panel.title}</Text>
+          <Text style={pStyles.subtitle}>{panel.subtitle}</Text>
+
+          {/* Reward badge */}
+          <View
+            style={[
+              pStyles.rewardBadge,
+              { backgroundColor: panel.color + "18", borderColor: panel.color + "45" },
+            ]}
+          >
+            <Text style={[pStyles.rewardText, { color: panel.color }]}>{panel.reward}</Text>
+          </View>
+
+          {/* Buttons */}
+          <View style={pStyles.buttonsRow}>
+            <TouchableOpacity style={pStyles.skipBtn} onPress={() => onDismiss()} activeOpacity={0.7}>
+              <Text style={pStyles.skipText}>تخطي</Text>
+            </TouchableOpacity>
+
+            <Animated.View style={[pStyles.playBtnWrapper, { transform: [{ scale: btnPulse }] }]}>
+              <TouchableOpacity
+                style={[
+                  pStyles.playBtn,
+                  { backgroundColor: panel.color, shadowColor: panel.color },
+                ]}
+                onPress={() => onDismiss(panel.onPress)}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="play" size={16} color="#fff" style={{ marginRight: 6 }} />
+                <Text style={pStyles.playBtnText}>العب الآن</Text>
+                <Animated.View
+                  style={[
+                    pStyles.shineOverlay,
+                    { transform: [{ translateX: btnShine }, { rotate: "20deg" }] },
+                  ]}
+                />
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+
+          {/* Step dots */}
+          <View style={pStyles.dotsRow}>
+            {POPUP_PANELS.map((_, di) => (
+              <View
+                key={di}
+                style={[pStyles.dot, di === idx && [pStyles.dotActive, { backgroundColor: panel.color }]]}
+              />
+            ))}
+          </View>
+        </LinearGradient>
+      </Animated.View>
+    </Animated.View>
+  );
+}
+
+const pStyles = StyleSheet.create({
+  overlay: {
+    position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    justifyContent: "center", alignItems: "center",
+    padding: 22,
+  },
+  particlesLayer: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: "hidden",
+  },
+  cardWrapper: {
+    width: "100%",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.75,
+    shadowRadius: 30,
+    elevation: 30,
+  },
+  card: {
+    width: "100%", borderRadius: 28, padding: 26,
+    alignItems: "center", borderWidth: 1.5,
+  },
+  closeBtn: {
+    position: "absolute", top: 14, right: 14, zIndex: 10,
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center", alignItems: "center",
+  },
+  iconCircle: {
+    width: 104, height: 104, borderRadius: 52,
+    justifyContent: "center", alignItems: "center",
+    marginBottom: 18, marginTop: 10,
+    borderWidth: 1.5,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.7, shadowRadius: 18,
+    elevation: 14,
+  },
+  iconEmoji: { fontSize: 52 },
+  title: {
+    fontFamily: "Cairo_700Bold", fontSize: 24,
+    textAlign: "center", marginBottom: 8,
+  },
+  subtitle: {
+    fontFamily: "Cairo_400Regular", fontSize: 13,
+    color: Colors.textSecondary, textAlign: "center",
+    marginBottom: 16, lineHeight: 22,
+  },
+  rewardBadge: {
+    paddingHorizontal: 20, paddingVertical: 10,
+    borderRadius: 22, borderWidth: 1, marginBottom: 24,
+  },
+  rewardText: { fontFamily: "Cairo_600SemiBold", fontSize: 14 },
+  buttonsRow: { flexDirection: "row", gap: 12, width: "100%", marginBottom: 20 },
+  skipBtn: {
+    flex: 1, paddingVertical: 13, borderRadius: 14,
+    backgroundColor: "rgba(0,0,0,0.32)", alignItems: "center",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+  },
+  skipText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
+  playBtnWrapper: { flex: 2 },
+  playBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: 14,
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    overflow: "hidden",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.55, shadowRadius: 14, elevation: 10,
+  },
+  playBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
+  shineOverlay: {
+    position: "absolute",
+    top: -20, width: 22, height: 80,
+    backgroundColor: "rgba(255,255,255,0.28)",
+    borderRadius: 4,
+  },
+  dotsRow: { flexDirection: "row", gap: 7 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.18)" },
+  dotActive: { width: 24, borderRadius: 4 },
+});
+
+// ── Game mode type ────────────────────────────────────────────────────────────
 type GameMode = {
   id: string;
   title: string;
@@ -412,77 +756,16 @@ export default function HomeScreen() {
       </View>
 
       {/* ── SEQUENTIAL POPUP OVERLAY ────────────────────── */}
-      {currentPopupIdx !== null && (() => {
-        const panel = POPUP_PANELS[currentPopupIdx];
-        const idx = currentPopupIdx;
-        return (
-          <Animated.View
-            style={[styles.popupOverlay, { opacity: popupOpacity }]}
-          >
-            <Animated.View
-              style={[
-                styles.popupCard,
-                { borderColor: panel.color + "40", transform: [{ scale: popupScale }] },
-              ]}
-            >
-              {/* Close X */}
-              <TouchableOpacity
-                style={styles.popupClose}
-                onPress={() => dismissPopup(idx)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="close" size={20} color={Colors.textPrimary} />
-              </TouchableOpacity>
-
-              {/* Icon */}
-              <View style={[styles.popupIconCircle, { backgroundColor: panel.color + "18" }]}>
-                <Text style={styles.popupIconEmoji}>{panel.icon}</Text>
-              </View>
-
-              {/* Text */}
-              <Text style={[styles.popupTitle, { color: panel.color }]}>{panel.title}</Text>
-              <Text style={styles.popupSubtitle}>{panel.subtitle}</Text>
-
-              {/* Reward badge */}
-              <View style={[styles.popupRewardBadge, { backgroundColor: panel.color + "15", borderColor: panel.color + "30" }]}>
-                <Text style={[styles.popupRewardText, { color: panel.color }]}>{panel.reward}</Text>
-              </View>
-
-              {/* Buttons */}
-              <View style={styles.popupButtons}>
-                <TouchableOpacity
-                  style={styles.popupSkipBtn}
-                  onPress={() => dismissPopup(idx)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.popupSkipText}>تخطي</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.popupActionBtn, { backgroundColor: panel.color }]}
-                  onPress={() => dismissPopup(idx, panel.onPress)}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons name="play" size={16} color="#fff" style={{ marginRight: 6 }} />
-                  <Text style={styles.popupActionText}>العب الآن</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Step dots */}
-              <View style={styles.popupDots}>
-                {POPUP_PANELS.map((_, di) => (
-                  <View
-                    key={di}
-                    style={[
-                      styles.popupDot,
-                      di === idx && [styles.popupDotActive, { backgroundColor: panel.color }],
-                    ]}
-                  />
-                ))}
-              </View>
-            </Animated.View>
-          </Animated.View>
-        );
-      })()}
+      {currentPopupIdx !== null && (
+        <FeaturePopup
+          key={currentPopupIdx}
+          panel={POPUP_PANELS[currentPopupIdx] as PopupPanel}
+          idx={currentPopupIdx}
+          popupOpacity={popupOpacity}
+          popupScale={popupScale}
+          onDismiss={(nav) => dismissPopup(currentPopupIdx, nav)}
+        />
+      )}
 
       {/* ── NAME MODAL ──────────────────────────────────── */}
       <Modal visible={showNameModal} transparent animationType="fade" onRequestClose={() => setShowNameModal(false)}>
