@@ -150,6 +150,13 @@ export type MysteryBoxPrize = {
   nameAr: string;
 };
 
+// ── Power Cards ───────────────────────────────────────────────────────────────
+export type PowerCards = {
+  time: number;
+  freeze: number;
+  hint: number;
+};
+
 // ── Player Profile ────────────────────────────────────────────────────────────
 export type PlayerProfile = {
   name: string;
@@ -173,6 +180,8 @@ export type PlayerProfile = {
   equippedEffect: EffectId;
   dailyShopDate: string | null;
   dailyShopBought: string[];
+  // Power cards inventory
+  powerCards: PowerCards;
 };
 
 type PlayerContextType = {
@@ -193,6 +202,7 @@ type PlayerContextType = {
   setPlayerName: (name: string) => void;
   syncToServer: () => Promise<void>;
   reportGameResult: (won: boolean, score: number, coinsEarned: number, xpEarned: number, coinEntry?: number) => Promise<{ streakBonus: number; coinEntryReward: number }>;
+  useCard: (cardId: keyof PowerCards) => boolean;
 };
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
@@ -221,6 +231,7 @@ const defaultProfile: PlayerProfile = {
   equippedEffect: "none",
   dailyShopDate: null,
   dailyShopBought: [],
+  powerCards: { time: 3, freeze: 3, hint: 3 },
 };
 
 function calculateLevel(xp: number): number {
@@ -240,6 +251,9 @@ function mergeProfile(base: Partial<PlayerProfile>): PlayerProfile {
     ownedEmotes: [...new Set([...defaultProfile.ownedEmotes, ...(base.ownedEmotes || [])])],
     ownedEffects: [...new Set([...defaultProfile.ownedEffects, ...(base.ownedEffects || [])])],
     dailyShopBought: base.dailyShopBought || [],
+    powerCards: base.powerCards
+      ? { ...defaultProfile.powerCards, ...base.powerCards }
+      : defaultProfile.powerCards,
   };
 }
 
@@ -291,6 +305,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               equippedEffect: sp.equippedEffect || parsed?.equippedEffect || "none",
               dailyShopDate: sp.dailyShopDate || parsed?.dailyShopDate || null,
               dailyShopBought: sp.dailyShopBought || parsed?.dailyShopBought || [],
+              powerCards: sp.powerCards
+                ? { ...defaultProfile.powerCards, ...sp.powerCards }
+                : (parsed?.powerCards ? { ...defaultProfile.powerCards, ...parsed.powerCards } : defaultProfile.powerCards),
             };
             setProfile(merged);
             await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
@@ -470,6 +487,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const setPlayerName = (name: string) => { updateProfile({ name }); };
 
+  const useCard = (cardId: keyof PowerCards): boolean => {
+    const currentCount = profile.powerCards[cardId];
+    if (currentCount <= 0) return false;
+    const newPowerCards: PowerCards = { ...profile.powerCards, [cardId]: currentCount - 1 };
+    setProfile((prev) => {
+      const updated = { ...prev, powerCards: newPowerCards };
+      saveProfile(updated);
+      debouncedSync(updated);
+      return updated;
+    });
+    return true;
+  };
+
   const syncToServer = async () => {
     if (!playerId) return;
     try {
@@ -513,6 +543,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             equippedEffect: sp.equippedEffect || profile.equippedEffect,
             dailyShopDate: sp.dailyShopDate || profile.dailyShopDate,
             dailyShopBought: sp.dailyShopBought || profile.dailyShopBought,
+            powerCards: sp.powerCards
+              ? { ...defaultProfile.powerCards, ...sp.powerCards }
+              : profile.powerCards,
           };
           setProfile(merged);
           saveProfile(merged);
@@ -550,7 +583,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       purchaseBackground, equipBackground,
       purchaseEmote, purchaseEffect, equipEffect,
       grantItem, buyDailyItem,
-      setPlayerName, syncToServer, reportGameResult,
+      setPlayerName, syncToServer, reportGameResult, useCard,
     }}>
       {children}
     </PlayerContext.Provider>

@@ -34,6 +34,7 @@ export const playerProfiles = pgTable("player_profiles", {
   bestStreak: integer("best_streak").notNull().default(0),
   lastStreakReward: integer("last_streak_reward").notNull().default(0),
   lastSpinAt: timestamp("last_spin_at"),
+  powerCards: jsonb("power_cards").$type<{ time: number; freeze: number; hint: number }>().default(sql`'{"time":3,"freeze":3,"hint":3}'::jsonb`),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });

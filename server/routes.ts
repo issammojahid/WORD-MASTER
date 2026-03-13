@@ -1314,7 +1314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(created);
       }
       const updateData: Record<string, unknown> = { updatedAt: new Date() };
-      const allowedFields = ["name", "coins", "xp", "level", "equippedSkin", "ownedSkins", "totalScore", "gamesPlayed", "wins", "winStreak", "bestStreak", "lastStreakReward"];
+      const allowedFields = ["name", "coins", "xp", "level", "equippedSkin", "ownedSkins", "totalScore", "gamesPlayed", "wins", "winStreak", "bestStreak", "lastStreakReward", "powerCards"];
       for (const key of allowedFields) {
         if (data[key] !== undefined) updateData[key] = data[key];
       }

@@ -12,9 +12,10 @@ import {
   Platform,
   Modal,
   Dimensions,
+  BackHandler,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -218,8 +219,9 @@ export default function GameScreen() {
     coinEntry?: string;
   }>();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const { t } = useLanguage();
-  const { profile, playerId, updateProfile, addCoins, addXp, reportGameResult } = usePlayer();
+  const { profile, playerId, updateProfile, addCoins, addXp, reportGameResult, useCard } = usePlayer();
   const gameCoinEntry = coinEntryParam ? parseInt(coinEntryParam, 10) : 0;
   const socket = getSocket();
 
@@ -242,6 +244,7 @@ export default function GameScreen() {
   const [streakReward, setStreakReward] = useState<{ streakBonus: number; coinEntryReward: number } | null>(null);
 
   // ── Power cards state ──────────────────────────────────────────────────────
+  // usedCards: cards already used THIS round (cleared on new_round)
   const [usedCards, setUsedCards] = useState<Set<PowerCardId>>(new Set());
   const [hintWordPool, setHintWordPool] = useState<Record<string, string[]>>({});
   const [powerToast, setPowerToast] = useState<{ msg: string; color: string } | null>(null);
@@ -253,6 +256,9 @@ export default function GameScreen() {
   const [frozenCountdown, setFrozenCountdown] = useState(0);
   const [showCrack, setShowCrack] = useState(false);
   const freezeCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // opponentFrozen: caster can see their freeze is active on opponent
+  const [opponentFrozenCountdown, setOpponentFrozenCountdown] = useState(0);
+  const opponentFreezeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // ──────────────────────────────────────────────────────────────────────────
 
   // ── Exit confirmation state ────────────────────────────────────────────────
@@ -331,6 +337,11 @@ export default function GameScreen() {
   // Power card activation handler
   const usePowerCard = (cardId: PowerCardId) => {
     if (usedCards.has(cardId) || submitted) return;
+    const count = profile.powerCards[cardId] ?? 0;
+    if (count <= 0) return;
+    // Decrement from inventory
+    const consumed = useCard(cardId);
+    if (!consumed) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setUsedCards((prev) => new Set([...prev, cardId]));
 
@@ -343,6 +354,18 @@ export default function GameScreen() {
       case "freeze":
         socket.emit("power_card", { roomId, type: "freeze", playerName: profile.name });
         showPowerToast("❄️ تم تجميد المنافسين!", "#3498DB");
+        // Show opponent frozen countdown on caster's screen
+        if (opponentFreezeIntervalRef.current) clearInterval(opponentFreezeIntervalRef.current);
+        setOpponentFrozenCountdown(FREEZE_SECS);
+        let oppRemaining = FREEZE_SECS;
+        opponentFreezeIntervalRef.current = setInterval(() => {
+          oppRemaining -= 1;
+          setOpponentFrozenCountdown(oppRemaining);
+          if (oppRemaining <= 0) {
+            if (opponentFreezeIntervalRef.current) clearInterval(opponentFreezeIntervalRef.current);
+            opponentFreezeIntervalRef.current = null;
+          }
+        }, 1000);
         break;
 
       case "hint": {
@@ -397,6 +420,7 @@ export default function GameScreen() {
 
   // ── Exit handlers ──────────────────────────────────────────────────────────
   const handleExitPress = () => {
+    if (isGameOver) { router.replace("/lobby"); return; }
     exitScaleAnim.setValue(0.85);
     setShowExitConfirm(true);
     Animated.spring(exitScaleAnim, { toValue: 1, tension: 220, friction: 12, useNativeDriver: true }).start();
@@ -409,6 +433,27 @@ export default function GameScreen() {
     socket.emit("forfeit_match", { roomId });
     router.replace("/lobby");
   };
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // ── Hardware back button (Android) & swipe-back (iOS) prevention ───────────
+  useEffect(() => {
+    if (isGameOver) return;
+    // Android hardware back button
+    const backHandler = BackHandler.addEventListener("hardwareBackPress", () => {
+      handleExitPress();
+      return true;
+    });
+    // iOS swipe-back / expo-router navigation pop
+    const unsubscribe = navigation.addListener("beforeRemove" as any, (e: any) => {
+      if (isGameOver) return;
+      e.preventDefault();
+      handleExitPress();
+    });
+    return () => {
+      backHandler.remove();
+      unsubscribe();
+    };
+  }, [isGameOver, navigation]);
   // ──────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -438,6 +483,8 @@ export default function GameScreen() {
       setRoundResults(null);
       setTimeLeft(ROUND_TIME);
       setChatBubbles([]);
+      // Reset power card round-usage tracking
+      setUsedCards(new Set());
       // Clear any active freeze effect between rounds
       frozenRef.current = false;
       setIsFrozen(false);
@@ -445,6 +492,9 @@ export default function GameScreen() {
       setShowCrack(false);
       if (freezeTimerRef.current) { clearTimeout(freezeTimerRef.current); freezeTimerRef.current = null; }
       if (freezeCountdownRef.current) { clearInterval(freezeCountdownRef.current); freezeCountdownRef.current = null; }
+      // Clear opponent freeze indicator
+      setOpponentFrozenCountdown(0);
+      if (opponentFreezeIntervalRef.current) { clearInterval(opponentFreezeIntervalRef.current); opponentFreezeIntervalRef.current = null; }
       letterAnim.setValue(0);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     });
@@ -559,6 +609,7 @@ export default function GameScreen() {
       socket.off("power_card");
       socket.off("player_left");
       if (freezeCountdownRef.current) { clearInterval(freezeCountdownRef.current); }
+      if (opponentFreezeIntervalRef.current) { clearInterval(opponentFreezeIntervalRef.current); }
     };
   }, [socketId]);
 
@@ -836,24 +887,43 @@ export default function GameScreen() {
         </View>
       )}
 
+      {/* ─── OPPONENT FROZEN INDICATOR (visible to caster) ─── */}
+      {opponentFrozenCountdown > 0 && (
+        <View style={styles.opponentFrozenBadge} pointerEvents="none">
+          <View style={styles.opponentFrozenInner}>
+            <Text style={styles.opponentFrozenIcon}>❄️</Text>
+            <Text style={styles.opponentFrozenText}>المنافس مجمّد</Text>
+            <View style={styles.opponentFrozenCountBubble}>
+              <Text style={styles.opponentFrozenCount}>{opponentFrozenCountdown}</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
       {/* ─── POWER CARDS ROW ─── */}
       {!submitted && (
         <View style={[styles.powerCardsRow, { bottom: bottomInset + 74 }]}>
           {POWER_CARD_DEFS.map((card) => {
-            const used = usedCards.has(card.id);
+            const usedThisRound = usedCards.has(card.id);
+            const cardCount = profile.powerCards?.[card.id] ?? 0;
+            const disabled = usedThisRound || cardCount <= 0;
             return (
               <TouchableOpacity
                 key={card.id}
-                style={[styles.powerCard, used && styles.powerCardUsed, { borderColor: used ? Colors.cardBorder : card.color + "66" }]}
+                style={[styles.powerCard, disabled && styles.powerCardUsed, { borderColor: disabled ? Colors.cardBorder : card.color + "66" }]}
                 onPress={() => usePowerCard(card.id)}
-                disabled={used}
+                disabled={disabled}
                 activeOpacity={0.75}
               >
                 <Text style={styles.powerCardIcon}>{card.icon}</Text>
-                <Text style={[styles.powerCardLabel, { color: used ? Colors.textMuted : card.color }]}>{card.label}</Text>
-                <Text style={[styles.powerCardDesc, { color: used ? Colors.textMuted : Colors.textSecondary }]}>
-                  {used ? "مستخدمة" : card.desc}
+                <Text style={[styles.powerCardLabel, { color: disabled ? Colors.textMuted : card.color }]}>{card.label}</Text>
+                <Text style={[styles.powerCardDesc, { color: disabled ? Colors.textMuted : Colors.textSecondary }]}>
+                  {usedThisRound ? "مستخدمة" : card.desc}
                 </Text>
+                {/* Quantity badge */}
+                <View style={[styles.powerCardCountBadge, { backgroundColor: disabled ? Colors.cardBorder : card.color }]}>
+                  <Text style={styles.powerCardCountText}>{cardCount}</Text>
+                </View>
               </TouchableOpacity>
             );
           })}
@@ -1050,6 +1120,31 @@ const styles = StyleSheet.create({
   powerCardIcon: { fontSize: 20, marginBottom: 1 },
   powerCardLabel: { fontFamily: "Cairo_700Bold", fontSize: 11 },
   powerCardDesc: { fontFamily: "Cairo_400Regular", fontSize: 9, marginTop: 1 },
+  powerCardCountBadge: {
+    position: "absolute", top: 4, right: 4,
+    width: 18, height: 18, borderRadius: 9,
+    justifyContent: "center", alignItems: "center",
+  },
+  powerCardCountText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#fff" },
+  // Opponent frozen indicator (shown to caster)
+  opponentFrozenBadge: {
+    position: "absolute", top: 72, left: 0, right: 0,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+    zIndex: 50,
+  },
+  opponentFrozenInner: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: "rgba(26,163,219,0.22)",
+    borderWidth: 1, borderColor: "#3498DB66",
+    borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6,
+  },
+  opponentFrozenIcon: { fontSize: 16 },
+  opponentFrozenText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#A8E6FF" },
+  opponentFrozenCountBubble: {
+    width: 24, height: 24, borderRadius: 12, backgroundColor: "#3498DB",
+    justifyContent: "center", alignItems: "center",
+  },
+  opponentFrozenCount: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
   powerToast: {
     position: "absolute", left: 24, right: 24, borderRadius: 14,
     paddingVertical: 10, paddingHorizontal: 16, borderWidth: 1.5,
