@@ -150,6 +150,19 @@ export default function TournamentScreen() {
     fetchTournaments();
     const socket = getSocket();
     socket.emit("tournament_register_socket", { playerId });
+
+    // Periodic fallback refresh — keeps the list fresh even if a socket
+    // event is missed due to a brief disconnect or race condition.
+    const refreshInterval = setInterval(() => {
+      // Only refresh the list if we're not in detail view — avoids
+      // overwriting activeTournament state while the player is watching.
+      if (!activeTournamentRef.current) {
+        fetchTournaments();
+      }
+    }, 15_000);
+
+    return () => clearInterval(refreshInterval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -201,6 +214,30 @@ export default function TournamentScreen() {
           status: data.status,
         } : null);
       }
+    };
+
+    const handleTournamentCreated = (data: { id: string; status: string; playerCount: number; maxPlayers: number; entryFee: number; prizePool: number; createdAt: string }) => {
+      // Add the new tournament to the list if it's not already there.
+      // The creator's own event also arrives here — the setTournaments check
+      // prevents duplicates.
+      setTournaments(prev => {
+        if (prev.some(t => t.id === data.id)) return prev;
+        // Insert before the __create__ placeholder (always last)
+        const withoutCreate = prev.filter(t => t.id !== "__create__");
+        const createSlot = prev.find(t => t.id === "__create__");
+        const newTournament: TournamentListItem = {
+          id: data.id,
+          status: data.status,
+          playerCount: data.playerCount,
+          maxPlayers: data.maxPlayers,
+          entryFee: data.entryFee,
+          prizePool: data.prizePool,
+          joined: false,
+        };
+        return createSlot
+          ? [...withoutCreate, newTournament, createSlot]
+          : [...withoutCreate, newTournament];
+      });
     };
 
     const handlePlayerJoined = (data: { tournamentId: string; playerCount: number; maxPlayers: number; playerName: string }) => {
@@ -259,6 +296,7 @@ export default function TournamentScreen() {
       }
     };
 
+    socket.on("tournament_created", handleTournamentCreated);
     socket.on("tournament_update", handleTournamentUpdate);
     socket.on("tournament_player_joined", handlePlayerJoined);
     socket.on("tournament_player_left", handlePlayerLeft);
@@ -268,6 +306,7 @@ export default function TournamentScreen() {
     return () => {
       socket.off("matchFound", handleMatchFound);
       socket.off("countdown", handleCountdown);
+      socket.off("tournament_created", handleTournamentCreated);
       socket.off("tournament_update", handleTournamentUpdate);
       socket.off("tournament_player_joined", handlePlayerJoined);
       socket.off("tournament_player_left", handlePlayerLeft);
@@ -279,24 +318,11 @@ export default function TournamentScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleJoinTournament = async (tournamentId: string) => {
-    if (tournamentId === "__create__") {
-      try {
-        setJoining(true);
-        const baseUrl = getApiUrl();
-        const createRes = await fetch(new URL("/api/tournament/create", baseUrl).toString(), { method: "POST" });
-        if (createRes.ok) {
-          const created = await createRes.json();
-          await handleJoinTournament(created.id);
-        }
-      } catch {
-        Alert.alert("خطأ", "فشل إنشاء البطولة");
-      } finally {
-        setJoining(false);
-      }
-      return;
-    }
-
+  const handleJoinTournament = (tournamentId: string) => {
+    // Always show the confirm modal first — the actual API call (and tournament
+    // creation if needed) happens in confirmJoin. This prevents the 0-player
+    // window where a freshly-created tournament could get cleaned up before the
+    // player confirms the entry fee.
     setSelectedTournamentId(tournamentId);
     setShowConfirmModal(true);
   };
@@ -306,33 +332,56 @@ export default function TournamentScreen() {
     setShowConfirmModal(false);
     setJoining(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+
+    let tournamentId = selectedTournamentId;
+
     try {
       const baseUrl = getApiUrl();
       const socket = getSocket();
-      const res = await fetch(new URL(`/api/tournament/${selectedTournamentId}/join`, baseUrl).toString(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          playerId,
-          playerName: profile.name,
-          playerSkin: profile.equippedSkin,
-          socketId: socket.id,
-        }),
-      });
+
+      // ── PART 1: create the tournament (if needed) ──────────────────────────
+      if (selectedTournamentId === "__create__") {
+        const createRes = await fetch(
+          new URL("/api/tournament/create", baseUrl).toString(),
+          { method: "POST" }
+        );
+        if (!createRes.ok) {
+          Alert.alert("خطأ", "فشل إنشاء البطولة");
+          return;
+        }
+        const created = await createRes.json();
+        tournamentId = created.id;
+      }
+
+      // ── PART 2: join the tournament ────────────────────────────────────────
+      const res = await fetch(
+        new URL(`/api/tournament/${tournamentId}/join`, baseUrl).toString(),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            playerId,
+            playerName: profile.name,
+            playerSkin: profile.equippedSkin,
+            socketId: socket.id,
+          }),
+        }
+      );
       const data = await res.json();
       if (res.ok) {
         setViewMode("detail");
-        fetchTournamentDetail(selectedTournamentId);
+        fetchTournamentDetail(tournamentId);
       } else {
         const errorMsg =
           data.error === "insufficient_coins" ? "رصيدك غير كافي" :
           data.error === "already_joined" ? "أنت مسجل بالفعل" :
           data.error === "tournament_full" ? "البطولة ممتلئة" :
+          data.error === "tournament_closed" ? "البطولة بدأت بالفعل" :
           "فشل الانضمام";
         Alert.alert("خطأ", errorMsg);
       }
     } catch {
-      Alert.alert("خطأ", "فشل الانضمام");
+      Alert.alert("خطأ", "فشل الاتصال بالخادم");
     } finally {
       setJoining(false);
     }

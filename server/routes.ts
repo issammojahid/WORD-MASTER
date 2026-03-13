@@ -1468,6 +1468,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         prizePool: 0,
         status: "open",
       }).returning();
+      // Broadcast to all clients so the new tournament appears in their list immediately
+      io.emit("tournament_created", {
+        id: t.id,
+        status: "open",
+        playerCount: 0,
+        maxPlayers: TOURNAMENT_SIZE,
+        entryFee: TOURNAMENT_ENTRY_FEE,
+        prizePool: 0,
+        createdAt: t.createdAt,
+      });
       res.json(t);
     } catch (e) {
       console.error("POST /api/tournament/create error:", e);
@@ -2028,8 +2038,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const t of openTournaments) {
         const players = await db.select().from(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, t.id));
         const ageMs = now - new Date(t.createdAt).getTime();
+        // Grace period: a freshly-created tournament may have 0 players for a brief
+        // window while the creator is seeing the confirm modal. Only delete after
+        // 20 seconds to avoid destroying a tournament the user is about to join.
         const shouldDelete =
-          players.length === 0 ||
+          (players.length === 0 && ageMs >= 20_000) ||
           (players.length < 2 && ageMs >= 60_000);
         if (shouldDelete) {
           await db.delete(tournamentMatches).where(eq(tournamentMatches.tournamentId, t.id)).catch(() => {});
