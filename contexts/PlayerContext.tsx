@@ -2,22 +2,155 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApiUrl } from "@/lib/query-client";
 
-export type SkinId = "student" | "djellaba" | "sport" | "champion";
+// ── Rarity ───────────────────────────────────────────────────────────────────
+export type Rarity = "common" | "rare" | "epic" | "legendary";
+
+export const RARITY_COLORS: Record<Rarity, string> = {
+  common:    "#9CA3AF",
+  rare:      "#60A5FA",
+  epic:      "#A78BFA",
+  legendary: "#F59E0B",
+};
+
+export const RARITY_LABELS: Record<Rarity, string> = {
+  common:    "عادي",
+  rare:      "نادر",
+  epic:      "ملحمي",
+  legendary: "أسطوري",
+};
+
+// ── Skins ────────────────────────────────────────────────────────────────────
+export type SkinId =
+  | "student" | "djellaba" | "sport" | "champion"
+  | "kaftan" | "fassi" | "sahrawi" | "amazigh"
+  | "ninja" | "astronaut" | "king" | "hacker" | "superhero"
+  | "legend" | "elite" | "tourChamp";
+
+export type UnlockCondition = {
+  type: "wins" | "level" | "streak";
+  value: number;
+  label: string;
+};
 
 export type Skin = {
   id: SkinId;
   price: number;
   emoji: string;
   color: string;
+  rarity: Rarity;
+  category: "moroccan" | "global" | "exclusive";
+  nameAr: string;
+  descAr: string;
+  unlockCondition?: UnlockCondition;
 };
 
 export const SKINS: Skin[] = [
-  { id: "student", price: 0, emoji: "🎓", color: "#3498DB" },
-  { id: "djellaba", price: 150, emoji: "👘", color: "#8B2500" },
-  { id: "sport", price: 200, emoji: "⚽", color: "#27AE60" },
-  { id: "champion", price: 500, emoji: "🏆", color: "#F5A623" },
+  // ── Existing ──────────────────────────────────────────────────────────────
+  { id: "student",   price: 0,   emoji: "🎓", color: "#3498DB", rarity: "common",    category: "global",    nameAr: "الطالب",          descAr: "الزي الكلاسيكي المجاني" },
+  { id: "djellaba",  price: 150, emoji: "👘", color: "#8B2500", rarity: "common",    category: "moroccan",  nameAr: "الجلابة",         descAr: "الزي المغربي التقليدي" },
+  { id: "sport",     price: 200, emoji: "⚽", color: "#27AE60", rarity: "common",    category: "global",    nameAr: "الرياضي",         descAr: "الزي الرياضي العصري" },
+  { id: "champion",  price: 500, emoji: "🏆", color: "#F5A623", rarity: "epic",      category: "global",    nameAr: "البطل",           descAr: "زي البطل المنتصر" },
+  // ── New Moroccan ──────────────────────────────────────────────────────────
+  { id: "kaftan",    price: 180, emoji: "👗", color: "#C2185B", rarity: "common",    category: "moroccan",  nameAr: "القفطان",         descAr: "القفطان المغربي الأنيق" },
+  { id: "fassi",     price: 320, emoji: "🎭", color: "#7B1FA2", rarity: "rare",      category: "moroccan",  nameAr: "الزي الفاسي",     descAr: "الزي الفاسي الملكي" },
+  { id: "sahrawi",   price: 130, emoji: "🌵", color: "#F57F17", rarity: "common",    category: "moroccan",  nameAr: "الصحراوي",        descAr: "زي الصحراء المغربية" },
+  { id: "amazigh",   price: 380, emoji: "⚡", color: "#1565C0", rarity: "rare",      category: "moroccan",  nameAr: "الأمازيغي",       descAr: "الزي الأمازيغي التراثي" },
+  // ── New Global ────────────────────────────────────────────────────────────
+  { id: "ninja",     price: 350, emoji: "🥷", color: "#37474F", rarity: "rare",      category: "global",    nameAr: "النينجا",         descAr: "المقاتل الصامت الخفي" },
+  { id: "astronaut", price: 450, emoji: "👨‍🚀", color: "#3F51B5", rarity: "epic",      category: "global",    nameAr: "رائد الفضاء",     descAr: "مستكشف الفضاء الخارجي" },
+  { id: "king",      price: 700, emoji: "👑", color: "#FFB300", rarity: "legendary", category: "global",    nameAr: "الملك",           descAr: "حاكم المملكة العظيم" },
+  { id: "hacker",    price: 380, emoji: "💻", color: "#00BCD4", rarity: "rare",      category: "global",    nameAr: "الهاكر",          descAr: "خبير البرمجة والأكواد" },
+  { id: "superhero", price: 550, emoji: "🦸", color: "#E53935", rarity: "epic",      category: "global",    nameAr: "البطل الخارق",    descAr: "منقذ المدينة الشجاع" },
+  // ── Exclusive (achievement-locked) ───────────────────────────────────────
+  {
+    id: "legend", price: 0, emoji: "🌟", color: "#FF6B35", rarity: "legendary", category: "exclusive",
+    nameAr: "الأسطورة", descAr: "حقق 20 انتصاراً لتفتح هذا الزي",
+    unlockCondition: { type: "wins", value: 20, label: "فز بـ 20 مباراة" },
+  },
+  {
+    id: "elite", price: 0, emoji: "💎", color: "#00E5FF", rarity: "epic", category: "exclusive",
+    nameAr: "النخبة", descAr: "ابلغ المستوى 10 لتفتح هذا الزي",
+    unlockCondition: { type: "level", value: 10, label: "ابلغ المستوى 10" },
+  },
+  {
+    id: "tourChamp", price: 0, emoji: "🏅", color: "#FFD600", rarity: "legendary", category: "exclusive",
+    nameAr: "بطل البطولات", descAr: "حقق سلسلة 5 انتصارات لتفتح هذا الزي",
+    unlockCondition: { type: "streak", value: 5, label: "سلسلة 5 انتصارات" },
+  },
 ];
 
+// ── Backgrounds ───────────────────────────────────────────────────────────────
+export type BackgroundId = "default" | "desert" | "space" | "city" | "marrakech" | "school";
+
+export type Background = {
+  id: BackgroundId;
+  price: number;
+  emoji: string;
+  color: string;
+  rarity: Rarity;
+  nameAr: string;
+};
+
+export const BACKGROUNDS: Background[] = [
+  { id: "default",   price: 0,   emoji: "🌊", color: "#0D1B2A", rarity: "common",    nameAr: "الافتراضي" },
+  { id: "desert",    price: 200, emoji: "🏜️", color: "#C19A6B", rarity: "common",    nameAr: "صحراء المغرب" },
+  { id: "space",     price: 300, emoji: "🌌", color: "#0A0A2A", rarity: "rare",      nameAr: "الفضاء" },
+  { id: "city",      price: 250, emoji: "🌆", color: "#1A3050", rarity: "common",    nameAr: "المدينة" },
+  { id: "marrakech", price: 350, emoji: "🌹", color: "#8B2500", rarity: "rare",      nameAr: "مراكش" },
+  { id: "school",    price: 150, emoji: "🏫", color: "#2E7D32", rarity: "common",    nameAr: "المدرسة" },
+];
+
+// ── Emotes ────────────────────────────────────────────────────────────────────
+export type EmoteId = "laugh" | "cool" | "fire" | "clap" | "angry";
+
+export type Emote = {
+  id: EmoteId;
+  price: number;
+  emoji: string;
+  nameAr: string;
+};
+
+export const EMOTES: Emote[] = [
+  { id: "laugh", price: 0,   emoji: "😂", nameAr: "ضحك" },
+  { id: "cool",  price: 80,  emoji: "😎", nameAr: "هادئ" },
+  { id: "fire",  price: 100, emoji: "🔥", nameAr: "نار" },
+  { id: "clap",  price: 80,  emoji: "👏", nameAr: "تصفيق" },
+  { id: "angry", price: 60,  emoji: "😡", nameAr: "غاضب" },
+];
+
+// ── Victory Effects ────────────────────────────────────────────────────────────
+export type EffectId = "none" | "confetti" | "fire_effect" | "stars" | "coins_burst";
+
+export type Effect = {
+  id: EffectId;
+  price: number;
+  emoji: string;
+  color: string;
+  rarity: Rarity;
+  nameAr: string;
+  descAr: string;
+};
+
+export const EFFECTS: Effect[] = [
+  { id: "none",        price: 0,   emoji: "—",  color: "#6B7E91", rarity: "common",    nameAr: "بلا تأثير",     descAr: "لا يوجد تأثير خاص" },
+  { id: "confetti",    price: 200, emoji: "🎊", color: "#E040FB", rarity: "common",    nameAr: "كونفيتي",       descAr: "مطر من الألوان عند الفوز" },
+  { id: "fire_effect", price: 300, emoji: "🔥", color: "#FF6D00", rarity: "rare",      nameAr: "تأثير النار",   descAr: "ألسنة نيران عند الفوز" },
+  { id: "stars",       price: 250, emoji: "⭐", color: "#FFD600", rarity: "rare",      nameAr: "انفجار النجوم", descAr: "نجوم تتساقط عند الفوز" },
+  { id: "coins_burst", price: 400, emoji: "🪙", color: "#F59E0B", rarity: "epic",      nameAr: "انفجار عملات", descAr: "أمطار من العملات الذهبية" },
+];
+
+// ── Mystery Box ───────────────────────────────────────────────────────────────
+export const MYSTERY_BOX_PRICE = 100;
+
+export type MysteryBoxPrize = {
+  type: "skin" | "background" | "emote" | "effect" | "coins";
+  id?: string;
+  coins?: number;
+  emoji: string;
+  nameAr: string;
+};
+
+// ── Player Profile ────────────────────────────────────────────────────────────
 export type PlayerProfile = {
   name: string;
   coins: number;
@@ -32,6 +165,14 @@ export type PlayerProfile = {
   bestStreak: number;
   lastStreakReward: number;
   lastSpinAt: string | null;
+  // New cosmetic fields
+  ownedBackgrounds: BackgroundId[];
+  equippedBackground: BackgroundId;
+  ownedEmotes: EmoteId[];
+  ownedEffects: EffectId[];
+  equippedEffect: EffectId;
+  dailyShopDate: string | null;
+  dailyShopBought: string[];
 };
 
 type PlayerContextType = {
@@ -42,6 +183,13 @@ type PlayerContextType = {
   addXp: (amount: number) => void;
   purchaseSkin: (skinId: SkinId) => boolean;
   equipSkin: (skinId: SkinId) => void;
+  purchaseBackground: (id: BackgroundId) => boolean;
+  equipBackground: (id: BackgroundId) => void;
+  purchaseEmote: (id: EmoteId) => boolean;
+  purchaseEffect: (id: EffectId) => boolean;
+  equipEffect: (id: EffectId) => void;
+  grantItem: (type: "skin" | "background" | "emote" | "effect", id: string) => void;
+  buyDailyItem: (itemId: string, itemType: "skin" | "background" | "emote" | "effect", price: number) => boolean;
   setPlayerName: (name: string) => void;
   syncToServer: () => Promise<void>;
   reportGameResult: (won: boolean, score: number, coinsEarned: number, xpEarned: number, coinEntry?: number) => Promise<{ streakBonus: number; coinEntryReward: number }>;
@@ -66,6 +214,13 @@ const defaultProfile: PlayerProfile = {
   bestStreak: 0,
   lastStreakReward: 0,
   lastSpinAt: null,
+  ownedBackgrounds: ["default"],
+  equippedBackground: "default",
+  ownedEmotes: ["laugh"],
+  ownedEffects: ["none"],
+  equippedEffect: "none",
+  dailyShopDate: null,
+  dailyShopBought: [],
 };
 
 function calculateLevel(xp: number): number {
@@ -74,6 +229,18 @@ function calculateLevel(xp: number): number {
 
 function generatePlayerId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+}
+
+function mergeProfile(base: Partial<PlayerProfile>): PlayerProfile {
+  return {
+    ...defaultProfile,
+    ...base,
+    ownedSkins: [...new Set([...defaultProfile.ownedSkins, ...(base.ownedSkins || [])])],
+    ownedBackgrounds: [...new Set([...defaultProfile.ownedBackgrounds, ...(base.ownedBackgrounds || [])])],
+    ownedEmotes: [...new Set([...defaultProfile.ownedEmotes, ...(base.ownedEmotes || [])])],
+    ownedEffects: [...new Set([...defaultProfile.ownedEffects, ...(base.ownedEffects || [])])],
+    dailyShopBought: base.dailyShopBought || [],
+  };
 }
 
 export function PlayerProvider({ children }: { children: React.ReactNode }) {
@@ -95,28 +262,35 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         let parsed: Partial<PlayerProfile> | undefined;
         if (stored) {
           parsed = JSON.parse(stored);
-          setProfile({ ...defaultProfile, ...parsed });
+          setProfile(mergeProfile(parsed || {}));
         }
 
         try {
           const baseUrl = getApiUrl();
           const res = await fetch(new URL(`/api/player/${id}`, baseUrl).toString());
           if (res.ok) {
-            const serverProfile = await res.json();
+            const sp = await res.json();
             const merged: PlayerProfile = {
-              name: serverProfile.name || parsed?.name || defaultProfile.name,
-              coins: Math.max(serverProfile.coins ?? 0, parsed?.coins ?? 0),
-              xp: Math.max(serverProfile.xp ?? 0, parsed?.xp ?? 0),
-              level: Math.max(serverProfile.level ?? 1, parsed?.level ?? 1),
-              equippedSkin: serverProfile.equippedSkin || parsed?.equippedSkin || defaultProfile.equippedSkin,
-              ownedSkins: [...new Set([...(serverProfile.ownedSkins || []), ...(parsed?.ownedSkins || []), "student"])],
-              totalScore: Math.max(serverProfile.totalScore ?? 0, parsed?.totalScore ?? 0),
-              gamesPlayed: Math.max(serverProfile.gamesPlayed ?? 0, parsed?.gamesPlayed ?? 0),
-              wins: Math.max(serverProfile.wins ?? 0, parsed?.wins ?? 0),
-              winStreak: serverProfile.winStreak ?? 0,
-              bestStreak: Math.max(serverProfile.bestStreak ?? 0, parsed?.bestStreak ?? 0),
-              lastStreakReward: serverProfile.lastStreakReward ?? 0,
-              lastSpinAt: serverProfile.lastSpinAt || null,
+              name: sp.name || parsed?.name || defaultProfile.name,
+              coins: Math.max(sp.coins ?? 0, parsed?.coins ?? 0),
+              xp: Math.max(sp.xp ?? 0, parsed?.xp ?? 0),
+              level: Math.max(sp.level ?? 1, parsed?.level ?? 1),
+              equippedSkin: sp.equippedSkin || parsed?.equippedSkin || defaultProfile.equippedSkin,
+              ownedSkins: [...new Set([...(sp.ownedSkins || []), ...(parsed?.ownedSkins || []), "student"])] as SkinId[],
+              totalScore: Math.max(sp.totalScore ?? 0, parsed?.totalScore ?? 0),
+              gamesPlayed: Math.max(sp.gamesPlayed ?? 0, parsed?.gamesPlayed ?? 0),
+              wins: Math.max(sp.wins ?? 0, parsed?.wins ?? 0),
+              winStreak: sp.winStreak ?? 0,
+              bestStreak: Math.max(sp.bestStreak ?? 0, parsed?.bestStreak ?? 0),
+              lastStreakReward: sp.lastStreakReward ?? 0,
+              lastSpinAt: sp.lastSpinAt || null,
+              ownedBackgrounds: [...new Set([...(sp.ownedBackgrounds || []), ...(parsed?.ownedBackgrounds || []), "default"])] as BackgroundId[],
+              equippedBackground: sp.equippedBackground || parsed?.equippedBackground || "default",
+              ownedEmotes: [...new Set([...(sp.ownedEmotes || []), ...(parsed?.ownedEmotes || []), "laugh"])] as EmoteId[],
+              ownedEffects: [...new Set([...(sp.ownedEffects || []), ...(parsed?.ownedEffects || []), "none"])] as EffectId[],
+              equippedEffect: sp.equippedEffect || parsed?.equippedEffect || "none",
+              dailyShopDate: sp.dailyShopDate || parsed?.dailyShopDate || null,
+              dailyShopBought: sp.dailyShopBought || parsed?.dailyShopBought || [],
             };
             setProfile(merged);
             await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
@@ -127,9 +301,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const saveProfile = async (p: PlayerProfile) => {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(p));
-    } catch {}
+    try { await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch {}
   };
 
   const debouncedSync = useCallback((p: PlayerProfile) => {
@@ -179,18 +351,25 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const skin = SKINS.find((s) => s.id === skinId);
     if (!skin) return false;
     if (profile.ownedSkins.includes(skinId)) return true;
-    if (profile.coins < skin.price) return false;
 
+    if (skin.unlockCondition) {
+      const { type, value } = skin.unlockCondition;
+      const met =
+        type === "wins"   ? profile.wins >= value :
+        type === "level"  ? profile.level >= value :
+        type === "streak" ? profile.bestStreak >= value : false;
+      if (!met) return false;
+      setProfile((prev) => {
+        const updated = { ...prev, ownedSkins: [...prev.ownedSkins, skinId], equippedSkin: skinId };
+        saveProfile(updated); debouncedSync(updated); return updated;
+      });
+      return true;
+    }
+
+    if (profile.coins < skin.price) return false;
     setProfile((prev) => {
-      const updated = {
-        ...prev,
-        coins: prev.coins - skin.price,
-        ownedSkins: [...prev.ownedSkins, skinId],
-        equippedSkin: skinId,
-      };
-      saveProfile(updated);
-      debouncedSync(updated);
-      return updated;
+      const updated = { ...prev, coins: prev.coins - skin.price, ownedSkins: [...prev.ownedSkins, skinId], equippedSkin: skinId };
+      saveProfile(updated); debouncedSync(updated); return updated;
     });
     return true;
   };
@@ -200,18 +379,103 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     updateProfile({ equippedSkin: skinId });
   };
 
-  const setPlayerName = (name: string) => {
-    updateProfile({ name });
+  const purchaseBackground = (id: BackgroundId): boolean => {
+    const bg = BACKGROUNDS.find((b) => b.id === id);
+    if (!bg) return false;
+    if (profile.ownedBackgrounds.includes(id)) return true;
+    if (profile.coins < bg.price) return false;
+    setProfile((prev) => {
+      const updated = { ...prev, coins: prev.coins - bg.price, ownedBackgrounds: [...prev.ownedBackgrounds, id], equippedBackground: id };
+      saveProfile(updated); debouncedSync(updated); return updated;
+    });
+    return true;
   };
+
+  const equipBackground = (id: BackgroundId) => {
+    if (!profile.ownedBackgrounds.includes(id)) return;
+    updateProfile({ equippedBackground: id });
+  };
+
+  const purchaseEmote = (id: EmoteId): boolean => {
+    const emote = EMOTES.find((e) => e.id === id);
+    if (!emote) return false;
+    if (profile.ownedEmotes.includes(id)) return true;
+    if (profile.coins < emote.price) return false;
+    setProfile((prev) => {
+      const updated = { ...prev, coins: prev.coins - emote.price, ownedEmotes: [...prev.ownedEmotes, id] };
+      saveProfile(updated); debouncedSync(updated); return updated;
+    });
+    return true;
+  };
+
+  const purchaseEffect = (id: EffectId): boolean => {
+    const effect = EFFECTS.find((e) => e.id === id);
+    if (!effect) return false;
+    if (profile.ownedEffects.includes(id)) return true;
+    if (profile.coins < effect.price) return false;
+    setProfile((prev) => {
+      const updated = { ...prev, coins: prev.coins - effect.price, ownedEffects: [...prev.ownedEffects, id], equippedEffect: id };
+      saveProfile(updated); debouncedSync(updated); return updated;
+    });
+    return true;
+  };
+
+  const equipEffect = (id: EffectId) => {
+    if (!profile.ownedEffects.includes(id)) return;
+    updateProfile({ equippedEffect: id });
+  };
+
+  const grantItem = (type: "skin" | "background" | "emote" | "effect", id: string) => {
+    setProfile((prev) => {
+      let updated = { ...prev };
+      if (type === "skin" && !prev.ownedSkins.includes(id as SkinId)) {
+        updated = { ...updated, ownedSkins: [...prev.ownedSkins, id as SkinId] };
+      } else if (type === "background" && !prev.ownedBackgrounds.includes(id as BackgroundId)) {
+        updated = { ...updated, ownedBackgrounds: [...prev.ownedBackgrounds, id as BackgroundId] };
+      } else if (type === "emote" && !prev.ownedEmotes.includes(id as EmoteId)) {
+        updated = { ...updated, ownedEmotes: [...prev.ownedEmotes, id as EmoteId] };
+      } else if (type === "effect" && !prev.ownedEffects.includes(id as EffectId)) {
+        updated = { ...updated, ownedEffects: [...prev.ownedEffects, id as EffectId] };
+      }
+      saveProfile(updated); debouncedSync(updated); return updated;
+    });
+  };
+
+  const buyDailyItem = (itemId: string, itemType: "skin" | "background" | "emote" | "effect", price: number): boolean => {
+    if (profile.coins < price) return false;
+    const today = new Date().toDateString();
+    const alreadyBought = profile.dailyShopDate === today && profile.dailyShopBought.includes(itemId);
+    if (alreadyBought) return false;
+
+    setProfile((prev) => {
+      const isNewDay = prev.dailyShopDate !== today;
+      let updated: PlayerProfile = {
+        ...prev,
+        coins: prev.coins - price,
+        dailyShopDate: today,
+        dailyShopBought: isNewDay ? [itemId] : [...prev.dailyShopBought, itemId],
+      };
+      if (itemType === "skin" && !prev.ownedSkins.includes(itemId as SkinId))
+        updated = { ...updated, ownedSkins: [...prev.ownedSkins, itemId as SkinId] };
+      else if (itemType === "background" && !prev.ownedBackgrounds.includes(itemId as BackgroundId))
+        updated = { ...updated, ownedBackgrounds: [...prev.ownedBackgrounds, itemId as BackgroundId] };
+      else if (itemType === "emote" && !prev.ownedEmotes.includes(itemId as EmoteId))
+        updated = { ...updated, ownedEmotes: [...prev.ownedEmotes, itemId as EmoteId] };
+      else if (itemType === "effect" && !prev.ownedEffects.includes(itemId as EffectId))
+        updated = { ...updated, ownedEffects: [...prev.ownedEffects, itemId as EffectId] };
+      saveProfile(updated); debouncedSync(updated); return updated;
+    });
+    return true;
+  };
+
+  const setPlayerName = (name: string) => { updateProfile({ name }); };
 
   const syncToServer = async () => {
     if (!playerId) return;
     try {
       const baseUrl = getApiUrl();
       await fetch(new URL(`/api/player/${playerId}`, baseUrl).toString(), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profile),
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(profile),
       });
     } catch {}
   };
@@ -221,28 +485,34 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     try {
       const baseUrl = getApiUrl();
       const res = await fetch(new URL(`/api/player/${playerId}/game-result`, baseUrl).toString(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ won, score, coinsEarned, xpEarned, coinEntry }),
       });
       if (res.ok) {
         const data = await res.json();
         if (data.profile) {
-          const serverP = data.profile;
+          const sp = data.profile;
           const merged: PlayerProfile = {
-            name: serverP.name || profile.name,
-            coins: serverP.coins ?? profile.coins,
-            xp: serverP.xp ?? profile.xp,
-            level: serverP.level ?? profile.level,
-            equippedSkin: serverP.equippedSkin || profile.equippedSkin,
-            ownedSkins: [...new Set([...(serverP.ownedSkins || []), ...profile.ownedSkins])],
-            totalScore: serverP.totalScore ?? profile.totalScore,
-            gamesPlayed: serverP.gamesPlayed ?? profile.gamesPlayed,
-            wins: serverP.wins ?? profile.wins,
-            winStreak: serverP.winStreak ?? profile.winStreak,
-            bestStreak: serverP.bestStreak ?? profile.bestStreak,
-            lastStreakReward: serverP.lastStreakReward ?? profile.lastStreakReward,
-            lastSpinAt: serverP.lastSpinAt || profile.lastSpinAt,
+            name: sp.name || profile.name,
+            coins: sp.coins ?? profile.coins,
+            xp: sp.xp ?? profile.xp,
+            level: sp.level ?? profile.level,
+            equippedSkin: sp.equippedSkin || profile.equippedSkin,
+            ownedSkins: [...new Set([...(sp.ownedSkins || []), ...profile.ownedSkins])] as SkinId[],
+            totalScore: sp.totalScore ?? profile.totalScore,
+            gamesPlayed: sp.gamesPlayed ?? profile.gamesPlayed,
+            wins: sp.wins ?? profile.wins,
+            winStreak: sp.winStreak ?? profile.winStreak,
+            bestStreak: sp.bestStreak ?? profile.bestStreak,
+            lastStreakReward: sp.lastStreakReward ?? profile.lastStreakReward,
+            lastSpinAt: sp.lastSpinAt || profile.lastSpinAt,
+            ownedBackgrounds: [...new Set([...(sp.ownedBackgrounds || []), ...profile.ownedBackgrounds])] as BackgroundId[],
+            equippedBackground: sp.equippedBackground || profile.equippedBackground,
+            ownedEmotes: [...new Set([...(sp.ownedEmotes || []), ...profile.ownedEmotes])] as EmoteId[],
+            ownedEffects: [...new Set([...(sp.ownedEffects || []), ...profile.ownedEffects])] as EffectId[],
+            equippedEffect: sp.equippedEffect || profile.equippedEffect,
+            dailyShopDate: sp.dailyShopDate || profile.dailyShopDate,
+            dailyShopBought: sp.dailyShopBought || profile.dailyShopBought,
           };
           setProfile(merged);
           saveProfile(merged);
@@ -255,13 +525,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (won) {
       const milestones = [{ wins: 3, reward: 50 }, { wins: 5, reward: 100 }, { wins: 10, reward: 300 }];
       for (const m of milestones) {
-        if (newStreak >= m.wins && m.wins > profile.lastStreakReward) {
-          streakBonus += m.reward;
-        }
+        if (newStreak >= m.wins && m.wins > profile.lastStreakReward) streakBonus += m.reward;
       }
     }
-    // Entry fee is deducted upfront in the league screen (before matchmaking),
-    // so we must NOT deduct it again here in the fallback path.
     const netCoins = coinsEarned + streakBonus;
     updateProfile({
       coins: profile.coins + netCoins,
@@ -278,20 +544,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <PlayerContext.Provider
-      value={{
-        profile,
-        playerId,
-        updateProfile,
-        addCoins,
-        addXp,
-        purchaseSkin,
-        equipSkin,
-        setPlayerName,
-        syncToServer,
-        reportGameResult,
-      }}
-    >
+    <PlayerContext.Provider value={{
+      profile, playerId, updateProfile, addCoins, addXp,
+      purchaseSkin, equipSkin,
+      purchaseBackground, equipBackground,
+      purchaseEmote, purchaseEffect, equipEffect,
+      grantItem, buyDailyItem,
+      setPlayerName, syncToServer, reportGameResult,
+    }}>
       {children}
     </PlayerContext.Provider>
   );
