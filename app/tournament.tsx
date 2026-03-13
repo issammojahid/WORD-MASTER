@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -92,6 +92,19 @@ export default function TournamentScreen() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
 
+  // Mutable refs that always reflect the latest state values — used inside
+  // socket handlers to avoid stale-closure bugs without re-registering listeners.
+  const activeTournamentRef = useRef<TournamentDetail | null>(null);
+  const tournamentsRef = useRef<TournamentListItem[]>([]);
+
+  useEffect(() => {
+    activeTournamentRef.current = activeTournament;
+  }, [activeTournament]);
+
+  useEffect(() => {
+    tournamentsRef.current = tournaments;
+  }, [tournaments]);
+
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
@@ -177,7 +190,8 @@ export default function TournamentScreen() {
       winnerId: string | null;
       winnerName: string | null;
     }) => {
-      if (activeTournament && activeTournament.id === data.tournamentId) {
+      // Use ref so we never read a stale activeTournament value
+      if (activeTournamentRef.current && activeTournamentRef.current.id === data.tournamentId) {
         setActiveTournament(prev => prev ? {
           ...prev,
           matches: data.matches,
@@ -187,17 +201,36 @@ export default function TournamentScreen() {
       }
     };
 
-    const handlePlayerJoined = (data: { tournamentId: string; playerCount: number }) => {
-      setTournaments(prev => prev.map(t =>
-        t.id === data.tournamentId ? { ...t, playerCount: data.playerCount } : t
-      ));
-      if (activeTournament && activeTournament.id === data.tournamentId) {
+    const handlePlayerJoined = (data: { tournamentId: string; playerCount: number; maxPlayers: number; playerName: string }) => {
+      // Update the count in the open-tournaments list.
+      // We read from the ref to decide if a full re-fetch is needed, then
+      // apply the proper state update outside the updater to avoid side effects.
+      setTournaments(prev => {
+        const exists = prev.some(t => t.id === data.tournamentId);
+        if (!exists) return prev; // Full re-fetch triggered below
+        return prev.map(t =>
+          t.id === data.tournamentId ? { ...t, playerCount: data.playerCount } : t
+        );
+      });
+
+      // If the tournament wasn't in our local list yet, refresh the full list
+      // so it appears with the correct count. We do this outside the updater.
+      // We check the current ref value to avoid an extra closure.
+      if (!tournamentsRef.current.some(t => t.id === data.tournamentId)) {
+        fetchTournaments();
+      }
+
+      // If this tournament's detail is open, re-fetch to show the new player slot
+      if (activeTournamentRef.current?.id === data.tournamentId) {
         fetchTournamentDetail(data.tournamentId);
       }
     };
 
     const handleTournamentStarted = (data: { tournamentId: string }) => {
-      if (activeTournament && activeTournament.id === data.tournamentId) {
+      // Remove the now-full tournament from the open list
+      setTournaments(prev => prev.filter(t => t.id !== data.tournamentId));
+      // Refresh detail view so the bracket is shown
+      if (activeTournamentRef.current?.id === data.tournamentId) {
         fetchTournamentDetail(data.tournamentId);
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -205,7 +238,7 @@ export default function TournamentScreen() {
 
     const handleTournamentCancelled = (data: { tournamentId: string }) => {
       setTournaments(prev => prev.filter(t => t.id !== data.tournamentId));
-      if (activeTournament && activeTournament.id === data.tournamentId) {
+      if (activeTournamentRef.current?.id === data.tournamentId) {
         setActiveTournament(null);
         setViewMode("list");
         Alert.alert("تم إلغاء البطولة", "تم حذف هذه البطولة لعدم اكتمال اللاعبين.");
@@ -226,7 +259,10 @@ export default function TournamentScreen() {
       socket.off("tournament_started", handleTournamentStarted);
       socket.off("tournament_cancelled", handleTournamentCancelled);
     };
-  }, [activeTournament]);
+  // Empty dependency array: register listeners exactly once.
+  // activeTournamentRef.current is always current so no re-registration needed.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleJoinTournament = async (tournamentId: string) => {
     if (tournamentId === "__create__") {
