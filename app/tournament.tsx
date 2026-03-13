@@ -82,7 +82,7 @@ type ViewMode = "list" | "detail";
 
 export default function TournamentScreen() {
   const insets = useSafeAreaInsets();
-  const { profile, playerId } = usePlayer();
+  const { profile, playerId, addCoins } = usePlayer();
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [tournaments, setTournaments] = useState<TournamentListItem[]>([]);
   const [activeTournament, setActiveTournament] = useState<TournamentDetail | null>(null);
@@ -91,6 +91,8 @@ export default function TournamentScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   // Mutable refs that always reflect the latest state values — used inside
   // socket handlers to avoid stale-closure bugs without re-registering listeners.
@@ -236,6 +238,17 @@ export default function TournamentScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     };
 
+    const handlePlayerLeft = (data: { tournamentId: string; playerCount: number; maxPlayers: number; playerName: string }) => {
+      // Update the count in the open-tournaments list
+      setTournaments(prev => prev.map(t =>
+        t.id === data.tournamentId ? { ...t, playerCount: data.playerCount } : t
+      ));
+      // If this tournament's detail is open, re-fetch to update player slots
+      if (activeTournamentRef.current?.id === data.tournamentId) {
+        fetchTournamentDetail(data.tournamentId);
+      }
+    };
+
     const handleTournamentCancelled = (data: { tournamentId: string }) => {
       setTournaments(prev => prev.filter(t => t.id !== data.tournamentId));
       if (activeTournamentRef.current?.id === data.tournamentId) {
@@ -248,6 +261,7 @@ export default function TournamentScreen() {
 
     socket.on("tournament_update", handleTournamentUpdate);
     socket.on("tournament_player_joined", handlePlayerJoined);
+    socket.on("tournament_player_left", handlePlayerLeft);
     socket.on("tournament_started", handleTournamentStarted);
     socket.on("tournament_cancelled", handleTournamentCancelled);
 
@@ -256,6 +270,7 @@ export default function TournamentScreen() {
       socket.off("countdown", handleCountdown);
       socket.off("tournament_update", handleTournamentUpdate);
       socket.off("tournament_player_joined", handlePlayerJoined);
+      socket.off("tournament_player_left", handlePlayerLeft);
       socket.off("tournament_started", handleTournamentStarted);
       socket.off("tournament_cancelled", handleTournamentCancelled);
     };
@@ -326,6 +341,43 @@ export default function TournamentScreen() {
   const openTournamentDetail = (id: string) => {
     setViewMode("detail");
     fetchTournamentDetail(id);
+  };
+
+  const confirmLeaveTournament = async () => {
+    if (!activeTournament) return;
+    setShowLeaveModal(false);
+    setLeaving(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      const baseUrl = getApiUrl();
+      const res = await fetch(
+        new URL(`/api/tournament/${activeTournament.id}/leave`, baseUrl).toString(),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ playerId }),
+        }
+      );
+      const data = await res.json();
+      if (res.ok) {
+        // Refund reflected locally
+        addCoins(100);
+        // Go back to list
+        setActiveTournament(null);
+        setViewMode("list");
+        fetchTournaments();
+      } else {
+        const msg =
+          data.error === "tournament_already_started" ? "البطولة بدأت بالفعل" :
+          data.error === "not_in_tournament" ? "أنت لست مسجلاً في هذه البطولة" :
+          "فشل مغادرة البطولة";
+        Alert.alert("خطأ", msg);
+      }
+    } catch {
+      Alert.alert("خطأ", "فشل الاتصال بالخادم");
+    } finally {
+      setLeaving(false);
+    }
   };
 
   const amInTournament = activeTournament?.players.some(p => p.playerId === playerId) || false;
@@ -406,6 +458,24 @@ export default function TournamentScreen() {
                   );
                 })}
               </View>
+
+              {/* Leave button — only for registered players while tournament is still open */}
+              {amInTournament && (
+                <TouchableOpacity
+                  style={styles.leaveBtn}
+                  onPress={() => setShowLeaveModal(true)}
+                  disabled={leaving}
+                >
+                  {leaving ? (
+                    <ActivityIndicator size="small" color={Colors.ruby} />
+                  ) : (
+                    <>
+                      <Ionicons name="exit-outline" size={16} color={Colors.ruby} />
+                      <Text style={styles.leaveBtnText}>مغادرة البطولة</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -449,6 +519,27 @@ export default function TournamentScreen() {
           </View>
 
         </ScrollView>
+
+        {/* ── Leave Tournament Confirmation Modal ── */}
+        <Modal visible={showLeaveModal} transparent animationType="fade" onRequestClose={() => setShowLeaveModal(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalBox}>
+              <Text style={styles.modalTitle}>مغادرة البطولة؟</Text>
+              <Text style={styles.modalDesc}>
+                سيتم استرداد رسم الدخول (100 🪙) إلى رصيدك.{"\n"}
+                إذا غادر جميع اللاعبين، سيتم حذف البطولة تلقائياً.
+              </Text>
+              <View style={styles.modalBtns}>
+                <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowLeaveModal(false)}>
+                  <Text style={styles.modalCancelText}>إلغاء</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.modalConfirmLeaveBtn} onPress={confirmLeaveTournament}>
+                  <Text style={styles.modalConfirmLeaveText}>مغادرة</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     );
   }
@@ -939,4 +1030,33 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject, backgroundColor: Colors.overlay,
     justifyContent: "center", alignItems: "center",
   },
+
+  // Leave button (inside waiting card)
+  leaveBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 6, marginTop: 16, paddingVertical: 12, borderRadius: 14,
+    borderWidth: 1.5, borderColor: Colors.ruby + "60",
+    backgroundColor: Colors.ruby + "12",
+  },
+  leaveBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.ruby },
+
+  // Leave confirmation modal
+  modalBox: {
+    backgroundColor: Colors.backgroundSecondary, borderRadius: 24, padding: 28,
+    width: "85%", alignItems: "center", borderWidth: 1, borderColor: Colors.cardBorder,
+  },
+  modalDesc: {
+    fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary,
+    textAlign: "center", lineHeight: 22, marginTop: 4,
+  },
+  modalBtns: { flexDirection: "row", gap: 12, marginTop: 20, width: "100%" },
+  modalCancelBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: Colors.card,
+    alignItems: "center",
+  },
+  modalConfirmLeaveBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: 14,
+    backgroundColor: Colors.ruby, alignItems: "center",
+  },
+  modalConfirmLeaveText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
 });

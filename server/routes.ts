@@ -1558,6 +1558,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── LEAVE TOURNAMENT ──────────────────────────────────────────────────────
+  // Allows a player to withdraw from an open (not yet started) tournament.
+  // Refunds entry fee, updates the prize pool, broadcasts updated count,
+  // and auto-deletes the tournament if it becomes empty.
+  app.post("/api/tournament/:id/leave", async (req, res) => {
+    try {
+      const tournamentId = req.params.id;
+      const { playerId } = req.body as { playerId: string };
+
+      const [t] = await db.select().from(tournaments).where(eq(tournaments.id, tournamentId));
+      if (!t) return res.status(404).json({ error: "not_found" });
+      if (t.status !== "open") return res.status(400).json({ error: "tournament_already_started" });
+
+      const [existing] = await db.select().from(tournamentPlayers).where(
+        and(eq(tournamentPlayers.tournamentId, tournamentId), eq(tournamentPlayers.playerId, playerId))
+      );
+      if (!existing) return res.status(400).json({ error: "not_in_tournament" });
+
+      const playerName = existing.playerName;
+
+      // Remove the player
+      await db.delete(tournamentPlayers).where(
+        and(eq(tournamentPlayers.tournamentId, tournamentId), eq(tournamentPlayers.playerId, playerId))
+      );
+      tournamentPlayerSocketMap.delete(playerId);
+
+      // Refund entry fee
+      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      if (profile) {
+        await db.update(playerProfiles).set({
+          coins: profile.coins + TOURNAMENT_ENTRY_FEE,
+          updatedAt: new Date(),
+        }).where(eq(playerProfiles.id, playerId));
+      }
+
+      const remainingPlayers = await db.select().from(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, tournamentId));
+
+      if (remainingPlayers.length === 0) {
+        // Auto-delete the now-empty tournament
+        await db.delete(tournamentMatches).where(eq(tournamentMatches.tournamentId, tournamentId)).catch(() => {});
+        await db.delete(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, tournamentId)).catch(() => {});
+        await db.delete(tournaments).where(eq(tournaments.id, tournamentId)).catch(() => {});
+        activeTournaments.delete(tournamentId);
+        io.emit("tournament_cancelled", { tournamentId });
+        console.log(`[leave] Tournament ${tournamentId} deleted — no players remaining`);
+      } else {
+        // Update prize pool
+        const newPrizePool = Math.max(0, t.prizePool - TOURNAMENT_ENTRY_FEE);
+        await db.update(tournaments).set({ prizePool: newPrizePool }).where(eq(tournaments.id, tournamentId));
+
+        // Broadcast updated count to all clients
+        io.emit("tournament_player_left", {
+          tournamentId,
+          playerCount: remainingPlayers.length,
+          maxPlayers: TOURNAMENT_SIZE,
+          playerName,
+        });
+        console.log(`[leave] Player ${playerName} left tournament ${tournamentId} — ${remainingPlayers.length}/${TOURNAMENT_SIZE} remaining`);
+      }
+
+      const [updatedProfile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      res.json({
+        success: true,
+        playerCount: remainingPlayers.length,
+        coins: updatedProfile?.coins ?? (profile ? profile.coins + TOURNAMENT_ENTRY_FEE : 0),
+      });
+    } catch (e) {
+      console.error("POST /api/tournament/:id/leave error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
   app.post("/api/tournament/:id/match-result", async (req, res) => {
     try {
       const tournamentId = req.params.id;
