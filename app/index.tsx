@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, memo } from "react";
 import {
   View,
   Text,
@@ -10,9 +10,11 @@ import {
   Platform,
   ScrollView,
   Animated,
+  Easing,
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  type GestureResponderEvent,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -411,6 +413,229 @@ type GameMode = {
   onPress: () => void;
 };
 
+// ── Card floating particle ─────────────────────────────────────────────────────
+const CARD_SYMBOLS = ["✦", "★", "·", "✦", "·", "★", "✦", "·"];
+
+const CardParticle = memo(({ x, symbol, delay, accent, size }: {
+  x: number; symbol: string; delay: number; accent: string; size: number;
+}) => {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const run = () => {
+      anim.setValue(0);
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(anim, { toValue: 1, duration: 3200 + Math.random() * 2000, easing: Easing.linear, useNativeDriver: true }),
+      ]).start(({ finished }) => { if (finished) run(); });
+    };
+    run();
+    return () => anim.stopAnimation();
+  }, []);
+  return (
+    <Animated.Text
+      style={{
+        position: "absolute", left: x, bottom: 8, fontSize: size,
+        color: accent, pointerEvents: "none" as any,
+        opacity: anim.interpolate({ inputRange: [0, 0.08, 0.85, 1], outputRange: [0, 0.55, 0.45, 0] }),
+        transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [0, -150] }) }],
+      }}
+    >
+      {symbol}
+    </Animated.Text>
+  );
+});
+
+function makeParticles(accent: string) {
+  return Array.from({ length: 8 }, (_, i) => ({
+    x: 12 + i * ((CARD_WIDTH - 24) / 7),
+    symbol: CARD_SYMBOLS[i],
+    delay: i * 350,
+    accent,
+    size: 7 + (i % 3) * 3,
+  }));
+}
+
+// ── Card-level styles (defined once outside component) ────────────────────────
+const cardStyles = StyleSheet.create({
+  cardShineBar: {
+    position: "absolute", top: -20, width: 28, height: "140%" as any,
+    backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 6,
+  },
+  btnWrapper: {
+    marginTop: 4, overflow: "visible",
+  },
+  btnShineBar: {
+    position: "absolute", top: -14, width: 20, height: 60,
+    backgroundColor: "rgba(255,255,255,0.30)", borderRadius: 4,
+  },
+});
+
+// ── Premium mode card ─────────────────────────────────────────────────────────
+const MAX_TILT = 8;
+
+const ModeCard = memo(({ item, index, isActive }: {
+  item: GameMode; index: number; isActive: boolean;
+}) => {
+  const rotateX  = useRef(new Animated.Value(0)).current;
+  const rotateY  = useRef(new Animated.Value(0)).current;
+  const pressScl = useRef(new Animated.Value(1)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+  const cardShine = useRef(new Animated.Value(-CARD_WIDTH)).current;
+  const btnPulse = useRef(new Animated.Value(1)).current;
+  const btnShine = useRef(new Animated.Value(-120)).current;
+  const entrY    = useRef(new Animated.Value(55)).current;
+  const entrOp   = useRef(new Animated.Value(0)).current;
+  const particles = useRef(makeParticles(item.accent)).current;
+
+  useEffect(() => {
+    // ── Entrance (staggered per index) ───────────────────────────────────────
+    Animated.sequence([
+      Animated.delay(index * 90),
+      Animated.parallel([
+        Animated.spring(entrY, { toValue: 0, tension: 70, friction: 9, useNativeDriver: true }),
+        Animated.timing(entrOp, { toValue: 1, duration: 320, useNativeDriver: true }),
+      ]),
+    ]).start();
+
+    // ── Glow pulse ───────────────────────────────────────────────────────────
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, { toValue: 1, duration: 2600, useNativeDriver: false }),
+        Animated.timing(glowAnim, { toValue: 0, duration: 2600, useNativeDriver: false }),
+      ])
+    ).start();
+
+    // ── Card gloss sweep ────────────────────────────────────────────────────
+    const runCardShine = () => {
+      cardShine.setValue(-CARD_WIDTH * 0.6);
+      Animated.sequence([
+        Animated.timing(cardShine, { toValue: CARD_WIDTH * 1.6, duration: 800, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.delay(4500 + index * 700),
+      ]).start(() => runCardShine());
+    };
+    const t0 = setTimeout(() => runCardShine(), index * 500 + 600);
+
+    // ── Button pulse ────────────────────────────────────────────────────────
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(btnPulse, { toValue: 1.065, duration: 680, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(btnPulse, { toValue: 1,     duration: 680, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      ])
+    ).start();
+
+    // ── Button shine ────────────────────────────────────────────────────────
+    const runBtnShine = () => {
+      btnShine.setValue(-120);
+      Animated.sequence([
+        Animated.timing(btnShine, { toValue: 220, duration: 650, useNativeDriver: true }),
+        Animated.delay(2600 + index * 300),
+      ]).start(() => runBtnShine());
+    };
+    runBtnShine();
+
+    return () => {
+      clearTimeout(t0);
+      [rotateX, rotateY, pressScl, glowAnim, cardShine, btnPulse, btnShine, entrY, entrOp]
+        .forEach(a => a.stopAnimation());
+    };
+  }, []);
+
+  // ── 3D tilt on press ────────────────────────────────────────────────────────
+  const onPressIn = (e: GestureResponderEvent) => {
+    const { locationX, locationY } = e.nativeEvent;
+    const tx = ((locationY - 115) / 115) * -MAX_TILT;
+    const ty = ((locationX - CARD_WIDTH / 2) / (CARD_WIDTH / 2)) * MAX_TILT;
+    Animated.spring(rotateX, { toValue: tx, tension: 320, friction: 10, useNativeDriver: true }).start();
+    Animated.spring(rotateY, { toValue: ty, tension: 320, friction: 10, useNativeDriver: true }).start();
+    Animated.spring(pressScl, { toValue: 0.96, tension: 320, friction: 10, useNativeDriver: true }).start();
+  };
+
+  const onPressOut = () => {
+    Animated.spring(rotateX, { toValue: 0, tension: 180, friction: 8, useNativeDriver: true }).start();
+    Animated.spring(rotateY, { toValue: 0, tension: 180, friction: 8, useNativeDriver: true }).start();
+    Animated.spring(pressScl, { toValue: 1, tension: 180, friction: 8, useNativeDriver: true }).start();
+  };
+
+  const rotXDeg = rotateX.interpolate({ inputRange: [-MAX_TILT, MAX_TILT], outputRange: [`-${MAX_TILT}deg`, `${MAX_TILT}deg`] });
+  const rotYDeg = rotateY.interpolate({ inputRange: [-MAX_TILT, MAX_TILT], outputRange: [`-${MAX_TILT}deg`, `${MAX_TILT}deg`] });
+  const glowOp  = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [isActive ? 0.1 : 0.05, isActive ? 0.22 : 0.12] });
+
+  return (
+    <Animated.View style={{
+      width: CARD_WIDTH, marginHorizontal: CARD_MARGIN,
+      opacity: entrOp,
+      borderRadius: 24,
+      shadowColor: item.accent,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: isActive ? 0.55 : 0.28,
+      shadowRadius: isActive ? 22 : 12,
+      elevation: isActive ? 14 : 7,
+      transform: [
+        { translateY: entrY },
+        { scale: pressScl },
+        { perspective: 900 },
+        { rotateX: rotXDeg },
+        { rotateY: rotYDeg },
+      ],
+    }}>
+      <TouchableOpacity
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        onPress={item.onPress}
+        activeOpacity={1}
+        style={[
+          styles.modeCard,
+          {
+            overflow: "hidden",
+            borderColor: item.accent + (isActive ? "75" : "45"),
+            backgroundColor: isActive ? item.accent + "1E" : Colors.card + "92",
+          },
+        ]}
+      >
+        {/* Glow overlay */}
+        <Animated.View
+          style={[StyleSheet.absoluteFillObject, { borderRadius: 24, backgroundColor: item.accent, opacity: glowOp }]}
+          pointerEvents="none"
+        />
+
+        {/* Card gloss sweep */}
+        <Animated.View
+          style={[cardStyles.cardShineBar, { transform: [{ translateX: cardShine }, { rotate: "20deg" }] }]}
+          pointerEvents="none"
+        />
+
+        {/* Floating particles */}
+        {particles.map((p, i) => <CardParticle key={i} {...p} />)}
+
+        {/* Emoji */}
+        <View style={[styles.modeEmojiCircle, { backgroundColor: item.accent + "22" }]}>
+          <Text style={styles.modeEmoji}>{item.emoji}</Text>
+        </View>
+
+        <Text style={[styles.modeTitle, { color: item.accent }]}>{item.title}</Text>
+        <Text style={styles.modeSubtitle}>{item.subtitle}</Text>
+
+        {/* Animated play button */}
+        <Animated.View style={[cardStyles.btnWrapper, { transform: [{ scale: btnPulse }] }]}>
+          <LinearGradient
+            colors={[item.accent, item.accent + "BB"]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={[styles.modePlayBtn, { overflow: "hidden" }]}
+          >
+            <Ionicons name="play" size={15} color="#fff" />
+            <Text style={styles.modePlayText}>العب الآن</Text>
+            {/* Button shine streak */}
+            <Animated.View
+              style={[cardStyles.btnShineBar, { transform: [{ translateX: btnShine }, { rotate: "20deg" }] }]}
+              pointerEvents="none"
+            />
+          </LinearGradient>
+        </Animated.View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+});
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { t, selectedMap } = useLanguage();
@@ -651,37 +876,9 @@ export default function HomeScreen() {
             onScroll={handleScroll}
             scrollEventThrottle={16}
             keyExtractor={(item) => item.id}
-            renderItem={({ item, index }) => {
-              const isActive = activeModeIdx === index;
-              return (
-                <TouchableOpacity
-                  style={[
-                    styles.modeCard,
-                    {
-                      borderColor: item.accent + "50",
-                      backgroundColor: isActive ? item.accent + "20" : Colors.card + "90",
-                      transform: [{ scale: isActive ? 1 : 0.95 }],
-                    },
-                  ]}
-                  onPress={item.onPress}
-                  activeOpacity={0.88}
-                >
-                  <View style={[styles.modeEmojiCircle, { backgroundColor: item.accent + "20" }]}>
-                    <Text style={styles.modeEmoji}>{item.emoji}</Text>
-                  </View>
-                  <Text style={[styles.modeTitle, { color: item.accent }]}>{item.title}</Text>
-                  <Text style={styles.modeSubtitle}>{item.subtitle}</Text>
-                  <TouchableOpacity
-                    style={[styles.modePlayBtn, { backgroundColor: item.accent }]}
-                    onPress={item.onPress}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons name="play" size={15} color="#fff" />
-                    <Text style={styles.modePlayText}>العب الآن</Text>
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              );
-            }}
+            renderItem={({ item, index }) => (
+              <ModeCard item={item} index={index} isActive={activeModeIdx === index} />
+            )}
           />
           <View style={styles.dotsRow}>
             {gameModes.map((m, idx) => (
