@@ -113,10 +113,13 @@ function randInt(min: number, max: number): number {
 function normalize(word: string): string {
   return word
     .trim()
-    .replace(/[\u064B-\u065F\u0670]/g, "")
-    .replace(/[أإآٱ]/g, "ا")
-    .replace(/ى/g, "ي")
-    .replace(/ة/g, "ه")
+    .replace(/\s+/g, " ")                // collapse multiple spaces
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, "")  // diacritics + tatweel
+    .replace(/[أإآٱ]/g, "ا")             // alef variants → plain alef
+    .replace(/[ؤ]/g, "و")               // waw with hamza
+    .replace(/[ئ]/g, "ي")               // ya with hamza
+    .replace(/ى/g, "ي")                 // alef maqsura
+    .replace(/ة/g, "ه")                 // ta marbuta
     .toLowerCase();
 }
 
@@ -158,6 +161,8 @@ export default function AIGameScreen() {
   const submittedRef = useRef(false);
   const playerAnswersRef = useRef<Record<GameCategory, string>>({} as Record<GameCategory, string>);
   const aiAnswersRef = useRef<Record<GameCategory, string>>({} as Record<GameCategory, string>);
+  // Ref mirror of wordPool so the timer callback can always access the current pool
+  const wordPoolRef = useRef<Record<string, string[]>>({});
   const letterAnim = useRef(new Animated.Value(0)).current;
   const gameOverCalcDone = useRef(false);
 
@@ -211,24 +216,26 @@ export default function AIGameScreen() {
       stopTimer();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      let playerValid: Record<GameCategory, boolean> = {} as Record<GameCategory, boolean>;
-      try {
-        const url = new URL("/api/validate-round", getApiUrl());
-        const res = await fetch(url.toString(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ letter, answers: pAnswers }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          for (const cat of GAME_CATEGORIES) {
-            playerValid[cat] = data[cat]?.valid === true;
-          }
-        }
-      } catch {
-        for (const cat of GAME_CATEGORIES) {
+      // Client-side validation using the pre-fetched word pool.
+      // Each pool entry is already filtered to the current letter by the server,
+      // so we only need to check membership after normalisation.
+      const pool = wordPoolRef.current;
+      const playerValid: Record<GameCategory, boolean> = {} as Record<GameCategory, boolean>;
+      for (const cat of GAME_CATEGORIES) {
+        const answer = (pAnswers[cat] || "").trim();
+        if (answer.length < 2) {
           playerValid[cat] = false;
+          continue;
         }
+        const normAnswer = normalize(answer);
+        const words = pool[cat] || [];
+        const normSet = new Set(words.map(normalize));
+        // Accept with or without the definite article ال
+        const stripped = normAnswer.startsWith("ال") ? normAnswer.slice(2) : normAnswer;
+        playerValid[cat] =
+          normSet.has(normAnswer) ||
+          normSet.has(stripped) ||
+          normSet.has("ال" + stripped);
       }
 
       const results: RoundResult[] = [];
@@ -241,7 +248,11 @@ export default function AIGameScreen() {
         const pIsValid = pAnswer.length >= 2 && playerValid[cat];
         const aIsValid = aAnswer.length >= 2;
 
-        const isDuplicate =
+        // Scoring rules:
+        //  valid + different from AI  → player 10, AI 10
+        //  valid + same as AI answer  → player  0, AI 10 (not unique)
+        //  invalid / empty            → player  0, AI 10 (if AI had answer)
+        const isSameAsAi =
           pIsValid && aIsValid && normalize(pAnswer) === normalize(aAnswer);
 
         let pScore = 0;
@@ -249,11 +260,11 @@ export default function AIGameScreen() {
         let pStatus: CategoryStatus = pAnswer ? "invalid" : "empty";
         let aStatus: CategoryStatus = aAnswer ? "correct" : "empty";
 
-        if (isDuplicate) {
-          pScore = 5;
-          aScore = 5;
+        if (isSameAsAi) {
+          pScore = 0;        // player gets nothing for a non-unique answer
+          aScore = 10;
           pStatus = "duplicate";
-          aStatus = "duplicate";
+          aStatus = "correct";
         } else {
           if (pIsValid) {
             pScore = 10;
@@ -360,6 +371,7 @@ export default function AIGameScreen() {
     setAiTotalScore(0);
     gameOverCalcDone.current = false;
     const pool = await fetchWordPool(letter);
+    wordPoolRef.current = pool;
     setWordPool(pool);
     launchRound(1, letter, pool, diff);
   };
@@ -374,6 +386,7 @@ export default function AIGameScreen() {
     setUsedLetters((prev) => [...prev, newLetter]);
     setPhase("loading");
     const pool = await fetchWordPool(newLetter);
+    wordPoolRef.current = pool;
     setWordPool(pool);
     launchRound(nextRound, newLetter, pool, difficulty);
   };

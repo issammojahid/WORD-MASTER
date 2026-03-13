@@ -79,8 +79,11 @@ const letterDatabase = loadLetterDatabase();
 function normalize(word: string): string {
   return word
     .trim()
-    .replace(/[\u064B-\u065F\u0670]/g, "")
+    .replace(/\s+/g, " ")
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, "")   // diacritics + tatweel
     .replace(/[أإآٱ]/g, "ا")
+    .replace(/[ؤ]/g, "و")
+    .replace(/[ئ]/g, "ي")
     .replace(/ى/g, "ي")
     .replace(/ة/g, "ه")
     .toLowerCase();
