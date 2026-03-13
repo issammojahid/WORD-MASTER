@@ -1,0 +1,107 @@
+Improve the Home Screen UI to make it clean, modern, and similar to professional mobile games.
+
+1️⃣ Fix Game Mode Cards
+Currently the cards have visual issues:
+• there is a dark rectangle inside the card
+• background filters overlap the card
+• the card looks layered and messy
+
+Fix this by:
+
+• Remove the internal dark box inside the card
+• Each card must be a single clean container
+• Card structure should be:
+
+Card background
+→ Icon
+→ Title
+→ Description
+→ Play button
+
+Cards must NOT contain extra overlay containers.
+
+2️⃣ Remove Heavy Filters
+The UI currently has strong visual filters that cover the cards.
+
+Fix this:
+
+• Remove blur overlays on top of the cards
+• Remove large transparent shapes overlapping card content
+• Background shapes must stay behind the cards only
+
+Cards must remain fully visible and clean.
+
+3️⃣ Improve Card Style
+Cards should look like modern mobile game cards.
+
+Use:
+
+• soft gradient background
+• smooth rounded corners
+• subtle glow border
+• soft shadow
+
+Glow must be subtle and not too bright.
+
+4️⃣ Improve Logo Area
+The circle behind the letter "ح" is too large.
+
+Improve it by:
+
+• reducing the circle size
+OR
+• replacing it with a soft glow effect
+
+The logo should look minimal and integrated with the UI.
+
+5️⃣ Improve Background Effects
+Background effects should stay subtle.
+
+Use:
+
+• soft gradient background
+• floating particles
+• abstract rounded shapes
+
+Do NOT let background effects overlap cards.
+
+6️⃣ Improve Button Style
+Improve the "Play Now" button.
+
+Add:
+
+• smooth gradient
+• soft glow
+• subtle press animation
+
+The button should look modern and playful.
+
+7️⃣ Maintain Layout
+Do NOT change the screen structure.
+
+Keep the layout:
+
+Player profile bar
+Logo
+Subtitle
+Game mode cards
+Stats row
+Bottom navigation
+
+Only improve visuals and remove visual problems.
+
+8️⃣ Important Restrictions
+Do NOT modify:
+
+• gameplay logic
+• multiplayer system
+• Railway server
+• networking code
+
+Only modify:
+
+• UI visuals
+• card layout
+• filters
+• glow effects
+• background design

@@ -843,7 +843,6 @@ const MODE_ICONS: Record<string, IconFC> = {
 // ── Mode card ─────────────────────────────────────────────────────────────────
 const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: number; isActive: boolean }) => {
   const pressScl  = useRef(new Animated.Value(1)).current;
-  const glowAnim  = useRef(new Animated.Value(0)).current;
   const cardShine = useRef(new Animated.Value(-CARD_WIDTH)).current;
   const btnPulse  = useRef(new Animated.Value(1)).current;
   const btnShine  = useRef(new Animated.Value(-120)).current;
@@ -858,11 +857,6 @@ const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: numbe
         Animated.timing(entrOp, { toValue: 1, duration: 320, useNativeDriver: true }),
       ]),
     ]).start();
-
-    Animated.loop(Animated.sequence([
-      Animated.timing(glowAnim, { toValue: 1, duration: 2600, useNativeDriver: false }),
-      Animated.timing(glowAnim, { toValue: 0, duration: 2600, useNativeDriver: false }),
-    ])).start();
 
     const runShine = () => {
       cardShine.setValue(-CARD_WIDTH * 0.6);
@@ -889,7 +883,7 @@ const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: numbe
 
     return () => {
       clearTimeout(t0);
-      [pressScl, glowAnim, cardShine, btnPulse, btnShine, entrY, entrOp].forEach(a => a.stopAnimation());
+      [pressScl, cardShine, btnPulse, btnShine, entrY, entrOp].forEach(a => a.stopAnimation());
     };
   }, []);
 
@@ -901,58 +895,48 @@ const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: numbe
     Animated.spring(pressScl, { toValue: 1, tension: 200, friction: 8, useNativeDriver: true }).start();
   };
 
-  const glowOp = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.02, isActive ? 0.10 : 0.05] });
-  const Icon   = MODE_ICONS[item.id] ?? QuickIcon;
+  const Icon = MODE_ICONS[item.id] ?? QuickIcon;
 
   return (
     <Animated.View style={{
       width: CARD_WIDTH, marginHorizontal: CARD_MARGIN,
-      opacity: entrOp, borderRadius: 24,
+      opacity: entrOp, borderRadius: 22,
       shadowColor: item.accent,
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: isActive ? 0.72 : 0.25,
-      shadowRadius: isActive ? 30 : 10,
-      elevation: isActive ? 20 : 6,
+      shadowOffset: { width: 0, height: isActive ? 10 : 5 },
+      shadowOpacity: isActive ? 0.50 : 0.18,
+      shadowRadius: isActive ? 22 : 10,
+      elevation: isActive ? 14 : 5,
       transform: [{ translateY: entrY }, { scale: pressScl }],
     }}>
       <TouchableOpacity
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         onPress={item.onPress}
-        activeOpacity={1}
-        style={{
-          borderRadius: 24, overflow: "hidden",
-          borderWidth: isActive ? 2 : 1.5,
-          borderColor: isActive ? item.accent + "AA" : item.accent + "44",
+        activeOpacity={0.92}
+        style={{ borderRadius: 22, overflow: "hidden",
+          borderWidth: isActive ? 1.5 : 1,
+          borderColor: isActive ? item.accent + "88" : item.accent + "30",
         }}
       >
-        {/* Rich gradient background */}
+        {/* ── Single clean gradient — dark card with subtle accent at top ── */}
         <LinearGradient
-          colors={[item.accent + "38", item.accent + "14", "#0E0828"]}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          colors={[item.accent + "28", "#1A0D35", "#100828"]}
+          start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }}
           style={StyleSheet.absoluteFillObject}
         />
-        {/* Subtle frosted highlight (top-left corner only) */}
-        <LinearGradient
-          colors={["rgba(255,255,255,0.08)", "rgba(255,255,255,0.02)", "transparent"]}
-          start={{ x: 0, y: 0 }} end={{ x: 0.7, y: 0.6 }}
-          style={StyleSheet.absoluteFillObject}
-          pointerEvents="none"
-        />
-        {/* Gentle edge glow — reduced so content stays clear */}
-        <Animated.View
-          pointerEvents="none"
-          style={[StyleSheet.absoluteFillObject, { backgroundColor: item.accent, opacity: glowOp }]}
-        />
-        {/* Gloss sweep */}
+
+        {/* ── Slim gloss sweep (decorative only) ── */}
         <Animated.View
           pointerEvents="none"
           style={[cSt.shineBar, { transform: [{ translateX: cardShine }, { rotate: "20deg" }] }]}
         />
-        {/* Background dots */}
-        {DOT_CFG.map((d, i) => <CardDot key={i} x={d.x} bot={d.bot} sz={d.sz} del={d.del} accent={item.accent} />)}
 
-        {/* Content */}
+        {/* ── Tiny floating dots (accent sparkle) ── */}
+        {DOT_CFG.map((d, i) => (
+          <CardDot key={i} x={d.x} bot={d.bot} sz={d.sz} del={d.del} accent={item.accent} />
+        ))}
+
+        {/* ── Content ── */}
         <View style={cSt.inner}>
           <Icon accent={item.accent} />
           <Text style={[styles.modeTitle, { color: item.accent }]}>{item.title}</Text>
@@ -961,15 +945,15 @@ const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: numbe
           {/* Play button */}
           <Animated.View style={[cSt.btnWrap, { transform: [{ scale: btnPulse }] }]}>
             <LinearGradient
-              colors={[item.accent, item.accent + "BB"]}
+              colors={[item.accent + "FF", item.accent + "CC"]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={[styles.modePlayBtn, {
                 overflow: "hidden",
                 shadowColor: item.accent,
-                shadowOffset: { width: 0, height: 5 },
-                shadowOpacity: 0.55,
-                shadowRadius: 10,
-                elevation: 8,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.45,
+                shadowRadius: 8,
+                elevation: 6,
               }]}
             >
               <Ionicons name="play" size={14} color="#fff" />
@@ -1473,9 +1457,8 @@ const styles = StyleSheet.create({
   logoContainer: { alignItems: "center", marginBottom: 6, position: "relative", paddingHorizontal: 20 },
   logoGlowRing: {
     position: "absolute",
-    width: 110, height: 110, borderRadius: 55,
-    backgroundColor: LOGO.cyan + "16",
-    borderWidth: 1.5, borderColor: LOGO.cyan + "30",
+    width: 96, height: 96, borderRadius: 48,
+    backgroundColor: LOGO.cyan + "1E",
   },
   logoLetter: {
     fontFamily: "Cairo_700Bold",
