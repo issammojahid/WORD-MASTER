@@ -1,33 +1,34 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Language, Translations, translations, MapId } from "@/constants/i18n";
+import { Language, Translations, translations } from "@/constants/i18n";
 
 type LanguageContextType = {
   language: Language;
   t: Translations;
   setLanguage: (lang: Language) => void;
   isRTL: boolean;
-  selectedMap: MapId;
-  setSelectedMap: (map: MapId) => void;
+  soundEffects: boolean;
+  setSoundEffects: (v: boolean) => void;
+  musicEnabled: boolean;
+  setMusicEnabled: (v: boolean) => void;
 };
 
 const LanguageContext = createContext<LanguageContextType | null>(null);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>("ar");
-  const [selectedMap, setSelectedMapState] = useState<MapId>("casablanca");
+  const [soundEffects, setSoundEffectsState] = useState(true);
+  const [musicEnabled, setMusicEnabledState] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
         const storedLang = await AsyncStorage.getItem("language");
-        const storedMap = await AsyncStorage.getItem("selectedMap");
-        if (storedLang === "ar" || storedLang === "en") {
-          setLanguageState(storedLang);
-        }
-        if (storedMap) {
-          setSelectedMapState(storedMap as MapId);
-        }
+        const storedSfx  = await AsyncStorage.getItem("sound_effects");
+        const storedMus  = await AsyncStorage.getItem("music_enabled");
+        if (storedLang === "ar" || storedLang === "en") setLanguageState(storedLang);
+        if (storedSfx !== null) setSoundEffectsState(storedSfx === "true");
+        if (storedMus !== null) setMusicEnabledState(storedMus === "true");
       } catch {}
     })();
   }, []);
@@ -37,20 +38,23 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.setItem("language", lang);
   };
 
-  const setSelectedMap = async (map: MapId) => {
-    setSelectedMapState(map);
-    await AsyncStorage.setItem("selectedMap", map);
+  const setSoundEffects = async (v: boolean) => {
+    setSoundEffectsState(v);
+    await AsyncStorage.setItem("sound_effects", String(v));
+  };
+
+  const setMusicEnabled = async (v: boolean) => {
+    setMusicEnabledState(v);
+    await AsyncStorage.setItem("music_enabled", String(v));
   };
 
   return (
     <LanguageContext.Provider
       value={{
-        language,
-        t: translations[language],
-        setLanguage,
-        isRTL: language === "ar",
-        selectedMap,
-        setSelectedMap,
+        language, t: translations[language],
+        setLanguage, isRTL: language === "ar",
+        soundEffects, setSoundEffects,
+        musicEnabled, setMusicEnabled,
       }}
     >
       {children}

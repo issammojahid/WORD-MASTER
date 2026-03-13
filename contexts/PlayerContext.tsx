@@ -157,6 +157,14 @@ export type PowerCards = {
   hint: number;
 };
 
+// ── Level reward milestones ───────────────────────────────────────────────────
+export const LEVEL_REWARDS: { level: number; coins?: number; skinId?: SkinId; label: string }[] = [
+  { level: 5,  coins: 300,  label: "وصلت المستوى 5! 🎉 +300 عملة" },
+  { level: 10, coins: 500,  label: "وصلت المستوى 10! 🔥 +500 عملة" },
+  { level: 15, skinId: "astronaut", label: "وصلت المستوى 15! 👨‍🚀 فتحت رائد الفضاء!" },
+  { level: 20, coins: 1000, label: "وصلت المستوى 20! 👑 +1000 عملة" },
+];
+
 // ── Player Profile ────────────────────────────────────────────────────────────
 export type PlayerProfile = {
   name: string;
@@ -172,6 +180,8 @@ export type PlayerProfile = {
   bestStreak: number;
   lastStreakReward: number;
   lastSpinAt: string | null;
+  lastLoginRewardAt: string | null;
+  claimedLevelRewards: number[];
   // New cosmetic fields
   ownedBackgrounds: BackgroundId[];
   equippedBackground: BackgroundId;
@@ -203,6 +213,8 @@ type PlayerContextType = {
   syncToServer: () => Promise<void>;
   reportGameResult: (won: boolean, score: number, coinsEarned: number, xpEarned: number, coinEntry?: number) => Promise<{ streakBonus: number; coinEntryReward: number }>;
   useCard: (cardId: keyof PowerCards) => boolean;
+  claimLoginReward: () => boolean;
+  addPowerCard: (cardId: keyof PowerCards, count?: number) => void;
 };
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
@@ -224,6 +236,8 @@ const defaultProfile: PlayerProfile = {
   bestStreak: 0,
   lastStreakReward: 0,
   lastSpinAt: null,
+  lastLoginRewardAt: null,
+  claimedLevelRewards: [],
   ownedBackgrounds: ["default"],
   equippedBackground: "default",
   ownedEmotes: ["laugh"],
@@ -251,6 +265,8 @@ function mergeProfile(base: Partial<PlayerProfile>): PlayerProfile {
     ownedEmotes: [...new Set([...defaultProfile.ownedEmotes, ...(base.ownedEmotes || [])])],
     ownedEffects: [...new Set([...defaultProfile.ownedEffects, ...(base.ownedEffects || [])])],
     dailyShopBought: base.dailyShopBought || [],
+    lastLoginRewardAt: base.lastLoginRewardAt || null,
+    claimedLevelRewards: base.claimedLevelRewards || [],
     powerCards: base.powerCards
       ? { ...defaultProfile.powerCards, ...base.powerCards }
       : defaultProfile.powerCards,
@@ -357,7 +373,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const addXp = (amount: number) => {
     setProfile((prev) => {
       const newXp = prev.xp + amount;
-      const updated = { ...prev, xp: newXp, level: calculateLevel(newXp) };
+      const newLevel = calculateLevel(newXp);
+      let updated = { ...prev, xp: newXp, level: newLevel };
+
+      // Check level reward milestones
+      for (const milestone of LEVEL_REWARDS) {
+        if (newLevel >= milestone.level && !updated.claimedLevelRewards.includes(milestone.level)) {
+          updated = { ...updated, claimedLevelRewards: [...updated.claimedLevelRewards, milestone.level] };
+          if (milestone.coins) {
+            updated = { ...updated, coins: updated.coins + milestone.coins };
+          }
+          if (milestone.skinId && !updated.ownedSkins.includes(milestone.skinId)) {
+            updated = { ...updated, ownedSkins: [...updated.ownedSkins, milestone.skinId] };
+          }
+        }
+      }
+
       saveProfile(updated);
       debouncedSync(updated);
       return updated;
@@ -500,6 +531,27 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
+  const addPowerCard = (cardId: keyof PowerCards, count = 1) => {
+    setProfile((prev) => {
+      const updated = { ...prev, powerCards: { ...prev.powerCards, [cardId]: prev.powerCards[cardId] + count } };
+      saveProfile(updated);
+      debouncedSync(updated);
+      return updated;
+    });
+  };
+
+  const claimLoginReward = (): boolean => {
+    const last = profile.lastLoginRewardAt ? new Date(profile.lastLoginRewardAt).getTime() : 0;
+    if (Date.now() - last < 24 * 60 * 60 * 1000) return false;
+    setProfile((prev) => {
+      const updated = { ...prev, coins: prev.coins + 250, lastLoginRewardAt: new Date().toISOString() };
+      saveProfile(updated);
+      debouncedSync(updated);
+      return updated;
+    });
+    return true;
+  };
+
   const syncToServer = async () => {
     if (!playerId) return;
     try {
@@ -536,6 +588,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             bestStreak: sp.bestStreak ?? profile.bestStreak,
             lastStreakReward: sp.lastStreakReward ?? profile.lastStreakReward,
             lastSpinAt: sp.lastSpinAt || profile.lastSpinAt,
+            lastLoginRewardAt: sp.lastLoginRewardAt || profile.lastLoginRewardAt,
+            claimedLevelRewards: [...new Set([...(sp.claimedLevelRewards || []), ...profile.claimedLevelRewards])],
             ownedBackgrounds: [...new Set([...(sp.ownedBackgrounds || []), ...profile.ownedBackgrounds])] as BackgroundId[],
             equippedBackground: sp.equippedBackground || profile.equippedBackground,
             ownedEmotes: [...new Set([...(sp.ownedEmotes || []), ...profile.ownedEmotes])] as EmoteId[],
@@ -584,6 +638,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       purchaseEmote, purchaseEffect, equipEffect,
       grantItem, buyDailyItem,
       setPlayerName, syncToServer, reportGameResult, useCard,
+      claimLoginReward, addPowerCard,
     }}>
       {children}
     </PlayerContext.Provider>

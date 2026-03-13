@@ -419,14 +419,13 @@ const COIN_ENTRY_OPTIONS = [
 ];
 
 const SPIN_REWARDS = [
-  { type: "coins" as const, amount: 25, label: "25 عملة", weight: 25 },
-  { type: "coins" as const, amount: 50, label: "50 عملة", weight: 20 },
-  { type: "coins" as const, amount: 100, label: "100 عملة", weight: 15 },
-  { type: "coins" as const, amount: 200, label: "200 عملة", weight: 8 },
-  { type: "coins" as const, amount: 500, label: "500 عملة", weight: 3 },
-  { type: "xp" as const, amount: 50, label: "50 XP", weight: 15 },
-  { type: "xp" as const, amount: 100, label: "100 XP", weight: 10 },
-  { type: "xp" as const, amount: 200, label: "200 XP", weight: 4 },
+  { type: "coins" as const,     amount: 50,  label: "50 عملة",   weight: 25 },
+  { type: "coins" as const,     amount: 100, label: "100 عملة",  weight: 18 },
+  { type: "coins" as const,     amount: 200, label: "200 عملة",  weight: 10 },
+  { type: "coins" as const,     amount: 500, label: "500 عملة",  weight: 3  },
+  { type: "xp" as const,        amount: 100, label: "100 XP",    weight: 20 },
+  { type: "xp" as const,        amount: 200, label: "200 XP",    weight: 10 },
+  { type: "powerCard" as const, amount: 1,   label: "بطاقة قوة", weight: 14 },
 ];
 
 const STREAK_MILESTONES = [
@@ -1344,9 +1343,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updates: Record<string, unknown> = { lastSpinAt: new Date(), updatedAt: new Date() };
       if (reward.type === "coins") {
         updates.coins = profile.coins + reward.amount;
-      } else {
+      } else if (reward.type === "xp") {
         updates.xp = profile.xp + reward.amount;
         updates.level = Math.floor((profile.xp + reward.amount) / 100) + 1;
+      } else if (reward.type === "powerCard") {
+        const currentCards = (profile.powerCards as Record<string, number>) || {};
+        const cardKeys = ["time", "freeze", "hint"] as const;
+        const randomCard = cardKeys[Math.floor(Math.random() * cardKeys.length)];
+        updates.powerCards = { ...currentCards, [randomCard]: (currentCards[randomCard] || 0) + 1 };
       }
       const [updated] = await db.update(playerProfiles).set(updates).where(eq(playerProfiles.id, id)).returning();
       await db.insert(dailySpins).values({

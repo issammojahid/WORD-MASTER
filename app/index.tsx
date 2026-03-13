@@ -23,6 +23,98 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePlayer, SKINS } from "@/contexts/PlayerContext";
+
+// ── Daily login reward coin animation ─────────────────────────────────────────
+function LoginRewardPopup({ onClaim }: { onClaim: () => void }) {
+  const coinY   = useRef(new Animated.Value(0)).current;
+  const coinRot = useRef(new Animated.Value(0)).current;
+  const popScale = useRef(new Animated.Value(0.7)).current;
+  const popOp    = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(popScale, { toValue: 1, tension: 80, friction: 8, useNativeDriver: true }),
+      Animated.timing(popOp, { toValue: 1, duration: 280, useNativeDriver: true }),
+    ]).start();
+    Animated.loop(Animated.sequence([
+      Animated.timing(coinY, { toValue: -12, duration: 600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(coinY, { toValue: 0, duration: 600, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ])).start();
+    Animated.loop(Animated.timing(coinRot, { toValue: 1, duration: 2000, easing: Easing.linear, useNativeDriver: true })).start();
+    return () => { [coinY, coinRot, popScale, popOp].forEach(a => a.stopAnimation()); };
+  }, []);
+
+  const COIN_PARTICLES = [
+    { dx: -60, dy: -50, delay: 0 }, { dx: 60, dy: -50, delay: 150 },
+    { dx: -80, dy: 10, delay: 100 }, { dx: 80, dy: 10, delay: 250 },
+    { dx: -30, dy: -80, delay: 200 }, { dx: 30, dy: -80, delay: 50 },
+  ];
+
+  return (
+    <Animated.View style={{
+      position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+      backgroundColor: "rgba(0,0,0,0.80)",
+      justifyContent: "center", alignItems: "center", padding: 24,
+      opacity: popOp,
+    }}>
+      <Animated.View style={{
+        width: "100%", backgroundColor: "#160D33",
+        borderRadius: 28, padding: 28, alignItems: "center",
+        borderWidth: 1.5, borderColor: "#F5C842" + "50",
+        shadowColor: "#F5C842", shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.5, shadowRadius: 30, elevation: 30,
+        transform: [{ scale: popScale }],
+      }}>
+        {/* Coin particles */}
+        {COIN_PARTICLES.map((p, i) => (
+          <Animated.Text key={i} style={{
+            position: "absolute", fontSize: 18,
+            transform: [{ translateX: p.dx }, { translateY: p.dy }],
+            opacity: 0.7,
+          }}>🪙</Animated.Text>
+        ))}
+
+        {/* Animated coin */}
+        <Animated.Text style={{
+          fontSize: 72, marginBottom: 16,
+          transform: [
+            { translateY: coinY },
+            { rotate: coinRot.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) },
+          ],
+        }}>🎁</Animated.Text>
+
+        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 22, color: "#F5C842", marginBottom: 8, textAlign: "center" }}>
+          مكافأة الدخول اليومية
+        </Text>
+        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: "rgba(255,255,255,0.7)", marginBottom: 6, textAlign: "center" }}>
+          حصلت على
+        </Text>
+        <View style={{
+          flexDirection: "row", alignItems: "center", gap: 8,
+          backgroundColor: "#F5C842" + "20", borderRadius: 16,
+          paddingHorizontal: 24, paddingVertical: 10, marginBottom: 24,
+          borderWidth: 1, borderColor: "#F5C842" + "40",
+        }}>
+          <Text style={{ fontSize: 24 }}>🪙</Text>
+          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 26, color: "#F5C842" }}>250 عملة!</Text>
+        </View>
+
+        <TouchableOpacity
+          style={{
+            width: "100%", paddingVertical: 14, borderRadius: 16,
+            backgroundColor: "#F5C842", alignItems: "center",
+            shadowColor: "#F5C842", shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.5, shadowRadius: 10, elevation: 8,
+          }}
+          onPress={onClaim}
+          activeOpacity={0.85}
+        >
+          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#000" }}>✨ استلم المكافأة</Text>
+        </TouchableOpacity>
+      </Animated.View>
+    </Animated.View>
+  );
+}
 import Colors from "@/constants/colors";
 import { MAPS } from "@/constants/i18n";
 
@@ -898,8 +990,9 @@ const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: numbe
 // ── Home screen ───────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { t, selectedMap } = useLanguage();
-  const { profile, playerId, setPlayerName } = usePlayer();
+  const { t } = useLanguage();
+  const { profile, playerId, setPlayerName, claimLoginReward } = usePlayer();
+  const [showLoginReward, setShowLoginReward] = useState(false);
   const [showNameModal, setShowNameModal] = useState(false);
   const [nameInput, setNameInput] = useState(profile.name);
   const [activeModeIdx, setActiveModeIdx] = useState(0);
@@ -931,6 +1024,16 @@ export default function HomeScreen() {
       Animated.spring(popupScale, { toValue: 1, friction: 7, tension: 120, useNativeDriver: true }),
     ]).start();
   }, [currentPopupIdx]);
+
+  // Show daily login reward after profile loads
+  useEffect(() => {
+    const last = profile.lastLoginRewardAt ? new Date(profile.lastLoginRewardAt).getTime() : 0;
+    const eligible = Date.now() - last >= 24 * 60 * 60 * 1000;
+    if (eligible) {
+      const timer = setTimeout(() => setShowLoginReward(true), 800);
+      return () => clearTimeout(timer);
+    }
+  }, [profile.lastLoginRewardAt]);
 
   const dismissPopup = (fromIdx: number, onNavigate?: () => void) => {
     Animated.parallel([
@@ -1298,6 +1401,16 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Daily Login Reward Popup */}
+      {showLoginReward && (
+        <LoginRewardPopup
+          onClaim={() => {
+            claimLoginReward();
+            setShowLoginReward(false);
+          }}
+        />
+      )}
     </View>
   );
 }
