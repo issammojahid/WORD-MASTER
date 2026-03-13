@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, memo } from "react";
 import {
   View,
   Text,
@@ -7,9 +7,11 @@ import {
   TextInput,
   ScrollView,
   Animated,
+  Easing,
   Keyboard,
   Platform,
   Modal,
+  Dimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
@@ -25,6 +27,152 @@ import { GAME_CATEGORIES, GameCategory } from "@/constants/i18n";
 import { getApiUrl } from "@/lib/query-client";
 
 const ROUND_TIME = 50;
+const FREEZE_SECS = 4;
+
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
+
+// Deterministic ice particle layout
+const ICE_PARTICLES = Array.from({ length: 10 }, (_, i) => ({
+  x: ((i * 67 + 28) % (SCREEN_W - 60)) + 30,
+  y: ((i * 91 + 50) % (SCREEN_H * 0.55)) + 80,
+  size: 16 + (i % 4) * 8,
+  delay: i * 90,
+}));
+
+// ── Web Audio: freeze sound (descending icy tone) ─────────────────────────────
+function playFreezeSound() {
+  try {
+    if (typeof window === "undefined") return;
+    const AudioCtx: typeof AudioContext = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(900, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.55);
+    gain.gain.setValueAtTime(0.22, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.65);
+  } catch {}
+}
+
+// ── Web Audio: unfreeze sound (white-noise crack) ─────────────────────────────
+function playUnfreezeSound() {
+  try {
+    if (typeof window === "undefined") return;
+    const AudioCtx: typeof AudioContext = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const bufSize = Math.floor(ctx.sampleRate * 0.22);
+    const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * 0.9;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const flt = ctx.createBiquadFilter();
+    flt.type = "highpass"; flt.frequency.value = 1800;
+    const gain = ctx.createGain();
+    src.connect(flt); flt.connect(gain); gain.connect(ctx.destination);
+    gain.gain.setValueAtTime(0.28, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
+    src.start(ctx.currentTime);
+  } catch {}
+}
+
+// ── Freeze overlay: covers MY screen when I am frozen by an opponent ──────────
+const FreezeOverlay = memo(({ visible, countdown, cracking }: {
+  visible: boolean; countdown: number; cracking: boolean;
+}) => {
+  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const waveAnim  = useRef(new Animated.Value(0)).current;
+  const crackAnim = useRef(new Animated.Value(0)).current;
+  const countScl  = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (visible) {
+      waveAnim.setValue(0);
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 380, useNativeDriver: true }),
+        Animated.timing(waveAnim, { toValue: 1, duration: 650, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      ]).start();
+    } else {
+      Animated.timing(fadeAnim, { toValue: 0, duration: 550, useNativeDriver: true }).start();
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    if (!cracking) return;
+    crackAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(crackAnim, { toValue: 1,   duration: 90,  useNativeDriver: true }),
+      Animated.timing(crackAnim, { toValue: 0.6, duration: 200, useNativeDriver: true }),
+      Animated.timing(crackAnim, { toValue: 0,   duration: 310, useNativeDriver: true }),
+    ]).start();
+  }, [cracking]);
+
+  useEffect(() => {
+    if (!visible || countdown <= 0) return;
+    countScl.setValue(1.55);
+    Animated.spring(countScl, { toValue: 1, tension: 320, friction: 10, useNativeDriver: true }).start();
+  }, [countdown]);
+
+  const waveScale = waveAnim.interpolate({ inputRange: [0, 1], outputRange: [0.25, 1] });
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[StyleSheet.absoluteFillObject, { opacity: fadeAnim, zIndex: 160 }]}
+    >
+      {/* Blue tint */}
+      <LinearGradient
+        colors={["rgba(41,128,185,0.40)", "rgba(26,163,219,0.28)", "rgba(52,152,219,0.20)"]}
+        style={StyleSheet.absoluteFillObject}
+      />
+
+      {/* Ice wave spread */}
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFillObject,
+          { backgroundColor: "rgba(120,210,255,0.10)", transform: [{ scale: waveScale }] },
+        ]}
+      />
+
+      {/* Frost particles */}
+      {ICE_PARTICLES.map((p, i) => (
+        <Animated.Text
+          key={i}
+          style={{
+            position: "absolute", left: p.x, top: p.y, fontSize: p.size,
+            opacity: fadeAnim,
+            transform: [{ scale: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }],
+          }}
+        >
+          ❄
+        </Animated.Text>
+      ))}
+
+      {/* "❄️ مجمّد" label + countdown */}
+      <View style={{ position: "absolute", top: "35%", left: 0, right: 0, alignItems: "center" }}>
+        <Text style={fzStyles.frozenLabel}>❄️ مجمّد</Text>
+        <Animated.Text style={[fzStyles.frozenCount, { transform: [{ scale: countScl }] }]}>
+          {countdown > 0 ? String(countdown) : ""}
+        </Animated.Text>
+      </View>
+
+      {/* Ice-crack flash on unfreeze */}
+      <Animated.View
+        style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(210,245,255,0.65)", opacity: crackAnim }]}
+      />
+    </Animated.View>
+  );
+});
+
+const fzStyles = StyleSheet.create({
+  frozenLabel: { fontFamily: "Cairo_700Bold", fontSize: 30, color: "#fff", textAlign: "center", marginBottom: 8 },
+  frozenCount: { fontFamily: "Cairo_700Bold", fontSize: 72, color: "#A8E6FF", textAlign: "center" },
+});
 
 const QUICK_MESSAGES = [
   "برافو! 👏",
@@ -100,6 +248,11 @@ export default function GameScreen() {
   // isFrozen: true = my timer is paused because an opponent used Freeze on me
   const frozenRef = useRef(false);
   const freezeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Freeze UI state (drives visual overlay + input lock)
+  const [isFrozen, setIsFrozen] = useState(false);
+  const [frozenCountdown, setFrozenCountdown] = useState(0);
+  const [showCrack, setShowCrack] = useState(false);
+  const freezeCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // ──────────────────────────────────────────────────────────────────────────
 
   // ── Exit confirmation state ────────────────────────────────────────────────
@@ -287,7 +440,11 @@ export default function GameScreen() {
       setChatBubbles([]);
       // Clear any active freeze effect between rounds
       frozenRef.current = false;
+      setIsFrozen(false);
+      setFrozenCountdown(0);
+      setShowCrack(false);
       if (freezeTimerRef.current) { clearTimeout(freezeTimerRef.current); freezeTimerRef.current = null; }
+      if (freezeCountdownRef.current) { clearInterval(freezeCountdownRef.current); freezeCountdownRef.current = null; }
       letterAnim.setValue(0);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     });
@@ -295,13 +452,39 @@ export default function GameScreen() {
     // Power card incoming — an opponent used a card that affects me
     socket.on("power_card", (data: { type: string; playerName: string }) => {
       if (data.type === "freeze") {
-        // Pause my timer for 5 seconds
+        // Lock my timer + input
         frozenRef.current = true;
+        setIsFrozen(true);
+        setFrozenCountdown(FREEZE_SECS);
+        setShowCrack(false);
+
+        // Sound + haptic
+        playFreezeSound();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+
+        // Clear any existing timers
         if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current);
-        freezeTimerRef.current = setTimeout(() => { frozenRef.current = false; }, 5000);
-        // Show a chat bubble so the player knows what happened
-        const bubbleId = Date.now().toString() + Math.random();
-        addChatBubble({ id: bubbleId, message: "❄️ تجميد!", playerName: data.playerName, isMe: false });
+        if (freezeCountdownRef.current) clearInterval(freezeCountdownRef.current);
+
+        // Countdown ticker
+        let remaining = FREEZE_SECS;
+        freezeCountdownRef.current = setInterval(() => {
+          remaining -= 1;
+          setFrozenCountdown(remaining);
+          if (remaining <= 0) {
+            if (freezeCountdownRef.current) clearInterval(freezeCountdownRef.current);
+            freezeCountdownRef.current = null;
+            // Ice crack flash, then unfreeze
+            setShowCrack(true);
+            playUnfreezeSound();
+            freezeTimerRef.current = setTimeout(() => {
+              frozenRef.current = false;
+              setIsFrozen(false);
+              setShowCrack(false);
+              setFrozenCountdown(0);
+            }, 600);
+          }
+        }, 1000);
       }
     });
 
@@ -375,6 +558,7 @@ export default function GameScreen() {
       socket.off("quick_chat");
       socket.off("power_card");
       socket.off("player_left");
+      if (freezeCountdownRef.current) { clearInterval(freezeCountdownRef.current); }
     };
   }, [socketId]);
 
@@ -636,7 +820,7 @@ export default function GameScreen() {
               onChangeText={(val) => { if (!submitted) setAnswers((prev) => ({ ...prev, [cat]: val })); }}
               placeholder={`${currentLetter}...`}
               placeholderTextColor={Colors.inputPlaceholder}
-              editable={!submitted}
+              editable={!submitted && !isFrozen}
               textAlign="right"
               returnKeyType={idx < GAME_CATEGORIES.length - 1 ? "next" : "done"}
               autoCorrect={false}
@@ -676,8 +860,15 @@ export default function GameScreen() {
         </View>
       )}
 
+      {/* ─── FREEZE OVERLAY ─── */}
+      <FreezeOverlay visible={isFrozen} countdown={frozenCountdown} cracking={showCrack} />
+
       {!submitted ? (
-        <TouchableOpacity style={[styles.submitBtn, { bottom: bottomInset + 12 }]} onPress={handleSubmit}>
+        <TouchableOpacity
+          style={[styles.submitBtn, { bottom: bottomInset + 12 }, isFrozen && { opacity: 0.45 }]}
+          onPress={handleSubmit}
+          disabled={isFrozen}
+        >
           <Ionicons name="send" size={20} color={Colors.black} style={{ marginRight: 8 }} />
           <Text style={styles.submitBtnText}>{t.submit}</Text>
         </TouchableOpacity>
