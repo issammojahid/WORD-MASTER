@@ -49,7 +49,10 @@ export default function LobbyScreen() {
   const { profile, playerId } = usePlayer();
   const params = useLocalSearchParams<{ coinEntry?: string; action?: string; join?: string }>();
   const coinEntry = params.coinEntry ? parseInt(params.coinEntry, 10) : 0;
-  const [tab, setTab] = useState<TabMode>("select");
+  // Quick match mode: opened from league screen with a coin entry amount
+  const isQuickMatchMode = params.coinEntry !== undefined && !isNaN(coinEntry) && coinEntry >= 0;
+  // Start directly in matchmaking tab when coming from league — no "select" screen flash
+  const [tab, setTab] = useState<TabMode>(isQuickMatchMode ? "matchmaking" : "select");
   const [joinCode, setJoinCode] = useState("");
   const [room, setRoom] = useState<RoomData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -77,6 +80,8 @@ export default function LobbyScreen() {
 
   const roomIdRef = useRef<string | null>(null);
   const actionInProgressRef = useRef(false);
+  // Tracks active matchmaking so we can re-queue after a socket reconnect
+  const isInMatchmakingRef = useRef(isQuickMatchMode);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
@@ -217,6 +222,12 @@ export default function LobbyScreen() {
 
     const handleConnect = () => {
       setSocketId(socket.id || null);
+      // If we were in the matchmaking queue, re-register with the new socket ID
+      // (server removes the player from the queue on socket disconnect)
+      if (isInMatchmakingRef.current) {
+        socket.emit("findMatch", { playerName: profile.name, playerSkin: profile.equippedSkin, coinEntry, playerId });
+        return;
+      }
       const currentRoomId = roomIdRef.current;
       if (currentRoomId) {
         socket.emit(
@@ -246,6 +257,7 @@ export default function LobbyScreen() {
 
     const handleMatchFound = (data: { roomId: string; letter: string; round: number; totalRounds: number; coinEntry?: number }) => {
       actionInProgressRef.current = false;
+      isInMatchmakingRef.current = false;
       roomIdRef.current = data.roomId;
       router.replace({
         pathname: "/game",
@@ -260,8 +272,17 @@ export default function LobbyScreen() {
 
     const handleMatchError = (data: { error: string }) => {
       setLoading(false);
-      setMatchmakingStatus(data.error === "insufficient_coins" ? "رصيدك غير كافي لهذه المباراة" : "خطأ في المطابقة");
-      setTab("select");
+      actionInProgressRef.current = false;
+      isInMatchmakingRef.current = false;
+      const errorMsg = data.error === "insufficient_coins"
+        ? "رصيدك غير كافي لهذه المباراة"
+        : "خطأ في المطابقة، اضغط إلغاء للعودة";
+      setMatchmakingStatus(errorMsg);
+      // When in quick match mode (from league screen), stay on the matchmaking screen
+      // so the user sees the error and can press Cancel — do NOT auto-navigate away.
+      if (!isQuickMatchMode) {
+        setTab("select");
+      }
     };
 
     socket.on("connect", handleConnect);
@@ -283,13 +304,11 @@ export default function LobbyScreen() {
     };
   }, []);
 
-  // Auto-start matchmaking when coinEntry is provided (Quick Match mode)
+  // Auto-start matchmaking when opened from league screen with a coin entry amount.
+  // Tab is already initialized as "matchmaking" so there is no "select" screen flash.
   useEffect(() => {
-    if (coinEntry >= 0 && params.coinEntry !== undefined) {
-      const t = setTimeout(() => {
-        handleQuickMatch();
-      }, 300);
-      return () => clearTimeout(t);
+    if (isQuickMatchMode) {
+      handleQuickMatch();
     }
   }, []);
 
@@ -395,6 +414,7 @@ export default function LobbyScreen() {
   const handleQuickMatch = () => {
     if (actionInProgressRef.current) return;
     actionInProgressRef.current = true;
+    isInMatchmakingRef.current = true;
     setTab("matchmaking");
     setMatchmakingStatus("جاري البحث عن لاعب...");
     setLoading(true);
@@ -406,6 +426,7 @@ export default function LobbyScreen() {
     const socket = getSocket();
     socket.emit("cancelMatch");
     actionInProgressRef.current = false;
+    isInMatchmakingRef.current = false;
     setLoading(false);
     if (params.coinEntry !== undefined) {
       router.back();
