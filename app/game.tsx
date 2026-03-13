@@ -21,6 +21,7 @@ import { usePlayer, SKINS } from "@/contexts/PlayerContext";
 import Colors from "@/constants/colors";
 import { getSocket } from "@/services/socket";
 import { GAME_CATEGORIES, GameCategory } from "@/constants/i18n";
+import { getApiUrl } from "@/lib/query-client";
 
 const ROUND_TIME = 50;
 
@@ -31,6 +32,14 @@ const QUICK_MESSAGES = [
   "سهلة! 😎",
   "ماشاء الله 🌟",
   "اوف 😬",
+];
+
+// Power cards — only available in online matches and friend rooms (game.tsx)
+type PowerCardId = "time" | "freeze" | "hint";
+const POWER_CARD_DEFS: { id: PowerCardId; icon: string; label: string; color: string; desc: string }[] = [
+  { id: "time",   icon: "⏰", label: "وقت",    color: "#2ECC71", desc: "+20 ثانية" },
+  { id: "freeze", icon: "❄️", label: "تجميد",  color: "#3498DB", desc: "جمّد الكل" },
+  { id: "hint",   icon: "💡", label: "تلميح",  color: "#F5A623", desc: "كلمة صحيحة" },
 ];
 
 type CategoryStatus = "idle" | "correct" | "duplicate" | "empty" | "invalid";
@@ -83,6 +92,15 @@ export default function GameScreen() {
   const [chatBubbles, setChatBubbles] = useState<ChatBubble[]>([]);
   const [streakReward, setStreakReward] = useState<{ streakBonus: number; coinEntryReward: number } | null>(null);
 
+  // ── Power cards state ──────────────────────────────────────────────────────
+  const [usedCards, setUsedCards] = useState<Set<PowerCardId>>(new Set());
+  const [hintWordPool, setHintWordPool] = useState<Record<string, string[]>>({});
+  const [powerToast, setPowerToast] = useState<{ msg: string; color: string } | null>(null);
+  // isFrozen: true = my timer is paused because an opponent used Freeze on me
+  const frozenRef = useRef(false);
+  const freezeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // ──────────────────────────────────────────────────────────────────────────
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const letterAnim = useRef(new Animated.Value(0)).current;
   const answersRef = useRef<Record<GameCategory, string>>({} as Record<GameCategory, string>);
@@ -113,6 +131,8 @@ export default function GameScreen() {
     stopTimer();
     setTimeLeft(ROUND_TIME);
     timerRef.current = setInterval(() => {
+      // Skip tick while frozen by an opponent's Freeze card
+      if (frozenRef.current) return;
       setTimeLeft((prev) => {
         if (prev <= 1) {
           stopTimer();
@@ -123,6 +143,62 @@ export default function GameScreen() {
         return prev - 1;
       });
     }, 1000);
+  };
+
+  // Fetch word pool for the Hint power card whenever the letter changes
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const url = new URL("/api/words", getApiUrl());
+        url.searchParams.set("letter", currentLetter);
+        const res = await fetch(url.toString());
+        if (res.ok && !cancelled) setHintWordPool(await res.json());
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [currentLetter]);
+
+  // Power card helper: show a temporary toast notification
+  const showPowerToast = (msg: string, color: string) => {
+    setPowerToast({ msg, color });
+    setTimeout(() => setPowerToast(null), 3000);
+  };
+
+  // Power card activation handler
+  const usePowerCard = (cardId: PowerCardId) => {
+    if (usedCards.has(cardId) || submitted) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setUsedCards((prev) => new Set([...prev, cardId]));
+
+    switch (cardId) {
+      case "time":
+        setTimeLeft((prev) => Math.min(prev + 20, ROUND_TIME + 30));
+        showPowerToast("⏰ +20 ثانية!", "#2ECC71");
+        break;
+
+      case "freeze":
+        socket.emit("power_card", { roomId, type: "freeze", playerName: profile.name });
+        showPowerToast("❄️ تم تجميد المنافسين!", "#3498DB");
+        break;
+
+      case "hint": {
+        // Pick the first empty category and reveal a random valid word from the pool
+        const emptyCats = GAME_CATEGORIES.filter((cat) => !(answers[cat] || "").trim());
+        const targetCat = emptyCats.length > 0
+          ? emptyCats[Math.floor(Math.random() * emptyCats.length)]
+          : GAME_CATEGORIES[Math.floor(Math.random() * GAME_CATEGORIES.length)];
+        const pool = hintWordPool[targetCat] || [];
+        if (pool.length > 0) {
+          const word = pool[Math.floor(Math.random() * Math.min(pool.length, 20))];
+          const label = (t as Record<string, string>)[targetCat] || targetCat;
+          showPowerToast(`💡 ${label}: ${word}`, "#F5A623");
+        } else {
+          showPowerToast("💡 لا توجد تلميحات", "#F5A623");
+        }
+        break;
+      }
+    }
   };
 
   const doSubmit = (currentAnswers: Record<GameCategory, string>) => {
@@ -183,8 +259,24 @@ export default function GameScreen() {
       setRoundResults(null);
       setTimeLeft(ROUND_TIME);
       setChatBubbles([]);
+      // Clear any active freeze effect between rounds
+      frozenRef.current = false;
+      if (freezeTimerRef.current) { clearTimeout(freezeTimerRef.current); freezeTimerRef.current = null; }
       letterAnim.setValue(0);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    });
+
+    // Power card incoming — an opponent used a card that affects me
+    socket.on("power_card", (data: { type: string; playerName: string }) => {
+      if (data.type === "freeze") {
+        // Pause my timer for 5 seconds
+        frozenRef.current = true;
+        if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current);
+        freezeTimerRef.current = setTimeout(() => { frozenRef.current = false; }, 5000);
+        // Show a chat bubble so the player knows what happened
+        const bubbleId = Date.now().toString() + Math.random();
+        addChatBubble({ id: bubbleId, message: "❄️ تجميد!", playerName: data.playerName, isMe: false });
+      }
     });
 
     socket.on("game_over", (data: {
@@ -237,6 +329,7 @@ export default function GameScreen() {
       socket.off("new_round");
       socket.off("game_over");
       socket.off("quick_chat");
+      socket.off("power_card");
     };
   }, [socketId]);
 
@@ -475,9 +568,9 @@ export default function GameScreen() {
 
       <KeyboardAwareScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={[styles.inputsContent, { paddingBottom: bottomInset + 80 }]}
+        contentContainerStyle={[styles.inputsContent, { paddingBottom: bottomInset + 150 }]}
         showsVerticalScrollIndicator={false}
-        bottomOffset={80}
+        bottomOffset={150}
         keyboardShouldPersistTaps="handled"
       >
         {GAME_CATEGORIES.map((cat, idx) => (
@@ -501,6 +594,37 @@ export default function GameScreen() {
           </View>
         ))}
       </KeyboardAwareScrollView>
+
+      {/* ─── POWER TOAST ─── */}
+      {powerToast && (
+        <View style={[styles.powerToast, { backgroundColor: powerToast.color + "22", borderColor: powerToast.color + "66", bottom: bottomInset + 140 }]}>
+          <Text style={[styles.powerToastText, { color: powerToast.color }]}>{powerToast.msg}</Text>
+        </View>
+      )}
+
+      {/* ─── POWER CARDS ROW ─── */}
+      {!submitted && (
+        <View style={[styles.powerCardsRow, { bottom: bottomInset + 74 }]}>
+          {POWER_CARD_DEFS.map((card) => {
+            const used = usedCards.has(card.id);
+            return (
+              <TouchableOpacity
+                key={card.id}
+                style={[styles.powerCard, used && styles.powerCardUsed, { borderColor: used ? Colors.cardBorder : card.color + "66" }]}
+                onPress={() => usePowerCard(card.id)}
+                disabled={used}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.powerCardIcon}>{card.icon}</Text>
+                <Text style={[styles.powerCardLabel, { color: used ? Colors.textMuted : card.color }]}>{card.label}</Text>
+                <Text style={[styles.powerCardDesc, { color: used ? Colors.textMuted : Colors.textSecondary }]}>
+                  {used ? "مستخدمة" : card.desc}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
 
       {!submitted ? (
         <TouchableOpacity style={[styles.submitBtn, { bottom: bottomInset + 12 }]} onPress={handleSubmit}>
@@ -620,6 +744,32 @@ const styles = StyleSheet.create({
   },
   categoryInputFilled: { borderColor: Colors.gold + "80", backgroundColor: Colors.gold + "10" },
   categoryInputSubmitted: { opacity: 0.6 },
+  // Power cards
+  powerCardsRow: {
+    position: "absolute", left: 12, right: 12,
+    flexDirection: "row", gap: 8,
+  },
+  powerCard: {
+    flex: 1, backgroundColor: Colors.card, borderRadius: 14, paddingVertical: 8,
+    alignItems: "center", borderWidth: 1.5,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2, shadowRadius: 4, elevation: 3,
+  },
+  powerCardUsed: {
+    backgroundColor: Colors.background, opacity: 0.5,
+  },
+  powerCardIcon: { fontSize: 20, marginBottom: 1 },
+  powerCardLabel: { fontFamily: "Cairo_700Bold", fontSize: 11 },
+  powerCardDesc: { fontFamily: "Cairo_400Regular", fontSize: 9, marginTop: 1 },
+  powerToast: {
+    position: "absolute", left: 24, right: 24, borderRadius: 14,
+    paddingVertical: 10, paddingHorizontal: 16, borderWidth: 1.5,
+    alignItems: "center",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25, shadowRadius: 8, elevation: 6,
+  },
+  powerToastText: { fontFamily: "Cairo_700Bold", fontSize: 15, textAlign: "center" },
+
   submitBtn: {
     position: "absolute", left: 16, right: 16, backgroundColor: Colors.gold,
     borderRadius: 16, paddingVertical: 16, flexDirection: "row",

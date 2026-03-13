@@ -935,6 +935,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       socket.to(data.roomId).emit("quick_chat", { message: data.message, playerName: data.playerName });
     });
 
+    // Power card relay — broadcast card activation to all OTHER players in the room
+    socket.on("power_card", (data: { roomId: string; type: string; playerName: string }) => {
+      socket.to(data.roomId).emit("power_card", { type: data.type, playerName: data.playerName });
+    });
+
     // Voice data relay — forward audio chunks to all players in the room
     socket.on("voice_data", (data: { roomId: string; audio: string; isSpeaking: boolean }) => {
       socket.to(data.roomId).emit("voice_data", { audio: data.audio, from: socket.id, isSpeaking: data.isSpeaking });
