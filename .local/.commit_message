@@ -1,0 +1,11 @@
+remove online play screen; friends card navigates direct to room lobby
+
+Changes:
+- app/index.tsx: "اللعب مع الأصدقاء" card onPress now routes to /lobby instead of /friends
+- app/lobby.tsx:
+  • Removed "مباراة سريعة" (Quick Match) card from tab==="select" screen
+  • Updated section title: "اختر طريقة اللعب"
+  • Updated header title: "اللعب مع الأصدقاء" (was t.playOnline / "اللعب أونلاين")
+  • Select screen now only shows Create Room + Join Room
+
+No server, socket, matchmaking, or game logic modified.

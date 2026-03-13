@@ -1,0 +1,103 @@
+Starting project at /home/runner/workspace
+React Compiler enabled
+Metro is running in CI mode, reloads are disabled. Remove CI=true to enable watch mode.
+Starting Metro Bundler
+The following packages should be updated for best compatibility with the installed expo version:
+  expo@54.0.32 - expected version: ~54.0.33
+  expo-av@15.0.2 - expected version: ~16.0.8
+  expo-glass-effect@0.1.8 - expected version: ~0.1.9
+  expo-router@6.0.22 - expected version: ~6.0.23
+  react-native-keyboard-controller@1.20.6 - expected version: 1.18.5
+Your project may not work correctly until you install the expected versions of the packages.
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  4.8% ( 41/187)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓░░░░░░░░░░░░░░░ 11.7% ( 87/254)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓░░░░░░░░░░░░░░ 16.2% (119/296)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓░░░░░░░░░░░░░ 23.9% (183/374)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓░░░░░░░░░░░ 37.0% (259/426)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓░░░░░░░░░░░ 37.0% (335/565)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 48.5% (471/676)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓░░░░░░░░ 55.5% (596/800)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 58.6% (657/858)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓░░░░░░ 67.9% (772/937)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 68.8% (792/955)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 69.9% (802/959)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 76.3% (861/986)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 76.9% ( 941/1073)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 76.9% (1040/1197)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 81.7% (1137/1258)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 92.2% (1254/1306)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 96.1% (1336/1363)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 96.7% (1406/1430)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.6% (1447/1450)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.7% (1448/1450)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.7% (1472/1474)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1473/1474)
+[80D[1A[0JWeb Bundling failed 2737ms node_modules/expo-router/entry.js (1474 modules)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1473/1474)
+[80D[1A[0JUnable to resolve "../assets/images/logo.png" from "app/index.tsx"
+[0m [90m 1019 |[39m         [33m<[39m[33mAnimated[39m[33m.[39m[33mView[39m style[33m=[39m{[styles[33m.[39mlogoContainer[33m,[39m { transform[33m:[39m [{ translateY[33m:[39m floatAnim }] }]}[33m>[39m
+ [90m 1020 |[39m           [33m<[39m[33mImage[39m
+[31m[1m>[22m[39m[90m 1021 |[39m             source[33m=[39m{require([32m"../assets/images/logo.png"[39m)}
+ [90m      |[39m                              [31m[1m^[22m[39m
+ [90m 1022 |[39m             style[33m=[39m{styles[33m.[39mlogoImage}
+ [90m 1023 |[39m             resizeMode[33m=[39m[32m"contain"[39m
+ [90m 1024 |[39m           [33m/[39m[33m>[39m[0m
+
+Import stack:
+
+ app/index.tsx
+ | import "../assets/images/logo.png"
+
+ app (require.context)
+
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓░░░░░░░░░░░ 33.4% (204/353)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓░░░░░░░░░░ 42.4% (353/542)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 57.7% (664/874)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 74.3% (1007/1168)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 96.1% (1394/1422)
+[80D[1A[0JWeb Bundling failed 525ms node_modules/expo-router/entry.js (1422 modules)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 96.1% (1394/1422)
+[80D[1A[0JUnable to resolve "../assets/images/logo.png" from "app/index.tsx"
+[0m [90m 1019 |[39m         [33m<[39m[33mAnimated[39m[33m.[39m[33mView[39m style[33m=[39m{[styles[33m.[39mlogoContainer[33m,[39m { transform[33m:[39m [{ translateY[33m:[39m floatAnim }] }]}[33m>[39m
+ [90m 1020 |[39m           [33m<[39m[33mImage[39m
+[31m[1m>[22m[39m[90m 1021 |[39m             source[33m=[39m{require([32m"../assets/images/logo.png"[39m)}
+ [90m      |[39m                              [31m[1m^[22m[39m
+ [90m 1022 |[39m             style[33m=[39m{styles[33m.[39mlogoImage}
+ [90m 1023 |[39m             resizeMode[33m=[39m[32m"contain"[39m
+ [90m 1024 |[39m           [33m/[39m[33m>[39m[0m
+
+Import stack:
+
+ app/index.tsx
+ | import "../assets/images/logo.png"
+
+ app (require.context)
+
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓░░░░░░░░░░░ 34.0% (203/348)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 45.4% (324/481)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 56.7% (641/851)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 74.9% ( 882/1019)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 84.9% (1199/1301)
+[80D[1A[0JWeb Bundling failed 564ms node_modules/expo-router/entry.js (1301 modules)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 84.9% (1199/1301)
+[80D[1A[0JUnable to resolve "../assets/images/logo.png" from "app/index.tsx"
+[0m [90m 1019 |[39m         [33m<[39m[33mAnimated[39m[33m.[39m[33mView[39m style[33m=[39m{[styles[33m.[39mlogoContainer[33m,[39m { transform[33m:[39m [{ translateY[33m:[39m floatAnim }] }]}[33m>[39m
+ [90m 1020 |[39m           [33m<[39m[33mImage[39m
+[31m[1m>[22m[39m[90m 1021 |[39m             source[33m=[39m{require([32m"../assets/images/logo.png"[39m)}
+ [90m      |[39m                              [31m[1m^[22m[39m
+ [90m 1022 |[39m             style[33m=[39m{styles[33m.[39mlogoImage}
+ [90m 1023 |[39m             resizeMode[33m=[39m[32m"contain"[39m
+ [90m 1024 |[39m           [33m/[39m[33m>[39m[0m
+
+Import stack:
+
+ app/index.tsx
+ | import "../assets/images/logo.png"
+
+ app (require.context)
+
