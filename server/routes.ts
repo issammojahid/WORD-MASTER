@@ -14,7 +14,7 @@ import {
   findAvailableRoom,
   type PlayerAnswers,
 } from "./gameLogic";
-import { validateWord, CATEGORY_MAP, type WordCategory } from "./wordDatabase";
+import { validateWord, CATEGORY_MAP, getWordsForLetter, type WordCategory } from "./wordDatabase";
 import { ARABIC_LETTERS } from "./gameLogic";
 import { db } from "./db";
 import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, playerDailyTasks, playerAchievements, roomInvites } from "@shared/schema";
@@ -455,6 +455,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // POST /api/validate-round
   // Body: { letter: string, answers: Record<gameCategory, string>[] }
   // Returns: { results: { category, word, valid, reason }[] }[]
+  // GET /api/words?letter=X — return all word-database words for that letter, per game category.
+  // Used exclusively by the local AI-vs-player mode (no socket, no game state modified).
+  app.get("/api/words", (req, res) => {
+    const letter = req.query.letter as string | undefined;
+    if (!letter) return res.status(400).json({ error: "letter required" });
+    const result: Record<string, string[]> = {};
+    for (const [gameKey, dbCategory] of Object.entries(CATEGORY_MAP)) {
+      result[gameKey] = getWordsForLetter(dbCategory as WordCategory, letter);
+    }
+    return res.json(result);
+  });
+
   app.post("/api/validate-round", (req, res) => {
     try {
       const { letter, participantsAnswers } = req.body as {

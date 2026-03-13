@@ -94,6 +94,7 @@ function RootLayoutNav() {
         <Stack.Screen name="index" />
         <Stack.Screen name="lobby" />
         <Stack.Screen name="game" />
+        <Stack.Screen name="ai-game" />
         <Stack.Screen name="leaderboard" />
         <Stack.Screen name="shop" />
         <Stack.Screen name="settings" />

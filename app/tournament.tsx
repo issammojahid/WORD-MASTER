@@ -369,6 +369,10 @@ export default function TournamentScreen() {
       );
       const data = await res.json();
       if (res.ok) {
+        // Reflect the entry fee deduction immediately so the coin balance
+        // is correct before the server profile is re-synced at game end.
+        // The server always deducts TOURNAMENT_ENTRY_FEE (100) on join.
+        addCoins(-100);
         setViewMode("detail");
         fetchTournamentDetail(tournamentId);
       } else {

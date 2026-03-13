@@ -99,7 +99,7 @@ function formatCoins(n: number): string {
 
 export default function LeagueScreen() {
   const insets = useSafeAreaInsets();
-  const { profile } = usePlayer();
+  const { profile, addCoins } = usePlayer();
   const [activeIdx, setActiveIdx] = useState(0);
   const flatRef = useRef<FlatList>(null);
 
@@ -113,6 +113,9 @@ export default function LeagueScreen() {
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    // Deduct the entry fee immediately so the balance is correct during matchmaking.
+    // Rewards are added at game-end by reportGameResult (win only).
+    if (entry > 0) addCoins(-entry);
     router.push({ pathname: "/lobby", params: { coinEntry: String(entry) } });
   };
 

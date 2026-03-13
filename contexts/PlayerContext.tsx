@@ -260,8 +260,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
       }
     }
-    const entryFee = coinEntry || 0;
-    const netCoins = coinsEarned + streakBonus - entryFee;
+    // Entry fee is deducted upfront in the league screen (before matchmaking),
+    // so we must NOT deduct it again here in the fallback path.
+    const netCoins = coinsEarned + streakBonus;
     updateProfile({
       coins: profile.coins + netCoins,
       xp: profile.xp + xpEarned,

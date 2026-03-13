@@ -194,6 +194,15 @@ export default function HomeScreen() {
       accent: "#7C3AED",
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/tournament"); },
     },
+    {
+      id: "ai",
+      title: "اللعب ضد الذكاء الاصطناعي",
+      subtitle: "تحدّى الذكاء الاصطناعي بمستويات صعوبة مختلفة",
+      emoji: "🤖",
+      gradient: ["#0EA5E930", "#0EA5E910"],
+      accent: "#0EA5E9",
+      onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/ai-game"); },
+    },
   ];
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
