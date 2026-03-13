@@ -914,7 +914,7 @@ export default function HomeScreen() {
       emoji: "👥",
       gradient: [Colors.emerald + "30", Colors.emerald + "10"],
       accent: Colors.emerald,
-      onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/friends"); },
+      onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/lobby"); },
     },
     {
       id: "tournament",

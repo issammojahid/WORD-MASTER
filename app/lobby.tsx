@@ -845,7 +845,7 @@ export default function LobbyScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{tab === "join" ? t.joinRoom : t.playOnline}</Text>
+        <Text style={styles.headerTitle}>{tab === "join" ? t.joinRoom : "اللعب مع الأصدقاء"}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -862,22 +862,7 @@ export default function LobbyScreen() {
 
         {tab === "select" && (
           <View style={styles.selectButtons}>
-            <Text style={styles.sectionTitle}>كيف تريد اللعب؟</Text>
-
-            <TouchableOpacity
-              style={[styles.lobbyOptionCard, styles.lobbyOptionCardPrimary]}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); handleQuickMatch(); }}
-              activeOpacity={0.85}
-            >
-              <View style={[styles.lobbyOptionIcon, { backgroundColor: Colors.gold + "22" }]}>
-                <Ionicons name="flash" size={32} color={Colors.gold} />
-              </View>
-              <View style={styles.lobbyOptionText}>
-                <Text style={styles.lobbyOptionTitle}>مباراة سريعة</Text>
-                <Text style={styles.lobbyOptionSubtitle}>انضم فوراً لأقرب مباراة متاحة</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
-            </TouchableOpacity>
+            <Text style={styles.sectionTitle}>اختر طريقة اللعب</Text>
 
             <TouchableOpacity
               style={styles.lobbyOptionCard}
