@@ -627,7 +627,7 @@ const cSt = StyleSheet.create({
   iconCircle:{ width: ICON_SZ, height: ICON_SZ, borderRadius: ICON_SZ / 2, justifyContent: "center", alignItems: "center", overflow: "hidden" },
   iconGlow:  { position: "absolute", width: ICON_OUTER, height: ICON_OUTER, borderRadius: ICON_OUTER / 2 },
   sparkle:   { position: "absolute", fontSize: 9 },
-  inner:     { paddingHorizontal: 18, paddingVertical: 16, alignItems: "center", gap: 7, minHeight: 175, justifyContent: "center" },
+  inner:     { paddingHorizontal: 18, paddingVertical: 18, alignItems: "center", gap: 8, minHeight: 182, justifyContent: "center" },
 });
 
 // ── Background floating dot ────────────────────────────────────────────────────
@@ -1472,25 +1472,26 @@ const styles = StyleSheet.create({
   },
   streakRewardHintText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.ruby },
 
-  logoContainer: { alignItems: "center", marginBottom: 14, position: "relative" },
+  logoContainer: { alignItems: "center", marginBottom: 6, position: "relative" },
   logoImage: { width: 195, height: 155 },
   appSubtitle: {
-    fontFamily: "Cairo_400Regular", fontSize: 12,
-    color: LOGO.cyan + "CC", textAlign: "center", marginTop: 2,
-    letterSpacing: 0.3,
+    fontFamily: "Cairo_600SemiBold", fontSize: 15,
+    color: LOGO.cyan, textAlign: "center", marginTop: 0,
+    letterSpacing: 0.5, opacity: 0.92,
   },
 
-  carouselSection: { width: "100%", marginBottom: 18 },
+  carouselSection: { width: "100%", marginBottom: 16, marginHorizontal: -16 },
   carouselTitle: {
-    fontFamily: "Cairo_700Bold", fontSize: 14,
+    fontFamily: "Cairo_700Bold", fontSize: 15,
     color: LOGO.purple,
-    marginBottom: 12, textAlign: "right",
+    marginBottom: 12, textAlign: "right", paddingHorizontal: 16,
   },
-  carouselContent: { paddingHorizontal: 0 },
-  modeTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, textAlign: "center" },
+  carouselContent: { paddingHorizontal: Math.max(0, Math.round((width - width * 0.63) / 2 - 10)) },
+  modeTitle: { fontFamily: "Cairo_700Bold", fontSize: 19, textAlign: "center" },
   modeSubtitle: {
-    fontFamily: "Cairo_400Regular", fontSize: 11,
-    color: "rgba(200,200,220,0.75)", textAlign: "center",
+    fontFamily: "Cairo_400Regular", fontSize: 13,
+    color: "rgba(210,210,230,0.88)", textAlign: "center",
+    lineHeight: 20, marginTop: 2,
   },
   modePlayBtn: {
     flexDirection: "row", alignItems: "center", gap: 7,
