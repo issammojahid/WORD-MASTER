@@ -100,6 +100,13 @@ function RootLayoutNav() {
         <Stack.Screen name="shop" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="offline" />
+        <Stack.Screen name="friends" />
+        <Stack.Screen name="tasks" />
+        <Stack.Screen name="achievements" />
+        <Stack.Screen name="spin" />
+        <Stack.Screen name="league" />
+        <Stack.Screen name="tournament" />
+        <Stack.Screen name="rapid" />
         <Stack.Screen name="+not-found" />
       </Stack>
     </>

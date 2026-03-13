@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { usePlayer } from "@/contexts/PlayerContext";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
+import { ScreenErrorBoundary } from "@/components/ScreenErrorBoundary";
 
 type Achievement = {
   key: string;
@@ -32,11 +33,17 @@ type Achievement = {
 };
 
 async function apiFetch(url: string, options?: RequestInit) {
-  const res = await fetch(url, { headers: { "Content-Type": "application/json" }, ...options });
-  return res.json();
+  try {
+    const res = await fetch(url, { headers: { "Content-Type": "application/json" }, ...options });
+    if (!res.ok) return null;
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
 }
 
-export default function AchievementsScreen() {
+function AchievementsScreenInner() {
   const insets = useSafeAreaInsets();
   const { playerId, addCoins, addXp } = usePlayer();
   const qc = useQueryClient();
@@ -246,3 +253,11 @@ const styles = StyleSheet.create({
     justifyContent: "center", alignItems: "center",
   },
 });
+
+export default function AchievementsScreen() {
+  return (
+    <ScreenErrorBoundary screenName="الإنجازات">
+      <AchievementsScreenInner />
+    </ScreenErrorBoundary>
+  );
+}

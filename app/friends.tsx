@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { usePlayer, SKINS } from "@/contexts/PlayerContext";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
+import { ScreenErrorBoundary } from "@/components/ScreenErrorBoundary";
 
 type PlayerResult = { id: string; name: string; skin: string; level: number; wins: number };
 type FriendEntry = {
@@ -30,11 +31,17 @@ type FriendEntry = {
 type TabType = "friends" | "search" | "requests";
 
 async function apiFetch(url: string, options?: RequestInit) {
-  const res = await fetch(url, { headers: { "Content-Type": "application/json" }, ...options });
-  return res.json();
+  try {
+    const res = await fetch(url, { headers: { "Content-Type": "application/json" }, ...options });
+    if (!res.ok) return null;
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
 }
 
-export default function FriendsScreen() {
+function FriendsScreenInner() {
   const insets = useSafeAreaInsets();
   const { playerId } = usePlayer();
   const qc = useQueryClient();
@@ -369,3 +376,11 @@ const styles = StyleSheet.create({
   emptyText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textSecondary },
   emptySubText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" },
 });
+
+export default function FriendsScreen() {
+  return (
+    <ScreenErrorBoundary screenName="الأصدقاء">
+      <FriendsScreenInner />
+    </ScreenErrorBoundary>
+  );
+}

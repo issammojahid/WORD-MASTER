@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { usePlayer } from "@/contexts/PlayerContext";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
+import { ScreenErrorBoundary } from "@/components/ScreenErrorBoundary";
 
 type Task = {
   key: string;
@@ -32,11 +33,17 @@ type Task = {
 };
 
 async function apiFetch(url: string, options?: RequestInit) {
-  const res = await fetch(url, { headers: { "Content-Type": "application/json" }, ...options });
-  return res.json();
+  try {
+    const res = await fetch(url, { headers: { "Content-Type": "application/json" }, ...options });
+    if (!res.ok) return null;
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+  } catch {
+    return null;
+  }
 }
 
-export default function TasksScreen() {
+function TasksScreenInner() {
   const insets = useSafeAreaInsets();
   const { playerId, addCoins, addXp } = usePlayer();
   const qc = useQueryClient();
@@ -213,3 +220,11 @@ const styles = StyleSheet.create({
     justifyContent: "center", alignItems: "center",
   },
 });
+
+export default function TasksScreen() {
+  return (
+    <ScreenErrorBoundary screenName="مهام اليوم">
+      <TasksScreenInner />
+    </ScreenErrorBoundary>
+  );
+}
