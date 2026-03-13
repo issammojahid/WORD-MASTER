@@ -116,7 +116,6 @@ function LoginRewardPopup({ onClaim }: { onClaim: () => void }) {
   );
 }
 import Colors from "@/constants/colors";
-import { MAPS } from "@/constants/i18n";
 
 const { width, height } = Dimensions.get("window");
 
@@ -222,12 +221,12 @@ const LogoSparkle = memo(({ symbol, color, x, y, delay }: LogoSparkleProps) => {
 });
 
 const LOGO_SPARKLES: LogoSparkleProps[] = [
-  { symbol: "✦", color: LOGO.cyan,   x: -18, y: 30,  delay: 0    },
-  { symbol: "⭐", color: LOGO.yellow, x: -12, y: 90,  delay: 700  },
-  { symbol: "✦", color: LOGO.pink,   x: 205, y: 20,  delay: 1400 },
-  { symbol: "✨", color: LOGO.purple, x: 210, y: 85,  delay: 400  },
-  { symbol: "✦", color: LOGO.cyan,   x: 90,  y: -10, delay: 1100 },
-  { symbol: "⭐", color: LOGO.pink,   x: 120, y: 160, delay: 900  },
+  { symbol: "✦", color: LOGO.cyan,   x: -22, y: 18,  delay: 0    },
+  { symbol: "⭐", color: LOGO.yellow, x: -16, y: 65,  delay: 700  },
+  { symbol: "✦", color: LOGO.pink,   x: 110, y: -14, delay: 1400 },
+  { symbol: "✨", color: LOGO.purple, x: 120, y: 105, delay: 400  },
+  { symbol: "✦", color: LOGO.cyan,   x: 125, y: 20,  delay: 1100 },
+  { symbol: "⭐", color: LOGO.pink,   x: 118, y: 68,  delay: 900  },
 ];
 
 // ── Popup panels ──────────────────────────────────────────────────────────────
@@ -625,7 +624,7 @@ const cSt = StyleSheet.create({
   btnShine:  { position: "absolute", top: -14, width: 18, height: 56, backgroundColor: "rgba(255,255,255,0.30)", borderRadius: 4 },
   iconOuter: { width: ICON_OUTER, height: ICON_OUTER, alignItems: "center", justifyContent: "center", marginBottom: 2 },
   iconCircle:{ width: ICON_SZ, height: ICON_SZ, borderRadius: ICON_SZ / 2, justifyContent: "center", alignItems: "center", overflow: "hidden" },
-  iconGlow:  { position: "absolute", width: ICON_OUTER, height: ICON_OUTER, borderRadius: ICON_OUTER / 2 },
+  iconGlow:  { position: "absolute", width: ICON_OUTER, height: ICON_OUTER, borderRadius: ICON_OUTER / 2, opacity: 0.65 },
   sparkle:   { position: "absolute", fontSize: 9 },
   inner:     { paddingHorizontal: 18, paddingVertical: 18, alignItems: "center", gap: 8, minHeight: 182, justifyContent: "center" },
 });
@@ -902,7 +901,7 @@ const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: numbe
     Animated.spring(pressScl, { toValue: 1, tension: 200, friction: 8, useNativeDriver: true }).start();
   };
 
-  const glowOp = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.05, isActive ? 0.20 : 0.10] });
+  const glowOp = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.02, isActive ? 0.10 : 0.05] });
   const Icon   = MODE_ICONS[item.id] ?? QuickIcon;
 
   return (
@@ -929,18 +928,18 @@ const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: numbe
       >
         {/* Rich gradient background */}
         <LinearGradient
-          colors={[item.accent + "40", item.accent + "18", "#110A2A"]}
+          colors={[item.accent + "38", item.accent + "14", "#0E0828"]}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFillObject}
         />
-        {/* Top-left frosted highlight */}
+        {/* Subtle frosted highlight (top-left corner only) */}
         <LinearGradient
-          colors={["rgba(255,255,255,0.14)", "rgba(255,255,255,0.04)", "transparent"]}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.75 }}
+          colors={["rgba(255,255,255,0.08)", "rgba(255,255,255,0.02)", "transparent"]}
+          start={{ x: 0, y: 0 }} end={{ x: 0.7, y: 0.6 }}
           style={StyleSheet.absoluteFillObject}
           pointerEvents="none"
         />
-        {/* Glow overlay */}
+        {/* Gentle edge glow — reduced so content stays clear */}
         <Animated.View
           pointerEvents="none"
           style={[StyleSheet.absoluteFillObject, { backgroundColor: item.accent, opacity: glowOp }]}
@@ -1247,13 +1246,12 @@ export default function HomeScreen() {
 
         {/* ── LOGO ────────────────────────────────────────── */}
         <Animated.View style={[styles.logoContainer, { transform: [{ translateY: floatAnim }] }]}>
-          {/* Sparkles near logo */}
+          {/* Sparkles near letter */}
           {LOGO_SPARKLES.map((s, i) => <LogoSparkle key={i} {...s} />)}
-          <Image
-            source={require("../assets/images/logo.png")}
-            style={styles.logoImage}
-            resizeMode="contain"
-          />
+          {/* Glow ring behind letter */}
+          <View style={styles.logoGlowRing} />
+          {/* The "ح" letter */}
+          <Text style={styles.logoLetter}>ح</Text>
           <Text style={styles.appSubtitle}>{t.homeSubtitle}</Text>
         </Animated.View>
 
@@ -1472,12 +1470,24 @@ const styles = StyleSheet.create({
   },
   streakRewardHintText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.ruby },
 
-  logoContainer: { alignItems: "center", marginBottom: 6, position: "relative" },
-  logoImage: { width: 195, height: 155 },
+  logoContainer: { alignItems: "center", marginBottom: 6, position: "relative", paddingHorizontal: 20 },
+  logoGlowRing: {
+    position: "absolute",
+    width: 110, height: 110, borderRadius: 55,
+    backgroundColor: LOGO.cyan + "16",
+    borderWidth: 1.5, borderColor: LOGO.cyan + "30",
+  },
+  logoLetter: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 88,
+    color: LOGO.cyan,
+    textAlign: "center",
+    lineHeight: 100,
+  },
   appSubtitle: {
     fontFamily: "Cairo_600SemiBold", fontSize: 15,
-    color: LOGO.cyan, textAlign: "center", marginTop: 0,
-    letterSpacing: 0.5, opacity: 0.92,
+    color: LOGO.cyan, textAlign: "center", marginTop: 4,
+    letterSpacing: 0.5, opacity: 0.9,
   },
 
   carouselSection: { width: "100%", marginBottom: 16, marginHorizontal: -16 },

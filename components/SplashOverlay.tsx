@@ -2,227 +2,260 @@ import React, { useEffect, useRef } from "react";
 import {
   Animated,
   Dimensions,
+  Easing,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width, height } = Dimensions.get("window");
 
-const GOLD = "#F5A623";
-const NAVY = "#0D1B2A";
-const CREAM = "#F0E6D3";
-const MUTED = "#6B7E91";
-const GOLD_DIM = "#F5A62340";
+const LOGO = {
+  cyan:   "#00D4E8",
+  pink:   "#FF3D9A",
+  purple: "#A855F7",
+  yellow: "#F5C842",
+};
 
-// Pre-computed zellige tile positions (seeded for determinism)
-const TILES = (() => {
-  const COLS = 8;
-  const ROWS = 15;
-  const colSpacing = width / COLS;
-  const rowSpacing = height / ROWS;
-  let s = 1337;
-  const rng = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
-  const out: { x: number; y: number; size: number; opacity: number }[] = [];
-  for (let row = 0; row < ROWS; row++) {
-    for (let col = 0; col < COLS; col++) {
-      out.push({
-        x: col * colSpacing + (row % 2 === 1 ? colSpacing / 2 : 0),
-        y: row * rowSpacing,
-        size: rng() * 10 + 8,
-        opacity: rng() * 0.07 + 0.02,
-      });
-    }
-  }
-  return out;
-})();
+// ── Sparkle particle ─────────────────────────────────────────────────────────
+type SparkleProps = { x: number; y: number; color: string; delay: number; size: number };
+function Sparkle({ x, y, color, delay, size }: SparkleProps) {
+  const op  = useRef(new Animated.Value(0)).current;
+  const scl = useRef(new Animated.Value(0.3)).current;
 
-// ── Progress bar ──────────────────────────────────────────────────────────────
-function ProgressBar() {
+  useEffect(() => {
+    const loop = () => {
+      op.setValue(0); scl.setValue(0.3);
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.parallel([
+          Animated.timing(op,  { toValue: 1,   duration: 450, useNativeDriver: true }),
+          Animated.timing(scl, { toValue: 1.3, duration: 450, easing: Easing.out(Easing.back(2)), useNativeDriver: true }),
+        ]),
+        Animated.delay(500),
+        Animated.parallel([
+          Animated.timing(op,  { toValue: 0, duration: 400, useNativeDriver: true }),
+          Animated.timing(scl, { toValue: 0.3, duration: 400, useNativeDriver: true }),
+        ]),
+        Animated.delay(800 + delay * 0.4),
+      ]).start(({ finished }) => { if (finished) loop(); });
+    };
+    loop();
+    return () => { op.stopAnimation(); scl.stopAnimation(); };
+  }, []);
+
+  return (
+    <Animated.Text
+      pointerEvents="none"
+      style={{
+        position: "absolute", left: x, top: y, fontSize: size,
+        color, opacity: op, transform: [{ scale: scl }],
+      }}
+    >✦</Animated.Text>
+  );
+}
+
+// ── Floating particle ─────────────────────────────────────────────────────────
+type FloatParticleProps = { x: number; startY: number; color: string; delay: number; size: number };
+function FloatParticle({ x, startY, color, delay, size }: FloatParticleProps) {
+  const posY = useRef(new Animated.Value(0)).current;
+  const op   = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const run = () => {
+      posY.setValue(0); op.setValue(0);
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.parallel([
+          Animated.timing(op, { toValue: 0.8, duration: 400, useNativeDriver: true }),
+          Animated.timing(posY, { toValue: -160, duration: 2800, easing: Easing.linear, useNativeDriver: true }),
+        ]),
+        Animated.timing(op, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]).start(({ finished }) => { if (finished) run(); });
+    };
+    run();
+    return () => { posY.stopAnimation(); op.stopAnimation(); };
+  }, []);
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{
+        position: "absolute", left: x, top: startY,
+        width: size, height: size, borderRadius: size / 2,
+        backgroundColor: color,
+        opacity: op,
+        transform: [{ translateY: posY }],
+      }}
+    />
+  );
+}
+
+// ── Loading bar ───────────────────────────────────────────────────────────────
+function LoadingBar({ duration }: { duration: number }) {
   const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(progress, {
       toValue: 1,
-      duration: 4100,
+      duration,
+      easing: Easing.out(Easing.quad),
       useNativeDriver: false,
     }).start();
   }, []);
 
-  const barWidth = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0%", "100%"],
-  });
+  const barWidth = progress.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] });
+  const glowLeft = progress.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] });
 
   return (
-    <View style={styles.progressTrack}>
-      <Animated.View style={[styles.progressFill, { width: barWidth }]} />
-      {/* Shimmer dot at the leading edge */}
-      <Animated.View
-        style={[
-          styles.progressGlow,
-          {
-            left: barWidth,
-            transform: [{ translateX: -6 }],
-          },
-        ]}
-      />
+    <View style={styles.barTrack}>
+      <Animated.View style={{ width: barWidth, height: "100%", overflow: "hidden", borderRadius: 4 }}>
+        <LinearGradient
+          colors={[LOGO.cyan, LOGO.purple, LOGO.pink]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          style={{ flex: 1 }}
+        />
+      </Animated.View>
+      <Animated.View style={[styles.barGlow, { left: glowLeft }]} />
     </View>
   );
 }
 
-// ── Pulsing loading dots ──────────────────────────────────────────────────────
-function PulsingDots() {
-  const d1 = useRef(new Animated.Value(0.25)).current;
-  const d2 = useRef(new Animated.Value(0.25)).current;
-  const d3 = useRef(new Animated.Value(0.25)).current;
+// ── Sparkle ring around logo ──────────────────────────────────────────────────
+const SPARKLE_RING: SparkleProps[] = [
+  { x: width / 2 - 130, y: height / 2 - 80,  color: LOGO.cyan,   delay: 0,    size: 14 },
+  { x: width / 2 + 108, y: height / 2 - 70,  color: LOGO.pink,   delay: 600,  size: 12 },
+  { x: width / 2 - 100, y: height / 2 + 50,  color: LOGO.yellow, delay: 300,  size: 10 },
+  { x: width / 2 + 80,  y: height / 2 + 60,  color: LOGO.purple, delay: 900,  size: 13 },
+  { x: width / 2 - 40,  y: height / 2 - 115, color: LOGO.cyan,   delay: 1200, size: 9  },
+  { x: width / 2 + 20,  y: height / 2 - 120, color: LOGO.pink,   delay: 450,  size: 11 },
+  { x: width / 2 - 20,  y: height / 2 + 110, color: LOGO.purple, delay: 750,  size: 10 },
+  { x: width / 2 + 60,  y: height / 2 - 95,  color: LOGO.yellow, delay: 1050, size: 8  },
+];
 
-  useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(d1, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.timing(d2, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.timing(d3, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.parallel([
-          Animated.timing(d1, { toValue: 0.25, duration: 300, useNativeDriver: true }),
-          Animated.timing(d2, { toValue: 0.25, duration: 300, useNativeDriver: true }),
-          Animated.timing(d3, { toValue: 0.25, duration: 300, useNativeDriver: true }),
-        ]),
-      ])
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, []);
+const FLOAT_PARTICLES = Array.from({ length: 12 }, (_, i) => ({
+  x:      (i * (width / 12)) + (i % 3) * 8,
+  startY: height * 0.55 + (i % 4) * 15,
+  color:  [LOGO.cyan + "99", LOGO.purple + "99", LOGO.pink + "88", LOGO.yellow + "88"][i % 4],
+  delay:  i * 220,
+  size:   2 + (i % 3),
+}));
 
-  return (
-    <View style={styles.dotsRow}>
-      {[d1, d2, d3].map((dot, i) => (
-        <Animated.View key={i} style={[styles.dot, { opacity: dot }]} />
-      ))}
-    </View>
-  );
-}
-
-// ── Decorative divider ────────────────────────────────────────────────────────
-function GoldenDivider() {
-  return (
-    <View style={styles.dividerRow}>
-      <View style={styles.dividerLine} />
-      <View style={styles.dividerDiamond} />
-      <View style={styles.dividerLine} />
-    </View>
-  );
-}
-
-// ── Moroccan 8-pointed star motif ─────────────────────────────────────────────
-function StarMotif() {
-  const glow = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(glow, { toValue: 1.12, duration: 1200, useNativeDriver: true }),
-        Animated.timing(glow, { toValue: 1, duration: 1200, useNativeDriver: true }),
-      ])
-    ).start();
-    return () => glow.stopAnimation();
-  }, []);
-
-  return (
-    <Animated.View style={[styles.starWrapper, { transform: [{ scale: glow }] }]}>
-      <View style={[styles.starSquare, styles.starSquare0]} />
-      <View style={[styles.starSquare, styles.starSquare45]} />
-    </Animated.View>
-  );
-}
-
-// ── Main splash overlay ───────────────────────────────────────────────────────
+// ── Main splash ───────────────────────────────────────────────────────────────
 export default function SplashOverlay() {
   const insets = useSafeAreaInsets();
-  const topInset = insets.top || (typeof window !== "undefined" ? 0 : 44);
 
-  const titleOpacity = useRef(new Animated.Value(0)).current;
-  const titleTranslateY = useRef(new Animated.Value(28)).current;
-  const subOpacity = useRef(new Animated.Value(0)).current;
-  const bottomOpacity = useRef(new Animated.Value(0)).current;
+  // Full title animation
+  const titleOp    = useRef(new Animated.Value(0)).current;
+  const titleScale = useRef(new Animated.Value(0.75)).current;
+  // "ح" letter animation
+  const letterOp    = useRef(new Animated.Value(0)).current;
+  const letterScale = useRef(new Animated.Value(2.5)).current;
+  // Sub elements
+  const subOp      = useRef(new Animated.Value(0)).current;
+  const barOp      = useRef(new Animated.Value(0)).current;
+  // Ring glow pulse
+  const ringPulse  = useRef(new Animated.Value(1)).current;
+
+  const LOADING_DURATION = 3400;
 
   useEffect(() => {
+    // Ring pulse loop
+    Animated.loop(Animated.sequence([
+      Animated.timing(ringPulse, { toValue: 1.12, duration: 1100, useNativeDriver: true }),
+      Animated.timing(ringPulse, { toValue: 1,    duration: 1100, useNativeDriver: true }),
+    ])).start();
+
+    // Main sequence
     Animated.sequence([
-      Animated.delay(300),
+      Animated.delay(200),
+      // Phase 1: Fade in full title
       Animated.parallel([
-        Animated.timing(titleOpacity, { toValue: 1, duration: 900, useNativeDriver: true }),
-        Animated.timing(titleTranslateY, { toValue: 0, duration: 900, useNativeDriver: true }),
+        Animated.timing(titleOp,    { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.spring(titleScale, { toValue: 1, tension: 55, friction: 9, useNativeDriver: true }),
       ]),
       Animated.delay(150),
-      Animated.timing(subOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.delay(150),
-      Animated.timing(bottomOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+      // Phase 2: Show sub-text and loading bar
+      Animated.parallel([
+        Animated.timing(subOp, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.timing(barOp, { toValue: 1, duration: 500, useNativeDriver: true }),
+      ]),
+      // Phase 3: Wait for loading bar to fill (hold for most of LOADING_DURATION)
+      Animated.delay(LOADING_DURATION - 700),
+      // Phase 4: Shrink title out → reveal "ح"
+      Animated.parallel([
+        Animated.timing(titleOp,    { toValue: 0, duration: 450, useNativeDriver: true }),
+        Animated.timing(titleScale, { toValue: 0.15, duration: 450, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+        Animated.timing(subOp,      { toValue: 0, duration: 350, useNativeDriver: true }),
+      ]),
+      // Phase 5: "ح" zooms in from large → normal
+      Animated.parallel([
+        Animated.timing(letterOp,    { toValue: 1, duration: 450, useNativeDriver: true }),
+        Animated.spring(letterScale, { toValue: 1, tension: 60, friction: 8, useNativeDriver: true }),
+      ]),
+      // Hold for parent fade-out
+      Animated.delay(300),
+      // Phase 6: Letter shrinks out before parent fades
+      Animated.parallel([
+        Animated.timing(letterOp,    { toValue: 0, duration: 500, useNativeDriver: true }),
+        Animated.timing(letterScale, { toValue: 0.3, duration: 500, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+      ]),
     ]).start();
+
+    return () => {
+      [titleOp, titleScale, letterOp, letterScale, subOp, barOp, ringPulse].forEach(a => a.stopAnimation());
+    };
   }, []);
 
   return (
     <View style={styles.container}>
-      {/* ── Zellige background tiles ── */}
-      {TILES.map((tile, i) => (
-        <View
-          key={i}
-          style={{
-            position: "absolute",
-            left: tile.x,
-            top: tile.y,
-            width: tile.size,
-            height: tile.size,
-            backgroundColor: GOLD,
-            opacity: tile.opacity,
-            transform: [{ rotate: "45deg" }],
-          }}
-        />
-      ))}
+      <LinearGradient
+        colors={["#0C0A1E", "#160D33", "#0A1428"]}
+        start={{ x: 0, y: 0 }} end={{ x: 0.6, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
 
-      {/* ── Corner ornaments ── */}
-      <View style={[styles.cornerOrnament, styles.cornerTL]} />
-      <View style={[styles.cornerOrnament, styles.cornerTR]} />
-      <View style={[styles.cornerOrnament, styles.cornerBL]} />
-      <View style={[styles.cornerOrnament, styles.cornerBR]} />
+      {/* Background blobs */}
+      <View style={[styles.blob, { top: -80, left: -60, width: 220, height: 220, backgroundColor: LOGO.cyan + "14" }]} />
+      <View style={[styles.blob, { top: 180, right: -70, width: 200, height: 200, backgroundColor: LOGO.pink + "12" }]} />
+      <View style={[styles.blob, { bottom: 100, left: -50, width: 180, height: 180, backgroundColor: LOGO.purple + "16" }]} />
 
-      {/* ── Central content ── */}
-      <View style={[styles.center, { paddingTop: topInset }]}>
-        <StarMotif />
+      {/* Floating particles */}
+      {FLOAT_PARTICLES.map((p, i) => <FloatParticle key={i} {...p} />)}
 
-        <View style={styles.titleCard}>
-          <GoldenDivider />
+      {/* Sparkle ring */}
+      {SPARKLE_RING.map((s, i) => <Sparkle key={i} {...s} />)}
 
-          <Animated.Text
-            style={[
-              styles.arabicTitle,
-              { opacity: titleOpacity, transform: [{ translateY: titleTranslateY }] },
-            ]}
-          >
-            حروف المغرب
-          </Animated.Text>
+      {/* Center content */}
+      <View style={[styles.center, { paddingTop: insets.top }]}>
 
-          <Animated.View style={{ opacity: subOpacity, alignItems: "center", gap: 4 }}>
-            <Text style={styles.englishTitle}>Huroof Al Maghrib</Text>
-          </Animated.View>
+        {/* Ring glow behind the text */}
+        <Animated.View style={[styles.ringGlow, { transform: [{ scale: ringPulse }] }]} />
 
-          <GoldenDivider />
-        </View>
+        {/* Full title "حروف المغرب" */}
+        <Animated.Text style={[styles.fullTitle, { opacity: titleOp, transform: [{ scale: titleScale }] }]}>
+          حروف المغرب
+        </Animated.Text>
 
-        <Animated.Text style={[styles.byline, { opacity: subOpacity }]}>
-          by AisoTeam
+        {/* Single letter "ح" — shown during transformation */}
+        <Animated.Text
+          style={[styles.singleLetter, { opacity: letterOp, transform: [{ scale: letterScale }] }]}
+        >
+          ح
+        </Animated.Text>
+
+        {/* Subtitle */}
+        <Animated.Text style={[styles.subtitle, { opacity: subOp }]}>
+          لعبة الكلمات العربية
         </Animated.Text>
       </View>
 
-      {/* ── Loading area at bottom ── */}
-      <Animated.View
-        style={[
-          styles.loadingArea,
-          { paddingBottom: insets.bottom + 48, opacity: bottomOpacity },
-        ]}
-      >
+      {/* Loading bar at bottom */}
+      <Animated.View style={[styles.loadingArea, { paddingBottom: insets.bottom + 50, opacity: barOp }]}>
         <Text style={styles.loadingLabel}>جاري التحميل...</Text>
-        <ProgressBar />
-        <PulsingDots />
+        <LoadingBar duration={LOADING_DURATION} />
       </Animated.View>
     </View>
   );
@@ -231,148 +264,87 @@ export default function SplashOverlay() {
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: NAVY,
     justifyContent: "center",
     alignItems: "center",
   },
 
-  cornerOrnament: {
+  blob: {
     position: "absolute",
-    width: 80,
-    height: 80,
-    borderColor: GOLD + "25",
+    borderRadius: 999,
   },
-  cornerTL: { top: 40, left: 16, borderTopWidth: 2, borderLeftWidth: 2, borderTopLeftRadius: 16 },
-  cornerTR: { top: 40, right: 16, borderTopWidth: 2, borderRightWidth: 2, borderTopRightRadius: 16 },
-  cornerBL: { bottom: 40, left: 16, borderBottomWidth: 2, borderLeftWidth: 2, borderBottomLeftRadius: 16 },
-  cornerBR: { bottom: 40, right: 16, borderBottomWidth: 2, borderRightWidth: 2, borderBottomRightRadius: 16 },
 
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 32,
-    gap: 20,
+    gap: 12,
   },
 
-  starWrapper: {
-    width: 52,
-    height: 52,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  starSquare: {
+  ringGlow: {
     position: "absolute",
-    width: 36,
-    height: 36,
-    borderWidth: 2,
-    borderColor: GOLD,
-    borderRadius: 4,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: LOGO.purple + "14",
+    borderWidth: 1.5,
+    borderColor: LOGO.cyan + "28",
   },
-  starSquare0: {},
-  starSquare45: { transform: [{ rotate: "45deg" }] },
 
-  titleCard: {
-    alignItems: "center",
-    gap: 16,
-    paddingHorizontal: 16,
-  },
-  arabicTitle: {
+  fullTitle: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 48,
-    color: GOLD,
+    fontSize: 46,
+    color: LOGO.cyan,
     textAlign: "center",
     letterSpacing: 1,
-    textShadowColor: GOLD + "60",
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 22,
+    position: "absolute",
   },
-  englishTitle: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 16,
-    color: CREAM,
+
+  singleLetter: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 96,
+    color: LOGO.cyan,
     textAlign: "center",
-    letterSpacing: 3,
-    opacity: 0.85,
+    position: "absolute",
   },
 
-  byline: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 12,
-    color: MUTED,
+  subtitle: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 15,
+    color: LOGO.purple,
     textAlign: "center",
-    letterSpacing: 2,
-    marginTop: -8,
+    letterSpacing: 0.5,
+    marginTop: 80,
   },
 
-  dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    width: "100%",
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: GOLD + "50",
-  },
-  dividerDiamond: {
-    width: 8,
-    height: 8,
-    backgroundColor: GOLD,
-    transform: [{ rotate: "45deg" }],
-  },
-
-  // Loading area
   loadingArea: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
     alignItems: "center",
-    gap: 12,
+    gap: 10,
   },
   loadingLabel: {
     fontFamily: "Cairo_400Regular",
     fontSize: 11,
-    color: MUTED,
-    letterSpacing: 1,
+    color: LOGO.purple + "BB",
+    letterSpacing: 1.5,
   },
-
-  // Progress bar
-  progressTrack: {
+  barTrack: {
     width: 200,
     height: 4,
-    backgroundColor: GOLD + "28",
-    borderRadius: 2,
-    overflow: "hidden",
+    backgroundColor: LOGO.purple + "28",
+    borderRadius: 4,
+    overflow: "visible",
   },
-  progressFill: {
-    height: "100%",
-    backgroundColor: GOLD,
-    borderRadius: 2,
-  },
-  progressGlow: {
+  barGlow: {
     position: "absolute",
-    top: -3,
-    width: 12,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#fff",
-    opacity: 0.6,
-  },
-
-  // Pulsing dots
-  dotsRow: {
-    flexDirection: "row",
-    gap: 10,
-    alignItems: "center",
-  },
-  dot: {
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
-    backgroundColor: GOLD,
+    top: -4,
+    width: 14,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: LOGO.cyan,
+    opacity: 0.7,
+    transform: [{ translateX: -7 }],
   },
 });
