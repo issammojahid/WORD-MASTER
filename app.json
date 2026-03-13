@@ -1,5 +1,6 @@
 {
   "expo": {
+    "owner": "aissam09s-organization",
     "name": "حروف المغرب",
     "slug": "huroof-al-maghrib",
     "version": "1.0.0",
@@ -48,7 +49,7 @@
         "origin": "https://replit.com/"
       },
       "eas": {
-        "projectId": "375f0d9b-95e7-4503-ba1a-ee09cb685fa5"
+        "projectId": "f1e0f4f2-8408-4fe9-b300-c8d8fb573b4d"
       }
     }
   }
