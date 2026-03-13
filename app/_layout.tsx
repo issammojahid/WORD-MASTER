@@ -7,14 +7,15 @@ import {
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, useRef } from "react";
-import { Alert } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Alert, Animated, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient, getApiUrl } from "@/lib/query-client";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { PlayerProvider, usePlayer } from "@/contexts/PlayerContext";
+import SplashOverlay from "@/components/SplashOverlay";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -112,9 +113,24 @@ export default function RootLayout() {
     Cairo_700Bold,
   });
 
+  const [splashVisible, setSplashVisible] = useState(true);
+  const splashOpacity = useRef(new Animated.Value(1)).current;
+
   useEffect(() => {
     if (fontsLoaded || fontError) {
+      // Hide the native OS splash screen as soon as fonts are ready
       SplashScreen.hideAsync();
+
+      // Show our custom in-app splash for ~2.5 s, then fade it out
+      const displayTimer = setTimeout(() => {
+        Animated.timing(splashOpacity, {
+          toValue: 0,
+          duration: 600,
+          useNativeDriver: true,
+        }).start(() => setSplashVisible(false));
+      }, 2500);
+
+      return () => clearTimeout(displayTimer);
     }
   }, [fontsLoaded, fontError]);
 
@@ -130,6 +146,16 @@ export default function RootLayout() {
                 <RootLayoutNav />
               </KeyboardProvider>
             </GestureHandlerRootView>
+
+            {/* Custom in-app splash — renders above everything, fades out after delay */}
+            {splashVisible && (
+              <Animated.View
+                style={[StyleSheet.absoluteFillObject, { opacity: splashOpacity, zIndex: 9999 }]}
+                pointerEvents="none"
+              >
+                <SplashOverlay />
+              </Animated.View>
+            )}
           </PlayerProvider>
         </LanguageProvider>
       </QueryClientProvider>
