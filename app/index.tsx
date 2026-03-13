@@ -26,10 +26,119 @@ import { usePlayer, SKINS } from "@/contexts/PlayerContext";
 import Colors from "@/constants/colors";
 import { MAPS } from "@/constants/i18n";
 
-const { width } = Dimensions.get("window");
-const CARD_WIDTH = width * 0.82;
+const { width, height } = Dimensions.get("window");
+
+// Reduced card size by ~23%
+const CARD_WIDTH = width * 0.63;
 const CARD_MARGIN = 10;
 
+// Logo color palette (cyan, pink, purple, yellow)
+const LOGO = {
+  cyan:   "#00D4E8",
+  pink:   "#FF3D9A",
+  purple: "#A855F7",
+  yellow: "#F5C842",
+};
+
+// ── Background blob shapes (abstract decoration) ──────────────────────────────
+const BG_BLOBS = [
+  { top: -60,  left: -50,  size: 180, color: LOGO.cyan   + "1A" },
+  { top: 120,  right: -50, size: 160, color: LOGO.pink   + "16" },
+  { top: 320,  left: -60,  size: 200, color: LOGO.purple + "18" },
+  { top: 560,  right: -40, size: 150, color: LOGO.yellow + "14" },
+  { top: 800,  left: -30,  size: 170, color: LOGO.cyan   + "12" },
+  { top: 1050, right: -60, size: 190, color: LOGO.pink   + "14" },
+];
+
+// ── Background floating particle ───────────────────────────────────────────────
+type BgParticleProps = { color: string; startX: number; startY: number; size: number; delay: number; duration: number };
+const BgParticle = memo(({ color, startX, startY, size, delay, duration }: BgParticleProps) => {
+  const posY = useRef(new Animated.Value(0)).current;
+  const op   = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const run = () => {
+      posY.setValue(0); op.setValue(0);
+      Animated.parallel([
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(posY, { toValue: -height * 0.35, duration, useNativeDriver: true }),
+        ]),
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(op, { toValue: 0.55, duration: 500, useNativeDriver: true }),
+          Animated.delay(duration - 900),
+          Animated.timing(op, { toValue: 0, duration: 400, useNativeDriver: true }),
+        ]),
+      ]).start(({ finished }) => { if (finished) run(); });
+    };
+    run();
+    return () => { posY.stopAnimation(); op.stopAnimation(); };
+  }, []);
+  return (
+    <Animated.View pointerEvents="none" style={{
+      position: "absolute", left: startX, top: startY,
+      width: size, height: size, borderRadius: size / 2,
+      backgroundColor: color,
+      opacity: op,
+      transform: [{ translateY: posY }],
+    }} />
+  );
+});
+
+const BG_PARTICLES: BgParticleProps[] = [
+  { color: LOGO.cyan,   startX: width * 0.1,  startY: height * 0.7,  size: 5, delay: 0,    duration: 6000 },
+  { color: LOGO.pink,   startX: width * 0.25, startY: height * 0.65, size: 4, delay: 800,  duration: 7200 },
+  { color: LOGO.purple, startX: width * 0.55, startY: height * 0.75, size: 6, delay: 1600, duration: 5800 },
+  { color: LOGO.yellow, startX: width * 0.75, startY: height * 0.68, size: 4, delay: 400,  duration: 6600 },
+  { color: LOGO.cyan,   startX: width * 0.4,  startY: height * 0.8,  size: 5, delay: 2200, duration: 7000 },
+  { color: LOGO.pink,   startX: width * 0.85, startY: height * 0.72, size: 3, delay: 1200, duration: 6200 },
+  { color: LOGO.purple, startX: width * 0.15, startY: height * 0.82, size: 4, delay: 3000, duration: 5600 },
+  { color: LOGO.yellow, startX: width * 0.62, startY: height * 0.6,  size: 5, delay: 1800, duration: 6800 },
+];
+
+// ── Logo sparkle ──────────────────────────────────────────────────────────────
+type LogoSparkleProps = { symbol: string; color: string; x: number; y: number; delay: number };
+const LogoSparkle = memo(({ symbol, color, x, y, delay }: LogoSparkleProps) => {
+  const op  = useRef(new Animated.Value(0)).current;
+  const scl = useRef(new Animated.Value(0.5)).current;
+  useEffect(() => {
+    const run = () => {
+      op.setValue(0); scl.setValue(0.5);
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.parallel([
+          Animated.timing(op,  { toValue: 0.9, duration: 400, useNativeDriver: true }),
+          Animated.timing(scl, { toValue: 1.2, duration: 400, useNativeDriver: true }),
+        ]),
+        Animated.delay(600),
+        Animated.parallel([
+          Animated.timing(op,  { toValue: 0, duration: 350, useNativeDriver: true }),
+          Animated.timing(scl, { toValue: 0.5, duration: 350, useNativeDriver: true }),
+        ]),
+        Animated.delay(1200 + Math.random() * 800),
+      ]).start(() => run());
+    };
+    run();
+    return () => { op.stopAnimation(); scl.stopAnimation(); };
+  }, []);
+  return (
+    <Animated.Text pointerEvents="none" style={{
+      position: "absolute", left: x, top: y, fontSize: 14, color,
+      opacity: op, transform: [{ scale: scl }],
+    }}>{symbol}</Animated.Text>
+  );
+});
+
+const LOGO_SPARKLES: LogoSparkleProps[] = [
+  { symbol: "✦", color: LOGO.cyan,   x: -18, y: 30,  delay: 0    },
+  { symbol: "⭐", color: LOGO.yellow, x: -12, y: 90,  delay: 700  },
+  { symbol: "✦", color: LOGO.pink,   x: 205, y: 20,  delay: 1400 },
+  { symbol: "✨", color: LOGO.purple, x: 210, y: 85,  delay: 400  },
+  { symbol: "✦", color: LOGO.cyan,   x: 90,  y: -10, delay: 1100 },
+  { symbol: "⭐", color: LOGO.pink,   x: 120, y: 160, delay: 900  },
+];
+
+// ── Popup panels ──────────────────────────────────────────────────────────────
 const POPUP_PANELS = [
   {
     id: "road",
@@ -66,7 +175,7 @@ const POPUP_PANELS = [
   },
 ];
 
-// ── Popup particle ─────────────────────────────────────────────────────────────
+// ── Popup particle ────────────────────────────────────────────────────────────
 type PopupParticleProps = { symbol: string; color: string; startX: number; delay: number };
 
 function PopupParticle({ symbol, color, startX, delay }: PopupParticleProps) {
@@ -144,7 +253,7 @@ const POPUP_PARTICLE_DEFS: Record<string, PopupParticleProps[]> = {
   ],
 };
 
-// ── Feature popup component ───────────────────────────────────────────────────
+// ── Feature popup ─────────────────────────────────────────────────────────────
 type PopupPanel = {
   id: string; icon: string; title: string; subtitle: string;
   reward: string; color: string; gradientFrom: string; gradientMid: string;
@@ -224,12 +333,10 @@ function FeaturePopup({
 
   return (
     <Animated.View style={[pStyles.overlay, { opacity: popupOpacity }]}>
-      {/* Floating particles */}
       <View style={pStyles.particlesLayer} pointerEvents="none">
         {particles.map((p, i) => <PopupParticle key={i} {...p} />)}
       </View>
 
-      {/* Card with glow shadow */}
       <Animated.View
         style={[
           pStyles.cardWrapper,
@@ -242,7 +349,6 @@ function FeaturePopup({
           end={{ x: 1, y: 1 }}
           style={[pStyles.card, { borderColor: panel.color + "55" }]}
         >
-          {/* Close */}
           <TouchableOpacity
             style={pStyles.closeBtn}
             onPress={() => onDismiss()}
@@ -251,7 +357,6 @@ function FeaturePopup({
             <Ionicons name="close" size={20} color={Colors.textPrimary} />
           </TouchableOpacity>
 
-          {/* Icon circle */}
           <View
             style={[
               pStyles.iconCircle,
@@ -267,11 +372,9 @@ function FeaturePopup({
             </Animated.Text>
           </View>
 
-          {/* Titles */}
           <Text style={[pStyles.title, { color: panel.color }]}>{panel.title}</Text>
           <Text style={pStyles.subtitle}>{panel.subtitle}</Text>
 
-          {/* Reward badge */}
           <View
             style={[
               pStyles.rewardBadge,
@@ -281,7 +384,6 @@ function FeaturePopup({
             <Text style={[pStyles.rewardText, { color: panel.color }]}>{panel.reward}</Text>
           </View>
 
-          {/* Buttons */}
           <View style={pStyles.buttonsRow}>
             <TouchableOpacity style={pStyles.skipBtn} onPress={() => onDismiss()} activeOpacity={0.7}>
               <Text style={pStyles.skipText}>تخطي</Text>
@@ -308,7 +410,6 @@ function FeaturePopup({
             </Animated.View>
           </View>
 
-          {/* Step dots */}
           <View style={pStyles.dotsRow}>
             {POPUP_PANELS.map((_, di) => (
               <View
@@ -326,7 +427,7 @@ function FeaturePopup({
 const pStyles = StyleSheet.create({
   overlay: {
     position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.75)",
+    backgroundColor: "rgba(0,0,0,0.78)",
     justifyContent: "center", alignItems: "center",
     padding: 22,
   },
@@ -414,27 +515,27 @@ type GameMode = {
 };
 
 // ── Shared card constants ─────────────────────────────────────────────────────
-const ICON_SZ = 80;
-const ICON_OUTER = ICON_SZ + 28; // room for sparkles/glow around icon
+const ICON_SZ    = 64;
+const ICON_OUTER = ICON_SZ + 22;
 
-// Deterministic background dot positions (no Math.random to avoid re-render drift)
-const DOT_CFG = Array.from({ length: 10 }, (_, i) => ({
-  x:  ((i * 47 + 18) % (CARD_WIDTH - 30)) + 15,
-  bot: ((i * 31) % 38) + 4,
-  sz:  2 + (i % 3),
+// Deterministic background dot positions
+const DOT_CFG = Array.from({ length: 8 }, (_, i) => ({
+  x:   ((i * 47 + 18) % (CARD_WIDTH - 24)) + 12,
+  bot: ((i * 31) % 30) + 4,
+  sz:  1.5 + (i % 3),
   del: i * 320,
 }));
 
 // ── Shared card StyleSheet ─────────────────────────────────────────────────────
 const cSt = StyleSheet.create({
-  shineBar:  { position: "absolute", top: -30, width: 30, height: "160%" as any, backgroundColor: "rgba(255,255,255,0.10)", borderRadius: 6 },
-  btnWrap:   { marginTop: 4 },
-  btnShine:  { position: "absolute", top: -14, width: 20, height: 60, backgroundColor: "rgba(255,255,255,0.30)", borderRadius: 4 },
-  iconOuter: { width: ICON_OUTER, height: ICON_OUTER, alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  shineBar:  { position: "absolute", top: -30, width: 26, height: "160%" as any, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 6 },
+  btnWrap:   { marginTop: 2 },
+  btnShine:  { position: "absolute", top: -14, width: 18, height: 56, backgroundColor: "rgba(255,255,255,0.30)", borderRadius: 4 },
+  iconOuter: { width: ICON_OUTER, height: ICON_OUTER, alignItems: "center", justifyContent: "center", marginBottom: 2 },
   iconCircle:{ width: ICON_SZ, height: ICON_SZ, borderRadius: ICON_SZ / 2, justifyContent: "center", alignItems: "center", overflow: "hidden" },
   iconGlow:  { position: "absolute", width: ICON_OUTER, height: ICON_OUTER, borderRadius: ICON_OUTER / 2 },
-  sparkle:   { position: "absolute", fontSize: 10 },
-  inner:     { paddingHorizontal: 24, paddingVertical: 22, alignItems: "center", gap: 10, minHeight: 232, justifyContent: "center" },
+  sparkle:   { position: "absolute", fontSize: 9 },
+  inner:     { paddingHorizontal: 18, paddingVertical: 16, alignItems: "center", gap: 7, minHeight: 175, justifyContent: "center" },
 });
 
 // ── Background floating dot ────────────────────────────────────────────────────
@@ -455,13 +556,13 @@ const CardDot = memo(({ x, bot, sz, del, accent }: { x: number; bot: number; sz:
     <Animated.View pointerEvents="none" style={{
       position: "absolute", left: x, bottom: bot, width: sz, height: sz, borderRadius: sz / 2,
       backgroundColor: accent,
-      opacity: a.interpolate({ inputRange: [0, 0.1, 0.8, 1], outputRange: [0, 0.45, 0.35, 0] }),
-      transform: [{ translateY: a.interpolate({ inputRange: [0, 1], outputRange: [0, -130] }) }],
+      opacity: a.interpolate({ inputRange: [0, 0.1, 0.8, 1], outputRange: [0, 0.5, 0.4, 0] }),
+      transform: [{ translateY: a.interpolate({ inputRange: [0, 1], outputRange: [0, -110] }) }],
     }} />
   );
 });
 
-// ── Quick Match icon — lightning bolt with electric flicker ────────────────────
+// ── Quick Match icon ───────────────────────────────────────────────────────────
 const QuickIcon = memo(({ accent }: { accent: string }) => {
   const flicker = useRef(new Animated.Value(1)).current;
   const glowScl = useRef(new Animated.Value(1)).current;
@@ -484,17 +585,17 @@ const QuickIcon = memo(({ accent }: { accent: string }) => {
   }, []);
   return (
     <View style={cSt.iconOuter}>
-      <Animated.View style={[cSt.iconGlow, { backgroundColor: accent + "28", transform: [{ scale: glowScl }] }]} />
-      <LinearGradient colors={[accent + "48", accent + "22"]} style={cSt.iconCircle}>
+      <Animated.View style={[cSt.iconGlow, { backgroundColor: accent + "30", transform: [{ scale: glowScl }] }]} />
+      <LinearGradient colors={[accent + "55", accent + "28"]} style={cSt.iconCircle}>
         <Animated.View style={{ opacity: flicker }}>
-          <Ionicons name="flash" size={44} color={accent} />
+          <Ionicons name="flash" size={36} color={accent} />
         </Animated.View>
       </LinearGradient>
     </View>
   );
 });
 
-// ── Fast Mode icon — rocket with bob + flame ───────────────────────────────────
+// ── Fast Mode icon ─────────────────────────────────────────────────────────────
 const FastIcon = memo(({ accent }: { accent: string }) => {
   const bobY   = useRef(new Animated.Value(0)).current;
   const fScale = useRef(new Animated.Value(1)).current;
@@ -512,17 +613,17 @@ const FastIcon = memo(({ accent }: { accent: string }) => {
   }, []);
   return (
     <View style={cSt.iconOuter}>
-      <LinearGradient colors={[accent + "48", accent + "22"]} style={cSt.iconCircle}>
+      <LinearGradient colors={[accent + "55", accent + "28"]} style={cSt.iconCircle}>
         <Animated.View style={{ transform: [{ translateY: bobY }, { rotate: "-42deg" }] }}>
-          <Ionicons name="rocket" size={40} color={accent} />
+          <Ionicons name="rocket" size={32} color={accent} />
         </Animated.View>
-        <Animated.Text pointerEvents="none" style={{ position: "absolute", bottom: 5, fontSize: 11, transform: [{ scale: fScale }] }}>🔥</Animated.Text>
+        <Animated.Text pointerEvents="none" style={{ position: "absolute", bottom: 4, fontSize: 10, transform: [{ scale: fScale }] }}>🔥</Animated.Text>
       </LinearGradient>
     </View>
   );
 });
 
-// ── Friends icon — people silhouettes with bounce ─────────────────────────────
+// ── Friends icon ───────────────────────────────────────────────────────────────
 const FriendsIcon = memo(({ accent }: { accent: string }) => {
   const bounce = useRef(new Animated.Value(0)).current;
   const glowScl = useRef(new Animated.Value(1)).current;
@@ -543,20 +644,20 @@ const FriendsIcon = memo(({ accent }: { accent: string }) => {
   }, []);
   return (
     <View style={cSt.iconOuter}>
-      <Animated.View style={[cSt.iconGlow, { backgroundColor: accent + "22", transform: [{ scale: glowScl }] }]} />
-      <LinearGradient colors={[accent + "48", accent + "22"]} style={cSt.iconCircle}>
+      <Animated.View style={[cSt.iconGlow, { backgroundColor: accent + "28", transform: [{ scale: glowScl }] }]} />
+      <LinearGradient colors={[accent + "55", accent + "28"]} style={cSt.iconCircle}>
         <Animated.View style={{ transform: [{ translateY: bounce }] }}>
-          <Ionicons name="people" size={44} color={accent} />
+          <Ionicons name="people" size={36} color={accent} />
         </Animated.View>
       </LinearGradient>
     </View>
   );
 });
 
-// ── Tournament icon — trophy with 6 sparkles + shine ─────────────────────────
+// ── Tournament icon ────────────────────────────────────────────────────────────
 const SPARKLE_OFF = [
-  { dx: 48, dy: 0 }, { dx: 24, dy: -42 }, { dx: -24, dy: -42 },
-  { dx: -48, dy: 0 }, { dx: -24, dy: 42 }, { dx: 24, dy: 42 },
+  { dx: 40, dy: 0 }, { dx: 20, dy: -36 }, { dx: -20, dy: -36 },
+  { dx: -40, dy: 0 }, { dx: -20, dy: 36 }, { dx: 20, dy: 36 },
 ];
 const TrophySparkle = memo(({ dx, dy, delay, accent }: { dx: number; dy: number; delay: number; accent: string }) => {
   const a = useRef(new Animated.Value(0)).current;
@@ -598,8 +699,8 @@ const TrophyIcon = memo(({ accent }: { accent: string }) => {
   }, []);
   return (
     <View style={cSt.iconOuter}>
-      <LinearGradient colors={[accent + "48", accent + "22"]} style={[cSt.iconCircle, { overflow: "hidden" }]}>
-        <Ionicons name="trophy" size={44} color={accent} />
+      <LinearGradient colors={[accent + "55", accent + "28"]} style={[cSt.iconCircle, { overflow: "hidden" }]}>
+        <Ionicons name="trophy" size={36} color={accent} />
         <Animated.View pointerEvents="none" style={[cSt.btnShine, { transform: [{ translateX: shineX }, { rotate: "20deg" }], backgroundColor: "rgba(255,255,255,0.36)" }]} />
       </LinearGradient>
       {SPARKLE_OFF.map((o, i) => <TrophySparkle key={i} dx={o.dx} dy={o.dy} delay={i * 280} accent={accent} />)}
@@ -607,8 +708,8 @@ const TrophyIcon = memo(({ accent }: { accent: string }) => {
   );
 });
 
-// ── AI icon — robot with eye blink + digital dots ─────────────────────────────
-const AI_DOTS = [{ r: 10, b: 9 }, { r: 18, b: 6 }, { r: 26, b: 11 }];
+// ── AI icon ────────────────────────────────────────────────────────────────────
+const AI_DOTS = [{ r: 8, b: 7 }, { r: 15, b: 5 }, { r: 22, b: 9 }];
 const AIIcon = memo(({ accent }: { accent: string }) => {
   const blink    = useRef(new Animated.Value(1)).current;
   const dotPhase = useRef(new Animated.Value(0)).current;
@@ -626,13 +727,13 @@ const AIIcon = memo(({ accent }: { accent: string }) => {
   }, []);
   return (
     <View style={cSt.iconOuter}>
-      <LinearGradient colors={[accent + "48", accent + "22"]} style={cSt.iconCircle}>
+      <LinearGradient colors={[accent + "55", accent + "28"]} style={cSt.iconCircle}>
         <Animated.View style={{ opacity: blink }}>
-          <MaterialCommunityIcons name="robot" size={46} color={accent} />
+          <MaterialCommunityIcons name="robot" size={38} color={accent} />
         </Animated.View>
         {AI_DOTS.map((d, i) => (
           <Animated.View key={i} style={{
-            position: "absolute", right: d.r, bottom: d.b, width: 5, height: 5, borderRadius: 2.5,
+            position: "absolute", right: d.r, bottom: d.b, width: 4, height: 4, borderRadius: 2,
             backgroundColor: accent,
             opacity: dotPhase.interpolate({ inputRange: [i, i + 0.5, i + 1, 3], outputRange: [0, 0.9, 0, 0], extrapolate: "clamp" }),
           }} />
@@ -648,18 +749,17 @@ const MODE_ICONS: Record<string, IconFC> = {
   quick: QuickIcon, rapid: FastIcon, friends: FriendsIcon, tournament: TrophyIcon, ai: AIIcon,
 };
 
-// ── Premium flat mode card (no 3D tilt) ───────────────────────────────────────
+// ── Mode card ─────────────────────────────────────────────────────────────────
 const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: number; isActive: boolean }) => {
   const pressScl  = useRef(new Animated.Value(1)).current;
   const glowAnim  = useRef(new Animated.Value(0)).current;
   const cardShine = useRef(new Animated.Value(-CARD_WIDTH)).current;
   const btnPulse  = useRef(new Animated.Value(1)).current;
   const btnShine  = useRef(new Animated.Value(-120)).current;
-  const entrY     = useRef(new Animated.Value(55)).current;
+  const entrY     = useRef(new Animated.Value(50)).current;
   const entrOp    = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Entrance stagger
     Animated.sequence([
       Animated.delay(index * 90),
       Animated.parallel([
@@ -668,13 +768,11 @@ const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: numbe
       ]),
     ]).start();
 
-    // Glow overlay pulse
     Animated.loop(Animated.sequence([
       Animated.timing(glowAnim, { toValue: 1, duration: 2600, useNativeDriver: false }),
       Animated.timing(glowAnim, { toValue: 0, duration: 2600, useNativeDriver: false }),
     ])).start();
 
-    // Card gloss sweep
     const runShine = () => {
       cardShine.setValue(-CARD_WIDTH * 0.6);
       Animated.sequence([
@@ -684,13 +782,11 @@ const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: numbe
     };
     const t0 = setTimeout(() => runShine(), index * 500 + 700);
 
-    // Button pulse
     Animated.loop(Animated.sequence([
-      Animated.timing(btnPulse, { toValue: 1.065, duration: 680, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      Animated.timing(btnPulse, { toValue: 1,     duration: 680, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(btnPulse, { toValue: 1.07, duration: 680, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(btnPulse, { toValue: 1,    duration: 680, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
     ])).start();
 
-    // Button shine
     const runBtnShine = () => {
       btnShine.setValue(-120);
       Animated.sequence([
@@ -708,24 +804,24 @@ const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: numbe
 
   const onPressIn = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Animated.spring(pressScl, { toValue: 0.96, tension: 320, friction: 10, useNativeDriver: true }).start();
+    Animated.spring(pressScl, { toValue: 0.95, tension: 320, friction: 10, useNativeDriver: true }).start();
   };
   const onPressOut = () => {
     Animated.spring(pressScl, { toValue: 1, tension: 200, friction: 8, useNativeDriver: true }).start();
   };
 
-  const glowOp = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.04, isActive ? 0.17 : 0.09] });
+  const glowOp = glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.05, isActive ? 0.20 : 0.10] });
   const Icon   = MODE_ICONS[item.id] ?? QuickIcon;
 
   return (
     <Animated.View style={{
       width: CARD_WIDTH, marginHorizontal: CARD_MARGIN,
-      opacity: entrOp, borderRadius: 26,
+      opacity: entrOp, borderRadius: 24,
       shadowColor: item.accent,
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: isActive ? 0.58 : 0.24,
-      shadowRadius: isActive ? 22 : 10,
-      elevation: isActive ? 16 : 6,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: isActive ? 0.72 : 0.25,
+      shadowRadius: isActive ? 30 : 10,
+      elevation: isActive ? 20 : 6,
       transform: [{ translateY: entrY }, { scale: pressScl }],
     }}>
       <TouchableOpacity
@@ -734,25 +830,25 @@ const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: numbe
         onPress={item.onPress}
         activeOpacity={1}
         style={{
-          borderRadius: 26, overflow: "hidden",
-          borderWidth: 1.5,
-          borderColor: isActive ? item.accent + "88" : item.accent + "38",
+          borderRadius: 24, overflow: "hidden",
+          borderWidth: isActive ? 2 : 1.5,
+          borderColor: isActive ? item.accent + "AA" : item.accent + "44",
         }}
       >
-        {/* Glass gradient background */}
+        {/* Rich gradient background */}
         <LinearGradient
-          colors={[item.accent + "2A", item.accent + "0E", Colors.card + "F6"]}
+          colors={[item.accent + "40", item.accent + "18", "#110A2A"]}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFillObject}
         />
-        {/* Frosted glass top-left highlight */}
+        {/* Top-left frosted highlight */}
         <LinearGradient
-          colors={["rgba(255,255,255,0.11)", "rgba(255,255,255,0.03)", "transparent"]}
+          colors={["rgba(255,255,255,0.14)", "rgba(255,255,255,0.04)", "transparent"]}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 0.75 }}
           style={StyleSheet.absoluteFillObject}
           pointerEvents="none"
         />
-        {/* Glow colour overlay */}
+        {/* Glow overlay */}
         <Animated.View
           pointerEvents="none"
           style={[StyleSheet.absoluteFillObject, { backgroundColor: item.accent, opacity: glowOp }]}
@@ -765,7 +861,7 @@ const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: numbe
         {/* Background dots */}
         {DOT_CFG.map((d, i) => <CardDot key={i} x={d.x} bot={d.bot} sz={d.sz} del={d.del} accent={item.accent} />)}
 
-        {/* Card content */}
+        {/* Content */}
         <View style={cSt.inner}>
           <Icon accent={item.accent} />
           <Text style={[styles.modeTitle, { color: item.accent }]}>{item.title}</Text>
@@ -774,18 +870,18 @@ const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: numbe
           {/* Play button */}
           <Animated.View style={[cSt.btnWrap, { transform: [{ scale: btnPulse }] }]}>
             <LinearGradient
-              colors={[item.accent, item.accent + "C2"]}
+              colors={[item.accent, item.accent + "BB"]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={[styles.modePlayBtn, {
                 overflow: "hidden",
                 shadowColor: item.accent,
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.48,
-                shadowRadius: 8,
-                elevation: 6,
+                shadowOffset: { width: 0, height: 5 },
+                shadowOpacity: 0.55,
+                shadowRadius: 10,
+                elevation: 8,
               }]}
             >
-              <Ionicons name="play" size={15} color="#fff" />
+              <Ionicons name="play" size={14} color="#fff" />
               <Text style={styles.modePlayText}>العب الآن</Text>
               <Animated.View
                 pointerEvents="none"
@@ -799,6 +895,7 @@ const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: numbe
   );
 });
 
+// ── Home screen ───────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { t, selectedMap } = useLanguage();
@@ -818,7 +915,6 @@ export default function HomeScreen() {
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
   const NAV_BAR_HEIGHT = 60 + bottomInset;
 
-  const mapConfig = MAPS.find((m) => m.id === selectedMap) || MAPS[0];
   const equippedSkin = SKINS.find((s) => s.id === profile.equippedSkin) || SKINS[0];
   const xpProgress = (profile.xp % 100) / 100;
 
@@ -856,7 +952,7 @@ export default function HomeScreen() {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(floatAnim, { toValue: -6, duration: 2400, useNativeDriver: true }),
+        Animated.timing(floatAnim, { toValue: -7, duration: 2400, useNativeDriver: true }),
         Animated.timing(floatAnim, { toValue: 0, duration: 2400, useNativeDriver: true }),
       ])
     ).start();
@@ -896,7 +992,7 @@ export default function HomeScreen() {
       subtitle: "العب مع لاعبين عشوائيين فوراً",
       emoji: "⚡",
       gradient: [Colors.gold + "30", Colors.gold + "10"],
-      accent: Colors.gold,
+      accent: LOGO.yellow,
       onPress: handleQuickMatchPress,
     },
     {
@@ -905,7 +1001,7 @@ export default function HomeScreen() {
       subtitle: "أول كلمة صحيحة تربح في 10 ثوان",
       emoji: "🚀",
       gradient: [Colors.ruby + "30", Colors.ruby + "10"],
-      accent: Colors.ruby,
+      accent: "#FF5733",
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/rapid"); },
     },
     {
@@ -914,7 +1010,7 @@ export default function HomeScreen() {
       subtitle: "أنشئ غرفة وادعُ أصدقاءك",
       emoji: "👥",
       gradient: [Colors.emerald + "30", Colors.emerald + "10"],
-      accent: Colors.emerald,
+      accent: "#22C55E",
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/lobby"); },
     },
     {
@@ -923,7 +1019,7 @@ export default function HomeScreen() {
       subtitle: "8 لاعبين، 3 جولات إقصائية، جائزة كبرى",
       emoji: "🏆",
       gradient: ["#7C3AED30", "#7C3AED10"],
-      accent: "#7C3AED",
+      accent: LOGO.purple,
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/tournament"); },
     },
     {
@@ -932,7 +1028,7 @@ export default function HomeScreen() {
       subtitle: "تحدّى الذكاء الاصطناعي بمستويات صعوبة مختلفة",
       emoji: "🤖",
       gradient: ["#0EA5E930", "#0EA5E910"],
-      accent: "#0EA5E9",
+      accent: LOGO.cyan,
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/ai-game"); },
     },
   ];
@@ -946,9 +1042,27 @@ export default function HomeScreen() {
   const streakIcon = profile.winStreak >= 10 ? "🔥🔥🔥" : profile.winStreak >= 5 ? "🔥🔥" : profile.winStreak >= 3 ? "🔥" : "";
 
   return (
-    <View style={[styles.container, { backgroundColor: mapConfig.color }]}>
-      <View style={styles.hexDecorTopRight} />
-      <View style={styles.hexDecorBottomLeft} />
+    <View style={styles.container}>
+      {/* Colorful gradient background */}
+      <LinearGradient
+        colors={["#0C0A1E", "#160D33", "#0A1428"]}
+        start={{ x: 0, y: 0 }} end={{ x: 0.6, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
+
+      {/* Abstract background blobs */}
+      {BG_BLOBS.map((b, i) => (
+        <View key={i} pointerEvents="none" style={{
+          position: "absolute",
+          ...(b.top !== undefined ? { top: b.top } : {}),
+          ...("left" in b ? { left: (b as any).left } : { right: (b as any).right }),
+          width: b.size, height: b.size, borderRadius: b.size / 2,
+          backgroundColor: b.color,
+        }} />
+      ))}
+
+      {/* Floating background particles */}
+      {BG_PARTICLES.map((p, i) => <BgParticle key={i} {...p} />)}
 
       <ScrollView
         style={{ flex: 1 }}
@@ -965,6 +1079,11 @@ export default function HomeScreen() {
             onPress={() => { setShowNameModal(true); setNameInput(profile.name); }}
             activeOpacity={0.8}
           >
+            <LinearGradient
+              colors={[LOGO.cyan + "18", LOGO.purple + "14"]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFillObject}
+            />
             <View style={[styles.avatarCircle, { backgroundColor: equippedSkin.color + "33" }]}>
               <Text style={styles.avatarEmoji}>{equippedSkin.emoji}</Text>
             </View>
@@ -978,7 +1097,11 @@ export default function HomeScreen() {
                   <Text style={styles.levelText}>Lv.{profile.level}</Text>
                 </View>
                 <View style={styles.xpBarContainer}>
-                  <View style={[styles.xpBar, { width: `${xpProgress * 100}%` as any }]} />
+                  <LinearGradient
+                    colors={[LOGO.cyan, LOGO.purple]}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    style={[styles.xpBar, { width: `${xpProgress * 100}%` as any }]}
+                  />
                 </View>
                 <Text style={styles.xpText}>{profile.xp % 100}/100</Text>
               </View>
@@ -987,12 +1110,16 @@ export default function HomeScreen() {
 
           <View style={styles.topRight}>
             <TouchableOpacity
-              style={styles.coinsBadge}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/shop"); }}
               activeOpacity={0.8}
             >
-              <Ionicons name="star" size={14} color={Colors.gold} />
-              <Text style={styles.coinsText}>{profile.coins}</Text>
+              <LinearGradient
+                colors={[LOGO.yellow + "30", LOGO.yellow + "18"]}
+                style={styles.coinsBadge}
+              >
+                <Ionicons name="star" size={14} color={LOGO.yellow} />
+                <Text style={styles.coinsText}>{profile.coins}</Text>
+              </LinearGradient>
             </TouchableOpacity>
             <TouchableOpacity style={styles.settingsBtn} onPress={() => router.push("/settings")}>
               <Ionicons name="settings-outline" size={20} color={Colors.textSecondary} />
@@ -1017,6 +1144,8 @@ export default function HomeScreen() {
 
         {/* ── LOGO ────────────────────────────────────────── */}
         <Animated.View style={[styles.logoContainer, { transform: [{ translateY: floatAnim }] }]}>
+          {/* Sparkles near logo */}
+          {LOGO_SPARKLES.map((s, i) => <LogoSparkle key={i} {...s} />)}
           <Image
             source={require("../assets/images/logo.png")}
             style={styles.logoImage}
@@ -1058,7 +1187,11 @@ export default function HomeScreen() {
         </View>
 
         {/* ── STATS ROW ───────────────────────────────────── */}
-        <View style={styles.statsRow}>
+        <LinearGradient
+          colors={[LOGO.cyan + "18", LOGO.purple + "14", LOGO.pink + "10"]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={styles.statsRow}
+        >
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{profile.gamesPlayed}</Text>
             <Text style={styles.statLabel}>مباريات</Text>
@@ -1087,11 +1220,14 @@ export default function HomeScreen() {
               </View>
             </>
           )}
-        </View>
+        </LinearGradient>
       </ScrollView>
 
-      {/* ── BOTTOM NAVIGATION BAR ───────────────────────── */}
-      <View style={[styles.bottomNav, { paddingBottom: bottomInset, height: NAV_BAR_HEIGHT }]}>
+      {/* ── BOTTOM NAVIGATION ───────────────────────────── */}
+      <LinearGradient
+        colors={["#0C0A1E", "#120B2A"]}
+        style={[styles.bottomNav, { paddingBottom: bottomInset, height: NAV_BAR_HEIGHT }]}
+      >
         <TouchableOpacity style={styles.navItem} onPress={() => router.push("/shop")} activeOpacity={0.7}>
           <MaterialCommunityIcons name="shopping" size={24} color={Colors.textMuted} />
           <Text style={styles.navLabel}>المتجر</Text>
@@ -1101,10 +1237,13 @@ export default function HomeScreen() {
           <Text style={styles.navLabel}>الأصدقاء</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItemCenter} onPress={() => {}} activeOpacity={0.9}>
-          <View style={styles.navHomeBtn}>
-            <Ionicons name="home" size={26} color={Colors.black} />
-          </View>
-          <Text style={[styles.navLabel, { color: Colors.gold }]}>الرئيسية</Text>
+          <LinearGradient
+            colors={[LOGO.yellow, LOGO.yellow + "CC"]}
+            style={styles.navHomeBtn}
+          >
+            <Ionicons name="home" size={26} color="#000" />
+          </LinearGradient>
+          <Text style={[styles.navLabel, { color: LOGO.yellow }]}>الرئيسية</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push("/tasks")} activeOpacity={0.7}>
           <Ionicons name="star-outline" size={24} color={Colors.textMuted} />
@@ -1114,7 +1253,7 @@ export default function HomeScreen() {
           <Ionicons name="trophy-outline" size={24} color={Colors.textMuted} />
           <Text style={styles.navLabel}>الإنجازات</Text>
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       {/* ── SEQUENTIAL POPUP OVERLAY ────────────────────── */}
       {currentPopupIdx !== null && (
@@ -1159,24 +1298,13 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, alignItems: "center" },
-  hexDecorTopRight: {
-    position: "absolute", top: -60, right: -60, width: 180, height: 180,
-    borderRadius: 30, borderWidth: 2, borderColor: Colors.gold + "20",
-    transform: [{ rotate: "30deg" }],
-  },
-  hexDecorBottomLeft: {
-    position: "absolute", bottom: -80, left: -80, width: 220, height: 220,
-    borderRadius: 40, borderWidth: 2, borderColor: Colors.emerald + "15",
-    transform: [{ rotate: "15deg" }],
-  },
+  scrollContent: { paddingHorizontal: 16, alignItems: "center" },
 
   topBar: {
     width: "100%", flexDirection: "row", alignItems: "center",
@@ -1184,8 +1312,9 @@ const styles = StyleSheet.create({
   },
   profileRow: {
     flex: 1, flexDirection: "row", alignItems: "center",
-    backgroundColor: Colors.card + "80", borderRadius: 16,
-    padding: 10, gap: 10,
+    borderRadius: 18, padding: 10, gap: 10,
+    overflow: "hidden",
+    borderWidth: 1, borderColor: LOGO.cyan + "30",
   },
   avatarCircle: {
     width: 46, height: 46, borderRadius: 23,
@@ -1197,25 +1326,25 @@ const styles = StyleSheet.create({
   playerName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, flex: 1 },
   levelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   levelBadge: {
-    backgroundColor: Colors.gold + "25", paddingHorizontal: 7,
+    backgroundColor: LOGO.yellow + "28", paddingHorizontal: 7,
     paddingVertical: 1, borderRadius: 7,
   },
-  levelText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.gold },
-  xpBarContainer: { flex: 1, height: 4, backgroundColor: Colors.cardBorder, borderRadius: 2, overflow: "hidden" },
-  xpBar: { height: "100%", backgroundColor: Colors.emerald, borderRadius: 2 },
+  levelText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: LOGO.yellow },
+  xpBarContainer: { flex: 1, height: 4, backgroundColor: "rgba(255,255,255,0.10)", borderRadius: 2, overflow: "hidden" },
+  xpBar: { height: "100%", borderRadius: 2 },
   xpText: { fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textMuted },
 
   topRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   coinsBadge: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: Colors.card + "90", paddingHorizontal: 12,
-    paddingVertical: 8, borderRadius: 20, gap: 5,
-    borderWidth: 1, borderColor: Colors.gold + "30",
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, gap: 5,
+    borderWidth: 1, borderColor: LOGO.yellow + "40",
   },
-  coinsText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.gold },
+  coinsText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: LOGO.yellow },
   settingsBtn: {
     width: 38, height: 38, borderRadius: 12,
-    backgroundColor: Colors.card + "80", justifyContent: "center", alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.08)", justifyContent: "center", alignItems: "center",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
   },
 
   streakBar: {
@@ -1230,132 +1359,92 @@ const styles = StyleSheet.create({
   },
   streakRewardHintText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.ruby },
 
-  logoContainer: { alignItems: "center", marginBottom: 16 },
-  logoImage: { width: 200, height: 160 },
-  appSubtitle: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "center", marginTop: 2 },
+  logoContainer: { alignItems: "center", marginBottom: 14, position: "relative" },
+  logoImage: { width: 195, height: 155 },
+  appSubtitle: {
+    fontFamily: "Cairo_400Regular", fontSize: 12,
+    color: LOGO.cyan + "CC", textAlign: "center", marginTop: 2,
+    letterSpacing: 0.3,
+  },
 
-  carouselSection: { width: "100%", marginBottom: 20 },
+  carouselSection: { width: "100%", marginBottom: 18 },
   carouselTitle: {
-    fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textSecondary,
+    fontFamily: "Cairo_700Bold", fontSize: 14,
+    color: LOGO.purple,
     marginBottom: 12, textAlign: "right",
   },
   carouselContent: { paddingHorizontal: 0 },
-  modeTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, textAlign: "center" },
-  modeSubtitle: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center" },
-  modePlayBtn: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    paddingHorizontal: 28, paddingVertical: 12, borderRadius: 14, marginTop: 4,
+  modeTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, textAlign: "center" },
+  modeSubtitle: {
+    fontFamily: "Cairo_400Regular", fontSize: 11,
+    color: "rgba(200,200,220,0.75)", textAlign: "center",
   },
-  modePlayText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
+  modePlayBtn: {
+    flexDirection: "row", alignItems: "center", gap: 7,
+    paddingHorizontal: 22, paddingVertical: 10, borderRadius: 12, marginTop: 2,
+  },
+  modePlayText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
 
-  dotsRow: { flexDirection: "row", justifyContent: "center", gap: 6, marginTop: 14 },
-  dot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: Colors.cardBorder },
-  dotActive: { width: 22, borderRadius: 4 },
+  dotsRow: { flexDirection: "row", justifyContent: "center", gap: 6, marginTop: 12 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.20)" },
+  dotActive: { width: 20, borderRadius: 3 },
 
   statsRow: {
-    flexDirection: "row", backgroundColor: Colors.card + "70", borderRadius: 16,
-    paddingVertical: 16, paddingHorizontal: 16, width: "100%",
-    borderWidth: 1, borderColor: Colors.cardBorder,
+    flexDirection: "row", borderRadius: 18,
+    paddingVertical: 14, paddingHorizontal: 14, width: "100%",
+    borderWidth: 1, borderColor: LOGO.cyan + "22",
   },
   statItem: { flex: 1, alignItems: "center" },
-  statValue: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary },
+  statValue: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
   statLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, marginTop: 2 },
-  statDivider: { width: 1, backgroundColor: Colors.cardBorder, marginVertical: 4 },
+  statDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.10)", marginVertical: 4 },
 
   bottomNav: {
     position: "absolute", bottom: 0, left: 0, right: 0,
     flexDirection: "row", alignItems: "flex-start", justifyContent: "space-around",
-    backgroundColor: Colors.card,
-    borderTopWidth: 1, borderTopColor: Colors.cardBorder,
+    borderTopWidth: 1, borderTopColor: LOGO.purple + "28",
     paddingTop: 10,
     shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.12, shadowRadius: 12, elevation: 20,
+    shadowOpacity: 0.25, shadowRadius: 14, elevation: 24,
   },
   navItem: { alignItems: "center", gap: 3, flex: 1 },
-  navItemCenter: { alignItems: "center", gap: 3, flex: 1, marginTop: -16 },
+  navItemCenter: { alignItems: "center", gap: 3, flex: 1, marginTop: -18 },
   navHomeBtn: {
-    width: 54, height: 54, borderRadius: 27, backgroundColor: Colors.gold,
+    width: 54, height: 54, borderRadius: 27,
     justifyContent: "center", alignItems: "center",
-    shadowColor: Colors.gold, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5, shadowRadius: 10, elevation: 12,
+    shadowColor: LOGO.yellow, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.55, shadowRadius: 12, elevation: 14,
   },
   navLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.textMuted },
 
-  popupOverlay: {
-    position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.65)",
-    justifyContent: "center", alignItems: "center",
-    padding: 28,
-  },
-  popupCard: {
-    width: "100%", backgroundColor: Colors.card, borderRadius: 28,
-    padding: 28, alignItems: "center", borderWidth: 1.5,
-  },
-  popupClose: {
-    position: "absolute", top: 14, right: 14, zIndex: 10,
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: Colors.cardBorder,
-    justifyContent: "center", alignItems: "center",
-  },
-  popupIconCircle: {
-    width: 96, height: 96, borderRadius: 48,
-    justifyContent: "center", alignItems: "center",
-    marginBottom: 16, marginTop: 8,
-  },
-  popupIconEmoji: { fontSize: 48 },
-  popupTitle: {
-    fontFamily: "Cairo_700Bold", fontSize: 24, textAlign: "center", marginBottom: 8,
-  },
-  popupSubtitle: {
-    fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary,
-    textAlign: "center", marginBottom: 16, lineHeight: 22,
-  },
-  popupRewardBadge: {
-    paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20,
-    borderWidth: 1, marginBottom: 24,
-  },
-  popupRewardText: { fontFamily: "Cairo_600SemiBold", fontSize: 14 },
-  popupButtons: { flexDirection: "row", gap: 12, width: "100%", marginBottom: 20 },
-  popupSkipBtn: {
-    flex: 1, paddingVertical: 13, borderRadius: 14,
-    backgroundColor: Colors.cardBorder, alignItems: "center",
-  },
-  popupSkipText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
-  popupActionBtn: {
-    flex: 2, paddingVertical: 13, borderRadius: 14,
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-  },
-  popupActionText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
-  popupDots: { flexDirection: "row", gap: 7 },
-  popupDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.cardBorder },
-  popupDotActive: { width: 24, borderRadius: 4 },
-
   modalOverlay: {
-    flex: 1, backgroundColor: "rgba(0,0,0,0.6)",
+    flex: 1, backgroundColor: "rgba(0,0,0,0.65)",
     justifyContent: "center", alignItems: "center", padding: 24,
   },
   modalCard: {
-    width: "100%", backgroundColor: Colors.card, borderRadius: 20, padding: 24,
+    width: "100%", backgroundColor: "#160D33", borderRadius: 20, padding: 24,
+    borderWidth: 1, borderColor: LOGO.purple + "40",
   },
   modalTitle: {
     fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary,
     textAlign: "center", marginBottom: 16,
   },
   nameInput: {
-    borderWidth: 1, borderColor: Colors.cardBorder, borderRadius: 12,
+    borderWidth: 1, borderColor: LOGO.cyan + "40", borderRadius: 12,
     padding: 12, fontFamily: "Cairo_400Regular", fontSize: 16,
     color: Colors.textPrimary, marginBottom: 16,
+    backgroundColor: "rgba(255,255,255,0.05)",
   },
   modalButtons: { flexDirection: "row", gap: 12 },
   modalCancel: {
     flex: 1, paddingVertical: 12, borderRadius: 12,
-    backgroundColor: Colors.cardBorder, alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
   },
   modalCancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
   modalConfirm: {
     flex: 1, paddingVertical: 12, borderRadius: 12,
-    backgroundColor: Colors.gold, alignItems: "center",
+    backgroundColor: LOGO.yellow, alignItems: "center",
   },
-  modalConfirmText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.black },
-
+  modalConfirmText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#000" },
 });
