@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, memo } from "react";
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   TouchableOpacity,
   TextInput,
@@ -1016,10 +1017,11 @@ export default function HomeScreen() {
 
         {/* ── LOGO ────────────────────────────────────────── */}
         <Animated.View style={[styles.logoContainer, { transform: [{ translateY: floatAnim }] }]}>
-          <View style={styles.letterCircle}>
-            <Text style={styles.logoLetter}>ح</Text>
-          </View>
-          <Text style={styles.appName}>{t.appName}</Text>
+          <Image
+            source={require("../assets/images/logo.png")}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <Text style={styles.appSubtitle}>{t.homeSubtitle}</Text>
         </Animated.View>
 
@@ -1228,15 +1230,8 @@ const styles = StyleSheet.create({
   },
   streakRewardHintText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.ruby },
 
-  logoContainer: { alignItems: "center", marginBottom: 22 },
-  letterCircle: {
-    width: 74, height: 74, borderRadius: 37, backgroundColor: Colors.gold,
-    justifyContent: "center", alignItems: "center", marginBottom: 10,
-    shadowColor: Colors.gold, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4, shadowRadius: 16, elevation: 10,
-  },
-  logoLetter: { fontFamily: "Cairo_700Bold", fontSize: 42, color: Colors.black, lineHeight: 54 },
-  appName: { fontFamily: "Cairo_700Bold", fontSize: 24, color: Colors.textPrimary, textAlign: "center" },
+  logoContainer: { alignItems: "center", marginBottom: 16 },
+  logoImage: { width: 200, height: 160 },
   appSubtitle: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textSecondary, textAlign: "center", marginTop: 2 },
 
   carouselSection: { width: "100%", marginBottom: 20 },
