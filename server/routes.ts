@@ -791,6 +791,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     );
 
+    // Forfeit match — player intentionally exits an active game
+    // Declares remaining players as winners and ends the match immediately.
+    socket.on("forfeit_match", (data: { roomId: string }) => {
+      const room = getRoom(data.roomId);
+      if (!room) return;
+      console.log(`[forfeit_match] Socket ${socket.id} forfeited room ${data.roomId}`);
+      const gameOverPlayers = room.players.map((p) => ({
+        id: p.id,
+        name: p.name,
+        score: p.id === socket.id ? 0 : Math.max(p.score || 0, 50),
+        coins: p.id === socket.id ? 0 : 30,
+        skin: p.skin || "student",
+        forfeited: p.id === socket.id,
+      }));
+      io.to(data.roomId).emit("game_over", { players: gameOverPlayers, forfeitedBy: socket.id });
+      removePlayer(data.roomId, socket.id);
+      socket.leave(data.roomId);
+      socketRoomMap.delete(socket.id);
+    });
+
     // Play again
     socket.on(
       "play_again",

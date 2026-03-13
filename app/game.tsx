@@ -11,6 +11,7 @@ import {
   Platform,
   Modal,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -101,10 +102,17 @@ export default function GameScreen() {
   const freezeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // ──────────────────────────────────────────────────────────────────────────
 
+  // ── Exit confirmation state ────────────────────────────────────────────────
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const exitScaleAnim = useRef(new Animated.Value(0.85)).current;
+  // ──────────────────────────────────────────────────────────────────────────
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const letterAnim = useRef(new Animated.Value(0)).current;
   const answersRef = useRef<Record<GameCategory, string>>({} as Record<GameCategory, string>);
   const submittedRef = useRef(false);
+  const isGameOverRef = useRef(false);
+  const gamePlayersRef = useRef<{ id: string; name: string; score: number }[]>([]);
   const socketId = socket.id;
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
@@ -112,6 +120,8 @@ export default function GameScreen() {
 
   useEffect(() => { answersRef.current = answers; }, [answers]);
   useEffect(() => { submittedRef.current = submitted; }, [submitted]);
+  useEffect(() => { isGameOverRef.current = isGameOver; }, [isGameOver]);
+  useEffect(() => { gamePlayersRef.current = gamePlayers; }, [gamePlayers]);
 
   useEffect(() => {
     letterAnim.setValue(0);
@@ -232,6 +242,22 @@ export default function GameScreen() {
     }, 3500);
   };
 
+  // ── Exit handlers ──────────────────────────────────────────────────────────
+  const handleExitPress = () => {
+    exitScaleAnim.setValue(0.85);
+    setShowExitConfirm(true);
+    Animated.spring(exitScaleAnim, { toValue: 1, tension: 220, friction: 12, useNativeDriver: true }).start();
+  };
+
+  const handleExitConfirm = () => {
+    setShowExitConfirm(false);
+    stopTimer();
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    socket.emit("forfeit_match", { roomId });
+    router.replace("/lobby");
+  };
+  // ──────────────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     socket.on("player_submitted", ({ playerId }: { playerId: string }) => {
       setSubmittedPlayers((prev) => prev.includes(playerId) ? prev : [...prev, playerId]);
@@ -323,6 +349,24 @@ export default function GameScreen() {
       addChatBubble({ id: bubbleId, message: data.message, playerName: data.playerName, isMe: false });
     });
 
+    // Opponent disconnected without using forfeit — declare me winner
+    socket.on("player_left", ({ playerId: leftId }: { playerId: string }) => {
+      if (isGameOverRef.current) return;
+      stopTimer();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const players = gamePlayersRef.current;
+      const me = players.find(p => p.id !== leftId);
+      const opp = players.find(p => p.id === leftId);
+      const myScore = me?.score ?? 50;
+      const overPlayers = [
+        { id: socketId || "me", name: me?.name ?? profile.name, score: Math.max(myScore, 50), coins: 30, skin: profile.equippedSkin },
+        { id: leftId, name: opp?.name ?? "المنافس", score: 0, coins: 0, skin: "student" },
+      ];
+      setIsGameOver(true);
+      setGameOverPlayers(overPlayers);
+      reportGameResult(true, Math.max(myScore, 50), 30, 25, gameCoinEntry).catch(() => addCoins(30));
+    });
+
     return () => {
       socket.off("player_submitted");
       socket.off("round_results");
@@ -330,6 +374,7 @@ export default function GameScreen() {
       socket.off("game_over");
       socket.off("quick_chat");
       socket.off("power_card");
+      socket.off("player_left");
     };
   }, [socketId]);
 
@@ -529,6 +574,11 @@ export default function GameScreen() {
       )}
 
       <View style={styles.gameTopBar}>
+        {/* Exit button */}
+        <TouchableOpacity style={styles.exitGameBtn} onPress={handleExitPress} activeOpacity={0.75}>
+          <Ionicons name="exit-outline" size={17} color={Colors.ruby} />
+        </TouchableOpacity>
+
         <Animated.View
           style={[styles.letterDisplay, {
             transform: [
@@ -652,6 +702,54 @@ export default function GameScreen() {
             </View>
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* ─── EXIT CONFIRMATION POPUP ─── */}
+      <Modal visible={showExitConfirm} transparent animationType="none" onRequestClose={() => setShowExitConfirm(false)}>
+        <View style={styles.exitOverlay}>
+          <Animated.View style={[styles.exitPopupWrapper, { transform: [{ scale: exitScaleAnim }] }]}>
+            <LinearGradient
+              colors={["#2A0A1A", "#1A0A2E", "#0D1B2A"]}
+              style={styles.exitPopup}
+            >
+              {/* Warning icon */}
+              <View style={styles.exitIconCircle}>
+                <Ionicons name="exit-outline" size={28} color={Colors.ruby} />
+              </View>
+
+              <Text style={styles.exitTitle}>الخروج من المباراة؟</Text>
+              <Text style={styles.exitMessage}>هل أنت متأكد أنك تريد مغادرة المباراة؟</Text>
+
+              {gameCoinEntry > 0 && (
+                <View style={styles.exitCoinWarning}>
+                  <Ionicons name="star" size={13} color={Colors.ruby} />
+                  <Text style={styles.exitCoinWarningText}>
+                    ستخسر {gameCoinEntry} نقود دخول
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.exitDivider} />
+
+              <View style={styles.exitBtnsRow}>
+                <TouchableOpacity
+                  style={[styles.exitActionBtn, styles.exitBtnNo]}
+                  onPress={() => setShowExitConfirm(false)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.exitBtnNoText}>لا، أكمل</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.exitActionBtn, styles.exitBtnYes]}
+                  onPress={handleExitConfirm}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.exitBtnYesText}>نعم، اخرج</Text>
+                </TouchableOpacity>
+              </View>
+            </LinearGradient>
+          </Animated.View>
+        </View>
       </Modal>
     </View>
   );
@@ -885,4 +983,77 @@ const styles = StyleSheet.create({
   playAgainBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.black },
   homeBtn: { backgroundColor: Colors.card, borderRadius: 16, paddingVertical: 14, paddingHorizontal: 40, borderWidth: 1, borderColor: Colors.cardBorder },
   homeBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: Colors.textSecondary },
+
+  // Exit game button (top-left of gameTopBar)
+  exitGameBtn: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: Colors.ruby + "18",
+    justifyContent: "center", alignItems: "center",
+    marginRight: 8,
+    borderWidth: 1, borderColor: Colors.ruby + "44",
+  },
+
+  // Exit confirmation popup overlay
+  exitOverlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "center", alignItems: "center", paddingHorizontal: 28,
+  },
+  exitPopupWrapper: {
+    width: "100%", maxWidth: 340,
+    borderRadius: 24,
+    shadowColor: Colors.ruby, shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35, shadowRadius: 24, elevation: 20,
+  },
+  exitPopup: {
+    borderRadius: 24, paddingHorizontal: 24, paddingVertical: 28,
+    alignItems: "center",
+    borderWidth: 1.5, borderColor: Colors.ruby + "44",
+  },
+  exitIconCircle: {
+    width: 60, height: 60, borderRadius: 30,
+    backgroundColor: Colors.ruby + "18",
+    justifyContent: "center", alignItems: "center",
+    marginBottom: 16,
+    borderWidth: 1.5, borderColor: Colors.ruby + "40",
+  },
+  exitTitle: {
+    fontFamily: "Cairo_700Bold", fontSize: 20,
+    color: Colors.textPrimary, textAlign: "center", marginBottom: 8,
+  },
+  exitMessage: {
+    fontFamily: "Cairo_400Regular", fontSize: 14,
+    color: Colors.textSecondary, textAlign: "center", lineHeight: 22,
+  },
+  exitCoinWarning: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    marginTop: 12, backgroundColor: Colors.ruby + "15",
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10,
+    borderWidth: 1, borderColor: Colors.ruby + "30",
+  },
+  exitCoinWarningText: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.ruby,
+  },
+  exitDivider: {
+    width: "100%", height: 1, backgroundColor: Colors.cardBorder,
+    marginVertical: 20,
+  },
+  exitBtnsRow: {
+    flexDirection: "row", gap: 12, width: "100%",
+  },
+  exitActionBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: 14,
+    justifyContent: "center", alignItems: "center", borderWidth: 1.5,
+  },
+  exitBtnNo: {
+    backgroundColor: Colors.emerald + "18", borderColor: Colors.emerald + "60",
+  },
+  exitBtnYes: {
+    backgroundColor: Colors.ruby + "18", borderColor: Colors.ruby + "60",
+  },
+  exitBtnNoText: {
+    fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.emerald,
+  },
+  exitBtnYesText: {
+    fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.ruby,
+  },
 });
