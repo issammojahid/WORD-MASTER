@@ -131,6 +131,9 @@ export const playerDailyTasks = pgTable("player_daily_tasks", {
   claimed: integer("claimed").notNull().default(0),
   assignedDate: text("assigned_date").notNull(), // YYYY-MM-DD
   claimedAt: timestamp("claimed_at"),
+  baselineWins: integer("baseline_wins").notNull().default(0),
+  baselineGames: integer("baseline_games").notNull().default(0),
+  baselineScore: integer("baseline_score").notNull().default(0),
 });
 
 export type PlayerDailyTask = typeof playerDailyTasks.$inferSelect;

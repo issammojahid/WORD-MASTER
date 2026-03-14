@@ -4,9 +4,10 @@ import {
   Cairo_700Bold,
   useFonts,
 } from "@expo-google-fonts/cairo";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useRef, useState } from "react";
 import { Alert, Animated, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -88,10 +89,35 @@ function InvitePoller() {
   return null;
 }
 
+const LAST_RESET_DATE_KEY = "daily_reset_date_v1";
+
+function DailyResetChecker() {
+  const { playerId } = usePlayer();
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const stored = await AsyncStorage.getItem(LAST_RESET_DATE_KEY);
+        if (stored !== today) {
+          await AsyncStorage.setItem(LAST_RESET_DATE_KEY, today);
+          qc.invalidateQueries({ queryKey: ["/api/tasks"] });
+          qc.invalidateQueries({ queryKey: ["/api/achievements"] });
+        }
+      } catch {}
+    };
+    check();
+  }, [playerId]);
+
+  return null;
+}
+
 function RootLayoutNav() {
   return (
     <>
       <InvitePoller />
+      <DailyResetChecker />
       <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="lobby" />

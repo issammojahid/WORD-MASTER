@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -45,16 +45,37 @@ async function apiFetch(url: string, options?: RequestInit) {
   }
 }
 
+function useMidnightCountdown() {
+  const [countdown, setCountdown] = useState("");
+  useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      const midnight = new Date();
+      midnight.setHours(24, 0, 0, 0);
+      const diff = Math.max(0, Math.floor((midnight.getTime() - now.getTime()) / 1000));
+      const h = Math.floor(diff / 3600);
+      const m = Math.floor((diff % 3600) / 60);
+      const s = diff % 60;
+      setCountdown(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, []);
+  return countdown;
+}
+
 function TasksScreenInner() {
   const insets = useSafeAreaInsets();
   const { playerId, addCoins, addXp } = usePlayer();
   const { theme } = useTheme();
   const qc = useQueryClient();
+  const countdown = useMidnightCountdown();
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
-  const { data: tasksRaw, isLoading } = useQuery<Task[]>({
+  const { data: tasksRaw, isLoading, refetch } = useQuery<Task[]>({
     queryKey: ["/api/tasks", playerId],
     queryFn: async () => {
       const url = new URL(`/api/tasks/${playerId}`, getApiUrl());
@@ -62,7 +83,7 @@ function TasksScreenInner() {
       return Array.isArray(result) ? result : [];
     },
     enabled: !!playerId,
-    staleTime: 30_000,
+    staleTime: 0,
     initialData: [],
   });
 
@@ -94,13 +115,19 @@ function TasksScreenInner() {
       </View>
 
       <View style={[styles.summary, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-        <Text style={styles.summaryText}>
-          {claimedCount}/{tasks.length} تم استلامها
-        </Text>
+        <View style={styles.summaryTopRow}>
+          <Text style={styles.summaryText}>{claimedCount}/{tasks.length} تم استلامها</Text>
+          <TouchableOpacity onPress={() => refetch()} style={[styles.refreshBtn, { backgroundColor: theme.cardBorder }]}>
+            <Text style={{ fontSize: 14 }}>🔄</Text>
+          </TouchableOpacity>
+        </View>
         <View style={[styles.progressBar, { backgroundColor: theme.cardBorder }]}>
           <View style={[styles.progressFill, { width: `${tasks.length > 0 ? (claimedCount / tasks.length) * 100 : 0}%` }]} />
         </View>
-        <Text style={[styles.summarySubText, { color: theme.textMuted }]}>تُجدَّد المهام يومياً</Text>
+        <View style={styles.countdownRow}>
+          <Text style={[styles.summarySubText, { color: theme.textMuted }]}>تُجدَّد المهام يومياً — يتجدد بعد</Text>
+          <Text style={[styles.countdownText, { color: Colors.gold }]}>{countdown}</Text>
+        </View>
       </View>
 
       {isLoading ? (
@@ -188,12 +215,16 @@ const styles = StyleSheet.create({
     padding: 16, borderWidth: 1, borderColor: "#2A4560",
     gap: 8,
   },
+  summaryTopRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   summaryText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.gold },
+  refreshBtn: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   progressBar: {
     height: 6, backgroundColor: "#2A4560", borderRadius: 3, overflow: "hidden",
   },
   progressFill: { height: "100%", backgroundColor: Colors.gold, borderRadius: 3 },
+  countdownRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
   summarySubText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6B7E91" },
+  countdownText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.gold },
   list: { paddingHorizontal: 16, paddingBottom: 20, gap: 12 },
   taskCard: {
     flexDirection: "row", alignItems: "center",

@@ -63,7 +63,7 @@ function AchievementsScreenInner() {
       return Array.isArray(result) ? result : [];
     },
     enabled: !!playerId,
-    staleTime: 60_000,
+    staleTime: 0,
     initialData: [],
   });
 

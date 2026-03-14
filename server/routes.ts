@@ -1878,7 +1878,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const def of DAILY_TASK_DEFS) {
           const exists = existingRows.find(r => r.taskKey === def.key);
           if (!exists) {
-            await db.insert(playerDailyTasks).values({ playerId, taskKey: def.key, assignedDate: today });
+            await db.insert(playerDailyTasks).values({
+              playerId,
+              taskKey: def.key,
+              assignedDate: today,
+              baselineWins: profile.wins,
+              baselineGames: profile.gamesPlayed,
+              baselineScore: profile.totalScore,
+            });
           }
         }
       }
@@ -1888,10 +1895,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const result = DAILY_TASK_DEFS.map(def => {
         const row = rows.find(r => r.taskKey === def.key);
-        let progress = row?.progress ?? 0;
-        if (def.type === "wins") progress = Math.min(profile.wins, def.target);
-        if (def.type === "games") progress = Math.min(profile.gamesPlayed, def.target);
-        if (def.type === "score") progress = Math.min(profile.totalScore, def.target);
+        const baseWins = row?.baselineWins ?? 0;
+        const baseGames = row?.baselineGames ?? 0;
+        const baseScore = row?.baselineScore ?? 0;
+        let progress = 0;
+        if (def.type === "wins") progress = Math.min(Math.max(0, profile.wins - baseWins), def.target);
+        if (def.type === "games") progress = Math.min(Math.max(0, profile.gamesPlayed - baseGames), def.target);
+        if (def.type === "score") progress = Math.min(Math.max(0, profile.totalScore - baseScore), def.target);
         return {
           ...def,
           rowId: row?.id,
@@ -1922,9 +1932,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!def) return res.status(404).json({ error: "unknown_task" });
 
       let progress = 0;
-      if (def.type === "wins") progress = profile.wins;
-      if (def.type === "games") progress = profile.gamesPlayed;
-      if (def.type === "score") progress = profile.totalScore;
+      if (def.type === "wins") progress = Math.max(0, profile.wins - (row.baselineWins ?? 0));
+      if (def.type === "games") progress = Math.max(0, profile.gamesPlayed - (row.baselineGames ?? 0));
+      if (def.type === "score") progress = Math.max(0, profile.totalScore - (row.baselineScore ?? 0));
       if (progress < def.target) return res.status(400).json({ error: "not_completed" });
 
       await db.update(playerDailyTasks).set({ claimed: 1, claimedAt: new Date() }).where(eq(playerDailyTasks.id, row.id));
