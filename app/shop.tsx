@@ -337,10 +337,10 @@ const AvatarPreviewModal = memo(({ skin, owned, equipped, canAfford, profile, on
 
   return (
     <Modal visible={!!skin} transparent animationType="none" onRequestClose={onClose}>
-      <Animated.View style={[pm.overlay, { opacity: fadeAnim }]}>
+      <Animated.View style={[pm.overlay, { opacity: fadeAnim, backgroundColor: theme.overlay }]}>
         <TouchableOpacity style={StyleSheet.absoluteFillObject} onPress={onClose} activeOpacity={1} />
         <Animated.View style={[pm.card, { transform: [{ translateY: slideAnim }] }]}>
-          <LinearGradient colors={[skin.color + "30", "#0D1B2A", "#0A1520"]} style={pm.cardGrad}>
+          <LinearGradient colors={[skin.color + "30", theme.backgroundSecondary, theme.background]} style={[pm.cardGrad, { borderColor: theme.cardBorder }]}>
             {/* Close button */}
             <TouchableOpacity style={pm.closeBtn} onPress={onClose}>
               <Ionicons name="close" size={20} color={theme.textMuted} />

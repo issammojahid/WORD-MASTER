@@ -579,7 +579,7 @@ export default function LobbyScreen() {
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
         {/* ─── Invite Friend Modal ─── */}
         <Modal visible={showInviteModal} transparent animationType="slide" onRequestClose={() => setShowInviteModal(false)}>
-          <View style={styles.inviteOverlay}>
+          <View style={[styles.inviteOverlay, { backgroundColor: theme.overlay }]}>
             <View style={[styles.inviteSheet, { backgroundColor: theme.backgroundSecondary, borderColor: theme.cardBorder }]}>
               <View style={styles.inviteHeader}>
                 <Text style={[styles.inviteTitle, { color: theme.textPrimary }]}>دعوة صديق</Text>

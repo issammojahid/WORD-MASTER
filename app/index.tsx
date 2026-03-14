@@ -27,6 +27,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 
 // ── Daily login reward coin animation ─────────────────────────────────────────
 function LoginRewardPopup({ onClaim }: { onClaim: () => void }) {
+  const { theme } = useTheme();
   const coinY   = useRef(new Animated.Value(0)).current;
   const coinRot = useRef(new Animated.Value(0)).current;
   const popScale = useRef(new Animated.Value(0.7)).current;
@@ -54,12 +55,12 @@ function LoginRewardPopup({ onClaim }: { onClaim: () => void }) {
   return (
     <Animated.View style={{
       position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: "rgba(0,0,0,0.80)",
+      backgroundColor: theme.overlay,
       justifyContent: "center", alignItems: "center", padding: 24,
       opacity: popOp,
     }}>
       <Animated.View style={{
-        width: "100%", backgroundColor: "#160D33",
+        width: "100%", backgroundColor: theme.modalBg,
         borderRadius: 28, padding: 28, alignItems: "center",
         borderWidth: 1.5, borderColor: "#F5C842" + "50",
         shadowColor: "#F5C842", shadowOffset: { width: 0, height: 0 },
@@ -87,7 +88,7 @@ function LoginRewardPopup({ onClaim }: { onClaim: () => void }) {
         <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 22, color: "#F5C842", marginBottom: 8, textAlign: "center" }}>
           مكافأة الدخول اليومية
         </Text>
-        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: "rgba(255,255,255,0.7)", marginBottom: 6, textAlign: "center" }}>
+        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: theme.textSecondary, marginBottom: 6, textAlign: "center" }}>
           حصلت على
         </Text>
         <View style={{
@@ -425,7 +426,7 @@ function FeaturePopup({
     :                           [{ scale: iconGlow }];
 
   return (
-    <Animated.View style={[pStyles.overlay, { opacity: popupOpacity }]}>
+    <Animated.View style={[pStyles.overlay, { opacity: popupOpacity, backgroundColor: theme.overlay }]}>
       <View style={pStyles.particlesLayer} pointerEvents="none">
         {particles.map((p, i) => <PopupParticle key={i} {...p} />)}
       </View>
@@ -437,7 +438,7 @@ function FeaturePopup({
         ]}
       >
         <LinearGradient
-          colors={[panel.gradientFrom, panel.gradientMid, "#1A2E43"]}
+          colors={[panel.gradientFrom, panel.gradientMid, theme.card]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[pStyles.card, { borderColor: panel.color + "55" }]}
@@ -466,7 +467,7 @@ function FeaturePopup({
           </View>
 
           <Text style={[pStyles.title, { color: panel.color }]}>{panel.title}</Text>
-          <Text style={pStyles.subtitle}>{panel.subtitle}</Text>
+          <Text style={[pStyles.subtitle, { color: theme.textSecondary }]}>{panel.subtitle}</Text>
 
           <View
             style={[
@@ -478,8 +479,8 @@ function FeaturePopup({
           </View>
 
           <View style={pStyles.buttonsRow}>
-            <TouchableOpacity style={pStyles.skipBtn} onPress={() => onDismiss()} activeOpacity={0.7}>
-              <Text style={pStyles.skipText}>تخطي</Text>
+            <TouchableOpacity style={[pStyles.skipBtn, { backgroundColor: theme.card, borderColor: theme.cardBorder }]} onPress={() => onDismiss()} activeOpacity={0.7}>
+              <Text style={[pStyles.skipText, { color: theme.textSecondary }]}>تخطي</Text>
             </TouchableOpacity>
 
             <Animated.View style={[pStyles.playBtnWrapper, { transform: [{ scale: btnPulse }] }]}>

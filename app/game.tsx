@@ -213,7 +213,7 @@ type ChatBubble = {
 };
 
 export default function GameScreen() {
-  const { theme } = useTheme();
+  const { isDark, theme } = useTheme();
   const { roomId, letter, round, totalRounds, coinEntry: coinEntryParam } = useLocalSearchParams<{
     roomId: string;
     letter: string;
@@ -972,7 +972,7 @@ export default function GameScreen() {
 
       {/* ─── QUICK CHAT PANEL ─── */}
       <Modal visible={showChatPanel} transparent animationType="slide" onRequestClose={() => setShowChatPanel(false)}>
-        <TouchableOpacity style={styles.chatPanelOverlay} activeOpacity={1} onPress={() => setShowChatPanel(false)}>
+        <TouchableOpacity style={[styles.chatPanelOverlay, { backgroundColor: theme.overlay }]} activeOpacity={1} onPress={() => setShowChatPanel(false)}>
           <View style={[styles.chatPanel, { backgroundColor: theme.backgroundSecondary, borderColor: theme.cardBorder }]}>
             <Text style={[styles.chatPanelTitle, { color: theme.textPrimary }]}>رسالة سريعة</Text>
             <View style={styles.chatMessagesGrid}>
@@ -988,10 +988,10 @@ export default function GameScreen() {
 
       {/* ─── EXIT CONFIRMATION POPUP ─── */}
       <Modal visible={showExitConfirm} transparent animationType="none" onRequestClose={() => setShowExitConfirm(false)}>
-        <View style={styles.exitOverlay}>
+        <View style={[styles.exitOverlay, { backgroundColor: theme.overlay }]}>
           <Animated.View style={[styles.exitPopupWrapper, { transform: [{ scale: exitScaleAnim }] }]}>
             <LinearGradient
-              colors={["#2A0A1A", "#1A0A2E", "#0D1B2A"]}
+              colors={isDark ? ["#2A0A1A", "#1A0A2E", "#0D1B2A"] : [theme.modalBg, theme.backgroundSecondary, theme.background]}
               style={styles.exitPopup}
             >
               {/* Warning icon */}
@@ -999,8 +999,8 @@ export default function GameScreen() {
                 <Ionicons name="exit-outline" size={28} color={Colors.ruby} />
               </View>
 
-              <Text style={styles.exitTitle}>الخروج من المباراة؟</Text>
-              <Text style={styles.exitMessage}>هل أنت متأكد أنك تريد مغادرة المباراة؟</Text>
+              <Text style={[styles.exitTitle, { color: theme.textPrimary }]}>الخروج من المباراة؟</Text>
+              <Text style={[styles.exitMessage, { color: theme.textSecondary }]}>هل أنت متأكد أنك تريد مغادرة المباراة؟</Text>
 
               {gameCoinEntry > 0 && (
                 <View style={styles.exitCoinWarning}>
