@@ -321,7 +321,7 @@ export default function SpinScreen() {
             <Text style={styles.rewardEmoji}>{reward.icon}</Text>
             <View>
               <Text style={styles.rewardTitle}>🎉 مبروك!</Text>
-              <Text style={styles.rewardValue}>
+              <Text style={[styles.rewardValue, { color: theme.textPrimary }]}>
                 {reward.type === "powerCard"
                   ? "بطاقة قوة إضافية! 🃏"
                   : reward.type === "xp"
@@ -339,7 +339,7 @@ export default function SpinScreen() {
             {countdown ? (
               <View style={styles.countdownRow}>
                 <Ionicons name="time-outline" size={16} color={theme.textMuted} />
-                <Text style={styles.countdownLabel}>الدورة القادمة بعد</Text>
+                <Text style={[styles.countdownLabel, { color: theme.textMuted }]}>الدورة القادمة بعد</Text>
                 <Text style={styles.countdownTime}>{countdown}</Text>
               </View>
             ) : null}
@@ -362,9 +362,9 @@ export default function SpinScreen() {
             <Ionicons
               name="sync"
               size={22}
-              color={canSpin && !spinning ? "#000" : Colors.textMuted}
+              color={canSpin && !spinning ? "#000" : theme.textMuted}
             />
-            <Text style={[styles.spinBtnText, (!canSpin || spinning) && { color: Colors.textMuted }]}>
+            <Text style={[styles.spinBtnText, (!canSpin || spinning) && { color: theme.textMuted }]}>
               {spinning ? "جارٍ الدوران..." : canSpin ? "ادر العجلة!" : "غداً إن شاء الله"}
             </Text>
           </LinearGradient>

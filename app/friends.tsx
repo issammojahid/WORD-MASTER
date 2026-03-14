@@ -260,7 +260,7 @@ function FriendsScreenInner() {
           )}
           {pendingSent.length > 0 && (
             <>
-              <Text style={styles.sectionLabel}>طلبات أرسلتها</Text>
+              <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>طلبات أرسلتها</Text>
               {pendingSent.map((row) =>
                 renderPlayerCard(
                   row.player,
@@ -292,11 +292,11 @@ function FriendsScreenInner() {
               <ActivityIndicator color={Colors.gold} style={{ marginTop: 40 }} />
             ) : debouncedQ.length < 2 ? (
               <View style={styles.empty}>
-                <Text style={styles.emptyText}>ابحث عن لاعب</Text>
+                <Text style={[styles.emptyText, { color: theme.textSecondary }]}>ابحث عن لاعب</Text>
               </View>
             ) : searchResults.length === 0 ? (
               <View style={styles.empty}>
-                <Text style={styles.emptyText}>لا توجد نتائج</Text>
+                <Text style={[styles.emptyText, { color: theme.textSecondary }]}>لا توجد نتائج</Text>
               </View>
             ) : (
               searchResults.map((player) => {
@@ -338,7 +338,7 @@ function FriendsScreenInner() {
             <ActivityIndicator color={Colors.gold} style={{ marginTop: 40 }} />
           ) : pendingReceived.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>لا توجد طلبات جديدة</Text>
+              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>لا توجد طلبات جديدة</Text>
             </View>
           ) : (
             pendingReceived.map((row) =>

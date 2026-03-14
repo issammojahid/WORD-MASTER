@@ -361,6 +361,7 @@ function FeaturePopup({
   popupScale: Animated.Value;
   onDismiss: (nav?: () => void) => void;
 }) {
+  const { theme } = useTheme();
   const particles = POPUP_PARTICLE_DEFS[panel.id] || [];
   const iconY    = useRef(new Animated.Value(0)).current;
   const iconRot  = useRef(new Animated.Value(0)).current;
@@ -446,7 +447,7 @@ function FeaturePopup({
             onPress={() => onDismiss()}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
-            <Ionicons name="close" size={20} color={Colors.textPrimary} />
+            <Ionicons name="close" size={20} color={theme.textPrimary} />
           </TouchableOpacity>
 
           <View
@@ -1191,7 +1192,7 @@ export default function HomeScreen() {
                     style={[styles.xpBar, { width: `${xpProgress * 100}%` as any }]}
                   />
                 </View>
-                <Text style={styles.xpText}>{profile.xp % 100}/100</Text>
+                <Text style={[styles.xpText, { color: theme.textMuted }]}>{profile.xp % 100}/100</Text>
               </View>
             </View>
           </TouchableOpacity>
@@ -1280,22 +1281,22 @@ export default function HomeScreen() {
           style={styles.statsRow}
         >
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{profile.gamesPlayed}</Text>
+            <Text style={[styles.statValue, { color: theme.textPrimary }]}>{profile.gamesPlayed}</Text>
             <Text style={[styles.statLabel, { color: theme.textMuted }]}>مباريات</Text>
           </View>
           <View style={[styles.statDivider, { backgroundColor: theme.cardBorder }]} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{profile.wins}</Text>
+            <Text style={[styles.statValue, { color: theme.textPrimary }]}>{profile.wins}</Text>
             <Text style={[styles.statLabel, { color: theme.textMuted }]}>انتصارات</Text>
           </View>
           <View style={[styles.statDivider, { backgroundColor: theme.cardBorder }]} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{profile.totalScore}</Text>
+            <Text style={[styles.statValue, { color: theme.textPrimary }]}>{profile.totalScore}</Text>
             <Text style={[styles.statLabel, { color: theme.textMuted }]}>نقاط</Text>
           </View>
           <View style={[styles.statDivider, { backgroundColor: theme.cardBorder }]} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>{profile.bestStreak}</Text>
+            <Text style={[styles.statValue, { color: theme.textPrimary }]}>{profile.bestStreak}</Text>
             <Text style={[styles.statLabel, { color: theme.textMuted }]}>سلسلة</Text>
           </View>
           {tournamentWins > 0 && (
@@ -1303,7 +1304,7 @@ export default function HomeScreen() {
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text style={[styles.statValue, { color: Colors.gold }]}>🏆 {tournamentWins}</Text>
-                <Text style={styles.statLabel}>بطولات</Text>
+                <Text style={[styles.statLabel, { color: theme.textMuted }]}>بطولات</Text>
               </View>
             </>
           )}

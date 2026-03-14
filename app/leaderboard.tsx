@@ -154,7 +154,7 @@ export default function LeaderboardScreen() {
                       المستوى {entry.level} · {entry.gamesPlayed} مباراة
                     </Text>
                   </View>
-                  <Text style={styles.rankRowValue}>{getValue(entry)}</Text>
+                  <Text style={[styles.rankRowValue, { color: theme.textPrimary }]}>{getValue(entry)}</Text>
                 </View>
               );
             })}

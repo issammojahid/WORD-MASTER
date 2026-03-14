@@ -185,7 +185,7 @@ function AchievementsScreenInner() {
                     </TouchableOpacity>
                   ) : (
                     <View style={styles.lockCircle}>
-                      <Ionicons name="lock-closed" size={14} color={Colors.textMuted} />
+                      <Ionicons name="lock-closed" size={14} color={theme.textMuted} />
                     </View>
                   )}
                 </View>
