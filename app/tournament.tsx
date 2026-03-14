@@ -18,7 +18,7 @@ import * as Haptics from "expo-haptics";
 import { usePlayer, SKINS } from "@/contexts/PlayerContext";
 import Colors from "@/constants/colors";
 import { fetch } from "expo/fetch";
-import { getApiUrl, apiRequest } from "@/lib/query-client";
+import { getApiUrl } from "@/lib/query-client";
 import { getSocket } from "@/services/socket";
 
 // ── Reliable fetch for APK builds ────────────────────────────────────────────
