@@ -1,0 +1,24 @@
+Fix race condition in PlayerContext: setPlayerId after server sync
+
+Root cause:
+- `setPlayerId(id)` was called immediately after reading the player ID
+  from AsyncStorage, BEFORE `GET /api/player/:id` ran on Railway.
+- Tasks/Achievements queries (gated on `!!playerId`) fired the instant
+  playerId was set, hitting Railway before the player profile existed.
+- Railway returned 404 "player_not_found" → apiFetch returned null → []
+  → screens showed empty content on fresh APK installs.
+
+Fix (contexts/PlayerContext.tsx):
+- Hoisted `let id = ""` before the outer try block so a finally clause
+  can always access it.
+- Removed the early `setPlayerId(id)` call (previously line 292).
+- Added a `finally` block at the end of the initialization sequence that
+  calls `setPlayerId(id)` after the server sync inner try/catch finishes.
+- By the time `setPlayerId` fires, `GET /api/player/:id` has already run
+  on Railway (creating the profile if new) so subsequent tasks/
+  achievements queries are guaranteed to find the profile.
+- Fallback: the `finally` block always runs even if the outer try throws
+  (e.g. corrupted AsyncStorage), so the app never stays stuck with an
+  empty playerId.
+
+No changes to Railway server, multiplayer logic, or theme system.
