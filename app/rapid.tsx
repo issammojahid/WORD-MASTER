@@ -224,7 +224,7 @@ export default function RapidScreen() {
       phaseRef.current = "game_over";
       rapidRoomIdRef.current = null;
       reportGameResult(won, myFinalScore, data.coinsEarned, data.xpEarned, tier?.entry);
-      playSound(won ? "win" : "lose");
+      if (!isDraw) playSound(won ? "win" : "lose");
       if (won) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
