@@ -221,6 +221,8 @@ const PlayerContext = createContext<PlayerContextType | null>(null);
 
 const STORAGE_KEY = "player_profile_v3";
 const PLAYER_ID_KEY = "player_id_v1";
+const FIRST_LAUNCH_KEY = "player_first_launch_v1";
+const STARTING_COINS = 1000;
 
 const defaultProfile: PlayerProfile = {
   name: "لاعب",
@@ -281,6 +283,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
+        // ── Player ID ────────────────────────────────────────────────────────
         let id = await AsyncStorage.getItem(PLAYER_ID_KEY);
         if (!id) {
           id = generatePlayerId();
@@ -288,23 +291,43 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
         setPlayerId(id);
 
+        // ── Local profile ────────────────────────────────────────────────────
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
         let parsed: Partial<PlayerProfile> | undefined;
         if (stored) {
-          parsed = JSON.parse(stored);
+          try { parsed = JSON.parse(stored); } catch { parsed = undefined; }
           setProfile(mergeProfile(parsed || {}));
         }
 
+        // ── Welcome bonus (runs once, only for brand-new players) ─────────────
+        // A player is "new" when there is no prior local profile AND the
+        // first-launch flag has never been set.  Existing players who upgrade
+        // to this version already have a saved profile, so they are skipped.
+        const firstLaunchFlag = await AsyncStorage.getItem(FIRST_LAUNCH_KEY);
+        const isNewPlayer = !firstLaunchFlag && !stored;
+        // Mark as launched regardless, so this block never runs again.
+        if (!firstLaunchFlag) {
+          await AsyncStorage.setItem(FIRST_LAUNCH_KEY, "1");
+        }
+
+        // ── Server sync ──────────────────────────────────────────────────────
         try {
           const baseUrl = getApiUrl();
           const res = await fetch(new URL(`/api/player/${id}`, baseUrl).toString());
           if (res.ok) {
             const sp = await res.json();
+
+            // For new players, override whatever coins the server has with the
+            // starting bonus.  For returning players, keep the higher value.
+            const serverCoins: number = isNewPlayer
+              ? STARTING_COINS
+              : Math.max(sp.coins ?? 0, parsed?.coins ?? 0);
+
             const merged: PlayerProfile = {
               name: sp.name || parsed?.name || defaultProfile.name,
-              coins: Math.max(sp.coins ?? 0, parsed?.coins ?? 0),
-              xp: Math.max(sp.xp ?? 0, parsed?.xp ?? 0),
-              level: Math.max(sp.level ?? 1, parsed?.level ?? 1),
+              coins: serverCoins,
+              xp: isNewPlayer ? 0 : Math.max(sp.xp ?? 0, parsed?.xp ?? 0),
+              level: isNewPlayer ? 1 : Math.max(sp.level ?? 1, parsed?.level ?? 1),
               equippedSkin: sp.equippedSkin || parsed?.equippedSkin || defaultProfile.equippedSkin,
               ownedSkins: [...new Set([...(sp.ownedSkins || []), ...(parsed?.ownedSkins || []), "student"])] as SkinId[],
               totalScore: Math.max(sp.totalScore ?? 0, parsed?.totalScore ?? 0),
@@ -324,12 +347,43 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               powerCards: sp.powerCards
                 ? { ...defaultProfile.powerCards, ...sp.powerCards }
                 : (parsed?.powerCards ? { ...defaultProfile.powerCards, ...parsed.powerCards } : defaultProfile.powerCards),
+              lastLoginRewardAt: parsed?.lastLoginRewardAt || null,
+              claimedLevelRewards: parsed?.claimedLevelRewards || [],
             };
+
             setProfile(merged);
             await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+
+            // Sync the starting bonus back to the server so the DB reflects it.
+            if (isNewPlayer) {
+              try {
+                await fetch(new URL(`/api/player/${id}`, baseUrl).toString(), {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ coins: STARTING_COINS }),
+                });
+              } catch {}
+            }
+          } else if (isNewPlayer) {
+            // Server unreachable on first launch — still give the bonus locally.
+            const newProfile = mergeProfile({ coins: STARTING_COINS, xp: 0, level: 1 });
+            setProfile(newProfile);
+            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newProfile));
           }
-        } catch {}
-      } catch {}
+        } catch {
+          if (isNewPlayer) {
+            // Network error on first launch — initialize safely with bonus coins.
+            const newProfile = mergeProfile({ coins: STARTING_COINS, xp: 0, level: 1 });
+            setProfile(newProfile);
+            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newProfile));
+          }
+        }
+      } catch {
+        // Corrupted / missing data — initialize with a safe default profile.
+        const safeProfile = mergeProfile({ coins: STARTING_COINS, xp: 0, level: 1 });
+        setProfile(safeProfile);
+        try { await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(safeProfile)); } catch {}
+      }
     })();
   }, []);
 
