@@ -695,7 +695,7 @@ export default function LobbyScreen() {
         {/* ─── VOICE CHAT PANEL (friend rooms only) ─── */}
         <View style={styles.voiceChatCard}>
           <View style={styles.voiceChatHeader}>
-            <Ionicons name="mic" size={16} color={voiceEnabled ? Colors.emerald : "#6B7E91"} />
+            <Ionicons name="mic" size={16} color={voiceEnabled ? Colors.emerald : theme.textMuted} />
             <Text style={styles.voiceChatTitle}>دردشة صوتية</Text>
             <TouchableOpacity
               style={[styles.voiceToggleBtn, voiceEnabled && styles.voiceToggleBtnActive]}
@@ -797,7 +797,7 @@ export default function LobbyScreen() {
             disabled={!canStart}
           >
             {!canStart ? (
-              <Text style={[styles.startBtnText, { color: "#6B7E91" }]}>في انتظار لاعبين...</Text>
+              <Text style={[styles.startBtnText, { color: theme.textMuted }]}>في انتظار لاعبين...</Text>
             ) : (
               <>
                 <Ionicons name="play" size={20} color={"#000000"} style={{ marginRight: 8 }} />
@@ -928,7 +928,7 @@ export default function LobbyScreen() {
               {loading ? (
                 <ActivityIndicator size="small" color={"#000000"} />
               ) : (
-                <Text style={[styles.startBtnText, joinCode.length < 4 && { color: "#6B7E91" }]}>{t.joinRoom}</Text>
+                <Text style={[styles.startBtnText, joinCode.length < 4 && { color: theme.textMuted }]}>{t.joinRoom}</Text>
               )}
             </TouchableOpacity>
             <TouchableOpacity style={styles.backLinkBtn} onPress={() => { setTab("select"); setError(null); setJoinCode(""); }}>

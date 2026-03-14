@@ -153,7 +153,7 @@ export default function LeagueScreen() {
                 key={opt.entry}
                 style={[
                   styles.entryRow,
-                  { borderColor: affordable ? league.color + "40" : "#2A4560" },
+                  { borderColor: affordable ? league.color + "40" : theme.cardBorder },
                   affordable && styles.entryRowAffordable,
                   !affordable && styles.entryRowLocked,
                 ]}
@@ -162,7 +162,7 @@ export default function LeagueScreen() {
                 disabled={!affordable}
               >
                 <View style={styles.entryLeft}>
-                  <Text style={[styles.entryAmount, { color: affordable ? "#F0E6D3" : "#6B7E91" }]}>
+                  <Text style={[styles.entryAmount, { color: affordable ? theme.textPrimary : theme.textMuted }]}>
                     🪙 {formatCoins(opt.entry)}
                   </Text>
                   <Text style={styles.entryLabel}>رسوم الدخول</Text>
@@ -170,10 +170,10 @@ export default function LeagueScreen() {
                 <Ionicons
                   name="arrow-forward"
                   size={20}
-                  color={affordable ? league.color : "#6B7E91"}
+                  color={affordable ? league.color : theme.textMuted}
                 />
                 <View style={styles.entryRight}>
-                  <Text style={[styles.winAmount, { color: affordable ? league.color : "#6B7E91" }]}>
+                  <Text style={[styles.winAmount, { color: affordable ? league.color : theme.textMuted }]}>
                     🏆 {formatCoins(opt.win)}
                   </Text>
                   <Text style={styles.winLabel}>جائزة الفوز</Text>

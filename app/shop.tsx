@@ -332,8 +332,8 @@ const AvatarPreviewModal = memo(({ skin, owned, equipped, canAfford, profile, on
   let actionColor = Colors.gold;
   let actionBg = Colors.gold + "22";
   if (owned) { actionLabel = equipped ? "✓ مُجهَّز" : "تجهيز الآن"; actionColor = equipped ? Colors.emerald : "#60A5FA"; actionBg = equipped ? Colors.emerald + "22" : "#60A5FA22"; }
-  else if (unlockCond) { actionLabel = unlockMet ? "🔓 افتح الآن" : `${unlockCurrent}/${unlockCond.value}`; actionColor = unlockMet ? "#A78BFA" : "#6B7E91"; actionBg = unlockMet ? "#A78BFA22" : "#2A4560"; }
-  else { actionLabel = canAfford ? `شراء · ${skin.price} ⭐` : `غير كافٍ · ${skin.price} ⭐`; actionColor = canAfford ? Colors.gold : "#6B7E91"; actionBg = canAfford ? Colors.gold + "22" : "#2A4560"; }
+  else if (unlockCond) { actionLabel = unlockMet ? "🔓 افتح الآن" : `${unlockCurrent}/${unlockCond.value}`; actionColor = unlockMet ? "#A78BFA" : theme.textMuted; actionBg = unlockMet ? "#A78BFA22" : theme.cardBorder; }
+  else { actionLabel = canAfford ? `شراء · ${skin.price} ⭐` : `غير كافٍ · ${skin.price} ⭐`; actionColor = canAfford ? Colors.gold : theme.textMuted; actionBg = canAfford ? Colors.gold + "22" : theme.cardBorder; }
 
   return (
     <Modal visible={!!skin} transparent animationType="none" onRequestClose={onClose}>
@@ -993,7 +993,7 @@ export default function ShopScreen() {
         ) : (
           <Animated.View style={[s.prizeReveal, { transform: [{ scale: prizeScaleAnim }], opacity: prizeOpacityAnim }]}>
             <Text style={[s.prizeCongrats, { color: theme.textPrimary }]}>مبروك! 🎉</Text>
-            <LinearGradient colors={["#1A2E43", "#0D1B2A"]} style={s.prizeCard}>
+            <LinearGradient colors={[theme.backgroundTertiary, theme.background]} style={s.prizeCard}>
               <Text style={s.prizeEmoji}>{boxResult?.emoji}</Text>
               <Text style={[s.prizeName, { color: theme.textPrimary }]}>{boxResult?.nameAr}</Text>
               <Text style={[s.prizeTypeLabel, { color: theme.textMuted }]}>
@@ -1015,7 +1015,7 @@ export default function ShopScreen() {
   // ── Render: Daily Shop ────────────────────────────────────────────────────
   const renderDailyShop = () => (
     <>
-      <LinearGradient colors={["#1A2E43", "#0D1B2A"]} style={[s.dailyHeader, { borderColor: theme.cardBorder }]}>
+      <LinearGradient colors={[theme.backgroundTertiary, theme.background]} style={[s.dailyHeader, { borderColor: theme.cardBorder }]}>
         <View>
           <Text style={[s.dailyTitle, { color: theme.textPrimary }]}>عروض اليوم 🏷️</Text>
           <Text style={[s.dailySubtitle, { color: theme.textMuted }]}>تتجدد كل يوم · خصم 30%</Text>
@@ -1079,7 +1079,7 @@ export default function ShopScreen() {
           { rank: "1", color: Colors.rank1, text: "المركز الأول = 20 نقود" },
           { rank: "2", color: Colors.rank2, text: "المركز الثاني = 15 نقود" },
           { rank: "3", color: Colors.rank3, text: "المركز الثالث = 10 نقود" },
-          { rank: "+", color: "#6B7E91", text: "باقي المراكز = 5 نقود" },
+          { rank: "+", color: theme.textMuted, text: "باقي المراكز = 5 نقود" },
         ].map((r, i) => (
           <View key={i} style={s.earnRow}>
             <View style={[s.earnBadge, { backgroundColor: r.color + "22" }]}>

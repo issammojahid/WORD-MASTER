@@ -125,10 +125,10 @@ function normalize(word: string): string {
     .toLowerCase();
 }
 
-function statusColor(s: CategoryStatus): string {
+function statusColor(s: CategoryStatus, muted: string): string {
   if (s === "correct") return Colors.emerald;
   if (s === "duplicate") return Colors.gold;
-  return "#6B7E91";
+  return muted;
 }
 
 export default function AIGameScreen() {
@@ -622,22 +622,22 @@ export default function AIGameScreen() {
                   <Text
                     style={[
                       styles.resultAnswer,
-                      { color: statusColor(r.playerStatus) },
+                      { color: statusColor(r.playerStatus, theme.textMuted) },
                       !r.playerAnswer && styles.resultAnswerEmpty,
                     ]}
                   >
                     {r.playerAnswer || "—"}
                   </Text>
-                  <Text style={[styles.resultPts, { color: r.playerScore > 0 ? Colors.emerald : "#6B7E91" }]}>
+                  <Text style={[styles.resultPts, { color: r.playerScore > 0 ? Colors.emerald : theme.textMuted }]}>
                     +{r.playerScore}
                   </Text>
                 </View>
                 <View style={styles.resultDivider} />
                 <View style={styles.resultCol}>
-                  <Text style={[styles.resultAnswer, { color: statusColor(r.aiStatus) }, !r.aiAnswer && styles.resultAnswerEmpty]}>
+                  <Text style={[styles.resultAnswer, { color: statusColor(r.aiStatus, theme.textMuted) }, !r.aiAnswer && styles.resultAnswerEmpty]}>
                     {r.aiAnswer || "—"}
                   </Text>
-                  <Text style={[styles.resultPts, { color: r.aiScore > 0 ? Colors.ruby : "#6B7E91" }]}>
+                  <Text style={[styles.resultPts, { color: r.aiScore > 0 ? Colors.ruby : theme.textMuted }]}>
                     +{r.aiScore}
                   </Text>
                 </View>
