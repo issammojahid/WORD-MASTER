@@ -478,10 +478,12 @@ export default function GameScreen() {
       players: { id: string; name: string; score: number }[];
     }) => {
       stopTimer();
-      setRoundResults(data.results);
-      setGamePlayers(data.players);
+      const safeResults = Array.isArray(data.results) ? data.results : [];
+      const safePlayers = Array.isArray(data.players) ? data.players : [];
+      setRoundResults(safeResults);
+      setGamePlayers(safePlayers);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      const myResult = data.results.find((r) => r.playerId === socketId);
+      const myResult = safeResults.find((r) => r.playerId === socketId);
       if (myResult) {
         const hasCorrect = Object.values(myResult.status).some((s) => s === "correct");
         const allBad = Object.values(myResult.status).every((s) => s === "empty" || s === "invalid");
@@ -562,10 +564,11 @@ export default function GameScreen() {
     }) => {
       stopTimer();
       setIsGameOver(true);
-      setGameOverPlayers(data.players.map((p) => ({ ...p, skin: p.skin || "default" })));
-      const me = data.players.find((p) => p.id === socketId);
+      const safePlayers = Array.isArray(data.players) ? data.players : [];
+      setGameOverPlayers(safePlayers.map((p) => ({ ...p, skin: p.skin || "default" })));
+      const me = safePlayers.find((p) => p.id === socketId);
       if (me) {
-        const sorted = [...data.players].sort((a, b) => b.score - a.score);
+        const sorted = [...safePlayers].sort((a, b) => b.score - a.score);
         const rank = sorted.findIndex((p) => p.id === socketId);
         const won = rank === 0;
         playSound(won ? "win" : "lose");
