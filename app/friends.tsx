@@ -240,7 +240,8 @@ function FriendsScreenInner() {
                     style={styles.inviteBtn}
                     onPress={() => copyToClipboard(row.player.id)}
                   >
-                    <Ionicons name="paper-plane" size={16} color={Colors.sapphire} />
+                    <Ionicons name="paper-plane" size={14} color={Colors.sapphire} />
+                    <Text style={styles.inviteBtnText}>دعوة</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.removeBtn}
@@ -422,7 +423,8 @@ const styles = StyleSheet.create({
   },
   toastText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.emerald },
   friendActions: { flexDirection: "row", alignItems: "center", gap: 6 },
-  inviteBtn: { padding: 8, borderRadius: 10, backgroundColor: Colors.sapphire + "20" },
+  inviteBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: Colors.sapphire + "20" },
+  inviteBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.sapphire },
   sectionLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textSecondary, marginTop: 8, marginBottom: 4 },
   playSection: {
     flexDirection: "row", alignItems: "center",
