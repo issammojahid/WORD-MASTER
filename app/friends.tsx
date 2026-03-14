@@ -53,29 +53,37 @@ function FriendsScreenInner() {
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
-  const { data: allFriendRows = [], isLoading: loadingFriends } = useQuery<FriendEntry[]>({
+  const { data: friendRowsRaw, isLoading: loadingFriends } = useQuery<FriendEntry[]>({
     queryKey: ["/api/friends", playerId],
     queryFn: async () => {
       const url = new URL(`/api/friends/${playerId}`, getApiUrl());
-      return apiFetch(url.toString());
+      const result = await apiFetch(url.toString());
+      return Array.isArray(result) ? result : [];
     },
     enabled: !!playerId,
     refetchInterval: 10_000,
+    initialData: [],
   });
+
+  const allFriendRows: FriendEntry[] = Array.isArray(friendRowsRaw) ? friendRowsRaw : [];
 
   const acceptedFriends = allFriendRows.filter((r) => r.status === "accepted");
   const pendingReceived = allFriendRows.filter((r) => r.status === "pending" && !r.isSender);
   const pendingSent = allFriendRows.filter((r) => r.status === "pending" && r.isSender);
 
-  const { data: searchResults = [], isLoading: loadingSearch } = useQuery<PlayerResult[]>({
+  const { data: searchResultsRaw, isLoading: loadingSearch } = useQuery<PlayerResult[]>({
     queryKey: ["/api/players/search", debouncedQ],
     queryFn: async () => {
       if (debouncedQ.length < 2) return [];
       const url = new URL(`/api/players/search?q=${encodeURIComponent(debouncedQ)}&playerId=${playerId}`, getApiUrl());
-      return apiFetch(url.toString());
+      const result = await apiFetch(url.toString());
+      return Array.isArray(result) ? result : [];
     },
     enabled: debouncedQ.length >= 2,
+    initialData: [],
   });
+
+  const searchResults: PlayerResult[] = Array.isArray(searchResultsRaw) ? searchResultsRaw : [];
 
   const handleSearchChange = useCallback((text: string) => {
     setSearchQuery(text);

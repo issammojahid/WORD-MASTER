@@ -52,15 +52,19 @@ function AchievementsScreenInner() {
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
-  const { data: achievements = [], isLoading } = useQuery<Achievement[]>({
+  const { data: achievementsRaw, isLoading } = useQuery<Achievement[]>({
     queryKey: ["/api/achievements", playerId],
     queryFn: async () => {
       const url = new URL(`/api/achievements/${playerId}`, getApiUrl());
-      return apiFetch(url.toString());
+      const result = await apiFetch(url.toString());
+      return Array.isArray(result) ? result : [];
     },
     enabled: !!playerId,
     staleTime: 60_000,
+    initialData: [],
   });
+
+  const achievements: Achievement[] = Array.isArray(achievementsRaw) ? achievementsRaw : [];
 
   const claimAchievement = useMutation({
     mutationFn: async (key: string) => {
@@ -69,8 +73,8 @@ function AchievementsScreenInner() {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["/api/achievements", playerId] });
-      if (data.coinsEarned) addCoins(data.coinsEarned);
-      if (data.xpEarned) addXp(data.xpEarned);
+      if (data?.coinsEarned) addCoins(data.coinsEarned);
+      if (data?.xpEarned) addXp(data.xpEarned);
     },
   });
 
@@ -129,6 +133,12 @@ function AchievementsScreenInner() {
       {isLoading ? (
         <View style={styles.center}>
           <ActivityIndicator color={Colors.gold} size="large" />
+        </View>
+      ) : filtered.length === 0 ? (
+        <View style={styles.center}>
+          <Text style={styles.emptyIcon}>🏆</Text>
+          <Text style={styles.emptyText}>لم تحقق أي إنجاز بعد</Text>
+          <Text style={styles.emptySubText}>العب وتقدم للحصول على الإنجازات</Text>
         </View>
       ) : (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
@@ -252,6 +262,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.cardBorder,
     justifyContent: "center", alignItems: "center",
   },
+  emptyIcon: { fontSize: 48, marginBottom: 8 },
+  emptyText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textSecondary },
+  emptySubText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, marginTop: 4 },
 });
 
 export default function AchievementsScreen() {

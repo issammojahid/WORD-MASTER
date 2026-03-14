@@ -51,15 +51,19 @@ function TasksScreenInner() {
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
-  const { data: tasks = [], isLoading } = useQuery<Task[]>({
+  const { data: tasksRaw, isLoading } = useQuery<Task[]>({
     queryKey: ["/api/tasks", playerId],
     queryFn: async () => {
       const url = new URL(`/api/tasks/${playerId}`, getApiUrl());
-      return apiFetch(url.toString());
+      const result = await apiFetch(url.toString());
+      return Array.isArray(result) ? result : [];
     },
     enabled: !!playerId,
     staleTime: 30_000,
+    initialData: [],
   });
+
+  const tasks: Task[] = Array.isArray(tasksRaw) ? tasksRaw : [];
 
   const claimTask = useMutation({
     mutationFn: async (taskKey: string) => {
@@ -68,8 +72,8 @@ function TasksScreenInner() {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["/api/tasks", playerId] });
-      if (data.coinsEarned) addCoins(data.coinsEarned);
-      if (data.xpEarned) addXp(data.xpEarned);
+      if (data?.coinsEarned) addCoins(data.coinsEarned);
+      if (data?.xpEarned) addXp(data.xpEarned);
     },
   });
 
@@ -99,6 +103,12 @@ function TasksScreenInner() {
       {isLoading ? (
         <View style={styles.center}>
           <ActivityIndicator color={Colors.gold} size="large" />
+        </View>
+      ) : tasks.length === 0 ? (
+        <View style={styles.center}>
+          <Text style={styles.emptyIcon}>📋</Text>
+          <Text style={styles.emptyText}>لا توجد مهام حالياً</Text>
+          <Text style={styles.emptySubText}>تُجدَّد المهام يومياً</Text>
         </View>
       ) : (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
@@ -219,6 +229,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.cardBorder,
     justifyContent: "center", alignItems: "center",
   },
+  emptyIcon: { fontSize: 48, marginBottom: 8 },
+  emptyText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textSecondary },
+  emptySubText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, marginTop: 4 },
 });
 
 export default function TasksScreen() {
