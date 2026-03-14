@@ -57,7 +57,7 @@ type OpponentInfo = {
 type CoinTier = { entry: number; reward: number };
 const COIN_TIERS: CoinTier[] = [
   { entry: 50, reward: 100 },
-  { entry: 100, reward: 200 },
+  { entry: 100, reward: 250 },
 ];
 
 export default function RapidScreen() {
@@ -209,17 +209,11 @@ export default function RapidScreen() {
         addCoins(tier.entry);
       }
 
-      const displayCoins = isDraw && tier
-        ? tier.entry
-        : won && tier
-          ? tier.reward
-          : data.coinsEarned;
-
       setGameOverData({
         won,
         myScore: myFinalScore,
         oppScore: oppFinalScore,
-        coinsEarned: displayCoins,
+        coinsEarned: data.coinsEarned,
         xpEarned: data.xpEarned,
         isDraw,
       });
@@ -533,7 +527,7 @@ export default function RapidScreen() {
           <View style={styles.rewardsRow}>
             <View style={styles.rewardItem}>
               <Ionicons name="star" size={18} color={Colors.gold} />
-              <Text style={styles.rewardText}>{gameOverData.isDraw ? "" : "+"}{gameOverData.coinsEarned} 🪙</Text>
+              <Text style={styles.rewardText}>+{gameOverData.coinsEarned} 🪙</Text>
             </View>
             <View style={styles.rewardItem}>
               <Ionicons name="flash" size={18} color={Colors.sapphire} />
