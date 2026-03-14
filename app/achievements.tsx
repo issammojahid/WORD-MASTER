@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,10 +6,11 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Alert,
   Platform,
 } from "react-native";
 import { fetch } from "expo/fetch";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -56,7 +57,7 @@ function AchievementsScreenInner() {
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
-  const { data: achievementsRaw, isLoading } = useQuery<Achievement[]>({
+  const { data: achievementsRaw, isLoading, refetch } = useQuery<Achievement[]>({
     queryKey: ["/api/achievements", playerId],
     queryFn: async () => {
       const url = new URL(`/api/achievements/${playerId}`, getApiUrl());
@@ -68,6 +69,12 @@ function AchievementsScreenInner() {
     initialData: [],
   });
 
+  useFocusEffect(
+    useCallback(() => {
+      if (playerId) refetch();
+    }, [playerId, refetch])
+  );
+
   const achievements: Achievement[] = Array.isArray(achievementsRaw) ? achievementsRaw : [];
 
   const claimAchievement = useMutation({
@@ -77,6 +84,10 @@ function AchievementsScreenInner() {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["/api/achievements", playerId] });
+      if (!data) {
+        Alert.alert("خطأ", "تعذّر استلام المكافأة، حاول مرة أخرى");
+        return;
+      }
       if (data?.coinsEarned) addCoins(data.coinsEarned);
       if (data?.xpEarned) addXp(data.xpEarned);
     },

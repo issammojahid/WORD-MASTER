@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,10 +6,11 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Alert,
   Platform,
 } from "react-native";
 import { fetch } from "expo/fetch";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -88,6 +89,12 @@ function TasksScreenInner() {
     initialData: [],
   });
 
+  useFocusEffect(
+    useCallback(() => {
+      if (playerId) refetch();
+    }, [playerId, refetch])
+  );
+
   const tasks: Task[] = Array.isArray(tasksRaw) ? tasksRaw : [];
 
   const claimTask = useMutation({
@@ -97,6 +104,10 @@ function TasksScreenInner() {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["/api/tasks", playerId] });
+      if (!data) {
+        Alert.alert("خطأ", "تعذّر استلام المكافأة، حاول مرة أخرى");
+        return;
+      }
       if (data?.coinsEarned) addCoins(data.coinsEarned);
       if (data?.xpEarned) addXp(data.xpEarned);
     },
