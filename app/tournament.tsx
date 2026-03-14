@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { usePlayer, SKINS } from "@/contexts/PlayerContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { fetch } from "expo/fetch";
 import { getApiUrl } from "@/lib/query-client";
@@ -115,6 +116,7 @@ type ViewMode = "list" | "detail";
 export default function TournamentScreen() {
   const insets = useSafeAreaInsets();
   const { profile, playerId, addCoins } = usePlayer();
+  const { theme } = useTheme();
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [tournaments, setTournaments] = useState<TournamentListItem[]>([]);
   const [activeTournament, setActiveTournament] = useState<TournamentDetail | null>(null);
@@ -541,25 +543,25 @@ export default function TournamentScreen() {
     const currentRoundLabel = ROUND_LABELS[activeTournament.currentRound] || activeTournament.currentRound;
 
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => { setViewMode("list"); setActiveTournament(null); fetchTournaments(); }}>
-            <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+        <View style={[styles.header, { borderBottomColor: theme.cardBorder }]}>
+          <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => { setViewMode("list"); setActiveTournament(null); fetchTournaments(); }}>
+            <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>البطولة</Text>
+          <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>البطولة</Text>
           <TouchableOpacity style={styles.refreshBtn} onPress={() => fetchTournamentDetail(activeTournament.id)}>
-            <Ionicons name="refresh" size={20} color={Colors.textSecondary} />
+            <Ionicons name="refresh" size={20} color={theme.textSecondary} />
           </TouchableOpacity>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
           {/* Status Card */}
-          <View style={[styles.statusCard, { marginHorizontal: 16 }]}>
+          <View style={[styles.statusCard, { marginHorizontal: 16, backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
             <View style={[styles.statusDot, {
               backgroundColor: isCompleted ? Colors.gold : isOpen ? Colors.sapphire : Colors.emerald,
             }]} />
-            <Text style={styles.statusText}>
+            <Text style={[styles.statusText, { color: theme.textPrimary }]}>
               {isOpen
                 ? `في انتظار اللاعبين (${activeTournament.players.length}/${activeTournament.maxPlayers ?? 8})`
                 : isCompleted
@@ -580,15 +582,15 @@ export default function TournamentScreen() {
           {/* ── Visual Bracket (in_progress or completed) ── */}
           {!isOpen && activeTournament.matches.length > 0 && (
             <View style={styles.bracketSection}>
-              <Text style={styles.bracketSectionTitle}>جدول البطولة</Text>
+              <Text style={[styles.bracketSectionTitle, { color: theme.textPrimary }]}>جدول البطولة</Text>
               <TournamentBracket matches={activeTournament.matches} myId={playerId} maxPlayers={activeTournament.maxPlayers} />
             </View>
           )}
 
           {/* Waiting state for open tournaments */}
           {isOpen && (
-            <View style={[styles.waitingCard, { marginHorizontal: 16 }]}>
-              <Text style={styles.waitingTitle}>في انتظار اللاعبين</Text>
+            <View style={[styles.waitingCard, { marginHorizontal: 16, backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+              <Text style={[styles.waitingTitle, { color: theme.textPrimary }]}>في انتظار اللاعبين</Text>
               <View style={styles.waitingSlots}>
                 {Array.from({ length: activeTournament.maxPlayers ?? 8 }).map((_, i) => {
                   const player = activeTournament.players[i];
@@ -598,12 +600,12 @@ export default function TournamentScreen() {
                       {player ? (
                         <>
                           <Text style={styles.waitingSlotEmoji}>{skin?.emoji}</Text>
-                          <Text style={styles.waitingSlotName} numberOfLines={1}>
+                          <Text style={[styles.waitingSlotName, { color: theme.textPrimary }]} numberOfLines={1}>
                             {player.playerId === playerId ? `${player.name} ✓` : player.name}
                           </Text>
                         </>
                       ) : (
-                        <Text style={styles.waitingSlotEmpty}>انتظار...</Text>
+                        <Text style={[styles.waitingSlotEmpty, { color: theme.textMuted }]}>انتظار...</Text>
                       )}
                     </View>
                   );
@@ -633,15 +635,15 @@ export default function TournamentScreen() {
           {/* Players Grid */}
           {!isOpen && (
             <View style={{ marginHorizontal: 16, marginTop: 8 }}>
-              <Text style={styles.sectionTitle}>اللاعبون</Text>
+              <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>اللاعبون</Text>
               <View style={styles.playersGrid}>
                 {activeTournament.players.map((p) => {
                   const skin = SKINS.find(s => s.id === p.skin) || SKINS[0];
                   const isMe = p.playerId === playerId;
                   return (
-                    <View key={p.playerId} style={[styles.playerChip, p.eliminated && styles.playerChipEliminated, isMe && styles.playerChipMe]}>
+                    <View key={p.playerId} style={[styles.playerChip, { backgroundColor: theme.card, borderColor: theme.cardBorder }, p.eliminated && styles.playerChipEliminated, isMe && styles.playerChipMe]}>
                       <Text style={styles.playerChipEmoji}>{skin.emoji}</Text>
-                      <Text style={[styles.playerChipName, p.eliminated && styles.playerChipNameEliminated]} numberOfLines={1}>
+                      <Text style={[styles.playerChipName, { color: theme.textPrimary }, p.eliminated && styles.playerChipNameEliminated]} numberOfLines={1}>
                         {p.name}{isMe ? " (أنت)" : ""}
                       </Text>
                       {p.eliminated && <Ionicons name="close-circle" size={14} color={Colors.ruby} />}
@@ -653,19 +655,19 @@ export default function TournamentScreen() {
           )}
 
           {/* Prizes */}
-          <View style={[styles.prizesCard, { marginHorizontal: 16, marginTop: 12 }]}>
-            <Text style={styles.prizesTitle}>الجوائز</Text>
+          <View style={[styles.prizesCard, { marginHorizontal: 16, marginTop: 12, backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+            <Text style={[styles.prizesTitle, { color: theme.textPrimary }]}>الجوائز</Text>
             <View style={styles.prizeRow}>
               <Text style={styles.prizeEmoji}>🥇</Text>
-              <Text style={styles.prizeText}>المركز الأول: 500 🪙 + 150 XP</Text>
+              <Text style={[styles.prizeText, { color: theme.textSecondary }]}>المركز الأول: 500 🪙 + 150 XP</Text>
             </View>
             <View style={styles.prizeRow}>
               <Text style={styles.prizeEmoji}>🥈</Text>
-              <Text style={styles.prizeText}>المركز الثاني: 200 🪙 + 75 XP</Text>
+              <Text style={[styles.prizeText, { color: theme.textSecondary }]}>المركز الثاني: 200 🪙 + 75 XP</Text>
             </View>
             <View style={styles.prizeRow}>
               <Text style={styles.prizeEmoji}>🥉</Text>
-              <Text style={styles.prizeText}>المركز الثالث: 100 🪙 + 50 XP</Text>
+              <Text style={[styles.prizeText, { color: theme.textSecondary }]}>المركز الثالث: 100 🪙 + 50 XP</Text>
             </View>
           </View>
 
@@ -674,9 +676,9 @@ export default function TournamentScreen() {
         {/* ── Leave Tournament Confirmation Modal ── */}
         <Modal visible={showLeaveModal} transparent animationType="fade" onRequestClose={() => setShowLeaveModal(false)}>
           <View style={styles.modalOverlay}>
-            <View style={styles.modalBox}>
-              <Text style={styles.modalTitle}>مغادرة البطولة؟</Text>
-              <Text style={styles.modalDesc}>
+            <View style={[styles.modalBox, { backgroundColor: theme.modalBg }]}>
+              <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>مغادرة البطولة؟</Text>
+              <Text style={[styles.modalDesc, { color: theme.textSecondary }]}>
                 سيتم استرداد رسم الدخول (100 🪙) إلى رصيدك.{"\n"}
                 إذا غادر جميع اللاعبين، سيتم حذف البطولة تلقائياً.
               </Text>
@@ -697,12 +699,12 @@ export default function TournamentScreen() {
 
   // ─── List View ───────────────────────────────────────────────────────────────
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+      <View style={[styles.header, { borderBottomColor: theme.cardBorder }]}>
+        <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>البطولات</Text>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>البطولات</Text>
         <View style={styles.coinsBadge}>
           <Ionicons name="star" size={14} color={Colors.gold} />
           <Text style={styles.coinsText}>{profile.coins}</Text>
@@ -714,10 +716,10 @@ export default function TournamentScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchTournaments(); }} tintColor={Colors.gold} />}
       >
-        <View style={styles.infoCard}>
+        <View style={[styles.infoCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
           <Ionicons name="trophy" size={28} color={Colors.gold} />
-          <Text style={styles.infoTitle}>بطولات حروف المغرب</Text>
-          <Text style={styles.infoSub}>انضم إلى بطولة من 8 لاعبين وتنافس عبر 3 جولات إقصائية!</Text>
+          <Text style={[styles.infoTitle, { color: theme.textPrimary }]}>بطولات حروف المغرب</Text>
+          <Text style={[styles.infoSub, { color: theme.textSecondary }]}>انضم إلى بطولة من 8 لاعبين وتنافس عبر 3 جولات إقصائية!</Text>
           <View style={styles.infoDetails}>
             <View style={styles.infoDetailItem}>
               <Text style={styles.infoDetailLabel}>رسم الدخول</Text>
@@ -755,20 +757,20 @@ export default function TournamentScreen() {
           <ActivityIndicator size="large" color={Colors.gold} style={{ marginTop: 40 }} />
         ) : (
           <>
-            <Text style={styles.listTitle}>الغرف المتاحة</Text>
+            <Text style={[styles.listTitle, { color: theme.textPrimary }]}>الغرف المتاحة</Text>
             {tournaments.filter(t => t.status !== "create").length === 0 ? (
               <View style={styles.emptyState}>
-                <Ionicons name="trophy-outline" size={48} color={Colors.textMuted} />
-                <Text style={styles.emptyStateText}>لا توجد بطولات حالياً</Text>
-                <Text style={styles.emptyStateSub}>أنشئ غرفة وادعُ أصدقاءك!</Text>
+                <Ionicons name="trophy-outline" size={48} color={theme.textMuted} />
+                <Text style={[styles.emptyStateText, { color: theme.textSecondary }]}>لا توجد بطولات حالياً</Text>
+                <Text style={[styles.emptyStateSub, { color: theme.textMuted }]}>أنشئ غرفة وادعُ أصدقاءك!</Text>
               </View>
             ) : (
               tournaments.filter(t => t.status !== "create").map((t) => (
-                <View key={t.id} style={[styles.tournamentCard, t.joined && styles.tournamentCardJoined]}>
+                <View key={t.id} style={[styles.tournamentCard, { backgroundColor: theme.card, borderColor: t.joined ? Colors.gold + "60" : theme.cardBorder }]}>
                   <View style={styles.tournamentCardHeader}>
                     <Ionicons name="trophy" size={20} color={Colors.gold} />
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.tournamentCardTitle}>
+                      <Text style={[styles.tournamentCardTitle, { color: theme.textPrimary }]}>
                         {t.hostPlayerName ? `غرفة ${t.hostPlayerName}` : "بطولة مفتوحة"}
                       </Text>
                       <Text style={styles.tournamentCardSub}>
@@ -835,11 +837,11 @@ export default function TournamentScreen() {
       {/* ── Create Room Modal ── */}
       <Modal visible={showCreateModal} transparent animationType="fade" onRequestClose={() => setShowCreateModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { backgroundColor: theme.modalBg, borderColor: theme.cardBorder }]}>
             <Ionicons name="add-circle" size={40} color={Colors.gold} style={{ marginBottom: 12 }} />
-            <Text style={styles.modalTitle}>إنشاء غرفة بطولة</Text>
-            <Text style={styles.modalSub}>اختر حجم البطولة</Text>
-            <Text style={styles.modalBalance}>رصيدك: {profile.coins} 🪙 · رسم الدخول: 100 🪙</Text>
+            <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>إنشاء غرفة بطولة</Text>
+            <Text style={[styles.modalSub, { color: theme.textSecondary }]}>اختر حجم البطولة</Text>
+            <Text style={[styles.modalBalance, { color: theme.textMuted }]}>رصيدك: {profile.coins} 🪙 · رسم الدخول: 100 🪙</Text>
             {profile.coins < 100 && (
               <Text style={styles.modalWarning}>رصيدك غير كافي!</Text>
             )}
@@ -878,11 +880,11 @@ export default function TournamentScreen() {
 
       <Modal visible={showConfirmModal} transparent animationType="fade" onRequestClose={() => setShowConfirmModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { backgroundColor: theme.modalBg, borderColor: theme.cardBorder }]}>
             <Ionicons name="trophy" size={40} color={Colors.gold} style={{ marginBottom: 12 }} />
-            <Text style={styles.modalTitle}>الانضمام للبطولة</Text>
-            <Text style={styles.modalSub}>سيتم خصم 100 🪙 من رصيدك</Text>
-            <Text style={styles.modalBalance}>رصيدك الحالي: {profile.coins} 🪙</Text>
+            <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>الانضمام للبطولة</Text>
+            <Text style={[styles.modalSub, { color: theme.textSecondary }]}>سيتم خصم 100 🪙 من رصيدك</Text>
+            <Text style={[styles.modalBalance, { color: theme.textMuted }]}>رصيدك الحالي: {profile.coins} 🪙</Text>
             {profile.coins < 100 && (
               <Text style={styles.modalWarning}>رصيدك غير كافي!</Text>
             )}
@@ -913,6 +915,7 @@ export default function TournamentScreen() {
 
 // ─── Bracket Match Card ───────────────────────────────────────────────────────
 function BracketMatchCard({ match, myId }: { match: TournamentMatch | undefined; myId: string }) {
+  const { theme } = useTheme();
   if (!match) return <View style={{ width: BK_MATCH_W, height: BK_MATCH_H }} />;
 
   const p1Won = match.winnerId === match.player1Id && match.winnerId != null;
@@ -923,21 +926,21 @@ function BracketMatchCard({ match, myId }: { match: TournamentMatch | undefined;
   const isCompleted = match.status === "completed";
 
   return (
-    <View style={[bk.card, isMyMatch && bk.myCard]}>
+    <View style={[bk.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }, isMyMatch && bk.myCard]}>
       <View style={[bk.slot, p1Won && bk.slotWin, !p1Won && isCompleted && bk.slotLose]}>
         {p1Won && <Text style={bk.crown}>👑</Text>}
         <Text
-          style={[bk.name, p1IsMe && bk.meText, p1Won && bk.winName, !p1Won && isCompleted && bk.loseName]}
+          style={[bk.name, { color: theme.textPrimary }, p1IsMe && bk.meText, p1Won && bk.winName, !p1Won && isCompleted && bk.loseName]}
           numberOfLines={1}
         >
           {match.player1Name || "؟"}
         </Text>
       </View>
-      <View style={bk.divider} />
+      <View style={[bk.divider, { backgroundColor: theme.cardBorder }]} />
       <View style={[bk.slot, p2Won && bk.slotWin, !p2Won && isCompleted && bk.slotLose]}>
         {p2Won && <Text style={bk.crown}>👑</Text>}
         <Text
-          style={[bk.name, p2IsMe && bk.meText, p2Won && bk.winName, !p2Won && isCompleted && bk.loseName]}
+          style={[bk.name, { color: theme.textPrimary }, p2IsMe && bk.meText, p2Won && bk.winName, !p2Won && isCompleted && bk.loseName]}
           numberOfLines={1}
         >
           {match.player2Name || "؟"}
@@ -949,6 +952,7 @@ function BracketMatchCard({ match, myId }: { match: TournamentMatch | undefined;
 
 // ─── Tournament Bracket Visualization ────────────────────────────────────────
 function TournamentBracket({ matches, myId, maxPlayers }: { matches: TournamentMatch[]; myId: string; maxPlayers?: number }) {
+  const { theme } = useTheme();
   const size = maxPlayers ?? 8;
   const getM = (round: string, idx: number) =>
     matches.find(m => m.roundName === round && m.matchIndex === idx);
@@ -967,7 +971,7 @@ function TournamentBracket({ matches, myId, maxPlayers }: { matches: TournamentM
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}>
         <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
           <View style={{ width: BK_MATCH_W }}>
-            <Text style={bk.colLabel}>ربع النهائي</Text>
+            <Text style={[bk.colLabel, { color: theme.textSecondary }]}>ربع النهائي</Text>
             <BracketMatchCard match={qf0} myId={myId} />
             <View style={{ height: BK_QF_GAP }} />
             <BracketMatchCard match={qf1} myId={myId} />
@@ -977,21 +981,21 @@ function TournamentBracket({ matches, myId, maxPlayers }: { matches: TournamentM
             <View style={{ flex: 1, borderBottomWidth: 2, borderRightWidth: 2, borderColor: BK_LINE, opacity: BK_LINE_OP }} />
           </View>
           <View style={{ width: BK_MATCH_W, height: BK_SEC_H }}>
-            <Text style={bk.colLabel}>نصف النهائي</Text>
+            <Text style={[bk.colLabel, { color: theme.textSecondary }]}>نصف النهائي</Text>
             <View style={{ flex: 1, justifyContent: "center" }}>
               <BracketMatchCard match={sf0} myId={myId} />
             </View>
           </View>
           <View style={{ width: BK_CONN_W, height: 2, backgroundColor: BK_LINE, opacity: BK_LINE_OP, marginTop: BK_CENTER_LINE_MT }} />
           <View style={{ width: BK_MATCH_W, height: BK_SEC_H }}>
-            <Text style={bk.colLabel}>النهائي</Text>
+            <Text style={[bk.colLabel, { color: theme.textSecondary }]}>النهائي</Text>
             <View style={{ flex: 1, justifyContent: "center" }}>
               <BracketMatchCard match={fin} myId={myId} />
             </View>
           </View>
           <View style={{ width: BK_CONN_W, height: 2, backgroundColor: BK_LINE, opacity: BK_LINE_OP, marginTop: BK_CENTER_LINE_MT }} />
           <View style={{ width: BK_MATCH_W, height: BK_SEC_H }}>
-            <Text style={bk.colLabel}>نصف النهائي</Text>
+            <Text style={[bk.colLabel, { color: theme.textSecondary }]}>نصف النهائي</Text>
             <View style={{ flex: 1, justifyContent: "center" }}>
               <BracketMatchCard match={sf1} myId={myId} />
             </View>
@@ -1001,7 +1005,7 @@ function TournamentBracket({ matches, myId, maxPlayers }: { matches: TournamentM
             <View style={{ flex: 1, borderBottomWidth: 2, borderLeftWidth: 2, borderColor: BK_LINE, opacity: BK_LINE_OP }} />
           </View>
           <View style={{ width: BK_MATCH_W }}>
-            <Text style={bk.colLabel}>ربع النهائي</Text>
+            <Text style={[bk.colLabel, { color: theme.textSecondary }]}>ربع النهائي</Text>
             <BracketMatchCard match={qf2} myId={myId} />
             <View style={{ height: BK_QF_GAP }} />
             <BracketMatchCard match={qf3} myId={myId} />
@@ -1030,7 +1034,7 @@ function TournamentBracket({ matches, myId, maxPlayers }: { matches: TournamentM
           return (
             <React.Fragment key={roundName}>
               <View style={{ width: BK_MATCH_W }}>
-                <Text style={bk.colLabel}>{label}</Text>
+                <Text style={[bk.colLabel, { color: theme.textSecondary }]}>{label}</Text>
                 {roundMatches.map((m, i) => (
                   <React.Fragment key={m.id}>
                     <BracketMatchCard match={m} myId={myId} />

@@ -22,6 +22,7 @@ import * as Haptics from "expo-haptics";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePlayer, SKINS } from "@/contexts/PlayerContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { getSocket } from "@/services/socket";
 import { GAME_CATEGORIES, GameCategory } from "@/constants/i18n";
@@ -212,6 +213,7 @@ type ChatBubble = {
 };
 
 export default function GameScreen() {
+  const { theme } = useTheme();
   const { roomId, letter, round, totalRounds, coinEntry: coinEntryParam } = useLocalSearchParams<{
     roomId: string;
     letter: string;
@@ -656,13 +658,13 @@ export default function GameScreen() {
     const podiumHeights = [90, 130, 70];
 
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
         <ScrollView contentContainerStyle={styles.gameOverContent} showsVerticalScrollIndicator={false}>
-          <Text style={styles.gameOverTitle}>{t.gameOver}</Text>
-          {amWinner ? <Text style={styles.gameOverSub}>🏆 أنت الفائز!</Text>
-            : myIdx === 1 ? <Text style={styles.gameOverSub}>🥈 المركز الثاني — أحسنت!</Text>
-            : myIdx === 2 ? <Text style={styles.gameOverSub}>🥉 المركز الثالث — لا بأس!</Text>
-            : <Text style={styles.gameOverSub}>حاول مرة أخرى!</Text>}
+          <Text style={[styles.gameOverTitle, { color: theme.textPrimary }]}>{t.gameOver}</Text>
+          {amWinner ? <Text style={[styles.gameOverSub, { color: theme.textSecondary }]}>🏆 أنت الفائز!</Text>
+            : myIdx === 1 ? <Text style={[styles.gameOverSub, { color: theme.textSecondary }]}>🥈 المركز الثاني — أحسنت!</Text>
+            : myIdx === 2 ? <Text style={[styles.gameOverSub, { color: theme.textSecondary }]}>🥉 المركز الثالث — لا بأس!</Text>
+            : <Text style={[styles.gameOverSub, { color: theme.textSecondary }]}>حاول مرة أخرى!</Text>}
 
           {podiumPlayers.length >= 2 && (
             <View style={styles.podiumRow}>
@@ -679,10 +681,10 @@ export default function GameScreen() {
                     <View style={[styles.podiumAvatar, isFirst && styles.podiumAvatarFirst, { backgroundColor: skin.color + "33" }]}>
                       <Text style={[styles.podiumEmoji, isFirst && styles.podiumEmojiFirst]}>{skin.emoji}</Text>
                     </View>
-                    <Text style={[styles.podiumName, isMe && { color: Colors.gold }]} numberOfLines={1}>{p.name}</Text>
-                    <Text style={styles.podiumScore}>{p.score}</Text>
-                    <View style={[styles.podiumBase, { height: h }, isFirst && styles.podiumBaseFirst]}>
-                      <Text style={styles.podiumRank}>{pIdx + 1}</Text>
+                    <Text style={[styles.podiumName, { color: isMe ? Colors.gold : theme.textPrimary }]} numberOfLines={1}>{p.name}</Text>
+                    <Text style={[styles.podiumScore, { color: theme.textSecondary }]}>{p.score}</Text>
+                    <View style={[styles.podiumBase, { height: h, backgroundColor: theme.cardBorder }, isFirst && styles.podiumBaseFirst]}>
+                      <Text style={[styles.podiumRank, { color: theme.textPrimary }]}>{pIdx + 1}</Text>
                     </View>
                   </View>
                 );
@@ -696,16 +698,16 @@ export default function GameScreen() {
               const rankColors = [Colors.rank1, Colors.rank2, Colors.rank3];
               const skin = SKINS.find((s) => s.id === p.skin) || SKINS[0];
               return (
-                <View key={p.id} style={[styles.finalRankRow, isMe && styles.finalRankRowMe]}>
-                  <Text style={[styles.finalRankNum, { color: rankColors[idx] || Colors.textMuted }]}>{medals[idx] || `${idx + 1}`}</Text>
+                <View key={p.id} style={[styles.finalRankRow, { backgroundColor: theme.card, borderColor: isMe ? Colors.gold + "60" : theme.cardBorder }]}>
+                  <Text style={[styles.finalRankNum, { color: rankColors[idx] || theme.textMuted }]}>{medals[idx] || `${idx + 1}`}</Text>
                   <View style={[styles.finalRankAvatar, { backgroundColor: skin.color + "22" }]}>
                     <Text style={styles.finalRankEmoji}>{skin.emoji}</Text>
                   </View>
-                  <Text style={[styles.finalRankName, isMe && { color: Colors.gold }]} numberOfLines={1}>
+                  <Text style={[styles.finalRankName, { color: isMe ? Colors.gold : theme.textPrimary }]} numberOfLines={1}>
                     {p.name}{isMe ? " (أنت)" : ""}
                   </Text>
                   <View style={styles.finalRankRight}>
-                    <Text style={styles.finalRankScore}>{p.score}</Text>
+                    <Text style={[styles.finalRankScore, { color: theme.textPrimary }]}>{p.score}</Text>
                     <View style={styles.coinRewardBadge}>
                       <Ionicons name="star" size={10} color={Colors.gold} />
                       <Text style={styles.coinRewardText}>+{p.coins}</Text>
@@ -744,8 +746,8 @@ export default function GameScreen() {
             <Ionicons name="refresh" size={18} color={Colors.background} style={{ marginRight: 8 }} />
             <Text style={styles.playAgainBtnText}>{t.playAgain}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.homeBtn} onPress={() => router.replace("/")}>
-            <Text style={styles.homeBtnText}>{t.backToHome}</Text>
+          <TouchableOpacity style={[styles.homeBtn, { backgroundColor: theme.card, borderColor: theme.cardBorder }]} onPress={() => router.replace("/")}>
+            <Text style={[styles.homeBtnText, { color: theme.textSecondary }]}>{t.backToHome}</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -756,17 +758,17 @@ export default function GameScreen() {
   if (roundResults) {
     const isHost = socketId && gamePlayers.length > 0 && gamePlayers[0].id === socketId;
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-        <View style={styles.roundResultsHeader}>
-          <Text style={styles.roundResultsTitle}>{t.results} - {t.round} {currentRound}/{numTotalRounds}</Text>
+      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+        <View style={[styles.roundResultsHeader, { backgroundColor: theme.backgroundSecondary, borderBottomColor: theme.cardBorder }]}>
+          <Text style={[styles.roundResultsTitle, { color: theme.textPrimary }]}>{t.results} - {t.round} {currentRound}/{numTotalRounds}</Text>
         </View>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.roundResultsContent} showsVerticalScrollIndicator={false}>
           {roundResults.map((result) => {
             const isMe = result.playerId === socketId;
             return (
-              <View key={result.playerId} style={[styles.resultPlayerCard, isMe && styles.resultPlayerCardMe]}>
+              <View key={result.playerId} style={[styles.resultPlayerCard, { backgroundColor: theme.card, borderColor: isMe ? Colors.gold + "60" : theme.cardBorder }]}>
                 <View style={styles.resultPlayerHeader}>
-                  <Text style={styles.resultPlayerName}>{result.playerName}{isMe ? " (أنت)" : ""}</Text>
+                  <Text style={[styles.resultPlayerName, { color: theme.textPrimary }]}>{result.playerName}{isMe ? " (أنت)" : ""}</Text>
                   <View style={styles.resultTotalBadge}>
                     <Text style={styles.resultTotalText}>+{result.roundTotal}</Text>
                   </View>
@@ -777,9 +779,9 @@ export default function GameScreen() {
                   const st = result.status[cat] || "empty";
                   const statusColor = st === "correct" ? Colors.scoreCorrect : st === "duplicate" ? Colors.scoreDuplicate : Colors.scoreEmpty;
                   return (
-                    <View key={cat} style={styles.resultCatRow}>
-                      <Text style={styles.resultCatName}>{t[cat as keyof typeof t] as string}</Text>
-                      <Text style={[styles.resultAnswer, !ans && styles.resultAnswerEmpty]}>{ans || "—"}</Text>
+                    <View key={cat} style={[styles.resultCatRow, { borderTopColor: theme.cardBorder + "50" }]}>
+                      <Text style={[styles.resultCatName, { color: theme.textMuted }]}>{t[cat as keyof typeof t] as string}</Text>
+                      <Text style={[styles.resultAnswer, { color: theme.textPrimary }, !ans && { color: theme.textMuted }]}>{ans || "—"}</Text>
                       <View style={[styles.resultScoreBadge, { backgroundColor: statusColor + "22" }]}>
                         <Text style={[styles.resultScoreText, { color: statusColor }]}>{sc > 0 ? `+${sc}` : "0"}</Text>
                       </View>
@@ -789,13 +791,13 @@ export default function GameScreen() {
               </View>
             );
           })}
-          <View style={styles.scoreSummary}>
-            <Text style={styles.scoreSummaryTitle}>المجموع الكلي</Text>
+          <View style={[styles.scoreSummary, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+            <Text style={[styles.scoreSummaryTitle, { color: theme.textPrimary }]}>المجموع الكلي</Text>
             {[...gamePlayers].sort((a, b) => b.score - a.score).map((p, idx) => (
               <View key={p.id} style={styles.scoreSummaryRow}>
                 <Text style={styles.scoreSummaryRank}>{idx + 1}</Text>
-                <Text style={styles.scoreSummaryName}>{p.name}</Text>
-                <Text style={styles.scoreSummaryTotal}>{p.score}</Text>
+                <Text style={[styles.scoreSummaryName, { color: theme.textPrimary }]}>{p.name}</Text>
+                <Text style={[styles.scoreSummaryTotal, { color: theme.textPrimary }]}>{p.score}</Text>
               </View>
             ))}
           </View>
@@ -806,8 +808,8 @@ export default function GameScreen() {
             <Ionicons name="arrow-forward" size={20} color={Colors.black} style={{ marginLeft: 8 }} />
           </TouchableOpacity>
         ) : (
-          <View style={styles.waitingNextRound}>
-            <Text style={styles.waitingNextRoundText}>في انتظار المضيف...</Text>
+          <View style={[styles.waitingNextRound, { backgroundColor: theme.card }]}>
+            <Text style={[styles.waitingNextRoundText, { color: theme.textSecondary }]}>في انتظار المضيف...</Text>
           </View>
         )}
       </View>
@@ -816,7 +818,7 @@ export default function GameScreen() {
 
   // Game play screen
   return (
-    <View style={[styles.container, { paddingTop: topInset }]}>
+    <View style={[styles.container, { paddingTop: topInset, backgroundColor: theme.background }]}>
 
       {/* ─── CHAT BUBBLES OVERLAY ─── */}
       {chatBubbles.length > 0 && (
@@ -827,9 +829,9 @@ export default function GameScreen() {
         </View>
       )}
 
-      <View style={styles.gameTopBar}>
+      <View style={[styles.gameTopBar, { backgroundColor: theme.backgroundSecondary, borderBottomColor: theme.cardBorder }]}>
         {/* Exit button */}
-        <TouchableOpacity style={styles.exitGameBtn} onPress={handleExitPress} activeOpacity={0.75}>
+        <TouchableOpacity style={[styles.exitGameBtn, { backgroundColor: theme.card, borderColor: theme.cardBorder }]} onPress={handleExitPress} activeOpacity={0.75}>
           <Ionicons name="exit-outline" size={17} color={Colors.ruby} />
         </TouchableOpacity>
 
@@ -845,7 +847,7 @@ export default function GameScreen() {
         </Animated.View>
 
         <View style={styles.gameInfoRight}>
-          <Text style={styles.roundLabel}>{t.round} {currentRound}/{numTotalRounds}</Text>
+          <Text style={[styles.roundLabel, { color: theme.textSecondary }]}>{t.round} {currentRound}/{numTotalRounds}</Text>
           <View style={styles.timerContainer}>
             <View style={styles.timerTrack}>
               <View style={[styles.timerFill, { width: `${timerProgress * 100}%` as any, backgroundColor: timerColor }]} />
@@ -859,7 +861,7 @@ export default function GameScreen() {
           style={styles.chatBtn}
           onPress={() => setShowChatPanel(true)}
         >
-          <Ionicons name="chatbubble-ellipses" size={20} color={Colors.textSecondary} />
+          <Ionicons name="chatbubble-ellipses" size={20} color={theme.textSecondary} />
         </TouchableOpacity>
       </View>
 
@@ -879,17 +881,18 @@ export default function GameScreen() {
       >
         {GAME_CATEGORIES.map((cat, idx) => (
           <View key={cat} style={styles.categoryInputRow}>
-            <Text style={styles.categoryLabel}>{t[cat as keyof typeof t] as string}</Text>
+            <Text style={[styles.categoryLabel, { color: theme.textSecondary }]}>{t[cat as keyof typeof t] as string}</Text>
             <TextInput
               style={[
                 styles.categoryInput,
+                { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.inputText },
                 submitted && styles.categoryInputSubmitted,
                 !!(answers[cat]) && styles.categoryInputFilled,
               ]}
               value={answers[cat] || ""}
               onChangeText={(val) => { if (!submitted) setAnswers((prev) => ({ ...prev, [cat]: val })); }}
               placeholder={`${currentLetter}...`}
-              placeholderTextColor={Colors.inputPlaceholder}
+              placeholderTextColor={theme.inputPlaceholder}
               editable={!submitted && !isFrozen}
               textAlign="right"
               returnKeyType={idx < GAME_CATEGORIES.length - 1 ? "next" : "done"}
@@ -929,18 +932,17 @@ export default function GameScreen() {
             return (
               <TouchableOpacity
                 key={card.id}
-                style={[styles.powerCard, disabled && styles.powerCardUsed, { borderColor: disabled ? Colors.cardBorder : card.color + "66" }]}
+                style={[styles.powerCard, disabled && styles.powerCardUsed, { borderColor: disabled ? theme.cardBorder : card.color + "66" }]}
                 onPress={() => usePowerCard(card.id)}
                 disabled={disabled}
                 activeOpacity={0.75}
               >
                 <Text style={styles.powerCardIcon}>{card.icon}</Text>
-                <Text style={[styles.powerCardLabel, { color: disabled ? Colors.textMuted : card.color }]}>{card.label}</Text>
-                <Text style={[styles.powerCardDesc, { color: disabled ? Colors.textMuted : Colors.textSecondary }]}>
+                <Text style={[styles.powerCardLabel, { color: disabled ? theme.textMuted : card.color }]}>{card.label}</Text>
+                <Text style={[styles.powerCardDesc, { color: disabled ? theme.textMuted : theme.textSecondary }]}>
                   {usedThisRound ? "مستخدمة" : card.desc}
                 </Text>
-                {/* Quantity badge */}
-                <View style={[styles.powerCardCountBadge, { backgroundColor: disabled ? Colors.cardBorder : card.color }]}>
+                <View style={[styles.powerCardCountBadge, { backgroundColor: disabled ? theme.cardBorder : card.color }]}>
                   <Text style={styles.powerCardCountText}>{cardCount}</Text>
                 </View>
               </TouchableOpacity>
@@ -971,12 +973,12 @@ export default function GameScreen() {
       {/* ─── QUICK CHAT PANEL ─── */}
       <Modal visible={showChatPanel} transparent animationType="slide" onRequestClose={() => setShowChatPanel(false)}>
         <TouchableOpacity style={styles.chatPanelOverlay} activeOpacity={1} onPress={() => setShowChatPanel(false)}>
-          <View style={styles.chatPanel}>
-            <Text style={styles.chatPanelTitle}>رسالة سريعة</Text>
+          <View style={[styles.chatPanel, { backgroundColor: theme.backgroundSecondary, borderColor: theme.cardBorder }]}>
+            <Text style={[styles.chatPanelTitle, { color: theme.textPrimary }]}>رسالة سريعة</Text>
             <View style={styles.chatMessagesGrid}>
               {QUICK_MESSAGES.map((msg) => (
-                <TouchableOpacity key={msg} style={styles.chatMessageBtn} onPress={() => sendQuickChat(msg)}>
-                  <Text style={styles.chatMessageText}>{msg}</Text>
+                <TouchableOpacity key={msg} style={[styles.chatMessageBtn, { backgroundColor: theme.card, borderColor: theme.cardBorder }]} onPress={() => sendQuickChat(msg)}>
+                  <Text style={[styles.chatMessageText, { color: theme.textPrimary }]}>{msg}</Text>
                 </TouchableOpacity>
               ))}
             </View>

@@ -20,6 +20,7 @@ import { Audio } from "expo-av";
 import * as FileSystem from "expo-file-system/legacy";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePlayer, SKINS } from "@/contexts/PlayerContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { getSocket } from "@/services/socket";
 
@@ -47,6 +48,7 @@ export default function LobbyScreen() {
   const insets = useSafeAreaInsets();
   const { t, isRTL } = useLanguage();
   const { profile, playerId, addCoins } = usePlayer();
+  const { theme } = useTheme();
   const params = useLocalSearchParams<{ coinEntry?: string; action?: string; join?: string }>();
   const coinEntry = params.coinEntry ? parseInt(params.coinEntry, 10) : 0;
   // Quick match mode: opened from league screen with a coin entry amount
@@ -537,7 +539,7 @@ export default function LobbyScreen() {
     const countColors: Record<number, string> = { 3: Colors.emerald, 2: Colors.gold, 1: Colors.ruby };
     const color = countColors[countdown] || Colors.gold;
     return (
-      <View style={[styles.container, styles.countdownContainer, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+      <View style={[styles.container, styles.countdownContainer, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
         {countdownPlayers.length >= 2 && (
           <View style={styles.vsRow}>
             {countdownPlayers.map((p, idx) => {
@@ -574,15 +576,15 @@ export default function LobbyScreen() {
     const emptySlots = Math.max(0, 2 - filledSlots.length);
 
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
         {/* ─── Invite Friend Modal ─── */}
         <Modal visible={showInviteModal} transparent animationType="slide" onRequestClose={() => setShowInviteModal(false)}>
           <View style={styles.inviteOverlay}>
-            <View style={styles.inviteSheet}>
+            <View style={[styles.inviteSheet, { backgroundColor: theme.backgroundSecondary, borderColor: theme.cardBorder }]}>
               <View style={styles.inviteHeader}>
-                <Text style={styles.inviteTitle}>دعوة صديق</Text>
+                <Text style={[styles.inviteTitle, { color: theme.textPrimary }]}>دعوة صديق</Text>
                 <TouchableOpacity onPress={() => setShowInviteModal(false)}>
-                  <Ionicons name="close" size={22} color={Colors.textSecondary} />
+                  <Ionicons name="close" size={22} color={theme.textSecondary} />
                 </TouchableOpacity>
               </View>
               {friends.length === 0 ? (
@@ -633,20 +635,20 @@ export default function LobbyScreen() {
           </View>
         </Modal>
 
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
-            <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+        <View style={[styles.header, { borderBottomColor: theme.cardBorder }]}>
+          <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={handleBack}>
+            <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>غرفة الأصدقاء</Text>
+          <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>غرفة الأصدقاء</Text>
           <TouchableOpacity style={styles.codeBtn} onPress={copyRoomCode}>
             <Text style={styles.codeText}>{room.id}</Text>
             <Ionicons name="copy-outline" size={14} color={Colors.gold} style={{ marginLeft: 4 }} />
           </TouchableOpacity>
         </View>
 
-        <View style={styles.roomCodeCard}>
-          <Text style={styles.roomCodeLabel}>رمز الغرفة</Text>
-          <Text style={styles.roomCodeBig}>{room.id}</Text>
+        <View style={[styles.roomCodeCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          <Text style={[styles.roomCodeLabel, { color: theme.textSecondary }]}>رمز الغرفة</Text>
+          <Text style={[styles.roomCodeBig, { color: theme.textPrimary }]}>{room.id}</Text>
           <TouchableOpacity style={styles.copyCodeBtn} onPress={copyRoomCode}>
             <Ionicons name="copy-outline" size={16} color={Colors.gold} />
             <Text style={styles.copyCodeText}>نسخ الرمز</Text>
@@ -674,7 +676,7 @@ export default function LobbyScreen() {
           {Array.from({ length: emptySlots }).map((_, i) => (
             <TouchableOpacity key={`empty-${i}`} style={styles.playerSlotEmpty} onPress={amHost ? openInviteModal : undefined} activeOpacity={amHost ? 0.7 : 1}>
               <View style={styles.playerSlotEmptyAvatar}>
-                <Ionicons name="person-add" size={28} color={Colors.textMuted} />
+                <Ionicons name="person-add" size={28} color={theme.textMuted} />
               </View>
               <Text style={styles.playerSlotEmptyText}>{amHost ? "اضغط لدعوة" : "في الانتظار..."}</Text>
             </TouchableOpacity>
@@ -784,7 +786,7 @@ export default function LobbyScreen() {
         </ScrollView>
 
         <View style={styles.minPlayersHint}>
-          <Ionicons name="information-circle-outline" size={14} color={Colors.textMuted} />
+          <Ionicons name="information-circle-outline" size={14} color={theme.textMuted} />
           <Text style={styles.minPlayersText}>الحد الأدنى ٢ لاعبين للبدء</Text>
         </View>
 
@@ -816,20 +818,20 @@ export default function LobbyScreen() {
   // Matchmaking searching screen
   if (tab === "matchmaking") {
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={handleCancelMatchmaking}>
-            <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+        <View style={[styles.header, { borderBottomColor: theme.cardBorder }]}>
+          <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={handleCancelMatchmaking}>
+            <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>المباراة السريعة</Text>
+          <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>المباراة السريعة</Text>
           <View style={{ width: 40 }} />
         </View>
         <View style={styles.matchmakingContainer}>
           <View style={styles.matchmakingCircle}>
             <ActivityIndicator size="large" color={Colors.gold} />
           </View>
-          <Text style={styles.matchmakingTitle}>جاري البحث...</Text>
-          <Text style={styles.matchmakingStatus}>{matchmakingStatus}</Text>
+          <Text style={[styles.matchmakingTitle, { color: theme.textPrimary }]}>جاري البحث...</Text>
+          <Text style={[styles.matchmakingStatus, { color: theme.textSecondary }]}>{matchmakingStatus}</Text>
           <TouchableOpacity style={styles.cancelBtn} onPress={handleCancelMatchmaking}>
             <Text style={styles.cancelBtnText}>{t.cancel}</Text>
           </TouchableOpacity>
@@ -840,29 +842,29 @@ export default function LobbyScreen() {
 
   // Main select screen
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+      <View style={[styles.header, { borderBottomColor: theme.cardBorder }]}>
+        <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{tab === "join" ? t.joinRoom : "اللعب مع الأصدقاء"}</Text>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>{tab === "join" ? t.joinRoom : "اللعب مع الأصدقاء"}</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.selectContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.miniProfile}>
+        <View style={[styles.miniProfile, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
           <View style={[styles.miniAvatarCircle, { backgroundColor: equippedSkin.color + "33" }]}>
             <Text style={styles.miniAvatarEmoji}>{equippedSkin.emoji}</Text>
           </View>
           <View>
-            <Text style={styles.miniPlayerName}>{profile.name}</Text>
-            <Text style={styles.miniPlayerLevel}>المستوى {profile.level}</Text>
+            <Text style={[styles.miniPlayerName, { color: theme.textPrimary }]}>{profile.name}</Text>
+            <Text style={[styles.miniPlayerLevel, { color: theme.textMuted }]}>المستوى {profile.level}</Text>
           </View>
         </View>
 
         {tab === "select" && (
           <View style={styles.selectButtons}>
-            <Text style={styles.sectionTitle}>اختر طريقة اللعب</Text>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>اختر طريقة اللعب</Text>
 
             <TouchableOpacity
               style={styles.lobbyOptionCard}
@@ -873,10 +875,10 @@ export default function LobbyScreen() {
                 <Ionicons name="add-circle" size={32} color={Colors.emerald} />
               </View>
               <View style={styles.lobbyOptionText}>
-                <Text style={styles.lobbyOptionTitle}>{t.createRoom}</Text>
-                <Text style={styles.lobbyOptionSubtitle}>أنشئ غرفة وادعو أصدقاءك</Text>
+                <Text style={[styles.lobbyOptionTitle, { color: theme.textPrimary }]}>{t.createRoom}</Text>
+                <Text style={[styles.lobbyOptionSubtitle, { color: theme.textSecondary }]}>أنشئ غرفة وادعو أصدقاءك</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
+              <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -888,10 +890,10 @@ export default function LobbyScreen() {
                 <Ionicons name="enter" size={32} color={Colors.sapphire} />
               </View>
               <View style={styles.lobbyOptionText}>
-                <Text style={styles.lobbyOptionTitle}>{t.joinRoom}</Text>
-                <Text style={styles.lobbyOptionSubtitle}>انضم لغرفة موجودة بالرمز</Text>
+                <Text style={[styles.lobbyOptionTitle, { color: theme.textPrimary }]}>{t.joinRoom}</Text>
+                <Text style={[styles.lobbyOptionSubtitle, { color: theme.textSecondary }]}>انضم لغرفة موجودة بالرمز</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={Colors.textMuted} />
+              <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
             </TouchableOpacity>
           </View>
         )}
@@ -905,13 +907,13 @@ export default function LobbyScreen() {
 
         {tab === "join" && (
           <View style={styles.joinContainer}>
-            <Text style={styles.sectionTitle}>{t.enterRoomCode}</Text>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{t.enterRoomCode}</Text>
             <TextInput
-              style={styles.codeInput}
+              style={[styles.codeInput, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.inputText }]}
               value={joinCode}
               onChangeText={(v) => { setJoinCode(v.toUpperCase()); setError(null); }}
               placeholder="XXXX"
-              placeholderTextColor={Colors.inputPlaceholder}
+              placeholderTextColor={theme.inputPlaceholder}
               maxLength={4}
               autoCapitalize="characters"
               autoFocus
@@ -930,7 +932,7 @@ export default function LobbyScreen() {
               )}
             </TouchableOpacity>
             <TouchableOpacity style={styles.backLinkBtn} onPress={() => { setTab("select"); setError(null); setJoinCode(""); }}>
-              <Ionicons name="arrow-back" size={16} color={Colors.textMuted} />
+              <Ionicons name="arrow-back" size={16} color={theme.textMuted} />
               <Text style={styles.backLinkText}>رجوع</Text>
             </TouchableOpacity>
           </View>

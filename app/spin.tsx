@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { usePlayer } from "@/contexts/PlayerContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 
@@ -41,6 +42,7 @@ const SEG_ANGLE = SEG_COUNT > 0 ? 360 / SEG_COUNT : 45;
 export default function SpinScreen() {
   const insets = useSafeAreaInsets();
   const { profile, playerId, addCoins, addXp, updateProfile, addPowerCard } = usePlayer();
+  const { theme } = useTheme();
   const [spinning, setSpinning]     = useState(false);
   const [reward, setReward]         = useState<{ type: string; amount: number; label: string; icon: string } | null>(null);
   const [canSpin, setCanSpin]       = useState(true);
@@ -250,18 +252,18 @@ export default function SpinScreen() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
       <LinearGradient
-        colors={["#0C0A1E", "#160D33", "#0A1428"]}
+        colors={[theme.background, theme.backgroundSecondary, theme.background]}
         style={StyleSheet.absoluteFillObject}
       />
 
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+        <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.title}>العجلة اليومية 🎰</Text>
+        <Text style={[styles.title, { color: theme.textPrimary }]}>العجلة اليومية 🎰</Text>
         <View style={{ width: 38 }} />
       </View>
 
@@ -333,10 +335,10 @@ export default function SpinScreen() {
         {/* Cooldown message + countdown */}
         {!canSpin && (
           <View style={styles.cooldownContainer}>
-            <Text style={styles.cooldownMsg}>يمكنك تدوير العجلة مرة واحدة يومياً</Text>
+            <Text style={[styles.cooldownMsg, { color: theme.textMuted }]}>يمكنك تدوير العجلة مرة واحدة يومياً</Text>
             {countdown ? (
               <View style={styles.countdownRow}>
-                <Ionicons name="time-outline" size={16} color={Colors.textMuted} />
+                <Ionicons name="time-outline" size={16} color={theme.textMuted} />
                 <Text style={styles.countdownLabel}>الدورة القادمة بعد</Text>
                 <Text style={styles.countdownTime}>{countdown}</Text>
               </View>
@@ -377,7 +379,7 @@ export default function SpinScreen() {
           ].map((item, i) => (
             <View key={i} style={styles.infoItem}>
               <Text style={styles.infoIcon}>{item.icon}</Text>
-              <Text style={styles.infoLabel}>{item.label}</Text>
+              <Text style={[styles.infoLabel, { color: theme.textMuted }]}>{item.label}</Text>
             </View>
           ))}
         </View>

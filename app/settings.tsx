@@ -18,6 +18,7 @@ import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePlayer } from "@/contexts/PlayerContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { type Language } from "@/constants/i18n";
 import { getDisplayCode } from "@/lib/player-code";
@@ -33,6 +34,7 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { t, language, setLanguage, soundEffects, setSoundEffects, musicEnabled, setMusicEnabled } = useLanguage();
   const { playerId, profile } = usePlayer();
+  const { isDark, toggleTheme, theme } = useTheme();
   const [showExitModal, setShowExitModal] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
 
@@ -58,13 +60,13 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+        <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t.settings}</Text>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>{t.settings}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -74,13 +76,13 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="id-card" size={20} color={LOGO.pink} />
-            <Text style={styles.sectionTitle}>كود اللاعب</Text>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>كود اللاعب</Text>
           </View>
-          <TouchableOpacity style={styles.codeCard} onPress={handleCopyCode} activeOpacity={0.7}>
+          <TouchableOpacity style={[styles.codeCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]} onPress={handleCopyCode} activeOpacity={0.7}>
             <Text style={styles.codeValue}>{myDisplayCode}</Text>
             <View style={styles.codeCopyBtn}>
-              <Ionicons name={codeCopied ? "checkmark-circle" : "copy-outline"} size={18} color={codeCopied ? Colors.emerald : Colors.textMuted} />
-              <Text style={[styles.codeCopyText, codeCopied && { color: Colors.emerald }]}>
+              <Ionicons name={codeCopied ? "checkmark-circle" : "copy-outline"} size={18} color={codeCopied ? Colors.emerald : theme.textMuted} />
+              <Text style={[styles.codeCopyText, { color: theme.textMuted }, codeCopied && { color: Colors.emerald }]}>
                 {codeCopied ? "تم النسخ" : "نسخ"}
               </Text>
             </View>
@@ -91,17 +93,17 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="language" size={20} color={LOGO.yellow} />
-            <Text style={styles.sectionTitle}>{t.language}</Text>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{t.language}</Text>
           </View>
           <View style={styles.optionsRow}>
             {(["ar", "en"] as Language[]).map((lang) => (
               <TouchableOpacity
                 key={lang}
-                style={[styles.languageOption, language === lang && styles.languageOptionActive]}
+                style={[styles.languageOption, { backgroundColor: theme.card, borderColor: theme.cardBorder }, language === lang && styles.languageOptionActive]}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setLanguage(lang); }}
               >
                 <Text style={styles.languageFlag}>{lang === "ar" ? "🇲🇦" : "🇺🇸"}</Text>
-                <Text style={[styles.languageLabel, language === lang && styles.languageLabelActive]}>
+                <Text style={[styles.languageLabel, { color: theme.textSecondary }, language === lang && styles.languageLabelActive]}>
                   {lang === "ar" ? t.arabic : t.english}
                 </Text>
                 {language === lang && <Ionicons name="checkmark-circle" size={16} color={LOGO.yellow} />}
@@ -114,41 +116,69 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="volume-high" size={20} color={LOGO.cyan} />
-            <Text style={styles.sectionTitle}>الصوت والموسيقى</Text>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>الصوت والموسيقى</Text>
           </View>
 
-          <View style={styles.toggleCard}>
+          <View style={[styles.toggleCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
             <View style={styles.toggleRow}>
               <View style={styles.toggleLeft}>
                 <Ionicons name="musical-note" size={20} color={LOGO.cyan} />
                 <View style={styles.toggleTexts}>
-                  <Text style={styles.toggleTitle}>المؤثرات الصوتية</Text>
-                  <Text style={styles.toggleSub}>أصوات الزر والتحذير</Text>
+                  <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>المؤثرات الصوتية</Text>
+                  <Text style={[styles.toggleSub, { color: theme.textMuted }]}>أصوات الزر والتحذير</Text>
                 </View>
               </View>
               <Switch
                 value={soundEffects}
                 onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSoundEffects(v); }}
-                trackColor={{ false: Colors.cardBorder, true: LOGO.cyan + "80" }}
-                thumbColor={soundEffects ? LOGO.cyan : Colors.textMuted}
+                trackColor={{ false: theme.cardBorder, true: LOGO.cyan + "80" }}
+                thumbColor={soundEffects ? LOGO.cyan : theme.textMuted}
               />
             </View>
 
-            <View style={styles.toggleDivider} />
+            <View style={[styles.toggleDivider, { backgroundColor: theme.cardBorder }]} />
 
             <View style={styles.toggleRow}>
               <View style={styles.toggleLeft}>
                 <Ionicons name="headset" size={20} color={LOGO.purple} />
                 <View style={styles.toggleTexts}>
-                  <Text style={styles.toggleTitle}>الموسيقى</Text>
-                  <Text style={styles.toggleSub}>موسيقى الخلفية</Text>
+                  <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>الموسيقى</Text>
+                  <Text style={[styles.toggleSub, { color: theme.textMuted }]}>موسيقى الخلفية</Text>
                 </View>
               </View>
               <Switch
                 value={musicEnabled}
                 onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMusicEnabled(v); }}
-                trackColor={{ false: Colors.cardBorder, true: LOGO.purple + "80" }}
-                thumbColor={musicEnabled ? LOGO.purple : Colors.textMuted}
+                trackColor={{ false: theme.cardBorder, true: LOGO.purple + "80" }}
+                thumbColor={musicEnabled ? LOGO.purple : theme.textMuted}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* ── Theme ─────────────────────────────────── */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name={isDark ? "moon" : "sunny"} size={20} color={LOGO.purple} />
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>المظهر</Text>
+          </View>
+
+          <View style={[styles.toggleCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <Ionicons name={isDark ? "moon" : "sunny"} size={20} color={LOGO.purple} />
+                <View style={styles.toggleTexts}>
+                  <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>الوضع الداكن</Text>
+                  <Text style={[styles.toggleSub, { color: theme.textMuted }]}>
+                    {isDark ? "تم تفعيل الوضع الداكن" : "تم تفعيل الوضع الفاتح"}
+                  </Text>
+                </View>
+              </View>
+              <Switch
+                value={isDark}
+                onValueChange={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleTheme(); }}
+                trackColor={{ false: theme.cardBorder, true: LOGO.purple + "80" }}
+                thumbColor={isDark ? LOGO.purple : theme.textMuted}
               />
             </View>
           </View>
@@ -158,9 +188,9 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="help-circle" size={20} color={Colors.sapphire} />
-            <Text style={styles.sectionTitle}>كيفية اللعب</Text>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>كيفية اللعب</Text>
           </View>
-          <View style={styles.rulesList}>
+          <View style={[styles.rulesList, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
             {[
               { icon: "text",         text: "سيظهر حرف عشوائي باللغة العربية",    color: LOGO.yellow },
               { icon: "timer",        text: "لديك 25 ثانية لكتابة كلمة من كل فئة", color: LOGO.yellow },
@@ -171,7 +201,7 @@ export default function SettingsScreen() {
             ].map((rule, i) => (
               <View key={i} style={styles.ruleRow}>
                 <Ionicons name={rule.icon as any} size={18} color={rule.color} />
-                <Text style={styles.ruleText}>{rule.text}</Text>
+                <Text style={[styles.ruleText, { color: theme.textSecondary }]}>{rule.text}</Text>
               </View>
             ))}
           </View>
@@ -181,16 +211,16 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="ribbon" size={20} color={Colors.ruby} />
-            <Text style={styles.sectionTitle}>نظام النقود</Text>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>نظام النقود</Text>
           </View>
           <View style={styles.coinRulesGrid}>
             {[
               { rank: "1",  coins: "20", color: Colors.rank1 },
               { rank: "2",  coins: "15", color: Colors.rank2 },
               { rank: "3",  coins: "10", color: Colors.rank3 },
-              { rank: "4+", coins: "5",  color: Colors.textMuted },
+              { rank: "4+", coins: "5",  color: theme.textMuted },
             ].map((item) => (
-              <View key={item.rank} style={[styles.coinRuleCard, { borderColor: item.color + "40" }]}>
+              <View key={item.rank} style={[styles.coinRuleCard, { borderColor: item.color + "40", backgroundColor: theme.card }]}>
                 <Text style={[styles.coinRuleRank, { color: item.color }]}>#{item.rank}</Text>
                 <View style={styles.coinRuleCoins}>
                   <Ionicons name="star" size={14} color={Colors.gold} />
@@ -205,9 +235,9 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="trending-up" size={20} color={LOGO.purple} />
-            <Text style={styles.sectionTitle}>مكافآت المستويات</Text>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>مكافآت المستويات</Text>
           </View>
-          <View style={styles.rulesList}>
+          <View style={[styles.rulesList, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
             {[
               { level: 5,  reward: "+300 عملة",            icon: "🎉" },
               { level: 10, reward: "+500 عملة",            icon: "🔥" },
@@ -216,7 +246,7 @@ export default function SettingsScreen() {
             ].map((item, i) => (
               <View key={i} style={styles.ruleRow}>
                 <Text style={{ fontSize: 18 }}>{item.icon}</Text>
-                <Text style={styles.ruleText}>
+                <Text style={[styles.ruleText, { color: theme.textSecondary }]}>
                   <Text style={{ color: LOGO.purple, fontFamily: "Cairo_700Bold" }}>المستوى {item.level}</Text>
                   {"  →  "}{item.reward}
                 </Text>
@@ -239,14 +269,14 @@ export default function SettingsScreen() {
 
       {/* ── Exit confirmation modal ─────────────────── */}
       <Modal visible={showExitModal} transparent animationType="fade" onRequestClose={() => setShowExitModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+        <View style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}>
+          <View style={[styles.modalCard, { backgroundColor: theme.modalBg }]}>
             <Text style={styles.modalIcon}>🚪</Text>
-            <Text style={styles.modalTitle}>هل تريد الخروج من اللعبة؟</Text>
-            <Text style={styles.modalSub}>سيتم إغلاق التطبيق</Text>
+            <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>هل تريد الخروج من اللعبة؟</Text>
+            <Text style={[styles.modalSub, { color: theme.textMuted }]}>سيتم إغلاق التطبيق</Text>
             <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.modalNo} onPress={() => setShowExitModal(false)}>
-                <Text style={styles.modalNoText}>لا</Text>
+              <TouchableOpacity style={[styles.modalNo, { backgroundColor: theme.card, borderColor: theme.cardBorder }]} onPress={() => setShowExitModal(false)}>
+                <Text style={[styles.modalNoText, { color: theme.textSecondary }]}>لا</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.modalYes} onPress={handleExit}>
                 <Text style={styles.modalYesText}>نعم</Text>

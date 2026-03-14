@@ -17,6 +17,7 @@ import * as Haptics from "expo-haptics";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePlayer } from "@/contexts/PlayerContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { ARABIC_LETTERS, GAME_CATEGORIES, GameCategory } from "@/constants/i18n";
 import { getApiUrl } from "@/lib/query-client";
@@ -95,6 +96,7 @@ export default function OfflineScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
   const { profile, addCoins, addXp, updateProfile } = usePlayer();
+  const { theme } = useTheme();
 
   const letterQueueRef = useRef<string[]>(shuffleLetters(ARABIC_LETTERS));
   const letterIndexRef = useRef<number>(0);
@@ -294,22 +296,22 @@ export default function OfflineScreen() {
   if (phase === "gameOver") {
     const sorted = Object.entries(playerTotals).sort(([, a], [, b]) => b - a);
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
         <ScrollView contentContainerStyle={styles.gameOverContent}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+          <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.gameOverTitle}>{t.gameOver}</Text>
+          <Text style={[styles.gameOverTitle, { color: theme.textPrimary }]}>{t.gameOver}</Text>
           <View style={styles.trophyCircle}><Ionicons name="trophy" size={56} color={Colors.gold} /></View>
           <View style={styles.finalRankings}>
             {sorted.map(([name, score], idx) => {
               const isMe = name === profile.name;
               const rc = [Colors.rank1, Colors.rank2, Colors.rank3];
               return (
-                <View key={name} style={[styles.finalRankRow, isMe && styles.finalRankRowMe]}>
-                  <Text style={[styles.finalRankNum, { color: rc[idx] || Colors.textMuted }]}>{idx + 1}</Text>
-                  <Text style={styles.finalRankName}>{name}{isMe ? " ★" : ""}</Text>
-                  <Text style={styles.finalRankScore}>{score}</Text>
+                <View key={name} style={[styles.finalRankRow, { backgroundColor: theme.card, borderColor: isMe ? Colors.gold + "60" : theme.cardBorder }]}>
+                  <Text style={[styles.finalRankNum, { color: rc[idx] || theme.textMuted }]}>{idx + 1}</Text>
+                  <Text style={[styles.finalRankName, { color: theme.textPrimary }]}>{name}{isMe ? " ★" : ""}</Text>
+                  <Text style={[styles.finalRankScore, { color: theme.textPrimary }]}>{score}</Text>
                 </View>
               );
             })}
@@ -317,8 +319,8 @@ export default function OfflineScreen() {
           <TouchableOpacity style={styles.playAgainBtn} onPress={resetGame}>
             <Text style={styles.playAgainBtnText}>{t.playAgain}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.homeBtn} onPress={() => router.replace("/")}>
-            <Text style={styles.homeBtnText}>{t.backToHome}</Text>
+          <TouchableOpacity style={[styles.homeBtn, { backgroundColor: theme.card, borderColor: theme.cardBorder }]} onPress={() => router.replace("/")}>
+            <Text style={[styles.homeBtnText, { color: theme.textSecondary }]}>{t.backToHome}</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>
@@ -327,17 +329,17 @@ export default function OfflineScreen() {
 
   if (phase === "results" && roundResults) {
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-        <View style={styles.roundResultsHeader}>
-          <Text style={styles.roundResultsTitle}>{t.results} - {t.round} {currentRound}/{TOTAL_ROUNDS}</Text>
+      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+        <View style={[styles.roundResultsHeader, { backgroundColor: theme.backgroundSecondary, borderBottomColor: theme.cardBorder }]}>
+          <Text style={[styles.roundResultsTitle, { color: theme.textPrimary }]}>{t.results} - {t.round} {currentRound}/{TOTAL_ROUNDS}</Text>
         </View>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.roundResultsContent} showsVerticalScrollIndicator={false}>
           {roundResults.map((entry) => (
-            <View key={entry.name} style={[styles.resultPlayerCard, entry.name === profile.name && styles.resultPlayerCardMe]}>
+            <View key={entry.name} style={[styles.resultPlayerCard, { backgroundColor: theme.card, borderColor: entry.name === profile.name ? Colors.gold + "60" : theme.cardBorder }]}>
               <View style={styles.resultPlayerHeader}>
                 <View style={styles.resultPlayerLeft}>
                   {entry.emoji && <Text style={{ fontSize: 20, marginRight: 8 }}>{entry.emoji}</Text>}
-                  <Text style={styles.resultPlayerName}>{entry.name}</Text>
+                  <Text style={[styles.resultPlayerName, { color: theme.textPrimary }]}>{entry.name}</Text>
                 </View>
                 <View style={styles.resultTotalBadge}><Text style={styles.resultTotalText}>+{entry.total}</Text></View>
               </View>
@@ -347,9 +349,9 @@ export default function OfflineScreen() {
                 const st = entry.status[cat] || "empty";
                 const sc2 = st === "correct" ? Colors.scoreCorrect : st === "duplicate" ? Colors.scoreDuplicate : Colors.scoreEmpty;
                 return (
-                  <View key={cat} style={styles.resultCatRow}>
-                    <Text style={styles.resultCatName}>{t[cat as keyof typeof t] as string}</Text>
-                    <Text style={[styles.resultAnswer, !ans && styles.resultAnswerEmpty]}>{ans || "—"}</Text>
+                  <View key={cat} style={[styles.resultCatRow, { borderTopColor: theme.cardBorder + "50" }]}>
+                    <Text style={[styles.resultCatName, { color: theme.textMuted }]}>{t[cat as keyof typeof t] as string}</Text>
+                    <Text style={[styles.resultAnswer, { color: theme.textPrimary }, !ans && { color: theme.textMuted }]}>{ans || "—"}</Text>
                     <View style={[styles.resultScoreBadge, { backgroundColor: sc2 + "22" }]}>
                       <Text style={[styles.resultScoreText, { color: sc2 }]}>{sc > 0 ? `+${sc}` : "0"}</Text>
                     </View>
@@ -358,13 +360,13 @@ export default function OfflineScreen() {
               })}
             </View>
           ))}
-          <View style={styles.scoreSummary}>
-            <Text style={styles.scoreSummaryTitle}>المجموع الكلي</Text>
+          <View style={[styles.scoreSummary, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+            <Text style={[styles.scoreSummaryTitle, { color: theme.textPrimary }]}>المجموع الكلي</Text>
             {Object.entries(playerTotals).sort(([, a], [, b]) => b - a).map(([name, score], idx) => (
               <View key={name} style={styles.scoreSummaryRow}>
                 <Text style={styles.scoreSummaryRank}>{idx + 1}</Text>
-                <Text style={styles.scoreSummaryName}>{name}</Text>
-                <Text style={styles.scoreSummaryTotal}>{score}</Text>
+                <Text style={[styles.scoreSummaryName, { color: theme.textPrimary }]}>{name}</Text>
+                <Text style={[styles.scoreSummaryTotal, { color: theme.textPrimary }]}>{score}</Text>
               </View>
             ))}
           </View>
@@ -378,16 +380,16 @@ export default function OfflineScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: topInset }]}>
-      <View style={styles.gameTopBar}>
-        <TouchableOpacity style={styles.backBtnSmall} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={18} color={Colors.textSecondary} />
+    <View style={[styles.container, { paddingTop: topInset, backgroundColor: theme.background }]}>
+      <View style={[styles.gameTopBar, { backgroundColor: theme.backgroundSecondary, borderBottomColor: theme.cardBorder }]}>
+        <TouchableOpacity style={[styles.backBtnSmall, { backgroundColor: theme.card }]} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={18} color={theme.textSecondary} />
         </TouchableOpacity>
         <Animated.View style={[styles.letterDisplay, { transform: [{ scale: letterAnim }] }]}>
           <Text style={styles.letterText}>{currentLetter}</Text>
         </Animated.View>
         <View style={styles.gameInfoRight}>
-          <Text style={styles.roundLabel}>{t.round} {currentRound}/{TOTAL_ROUNDS} · وضع غير متصل</Text>
+          <Text style={[styles.roundLabel, { color: theme.textSecondary }]}>{t.round} {currentRound}/{TOTAL_ROUNDS} · وضع غير متصل</Text>
           <View style={styles.timerContainer}>
             <View style={styles.timerTrack}>
               <View style={[styles.timerFill, { width: `${timerProgress * 100}%` as any, backgroundColor: timerColor }]} />
@@ -406,13 +408,13 @@ export default function OfflineScreen() {
       >
         {GAME_CATEGORIES.map((cat) => (
           <View key={cat} style={styles.categoryInputRow}>
-            <Text style={styles.categoryLabel}>{t[cat as keyof typeof t] as string}</Text>
+            <Text style={[styles.categoryLabel, { color: theme.textSecondary }]}>{t[cat as keyof typeof t] as string}</Text>
             <TextInput
-              style={[styles.categoryInput, !!(answers[cat]) && styles.categoryInputFilled, submitted && styles.categoryInputSubmitted]}
+              style={[styles.categoryInput, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.inputText }, !!(answers[cat]) && styles.categoryInputFilled, submitted && styles.categoryInputSubmitted]}
               value={answers[cat] || ""}
               onChangeText={(val) => { if (!submitted) setAnswers((prev) => ({ ...prev, [cat]: val })); }}
               placeholder={`${currentLetter}...`}
-              placeholderTextColor={Colors.inputPlaceholder}
+              placeholderTextColor={theme.inputPlaceholder}
               editable={!submitted}
               textAlign="right"
               autoCorrect={false}

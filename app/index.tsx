@@ -23,6 +23,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePlayer, SKINS } from "@/contexts/PlayerContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 // ── Daily login reward coin animation ─────────────────────────────────────────
 function LoginRewardPopup({ onClaim }: { onClaim: () => void }) {
@@ -975,6 +976,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
   const { profile, playerId, setPlayerName, claimLoginReward } = usePlayer();
+  const { theme, isDark } = useTheme();
   const [showLoginReward, setShowLoginReward] = useState(false);
   const [showNameModal, setShowNameModal] = useState(false);
   const [nameInput, setNameInput] = useState(profile.name);
@@ -1128,16 +1130,16 @@ export default function HomeScreen() {
   const streakIcon = profile.winStreak >= 10 ? "🔥🔥🔥" : profile.winStreak >= 5 ? "🔥🔥" : profile.winStreak >= 3 ? "🔥" : "";
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Colorful gradient background */}
       <LinearGradient
-        colors={["#0C0A1E", "#160D33", "#0A1428"]}
+        colors={isDark ? ["#0C0A1E", "#160D33", "#0A1428"] : [theme.background, theme.backgroundSecondary, theme.background]}
         start={{ x: 0, y: 0 }} end={{ x: 0.6, y: 1 }}
         style={StyleSheet.absoluteFillObject}
       />
 
-      {/* Abstract background blobs */}
-      {BG_BLOBS.map((b, i) => (
+      {/* Abstract background blobs (dark mode only) */}
+      {isDark && BG_BLOBS.map((b, i) => (
         <View key={i} pointerEvents="none" style={{
           position: "absolute",
           ...(b.top !== undefined ? { top: b.top } : {}),
@@ -1147,8 +1149,8 @@ export default function HomeScreen() {
         }} />
       ))}
 
-      {/* Floating background particles */}
-      {BG_PARTICLES.map((p, i) => <BgParticle key={i} {...p} />)}
+      {/* Floating background particles (dark mode only) */}
+      {isDark && BG_PARTICLES.map((p, i) => <BgParticle key={i} {...p} />)}
 
       <ScrollView
         style={{ flex: 1 }}
@@ -1175,8 +1177,8 @@ export default function HomeScreen() {
             </View>
             <View style={styles.profileMeta}>
               <View style={styles.nameEditRow}>
-                <Text style={styles.playerName} numberOfLines={1}>{profile.name}</Text>
-                <Ionicons name="pencil" size={11} color={Colors.textMuted} style={{ marginLeft: 4 }} />
+                <Text style={[styles.playerName, { color: theme.textPrimary }]} numberOfLines={1}>{profile.name}</Text>
+                <Ionicons name="pencil" size={11} color={theme.textMuted} style={{ marginLeft: 4 }} />
               </View>
               <View style={styles.levelRow}>
                 <View style={styles.levelBadge}>
@@ -1207,8 +1209,8 @@ export default function HomeScreen() {
                 <Text style={styles.coinsText}>{profile.coins}</Text>
               </LinearGradient>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.settingsBtn} onPress={() => router.push("/settings")}>
-              <Ionicons name="settings-outline" size={20} color={Colors.textSecondary} />
+            <TouchableOpacity style={[styles.settingsBtn, { backgroundColor: theme.card }]} onPress={() => router.push("/settings")}>
+              <Ionicons name="settings-outline" size={20} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -1241,7 +1243,7 @@ export default function HomeScreen() {
 
         {/* ── GAME MODES CAROUSEL ─────────────────────────── */}
         <View style={styles.carouselSection}>
-          <Text style={styles.carouselTitle}>اختر وضع اللعب</Text>
+          <Text style={[styles.carouselTitle, { color: theme.textPrimary }]}>اختر وضع اللعب</Text>
           <FlatList
             ref={carouselRef}
             data={gameModes}
@@ -1279,22 +1281,22 @@ export default function HomeScreen() {
         >
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{profile.gamesPlayed}</Text>
-            <Text style={styles.statLabel}>مباريات</Text>
+            <Text style={[styles.statLabel, { color: theme.textMuted }]}>مباريات</Text>
           </View>
-          <View style={styles.statDivider} />
+          <View style={[styles.statDivider, { backgroundColor: theme.cardBorder }]} />
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{profile.wins}</Text>
-            <Text style={styles.statLabel}>انتصارات</Text>
+            <Text style={[styles.statLabel, { color: theme.textMuted }]}>انتصارات</Text>
           </View>
-          <View style={styles.statDivider} />
+          <View style={[styles.statDivider, { backgroundColor: theme.cardBorder }]} />
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{profile.totalScore}</Text>
-            <Text style={styles.statLabel}>نقاط</Text>
+            <Text style={[styles.statLabel, { color: theme.textMuted }]}>نقاط</Text>
           </View>
-          <View style={styles.statDivider} />
+          <View style={[styles.statDivider, { backgroundColor: theme.cardBorder }]} />
           <View style={styles.statItem}>
             <Text style={styles.statValue}>{profile.bestStreak}</Text>
-            <Text style={styles.statLabel}>سلسلة</Text>
+            <Text style={[styles.statLabel, { color: theme.textMuted }]}>سلسلة</Text>
           </View>
           {tournamentWins > 0 && (
             <>
@@ -1310,16 +1312,16 @@ export default function HomeScreen() {
 
       {/* ── BOTTOM NAVIGATION ───────────────────────────── */}
       <LinearGradient
-        colors={["#0C0A1E", "#120B2A"]}
+        colors={isDark ? ["#0C0A1E", "#120B2A"] : [theme.card, theme.backgroundSecondary]}
         style={[styles.bottomNav, { paddingBottom: bottomInset, height: NAV_BAR_HEIGHT }]}
       >
         <TouchableOpacity style={styles.navItem} onPress={() => router.push("/shop")} activeOpacity={0.7}>
-          <MaterialCommunityIcons name="shopping" size={24} color={Colors.textMuted} />
-          <Text style={styles.navLabel}>المتجر</Text>
+          <MaterialCommunityIcons name="shopping" size={24} color={theme.textMuted} />
+          <Text style={[styles.navLabel, { color: theme.textMuted }]}>المتجر</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push("/friends")} activeOpacity={0.7}>
-          <Ionicons name="people-outline" size={24} color={Colors.textMuted} />
-          <Text style={styles.navLabel}>الأصدقاء</Text>
+          <Ionicons name="people-outline" size={24} color={theme.textMuted} />
+          <Text style={[styles.navLabel, { color: theme.textMuted }]}>الأصدقاء</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItemCenter} onPress={() => {}} activeOpacity={0.9}>
           <LinearGradient
@@ -1331,12 +1333,12 @@ export default function HomeScreen() {
           <Text style={[styles.navLabel, { color: LOGO.yellow }]}>الرئيسية</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push("/tasks")} activeOpacity={0.7}>
-          <Ionicons name="star-outline" size={24} color={Colors.textMuted} />
-          <Text style={styles.navLabel}>المهام</Text>
+          <Ionicons name="star-outline" size={24} color={theme.textMuted} />
+          <Text style={[styles.navLabel, { color: theme.textMuted }]}>المهام</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push("/achievements")} activeOpacity={0.7}>
-          <Ionicons name="trophy-outline" size={24} color={Colors.textMuted} />
-          <Text style={styles.navLabel}>الإنجازات</Text>
+          <Ionicons name="trophy-outline" size={24} color={theme.textMuted} />
+          <Text style={[styles.navLabel, { color: theme.textMuted }]}>الإنجازات</Text>
         </TouchableOpacity>
       </LinearGradient>
 
@@ -1354,21 +1356,22 @@ export default function HomeScreen() {
 
       {/* ── NAME MODAL ──────────────────────────────────── */}
       <Modal visible={showNameModal} transparent animationType="fade" onRequestClose={() => setShowNameModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>اسم اللاعب</Text>
+        <View style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}>
+          <View style={[styles.modalCard, { backgroundColor: theme.modalBg }]}>
+            <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>اسم اللاعب</Text>
             <TextInput
-              style={styles.nameInput}
+              style={[styles.nameInput, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.inputText }]}
               value={nameInput}
               onChangeText={setNameInput}
               maxLength={20}
               textAlign="right"
               autoFocus
               selectTextOnFocus
+              placeholderTextColor={theme.inputPlaceholder}
             />
             <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.modalCancel} onPress={() => setShowNameModal(false)}>
-                <Text style={styles.modalCancelText}>{t.cancel}</Text>
+              <TouchableOpacity style={[styles.modalCancel, { backgroundColor: theme.card }]} onPress={() => setShowNameModal(false)}>
+                <Text style={[styles.modalCancelText, { color: theme.textSecondary }]}>{t.cancel}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.modalConfirm}

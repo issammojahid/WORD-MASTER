@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { usePlayer } from "@/contexts/PlayerContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 
 const { width } = Dimensions.get("window");
@@ -100,6 +101,7 @@ function formatCoins(n: number): string {
 export default function LeagueScreen() {
   const insets = useSafeAreaInsets();
   const { profile, addCoins } = usePlayer();
+  const { theme, isDark } = useTheme();
   const [activeIdx, setActiveIdx] = useState(0);
   const flatRef = useRef<FlatList>(null);
 
@@ -129,7 +131,7 @@ export default function LeagueScreen() {
           <Text style={[styles.cardTitle, { color: league.color }]}>{league.name}</Text>
           {!canPlay && (
             <View style={styles.lockedBadge}>
-              <Ionicons name="lock-closed" size={12} color={Colors.textMuted} />
+              <Ionicons name="lock-closed" size={12} color={theme.textMuted} />
               <Text style={styles.lockedText}>يلزم {formatCoins(league.minCoins)} 🪙</Text>
             </View>
           )}
@@ -138,7 +140,7 @@ export default function LeagueScreen() {
         {/* Column headers */}
         <View style={styles.tableHeader}>
           <Text style={styles.tableHeaderText}>الدخول</Text>
-          <Ionicons name="arrow-forward" size={14} color={Colors.textMuted} />
+          <Ionicons name="arrow-forward" size={14} color={theme.textMuted} />
           <Text style={styles.tableHeaderText}>الجائزة</Text>
         </View>
 
@@ -179,7 +181,7 @@ export default function LeagueScreen() {
 
                 {!affordable && (
                   <View style={styles.entryLockOverlay}>
-                    <Ionicons name="lock-closed" size={16} color={Colors.textMuted} />
+                    <Ionicons name="lock-closed" size={16} color={theme.textMuted} />
                   </View>
                 )}
               </TouchableOpacity>
@@ -196,13 +198,13 @@ export default function LeagueScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+        <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>اختر الدوري</Text>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>اختر الدوري</Text>
         <View style={{ width: 40 }} />
       </View>
 

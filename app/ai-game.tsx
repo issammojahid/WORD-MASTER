@@ -16,6 +16,7 @@ import * as Haptics from "expo-haptics";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePlayer } from "@/contexts/PlayerContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { GAME_CATEGORIES, type GameCategory, ARABIC_LETTERS } from "@/constants/i18n";
@@ -134,6 +135,7 @@ export default function AIGameScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
   const { profile, addXp, updateProfile } = usePlayer();
+  const { theme } = useTheme();
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
@@ -429,12 +431,12 @@ export default function AIGameScreen() {
 
   if (phase === "difficulty") {
     return (
-      <View style={[styles.container, { paddingTop: topInset }]}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={22} color={Colors.textPrimary} />
+      <View style={[styles.container, { paddingTop: topInset, backgroundColor: theme.background }]}>
+        <View style={[styles.header, { borderBottomColor: theme.cardBorder }]}>
+          <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: theme.card }]}>
+            <Ionicons name="chevron-back" size={22} color={theme.textPrimary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>اللعب ضد الذكاء الاصطناعي</Text>
+          <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>اللعب ضد الذكاء الاصطناعي</Text>
           <View style={{ width: 38 }} />
         </View>
 
@@ -444,8 +446,8 @@ export default function AIGameScreen() {
         >
           <View style={styles.aiHero}>
             <Text style={styles.aiHeroEmoji}>🤖</Text>
-            <Text style={styles.aiHeroTitle}>تحدّى الذكاء الاصطناعي</Text>
-            <Text style={styles.aiHeroSub}>
+            <Text style={[styles.aiHeroTitle, { color: theme.textPrimary }]}>تحدّى الذكاء الاصطناعي</Text>
+            <Text style={[styles.aiHeroSub, { color: theme.textMuted }]}>
               {TOTAL_ROUNDS} جولات • 50 ثانية لكل جولة • 8 فئات
             </Text>
           </View>
@@ -467,7 +469,7 @@ export default function AIGameScreen() {
               </View>
               <View style={styles.diffText}>
                 <Text style={[styles.diffLabel, { color: cfg.color }]}>{cfg.label}</Text>
-                <Text style={styles.diffDesc}>{cfg.desc}</Text>
+                <Text style={[styles.diffDesc, { color: theme.textSecondary }]}>{cfg.desc}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={cfg.color + "90"} />
             </TouchableOpacity>
@@ -479,7 +481,7 @@ export default function AIGameScreen() {
 
   if (phase === "loading") {
     return (
-      <View style={[styles.container, { alignItems: "center", justifyContent: "center" }]}>
+      <View style={[styles.container, { alignItems: "center", justifyContent: "center", backgroundColor: theme.background }]}>
         <Text style={styles.loadingEmoji}>🤖</Text>
         <Text style={styles.loadingText}>جاري التحضير...</Text>
       </View>
@@ -488,10 +490,10 @@ export default function AIGameScreen() {
 
   if (phase === "playing") {
     return (
-      <View style={[styles.container, { paddingTop: topInset }]}>
-        <View style={styles.gameHeader}>
+      <View style={[styles.container, { paddingTop: topInset, backgroundColor: theme.background }]}>
+        <View style={[styles.gameHeader, { backgroundColor: theme.backgroundSecondary, borderBottomColor: theme.cardBorder }]}>
           <View style={styles.gameHeaderLeft}>
-            <Text style={styles.roundLabel}>جولة {currentRound}/{TOTAL_ROUNDS}</Text>
+            <Text style={[styles.roundLabel, { color: theme.textSecondary }]}>جولة {currentRound}/{TOTAL_ROUNDS}</Text>
             <Text style={[styles.diffBadge, { color: diffConfig.color }]}>
               {diffConfig.emoji} {diffConfig.label}
             </Text>
@@ -545,15 +547,15 @@ export default function AIGameScreen() {
         >
           {GAME_CATEGORIES.map((cat) => (
             <View key={cat} style={styles.catRow}>
-              <Text style={styles.catLabel}>{CAT_LABEL[cat]}</Text>
+              <Text style={[styles.catLabel, { color: theme.textSecondary }]}>{CAT_LABEL[cat]}</Text>
               <TextInput
-                style={[styles.catInput, submitted && styles.catInputDisabled]}
+                style={[styles.catInput, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.inputText }, submitted && styles.catInputDisabled]}
                 value={playerAnswers[cat] || ""}
                 onChangeText={(text) =>
                   setPlayerAnswers((prev) => ({ ...prev, [cat]: text }))
                 }
                 placeholder={`${currentLetter}...`}
-                placeholderTextColor={Colors.textMuted}
+                placeholderTextColor={theme.inputPlaceholder}
                 textAlign="right"
                 editable={!submitted}
                 returnKeyType="next"
@@ -594,9 +596,9 @@ export default function AIGameScreen() {
     const isLastRound = currentRound >= TOTAL_ROUNDS;
 
     return (
-      <View style={[styles.container, { paddingTop: topInset }]}>
-        <View style={styles.resultsHeader}>
-          <Text style={styles.resultsTitle}>نتائج الجولة {currentRound}</Text>
+      <View style={[styles.container, { paddingTop: topInset, backgroundColor: theme.background }]}>
+        <View style={[styles.resultsHeader, { backgroundColor: theme.backgroundSecondary, borderBottomColor: theme.cardBorder }]}>
+          <Text style={[styles.resultsTitle, { color: theme.textPrimary }]}>نتائج الجولة {currentRound}</Text>
           <View style={styles.roundScoreRow}>
             <Text style={[styles.roundScoreNum, { color: Colors.gold }]}>
               {profile.name}: {pRound}
@@ -613,8 +615,8 @@ export default function AIGameScreen() {
           showsVerticalScrollIndicator={false}
         >
           {roundResults.map((r) => (
-            <View key={r.category} style={styles.resultCard}>
-              <Text style={styles.resultCatName}>{CAT_LABEL[r.category]}</Text>
+            <View key={r.category} style={[styles.resultCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+              <Text style={[styles.resultCatName, { color: theme.textMuted }]}>{CAT_LABEL[r.category]}</Text>
               <View style={styles.resultAnswers}>
                 <View style={styles.resultCol}>
                   <Text
@@ -664,13 +666,13 @@ export default function AIGameScreen() {
     const draw = playerTotalScore === aiTotalScore;
     const xpGain = Math.max(10, Math.floor(playerTotalScore / 2));
     return (
-      <View style={[styles.container, styles.gameOverContainer, { paddingTop: topInset }]}>
-        <View style={styles.gameOverCard}>
+      <View style={[styles.container, styles.gameOverContainer, { paddingTop: topInset, backgroundColor: theme.background }]}>
+        <View style={[styles.gameOverCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
           <Text style={styles.gameOverEmoji}>{won ? "🏆" : draw ? "🤝" : "😔"}</Text>
-          <Text style={[styles.gameOverTitle, { color: won ? Colors.gold : draw ? Colors.textPrimary : Colors.ruby }]}>
+          <Text style={[styles.gameOverTitle, { color: won ? Colors.gold : draw ? theme.textPrimary : Colors.ruby }]}>
             {won ? "فزت!" : draw ? "تعادل!" : "خسرت!"}
           </Text>
-          <Text style={styles.gameOverSub}>
+          <Text style={[styles.gameOverSub, { color: theme.textSecondary }]}>
             {won
               ? "أنت أذكى من الذكاء الاصطناعي 🎉"
               : draw
@@ -678,14 +680,14 @@ export default function AIGameScreen() {
               : "الذكاء الاصطناعي تفوّق عليك هذه المرة"}
           </Text>
 
-          <View style={styles.finalScoreBox}>
+          <View style={[styles.finalScoreBox, { backgroundColor: theme.backgroundSecondary, borderColor: theme.cardBorder }]}>
             <View style={styles.finalRow}>
-              <Text style={styles.finalName}>{profile.name}</Text>
+              <Text style={[styles.finalName, { color: theme.textPrimary }]}>{profile.name}</Text>
               <Text style={[styles.finalNum, { color: Colors.gold }]}>{playerTotalScore}</Text>
             </View>
             <View style={styles.finalDivider} />
             <View style={styles.finalRow}>
-              <Text style={styles.finalName}>🤖 AI ({diffConfig.label})</Text>
+              <Text style={[styles.finalName, { color: theme.textPrimary }]}>🤖 AI ({diffConfig.label})</Text>
               <Text style={[styles.finalNum, { color: Colors.ruby }]}>{aiTotalScore}</Text>
             </View>
           </View>
@@ -700,9 +702,9 @@ export default function AIGameScreen() {
               <Ionicons name="refresh" size={18} color="#fff" />
               <Text style={styles.playAgainText}>العب مجدداً</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.homeBtn} onPress={() => router.back()} activeOpacity={0.85}>
-              <Ionicons name="home-outline" size={18} color={Colors.textPrimary} />
-              <Text style={styles.homeBtnText}>الرئيسية</Text>
+            <TouchableOpacity style={[styles.homeBtn, { backgroundColor: theme.card, borderColor: theme.cardBorder }]} onPress={() => router.back()} activeOpacity={0.85}>
+              <Ionicons name="home-outline" size={18} color={theme.textPrimary} />
+              <Text style={[styles.homeBtnText, { color: theme.textPrimary }]}>الرئيسية</Text>
             </TouchableOpacity>
           </View>
         </View>

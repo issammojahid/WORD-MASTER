@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { usePlayer, SKINS } from "@/contexts/PlayerContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 
@@ -33,6 +34,7 @@ type LeaderboardEntry = {
 export default function LeaderboardScreen() {
   const insets = useSafeAreaInsets();
   const { profile, playerId } = usePlayer();
+  const { theme } = useTheme();
   const [tab, setTab] = useState<TabFilter>("score");
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
@@ -62,23 +64,23 @@ export default function LeaderboardScreen() {
   const rest = entries.slice(3);
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+        <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>المتصدرون</Text>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>المتصدرون</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <View style={styles.filterTabs}>
+      <View style={[styles.filterTabs, { backgroundColor: theme.card }]}>
         {(["score", "wins", "xp"] as TabFilter[]).map((f) => (
           <TouchableOpacity
             key={f}
-            style={[styles.filterTab, tab === f && styles.filterTabActive]}
+            style={[styles.filterTab, tab === f && [styles.filterTabActive, { backgroundColor: theme.backgroundTertiary }]]}
             onPress={() => setTab(f)}
           >
-            <Text style={[styles.filterTabText, tab === f && styles.filterTabTextActive]}>
+            <Text style={[styles.filterTabText, { color: theme.textMuted }, tab === f && styles.filterTabTextActive]}>
               {f === "score" ? "النقاط" : f === "wins" ? "الانتصارات" : "الخبرة"}
             </Text>
           </TouchableOpacity>
@@ -102,8 +104,8 @@ export default function LeaderboardScreen() {
                   <View key={entry.id} style={styles.podiumItem}>
                     <Text style={styles.podiumEmoji}>{skin.emoji}</Text>
                     {isMe && <Text style={styles.youBadge}>أنت</Text>}
-                    <Text style={styles.podiumName} numberOfLines={1}>{entry.name}</Text>
-                    <Text style={styles.podiumScore}>{getValue(entry)}</Text>
+                    <Text style={[styles.podiumName, { color: theme.textPrimary }]} numberOfLines={1}>{entry.name}</Text>
+                    <Text style={[styles.podiumScore, { color: theme.textSecondary }]}>{getValue(entry)}</Text>
                     <View
                       style={[
                         styles.podiumBlock,
@@ -141,14 +143,14 @@ export default function LeaderboardScreen() {
               const skin = SKINS.find((s) => s.id === entry.skin) || SKINS[0];
               const isMe = entry.id === playerId;
               return (
-                <View key={entry.id} style={[styles.rankRow, isMe && styles.rankRowMe]}>
-                  <Text style={styles.rankRowNum}>{entry.rank}</Text>
+                <View key={entry.id} style={[styles.rankRow, { backgroundColor: theme.card, borderColor: theme.cardBorder }, isMe && styles.rankRowMe]}>
+                  <Text style={[styles.rankRowNum, { color: theme.textMuted }]}>{entry.rank}</Text>
                   <View style={[styles.rankRowAvatar, { backgroundColor: skin.color + "33" }]}>
                     <Text style={styles.rankRowEmoji}>{skin.emoji}</Text>
                   </View>
                   <View style={styles.rankRowInfo}>
-                    <Text style={styles.rankRowName}>{entry.name}{isMe ? " (أنت)" : ""}</Text>
-                    <Text style={styles.rankRowSub}>
+                    <Text style={[styles.rankRowName, { color: theme.textPrimary }]}>{entry.name}{isMe ? " (أنت)" : ""}</Text>
+                    <Text style={[styles.rankRowSub, { color: theme.textMuted }]}>
                       المستوى {entry.level} · {entry.gamesPlayed} مباراة
                     </Text>
                   </View>

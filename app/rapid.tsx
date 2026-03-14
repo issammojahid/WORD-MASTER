@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { usePlayer, SKINS } from "@/contexts/PlayerContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { getSocket } from "@/services/socket";
 import { playSound } from "@/lib/sound-manager";
@@ -64,6 +65,7 @@ const COIN_TIERS: CoinTier[] = [
 export default function RapidScreen() {
   const insets = useSafeAreaInsets();
   const { profile, playerId, reportGameResult, addCoins } = usePlayer();
+  const { theme } = useTheme();
   const equippedSkin = SKINS.find((s) => s.id === profile.equippedSkin) || SKINS[0];
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
@@ -333,14 +335,14 @@ export default function RapidScreen() {
 
   if (phase === "tier_select") {
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+        <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
         <View style={styles.tierContent}>
           <Ionicons name="flash" size={48} color={Colors.ruby} />
-          <Text style={styles.waitingTitle}>الوضع السريع</Text>
-          <Text style={styles.tierSubtitle}>اختر مستوى الدخول</Text>
+          <Text style={[styles.waitingTitle, { color: theme.textPrimary }]}>الوضع السريع</Text>
+          <Text style={[styles.tierSubtitle, { color: theme.textSecondary }]}>اختر مستوى الدخول</Text>
 
           <View style={styles.coinBalance}>
             <Ionicons name="star" size={16} color={Colors.gold} />
@@ -359,12 +361,12 @@ export default function RapidScreen() {
                   activeOpacity={0.8}
                 >
                   <View style={styles.tierEntry}>
-                    <Ionicons name="star" size={20} color={canAfford ? Colors.gold : Colors.textMuted} />
-                    <Text style={[styles.tierEntryText, !canAfford && { color: Colors.textMuted }]}>{tier.entry}</Text>
+                    <Ionicons name="star" size={20} color={canAfford ? Colors.gold : theme.textMuted} />
+                    <Text style={[styles.tierEntryText, !canAfford && { color: theme.textMuted }]}>{tier.entry}</Text>
                   </View>
-                  <Ionicons name="arrow-down" size={16} color={Colors.textMuted} />
+                  <Ionicons name="arrow-down" size={16} color={theme.textMuted} />
                   <View style={styles.tierReward}>
-                    <Text style={[styles.tierRewardText, !canAfford && { color: Colors.textMuted }]}>+{tier.reward} 🪙</Text>
+                    <Text style={[styles.tierRewardText, !canAfford && { color: theme.textMuted }]}>+{tier.reward} 🪙</Text>
                   </View>
                   {!canAfford && (
                     <Text style={styles.tierInsufficient}>رصيدك غير كافٍ</Text>
@@ -380,13 +382,13 @@ export default function RapidScreen() {
 
   if (phase === "waiting") {
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={handleLeave}>
-          <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+        <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={handleLeave}>
+          <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
         <View style={styles.waitingContent}>
           <Ionicons name="flash" size={48} color={Colors.ruby} />
-          <Text style={styles.waitingTitle}>الوضع السريع</Text>
+          <Text style={[styles.waitingTitle, { color: theme.textPrimary }]}>الوضع السريع</Text>
           {selectedTier && (
             <View style={styles.tierSelectedBadge}>
               <Ionicons name="star" size={14} color={Colors.gold} />
@@ -409,7 +411,7 @@ export default function RapidScreen() {
     const color = countColors[countdownNum] || Colors.gold;
     const opponentSkin = opponent ? (SKINS.find((s) => s.id === opponent.skin) || SKINS[0]) : SKINS[0];
     return (
-      <View style={[styles.container, styles.countdownContainer, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+      <View style={[styles.container, styles.countdownContainer, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
         <View style={styles.vsRow}>
           <View style={styles.vsPlayer}>
             <View style={[styles.vsAvatar, { backgroundColor: equippedSkin.color + "33" }]}>
@@ -447,7 +449,7 @@ export default function RapidScreen() {
     const myAttempt = socketIdRef.current && roundResult?.attempts ? roundResult.attempts[socketIdRef.current] : null;
     const oppAttempt = opponent && roundResult?.attempts ? roundResult.attempts[Object.keys(roundResult.attempts).find((k) => k !== socketIdRef.current) || ""] : null;
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
         <View style={styles.roundResultContent}>
           <Text style={styles.roundResultRound}>الجولة {roundResult?.round || currentRound} / {TOTAL_ROUNDS}</Text>
           <View style={styles.scoreBoard}>
@@ -507,10 +509,10 @@ export default function RapidScreen() {
     const gameEmoji = gameOverData.isDraw ? "🤝" : gameOverData.won ? "🏆" : "😞";
     const gameTitle = gameOverData.isDraw ? "تعادل!" : gameOverData.won ? "فزت!" : "خسرت";
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
         <View style={styles.gameOverContent}>
           <Text style={styles.gameOverEmoji}>{gameEmoji}</Text>
-          <Text style={styles.gameOverTitle}>{gameTitle}</Text>
+          <Text style={[styles.gameOverTitle, { color: theme.textPrimary }]}>{gameTitle}</Text>
           {gameOverData.isDraw && selectedTier && (
             <View style={styles.drawRefundBadge}>
               <Ionicons name="refresh-circle" size={18} color={Colors.gold} />
@@ -548,7 +550,7 @@ export default function RapidScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
       <View style={styles.playHeader}>
         <View style={styles.roundInfo}>
           <Text style={styles.roundText}>الجولة {currentRound}/{TOTAL_ROUNDS}</Text>
@@ -592,7 +594,7 @@ export default function RapidScreen() {
               if (!wordSubmitted) setWordInput(text);
             }}
             placeholder={`كلمة تبدأ بحرف ${currentLetter}...`}
-            placeholderTextColor={Colors.inputPlaceholder}
+            placeholderTextColor={theme.inputPlaceholder}
             textAlign="right"
             autoFocus
             editable={!wordSubmitted && timeLeft > 0}

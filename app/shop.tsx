@@ -15,6 +15,7 @@ import {
   type MysteryBoxPrize, type Rarity,
   type SkinId, type BackgroundId, type EmoteId, type EffectId,
 } from "@/contexts/PlayerContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 
 const { width: SW, height: SH } = Dimensions.get("window");
@@ -289,6 +290,7 @@ interface AvatarPreviewModalProps {
 }
 
 const AvatarPreviewModal = memo(({ skin, owned, equipped, canAfford, profile, onClose, onAction }: AvatarPreviewModalProps) => {
+  const { theme } = useTheme();
   const breathAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(60)).current;
@@ -341,7 +343,7 @@ const AvatarPreviewModal = memo(({ skin, owned, equipped, canAfford, profile, on
           <LinearGradient colors={[skin.color + "30", "#0D1B2A", "#0A1520"]} style={pm.cardGrad}>
             {/* Close button */}
             <TouchableOpacity style={pm.closeBtn} onPress={onClose}>
-              <Ionicons name="close" size={20} color={Colors.textMuted} />
+              <Ionicons name="close" size={20} color={theme.textMuted} />
             </TouchableOpacity>
 
             {/* Rarity label */}
@@ -357,8 +359,8 @@ const AvatarPreviewModal = memo(({ skin, owned, equipped, canAfford, profile, on
               <Text style={pm.avatarEmoji}>{skin.emoji}</Text>
             </Animated.View>
 
-            <Text style={pm.skinName}>{skin.nameAr}</Text>
-            {skin.descAr && <Text style={pm.skinDesc}>{skin.descAr}</Text>}
+            <Text style={[pm.skinName, { color: theme.textPrimary }]}>{skin.nameAr}</Text>
+            {skin.descAr && <Text style={[pm.skinDesc, { color: theme.textSecondary }]}>{skin.descAr}</Text>}
 
             {/* Price row (if not owned) */}
             {!owned && skin.price > 0 && (
@@ -517,6 +519,7 @@ export default function ShopScreen() {
   const insets = useSafeAreaInsets();
   const { profile, purchaseSkin, equipSkin, purchaseBackground, equipBackground,
     purchaseEmote, purchaseEffect, equipEffect, grantItem, buyDailyItem, addCoins } = usePlayer();
+  const { theme } = useTheme();
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
@@ -715,7 +718,7 @@ export default function ShopScreen() {
           const cur = SKINS.find(sk => sk.id === profile.equippedSkin) || SKINS[0];
           return (
             <TouchableOpacity
-              style={[s.currentBar, { borderColor: RARITY_COLORS[cur.rarity] + "55" }]}
+              style={[s.currentBar, { borderColor: RARITY_COLORS[cur.rarity] + "55", backgroundColor: theme.card }]}
               onPress={() => handleSkinAction(cur.id)}
               activeOpacity={0.88}
             >
@@ -724,11 +727,11 @@ export default function ShopScreen() {
                 <Text style={s.currentEmoji}>{cur.emoji}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.currentLabel}>زيّك الحالي</Text>
+                <Text style={[s.currentLabel, { color: theme.textMuted }]}>زيّك الحالي</Text>
                 <Text style={[s.currentName, { color: RARITY_COLORS[cur.rarity] }]}>{cur.nameAr}</Text>
-                <Text style={s.currentRarity}>{RARITY_LABELS[cur.rarity]}</Text>
+                <Text style={[s.currentRarity, { color: theme.textMuted }]}>{RARITY_LABELS[cur.rarity]}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+              <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
             </TouchableOpacity>
           );
         })()}
@@ -737,8 +740,8 @@ export default function ShopScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterBar} contentContainerStyle={s.filterBarContent}>
           {SKIN_FILTERS.map(f => (
             <TouchableOpacity key={f} onPress={() => { setSkinFilter(f); playShopSound("click"); }}
-              style={[s.filterChip, skinFilter === f && s.filterChipActive]}>
-              <Text style={[s.filterChipText, skinFilter === f && s.filterChipTextActive]}>{f}</Text>
+              style={[s.filterChip, { backgroundColor: theme.card, borderColor: theme.cardBorder }, skinFilter === f && s.filterChipActive]}>
+              <Text style={[s.filterChipText, { color: theme.textMuted }, skinFilter === f && s.filterChipTextActive]}>{f}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -761,7 +764,7 @@ export default function ShopScreen() {
                 style={{ width: CARD_W }}
                 onPress={() => handleSkinAction(skin.id)}
               >
-                <View style={[s.itemCard, rarityCardStyle(skin.rarity), equipped && s.itemCardEquipped, locked && s.itemCardLocked]}>
+                <View style={[s.itemCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }, rarityCardStyle(skin.rarity), equipped && s.itemCardEquipped, locked && s.itemCardLocked]}>
                   {/* Rarity glow top strip */}
                   <LinearGradient
                     colors={[RARITY_COLORS[skin.rarity] + "30", "transparent"]}
@@ -781,7 +784,7 @@ export default function ShopScreen() {
                   )}
                   {locked && !unlockCond && (
                     <View style={s.statusDot}>
-                      <Ionicons name="lock-closed" size={16} color={Colors.textMuted} />
+                      <Ionicons name="lock-closed" size={16} color={theme.textMuted} />
                     </View>
                   )}
                   {unlockCond && !owned && (
@@ -800,8 +803,8 @@ export default function ShopScreen() {
                     )}
                   </View>
 
-                  <Text style={[s.itemName, locked && s.lockedText]}>{skin.nameAr}</Text>
-                  {skin.descAr && <Text style={s.itemDesc} numberOfLines={2}>{skin.descAr}</Text>}
+                  <Text style={[s.itemName, { color: theme.textPrimary }, locked && { color: theme.textMuted }]}>{skin.nameAr}</Text>
+                  {skin.descAr && <Text style={[s.itemDesc, { color: theme.textMuted }]} numberOfLines={2}>{skin.descAr}</Text>}
 
                   {/* Action button */}
                   {owned ? (
@@ -818,8 +821,8 @@ export default function ShopScreen() {
                     </View>
                   ) : (
                     <View style={[s.actionBtn, canAfford ? s.actionBuy : s.actionCantBuy]}>
-                      <Ionicons name="star" size={11} color={canAfford ? Colors.gold : Colors.textMuted} />
-                      <Text style={[s.actionBtnText, { color: canAfford ? Colors.gold : Colors.textMuted }]}>{skin.price}</Text>
+                      <Ionicons name="star" size={11} color={canAfford ? Colors.gold : theme.textMuted} />
+                      <Text style={[s.actionBtnText, { color: canAfford ? Colors.gold : theme.textMuted }]}>{skin.price}</Text>
                     </View>
                   )}
                 </View>
@@ -840,24 +843,24 @@ export default function ShopScreen() {
         const canAfford = profile.coins >= bg.price;
         return (
           <AnimatedCard key={bg.id} style={{ width: CARD_W }} onPress={() => handleBgAction(bg.id)}>
-            <View style={[s.itemCard, rarityCardStyle(bg.rarity), equipped && s.itemCardEquipped]}>
+            <View style={[s.itemCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }, rarityCardStyle(bg.rarity), equipped && s.itemCardEquipped]}>
               <LinearGradient colors={[RARITY_COLORS[bg.rarity] + "30", "transparent"]} style={s.rarityGlowTop} />
               <View style={[s.rarityBadge, { backgroundColor: RARITY_COLORS[bg.rarity] + "28" }]}>
                 <Text style={[s.rarityBadgeText, { color: RARITY_COLORS[bg.rarity] }]}>{RARITY_LABELS[bg.rarity]}</Text>
               </View>
               {equipped && <View style={s.statusDot}><Ionicons name="checkmark-circle" size={18} color={Colors.emerald} /></View>}
-              <LinearGradient colors={[bg.color, bg.color + "88", Colors.background]} style={s.bgPreview}>
+              <LinearGradient colors={[bg.color, bg.color + "88", theme.background]} style={s.bgPreview}>
                 <Text style={s.bgPreviewEmoji}>{bg.emoji}</Text>
               </LinearGradient>
-              <Text style={s.itemName}>{bg.nameAr}</Text>
+              <Text style={[s.itemName, { color: theme.textPrimary }]}>{bg.nameAr}</Text>
               {owned ? (
                 <View style={[s.actionBtn, equipped ? s.actionEquipped : s.actionEquip]}>
                   <Text style={[s.actionBtnText, { color: equipped ? Colors.emerald : "#60A5FA" }]}>{equipped ? "✓ مُجهَّز" : "تجهيز"}</Text>
                 </View>
               ) : (
                 <View style={[s.actionBtn, canAfford ? s.actionBuy : s.actionCantBuy]}>
-                  <Ionicons name="star" size={11} color={canAfford ? Colors.gold : Colors.textMuted} />
-                  <Text style={[s.actionBtnText, { color: canAfford ? Colors.gold : Colors.textMuted }]}>{bg.price}</Text>
+                  <Ionicons name="star" size={11} color={canAfford ? Colors.gold : theme.textMuted} />
+                  <Text style={[s.actionBtnText, { color: canAfford ? Colors.gold : theme.textMuted }]}>{bg.price}</Text>
                 </View>
               )}
             </View>
@@ -870,22 +873,22 @@ export default function ShopScreen() {
   // ── Render: Emotes ────────────────────────────────────────────────────────
   const renderEmotes = () => (
     <>
-      <Text style={s.sectionHint}>أرسل تفاعلات لخصمك أثناء المباراة</Text>
+      <Text style={[s.sectionHint, { color: theme.textMuted }]}>أرسل تفاعلات لخصمك أثناء المباراة</Text>
       <View style={s.emotesGrid}>
         {EMOTES.map(emote => {
           const owned = profile.ownedEmotes.includes(emote.id);
           const canAfford = profile.coins >= emote.price;
           return (
             <AnimatedCard key={emote.id} style={undefined} onPress={() => handleEmoteAction(emote.id)}>
-              <View style={[s.emoteCard, owned && s.emoteCardOwned]}>
+              <View style={[s.emoteCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }, owned && s.emoteCardOwned]}>
                 <Text style={s.emoteEmoji}>{emote.emoji}</Text>
-                <Text style={s.emoteName}>{emote.nameAr}</Text>
+                <Text style={[s.emoteName, { color: theme.textPrimary }]}>{emote.nameAr}</Text>
                 {owned ? (
                   <View style={s.emoteOwnedBadge}><Text style={s.emoteOwnedText}>✓</Text></View>
                 ) : (
-                  <View style={[s.emotePrice, { backgroundColor: canAfford ? Colors.gold + "22" : Colors.card }]}>
-                    <Ionicons name="star" size={10} color={canAfford ? Colors.gold : Colors.textMuted} />
-                    <Text style={[s.emotePriceText, { color: canAfford ? Colors.gold : Colors.textMuted }]}>{emote.price}</Text>
+                  <View style={[s.emotePrice, { backgroundColor: canAfford ? Colors.gold + "22" : theme.card }]}>
+                    <Ionicons name="star" size={10} color={canAfford ? Colors.gold : theme.textMuted} />
+                    <Text style={[s.emotePriceText, { color: canAfford ? Colors.gold : theme.textMuted }]}>{emote.price}</Text>
                   </View>
                 )}
               </View>
@@ -899,7 +902,7 @@ export default function ShopScreen() {
   // ── Render: Effects ───────────────────────────────────────────────────────
   const renderEffects = () => (
     <>
-      <Text style={s.sectionHint}>تأثيرات بصرية رائعة عند الفوز بمباراة</Text>
+      <Text style={[s.sectionHint, { color: theme.textMuted }]}>تأثيرات بصرية رائعة عند الفوز بمباراة</Text>
       <View style={s.grid}>
         {EFFECTS.map(effect => {
           const owned = profile.ownedEffects.includes(effect.id);
@@ -907,7 +910,7 @@ export default function ShopScreen() {
           const canAfford = profile.coins >= effect.price;
           return (
             <AnimatedCard key={effect.id} style={{ width: CARD_W }} onPress={() => handleEffectAction(effect.id)}>
-              <View style={[s.itemCard, effect.price > 0 ? rarityCardStyle(effect.rarity) : {}, equipped && s.itemCardEquipped]}>
+              <View style={[s.itemCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }, effect.price > 0 ? rarityCardStyle(effect.rarity) : {}, equipped && s.itemCardEquipped]}>
                 {effect.price > 0 && <LinearGradient colors={[RARITY_COLORS[effect.rarity] + "30", "transparent"]} style={s.rarityGlowTop} />}
                 {effect.price > 0 && (
                   <View style={[s.rarityBadge, { backgroundColor: RARITY_COLORS[effect.rarity] + "28" }]}>
@@ -918,8 +921,8 @@ export default function ShopScreen() {
                 <View style={[s.itemEmojiCircle, { backgroundColor: effect.color + "22" }]}>
                   <Text style={s.itemEmoji}>{effect.emoji}</Text>
                 </View>
-                <Text style={s.itemName}>{effect.nameAr}</Text>
-                {effect.descAr && <Text style={s.itemDesc} numberOfLines={2}>{effect.descAr}</Text>}
+                <Text style={[s.itemName, { color: theme.textPrimary }]}>{effect.nameAr}</Text>
+                {effect.descAr && <Text style={[s.itemDesc, { color: theme.textMuted }]} numberOfLines={2}>{effect.descAr}</Text>}
                 {owned ? (
                   <View style={[s.actionBtn, equipped ? s.actionEquipped : s.actionEquip]}>
                     <Text style={[s.actionBtnText, { color: equipped ? Colors.emerald : "#60A5FA" }]}>{equipped ? "✓ مُجهَّز" : "تجهيز"}</Text>
@@ -928,8 +931,8 @@ export default function ShopScreen() {
                   <View style={[s.actionBtn, s.actionEquip]}><Text style={[s.actionBtnText, { color: "#60A5FA" }]}>تجهيز</Text></View>
                 ) : (
                   <View style={[s.actionBtn, canAfford ? s.actionBuy : s.actionCantBuy]}>
-                    <Ionicons name="star" size={11} color={canAfford ? Colors.gold : Colors.textMuted} />
-                    <Text style={[s.actionBtnText, { color: canAfford ? Colors.gold : Colors.textMuted }]}>{effect.price}</Text>
+                    <Ionicons name="star" size={11} color={canAfford ? Colors.gold : theme.textMuted} />
+                    <Text style={[s.actionBtnText, { color: canAfford ? Colors.gold : theme.textMuted }]}>{effect.price}</Text>
                   </View>
                 )}
               </View>
@@ -947,8 +950,8 @@ export default function ShopScreen() {
       <View style={s.boxContainer}>
         {boxState !== "revealed" ? (
           <>
-            <Text style={s.boxTitle}>صندوق الغموض</Text>
-            <Text style={s.boxSubtitle}>افتح الصندوق للحصول على جائزة عشوائية!</Text>
+            <Text style={[s.boxTitle, { color: theme.textPrimary }]}>صندوق الغموض</Text>
+            <Text style={[s.boxSubtitle, { color: theme.textMuted }]}>افتح الصندوق للحصول على جائزة عشوائية!</Text>
             <Animated.View style={[s.boxWrapper, {
               transform: [{ translateX: shakeAnim }, { scale: boxScaleAnim }],
               opacity: boxOpacityAnim,
@@ -965,7 +968,7 @@ export default function ShopScreen() {
                 .map((item, i) => (
                   <View key={i} style={s.boxPoolItem}>
                     <Text style={s.boxPoolEmoji}>{item.emoji}</Text>
-                    <Text style={s.boxPoolLabel}>{item.label}</Text>
+                    <Text style={[s.boxPoolLabel, { color: theme.textMuted }]}>{item.label}</Text>
                   </View>
                 ))}
             </View>
@@ -976,32 +979,32 @@ export default function ShopScreen() {
               activeOpacity={0.85}
             >
               <LinearGradient
-                colors={canAfford ? ["#7C3AED", "#4C1D95"] : [Colors.card, Colors.card]}
+                colors={canAfford ? ["#7C3AED", "#4C1D95"] : [theme.card, theme.card]}
                 style={s.openBoxBtnGrad}
               >
-                <Ionicons name="star" size={14} color={canAfford ? Colors.gold : Colors.textMuted} />
-                <Text style={[s.openBoxBtnText, !canAfford && { color: Colors.textMuted }]}>
+                <Ionicons name="star" size={14} color={canAfford ? Colors.gold : theme.textMuted} />
+                <Text style={[s.openBoxBtnText, !canAfford && { color: theme.textMuted }]}>
                   {boxState === "opening" ? "جاري الفتح..." : `فتح الصندوق · ${MYSTERY_BOX_PRICE}`}
                 </Text>
               </LinearGradient>
             </TouchableOpacity>
-            {!canAfford && <Text style={s.cantAffordHint}>تحتاج المزيد من النقود للفتح</Text>}
+            {!canAfford && <Text style={[s.cantAffordHint, { color: theme.textMuted }]}>تحتاج المزيد من النقود للفتح</Text>}
           </>
         ) : (
           <Animated.View style={[s.prizeReveal, { transform: [{ scale: prizeScaleAnim }], opacity: prizeOpacityAnim }]}>
-            <Text style={s.prizeCongrats}>مبروك! 🎉</Text>
+            <Text style={[s.prizeCongrats, { color: theme.textPrimary }]}>مبروك! 🎉</Text>
             <LinearGradient colors={["#1A2E43", "#0D1B2A"]} style={s.prizeCard}>
               <Text style={s.prizeEmoji}>{boxResult?.emoji}</Text>
-              <Text style={s.prizeName}>{boxResult?.nameAr}</Text>
-              <Text style={s.prizeTypeLabel}>
+              <Text style={[s.prizeName, { color: theme.textPrimary }]}>{boxResult?.nameAr}</Text>
+              <Text style={[s.prizeTypeLabel, { color: theme.textMuted }]}>
                 {boxResult?.type === "coins" ? "🪙 عملات مضافة لرصيدك" :
                  boxResult?.type === "skin"       ? "👕 زي جديد في مجموعتك" :
                  boxResult?.type === "background" ? "🖼️ خلفية جديدة مفتوحة" :
                  boxResult?.type === "emote"      ? "😂 تفاعل جديد مفتوح" : "✨ تأثير جديد مفتوح"}
               </Text>
             </LinearGradient>
-            <TouchableOpacity style={s.openAgainBtn} onPress={resetBox} activeOpacity={0.85}>
-              <Text style={s.openAgainText}>فتح مرة أخرى</Text>
+            <TouchableOpacity style={[s.openAgainBtn, { backgroundColor: theme.card, borderColor: theme.cardBorder }]} onPress={resetBox} activeOpacity={0.85}>
+              <Text style={[s.openAgainText, { color: theme.textPrimary }]}>فتح مرة أخرى</Text>
             </TouchableOpacity>
           </Animated.View>
         )}
@@ -1012,10 +1015,10 @@ export default function ShopScreen() {
   // ── Render: Daily Shop ────────────────────────────────────────────────────
   const renderDailyShop = () => (
     <>
-      <LinearGradient colors={["#1A2E43", "#0D1B2A"]} style={s.dailyHeader}>
+      <LinearGradient colors={["#1A2E43", "#0D1B2A"]} style={[s.dailyHeader, { borderColor: theme.cardBorder }]}>
         <View>
-          <Text style={s.dailyTitle}>عروض اليوم 🏷️</Text>
-          <Text style={s.dailySubtitle}>تتجدد كل يوم · خصم 30%</Text>
+          <Text style={[s.dailyTitle, { color: theme.textPrimary }]}>عروض اليوم 🏷️</Text>
+          <Text style={[s.dailySubtitle, { color: theme.textMuted }]}>تتجدد كل يوم · خصم 30%</Text>
         </View>
         <View style={s.dailyTimer}>
           <Ionicons name="time-outline" size={14} color={Colors.gold} />
@@ -1061,7 +1064,7 @@ export default function ShopScreen() {
                   onPress={() => handleDailyBuy(item)}
                   activeOpacity={0.85}
                 >
-                  <Text style={[s.dailyActionBuyText, !canAfford && { color: Colors.textMuted }]}>
+                  <Text style={[s.dailyActionBuyText, !canAfford && { color: theme.textMuted }]}>
                     {canAfford ? "شراء" : "لا يكفي"}
                   </Text>
                 </TouchableOpacity>
@@ -1096,17 +1099,17 @@ export default function ShopScreen() {
 
   // ── Main render ───────────────────────────────────────────────────────────
   return (
-    <View style={[s.container, { paddingTop: topInset }]}>
+    <View style={[s.container, { paddingTop: topInset, backgroundColor: theme.background }]}>
       {/* Animated particles background */}
       <ShopParticles />
 
       {/* Header */}
-      <LinearGradient colors={[Colors.background, Colors.background + "F0"]} style={s.headerGrad}>
+      <LinearGradient colors={[theme.background, theme.background + "F0"]} style={s.headerGrad}>
         <View style={s.header}>
-          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+          <TouchableOpacity style={[s.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
           </TouchableOpacity>
-          <Text style={s.headerTitle}>المتجر</Text>
+          <Text style={[s.headerTitle, { color: theme.textPrimary }]}>المتجر</Text>
           <LinearGradient colors={[Colors.gold + "30", Colors.gold + "10"]} style={s.coinsBadge}>
             <Ionicons name="star" size={14} color={Colors.gold} />
             <Text style={s.coinsText}>{profile.coins}</Text>
@@ -1115,12 +1118,12 @@ export default function ShopScreen() {
       </LinearGradient>
 
       {/* Tab bar */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabBar} contentContainerStyle={s.tabBarContent}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[s.tabBar, { borderBottomColor: theme.cardBorder }]} contentContainerStyle={s.tabBarContent}>
         {TABS.map(tab => (
-          <TouchableOpacity key={tab.id} style={[s.tab, activeTab === tab.id && s.tabActive]}
+          <TouchableOpacity key={tab.id} style={[s.tab, { backgroundColor: theme.card }, activeTab === tab.id && s.tabActive]}
             onPress={() => switchTab(tab.id)} activeOpacity={0.8}>
             <Text style={s.tabEmoji}>{tab.emoji}</Text>
-            <Text style={[s.tabLabel, activeTab === tab.id && s.tabLabelActive]}>{tab.label}</Text>
+            <Text style={[s.tabLabel, { color: theme.textMuted }, activeTab === tab.id && s.tabLabelActive]}>{tab.label}</Text>
             {activeTab === tab.id && <View style={s.tabActiveLine} />}
           </TouchableOpacity>
         ))}

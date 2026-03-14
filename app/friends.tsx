@@ -18,6 +18,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { usePlayer, SKINS } from "@/contexts/PlayerContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { ScreenErrorBoundary } from "@/components/ScreenErrorBoundary";
@@ -47,6 +48,7 @@ async function apiFetch(url: string, options?: RequestInit) {
 function FriendsScreenInner() {
   const insets = useSafeAreaInsets();
   const { playerId, profile } = usePlayer();
+  const { theme } = useTheme();
   const qc = useQueryClient();
   const [tab, setTab] = useState<TabType>("friends");
   const [searchQuery, setSearchQuery] = useState("");
@@ -142,13 +144,13 @@ function FriendsScreenInner() {
   const renderPlayerCard = (player: PlayerResult, extra?: React.ReactNode) => {
     const skin = SKINS.find((s) => s.id === player.skin) || SKINS[0];
     return (
-      <View key={player.id} style={styles.playerCard}>
+      <View key={player.id} style={[styles.playerCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
         <View style={[styles.avatar, { backgroundColor: skin.color + "33" }]}>
           <Text style={styles.avatarEmoji}>{skin.emoji}</Text>
         </View>
         <View style={styles.playerInfo}>
-          <Text style={styles.playerName}>{player.name}</Text>
-          <Text style={styles.playerSub}>المستوى {player.level} · {player.wins} انتصار</Text>
+          <Text style={[styles.playerName, { color: theme.textPrimary }]}>{player.name}</Text>
+          <Text style={[styles.playerSub, { color: theme.textMuted }]}>المستوى {player.level} · {player.wins} انتصار</Text>
         </View>
         {extra}
       </View>
@@ -156,27 +158,27 @@ function FriendsScreenInner() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+        <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>الأصدقاء</Text>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>الأصدقاء</Text>
         <View style={{ width: 40 }} />
       </View>
 
       {/* Player Code Banner */}
       <TouchableOpacity
-        style={styles.codeBanner}
+        style={[styles.codeBanner, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
         onPress={() => copyToClipboard(myDisplayCode)}
         activeOpacity={0.7}
       >
         <View style={styles.codeBannerLeft}>
           <Ionicons name="id-card" size={18} color={Colors.gold} />
-          <Text style={styles.codeBannerLabel}>كودك:</Text>
+          <Text style={[styles.codeBannerLabel, { color: theme.textMuted }]}>كودك:</Text>
           <Text style={styles.codeBannerValue}>{myDisplayCode}</Text>
         </View>
-        <Ionicons name="copy-outline" size={18} color={Colors.textMuted} />
+        <Ionicons name="copy-outline" size={18} color={theme.textMuted} />
       </TouchableOpacity>
 
       {copiedToast && (
@@ -187,7 +189,7 @@ function FriendsScreenInner() {
       )}
 
       {/* Play Section */}
-      <View style={styles.playSection}>
+      <View style={[styles.playSection, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
         <TouchableOpacity
           style={styles.playBtn}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push({ pathname: "/lobby", params: { action: "create" } }); }}
@@ -196,7 +198,7 @@ function FriendsScreenInner() {
           <Ionicons name="add-circle" size={22} color={Colors.emerald} />
           <Text style={[styles.playBtnText, { color: Colors.emerald }]}>إنشاء غرفة</Text>
         </TouchableOpacity>
-        <View style={styles.playDivider} />
+        <View style={[styles.playDivider, { backgroundColor: theme.cardBorder }]} />
         <TouchableOpacity
           style={styles.playBtn}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push({ pathname: "/lobby", params: { action: "join" } }); }}
@@ -207,14 +209,14 @@ function FriendsScreenInner() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.tabs}>
+      <View style={[styles.tabs, { backgroundColor: theme.card }]}>
         {(["friends", "search", "requests"] as TabType[]).map((t) => (
           <TouchableOpacity
             key={t}
             style={[styles.tab, tab === t && styles.tabActive]}
             onPress={() => setTab(t)}
           >
-            <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
+            <Text style={[styles.tabText, { color: theme.textMuted }, tab === t && styles.tabTextActive]}>
               {t === "friends" ? `الأصدقاء (${acceptedFriends.length})` : t === "search" ? "بحث" : `الطلبات (${pendingReceived.length})`}
             </Text>
           </TouchableOpacity>
@@ -228,8 +230,8 @@ function FriendsScreenInner() {
           ) : acceptedFriends.length === 0 ? (
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>👥</Text>
-              <Text style={styles.emptyText}>ليس لديك أصدقاء بعد</Text>
-              <Text style={styles.emptySubText}>ابحث عن لاعبين وأضفهم كأصدقاء</Text>
+              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>ليس لديك أصدقاء بعد</Text>
+              <Text style={[styles.emptySubText, { color: theme.textMuted }]}>ابحث عن لاعبين وأضفهم كأصدقاء</Text>
             </View>
           ) : (
             acceptedFriends.map((row) =>
@@ -274,12 +276,12 @@ function FriendsScreenInner() {
 
       {tab === "search" && (
         <View style={{ flex: 1 }}>
-          <View style={styles.searchBox}>
-            <Ionicons name="search" size={18} color={Colors.textMuted} style={{ marginRight: 8 }} />
+          <View style={[styles.searchBox, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
+            <Ionicons name="search" size={18} color={theme.textMuted} style={{ marginRight: 8 }} />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { color: theme.inputText }]}
               placeholder="ابحث باسم اللاعب..."
-              placeholderTextColor={Colors.textMuted}
+              placeholderTextColor={theme.inputPlaceholder}
               value={searchQuery}
               onChangeText={handleSearchChange}
               autoFocus

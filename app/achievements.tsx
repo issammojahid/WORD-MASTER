@@ -14,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { usePlayer } from "@/contexts/PlayerContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { ScreenErrorBoundary } from "@/components/ScreenErrorBoundary";
@@ -47,6 +48,7 @@ async function apiFetch(url: string, options?: RequestInit) {
 function AchievementsScreenInner() {
   const insets = useSafeAreaInsets();
   const { playerId, addCoins, addXp } = usePlayer();
+  const { theme } = useTheme();
   const qc = useQueryClient();
   const [filter, setFilter] = useState<"all" | "unlocked" | "locked">("all");
 
@@ -89,42 +91,42 @@ function AchievementsScreenInner() {
   const claimedCount = achievements.filter((a) => a.claimed).length;
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+        <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>الإنجازات</Text>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>الإنجازات</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <View style={styles.summary}>
+      <View style={[styles.summary, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
         <View style={styles.summaryRow}>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryNum}>{unlockedCount}</Text>
-            <Text style={styles.summaryLabel}>تم فتحها</Text>
+            <Text style={[styles.summaryLabel, { color: theme.textMuted }]}>تم فتحها</Text>
           </View>
-          <View style={styles.summaryDivider} />
+          <View style={[styles.summaryDivider, { backgroundColor: theme.cardBorder }]} />
           <View style={styles.summaryItem}>
             <Text style={styles.summaryNum}>{achievements.length - unlockedCount}</Text>
-            <Text style={styles.summaryLabel}>متبقية</Text>
+            <Text style={[styles.summaryLabel, { color: theme.textMuted }]}>متبقية</Text>
           </View>
-          <View style={styles.summaryDivider} />
+          <View style={[styles.summaryDivider, { backgroundColor: theme.cardBorder }]} />
           <View style={styles.summaryItem}>
             <Text style={styles.summaryNum}>{claimedCount}</Text>
-            <Text style={styles.summaryLabel}>استُلمت</Text>
+            <Text style={[styles.summaryLabel, { color: theme.textMuted }]}>استُلمت</Text>
           </View>
         </View>
       </View>
 
-      <View style={styles.filterTabs}>
+      <View style={[styles.filterTabs, { backgroundColor: theme.card }]}>
         {(["all", "unlocked", "locked"] as const).map((f) => (
           <TouchableOpacity
             key={f}
-            style={[styles.filterTab, filter === f && styles.filterTabActive]}
+            style={[styles.filterTab, filter === f && [styles.filterTabActive, { backgroundColor: theme.backgroundTertiary }]]}
             onPress={() => setFilter(f)}
           >
-            <Text style={[styles.filterTabText, filter === f && styles.filterTabTextActive]}>
+            <Text style={[styles.filterTabText, { color: theme.textMuted }, filter === f && styles.filterTabTextActive]}>
               {f === "all" ? "الكل" : f === "unlocked" ? "مفتوحة" : "مقفلة"}
             </Text>
           </TouchableOpacity>
@@ -138,26 +140,26 @@ function AchievementsScreenInner() {
       ) : filtered.length === 0 ? (
         <View style={styles.center}>
           <Text style={styles.emptyIcon}>🏆</Text>
-          <Text style={styles.emptyText}>لم تحقق أي إنجاز بعد</Text>
-          <Text style={styles.emptySubText}>العب وتقدم للحصول على الإنجازات</Text>
+          <Text style={[styles.emptyText, { color: theme.textSecondary }]}>لم تحقق أي إنجاز بعد</Text>
+          <Text style={[styles.emptySubText, { color: theme.textMuted }]}>العب وتقدم للحصول على الإنجازات</Text>
         </View>
       ) : (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {filtered.map((ach) => {
             const pct = Math.min(1, ach.progress / ach.target);
             return (
-              <View key={ach.key} style={[styles.achCard, ach.claimed && styles.achClaimed, !ach.unlocked && styles.achLocked]}>
-                <View style={[styles.achIconWrap, { backgroundColor: ach.unlocked ? Colors.gold + "20" : Colors.cardBorder }]}>
+              <View key={ach.key} style={[styles.achCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }, ach.claimed && styles.achClaimed, !ach.unlocked && styles.achLocked]}>
+                <View style={[styles.achIconWrap, { backgroundColor: ach.unlocked ? Colors.gold + "20" : theme.cardBorder }]}>
                   <Text style={[styles.achIcon, !ach.unlocked && styles.achIconLocked]}>{ach.icon}</Text>
                 </View>
                 <View style={styles.achContent}>
-                  <Text style={[styles.achTitle, !ach.unlocked && styles.achTitleLocked]}>{ach.titleAr}</Text>
-                  <Text style={styles.achDesc}>{ach.descAr}</Text>
+                  <Text style={[styles.achTitle, { color: theme.textPrimary }, !ach.unlocked && styles.achTitleLocked]}>{ach.titleAr}</Text>
+                  <Text style={[styles.achDesc, { color: theme.textMuted }]}>{ach.descAr}</Text>
                   <View style={styles.achProgressRow}>
-                    <View style={styles.achProgressBar}>
+                    <View style={[styles.achProgressBar, { backgroundColor: theme.cardBorder }]}>
                       <View style={[styles.achProgressFill, { width: `${pct * 100}%`, backgroundColor: ach.unlocked ? Colors.gold : Colors.emerald }]} />
                     </View>
-                    <Text style={styles.achProgressText}>{ach.progress}/{ach.target}</Text>
+                    <Text style={[styles.achProgressText, { color: theme.textMuted }]}>{ach.progress}/{ach.target}</Text>
                   </View>
                   <View style={styles.achRewards}>
                     {ach.rewardCoins > 0 && (

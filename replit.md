@@ -46,6 +46,7 @@ app/               # Expo Router screens
 contexts/
   LanguageContext.tsx   # i18n (Arabic/English) + map selection
   PlayerContext.tsx     # Player profile, coins, XP, skins
+  ThemeContext.tsx      # Dark/light mode toggle + theme tokens (useTheme hook)
 
 services/
   socket.ts            # Socket.io client service
@@ -59,7 +60,7 @@ server/
     wordDatabase.json  # 3500+ Arabic words across 8 categories
 
 constants/
-  colors.ts            # Moroccan-themed dark color palette
+  colors.ts            # Moroccan-themed color palette (base tokens for both dark/light)
   i18n.ts              # Arabic/English translations, letter list
 ```
 
@@ -76,6 +77,7 @@ constants/
 9. **Shop** - 4 skins: Student (free), Djellaba (150), Sport (200), Champion (500)
 10. **Bilingual** - Full Arabic/English i18n
 11. **5 Map Themes** - Casablanca, Marrakech, Rabat, Tangier, Chefchaouen
+12. **Dark/Light Mode** - Full theme system via ThemeContext, toggle in settings, persisted to AsyncStorage
 
 ## Running Locally
 

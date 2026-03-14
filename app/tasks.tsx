@@ -14,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { usePlayer } from "@/contexts/PlayerContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { ScreenErrorBoundary } from "@/components/ScreenErrorBoundary";
@@ -47,6 +48,7 @@ async function apiFetch(url: string, options?: RequestInit) {
 function TasksScreenInner() {
   const insets = useSafeAreaInsets();
   const { playerId, addCoins, addXp } = usePlayer();
+  const { theme } = useTheme();
   const qc = useQueryClient();
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
@@ -82,23 +84,23 @@ function TasksScreenInner() {
   const claimedCount = tasks.filter((t) => t.claimed).length;
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+        <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>مهام اليوم</Text>
+        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>مهام اليوم</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <View style={styles.summary}>
+      <View style={[styles.summary, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
         <Text style={styles.summaryText}>
           {claimedCount}/{tasks.length} تم استلامها
         </Text>
-        <View style={styles.progressBar}>
+        <View style={[styles.progressBar, { backgroundColor: theme.cardBorder }]}>
           <View style={[styles.progressFill, { width: `${tasks.length > 0 ? (claimedCount / tasks.length) * 100 : 0}%` }]} />
         </View>
-        <Text style={styles.summarySubText}>تُجدَّد المهام يومياً</Text>
+        <Text style={[styles.summarySubText, { color: theme.textMuted }]}>تُجدَّد المهام يومياً</Text>
       </View>
 
       {isLoading ? (
@@ -108,24 +110,24 @@ function TasksScreenInner() {
       ) : tasks.length === 0 ? (
         <View style={styles.center}>
           <Text style={styles.emptyIcon}>📋</Text>
-          <Text style={styles.emptyText}>لا توجد مهام حالياً</Text>
-          <Text style={styles.emptySubText}>تُجدَّد المهام يومياً</Text>
+          <Text style={[styles.emptyText, { color: theme.textSecondary }]}>لا توجد مهام حالياً</Text>
+          <Text style={[styles.emptySubText, { color: theme.textMuted }]}>تُجدَّد المهام يومياً</Text>
         </View>
       ) : (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {tasks.map((task) => {
             const pct = Math.min(1, task.progress / task.target);
             return (
-              <View key={task.key} style={[styles.taskCard, task.claimed && styles.taskClaimed]}>
+              <View key={task.key} style={[styles.taskCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }, task.claimed && styles.taskClaimed]}>
                 <Text style={styles.taskIcon}>{task.icon}</Text>
                 <View style={styles.taskContent}>
-                  <Text style={styles.taskTitle}>{task.titleAr}</Text>
-                  <Text style={styles.taskDesc}>{task.descAr}</Text>
+                  <Text style={[styles.taskTitle, { color: theme.textPrimary }]}>{task.titleAr}</Text>
+                  <Text style={[styles.taskDesc, { color: theme.textMuted }]}>{task.descAr}</Text>
                   <View style={styles.taskProgressRow}>
-                    <View style={styles.taskProgressBar}>
+                    <View style={[styles.taskProgressBar, { backgroundColor: theme.cardBorder }]}>
                       <View style={[styles.taskProgressFill, { width: `${pct * 100}%` }]} />
                     </View>
-                    <Text style={styles.taskProgressText}>{task.progress}/{task.target}</Text>
+                    <Text style={[styles.taskProgressText, { color: theme.textMuted }]}>{task.progress}/{task.target}</Text>
                   </View>
                   <View style={styles.taskRewards}>
                     {task.rewardCoins > 0 && (

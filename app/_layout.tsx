@@ -15,6 +15,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient, getApiUrl } from "@/lib/query-client";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { PlayerProvider, usePlayer } from "@/contexts/PlayerContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import SplashOverlay from "@/components/SplashOverlay";
 
 SplashScreen.preventAutoHideAsync();
@@ -148,6 +149,7 @@ export default function RootLayout() {
       <QueryClientProvider client={queryClient}>
         <LanguageProvider>
           <PlayerProvider>
+            <ThemeProvider>
             <GestureHandlerRootView style={{ flex: 1 }}>
               <KeyboardProvider>
                 <RootLayoutNav />
@@ -163,6 +165,7 @@ export default function RootLayout() {
                 <SplashOverlay />
               </Animated.View>
             )}
+            </ThemeProvider>
           </PlayerProvider>
         </LanguageProvider>
       </QueryClientProvider>
