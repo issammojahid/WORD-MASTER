@@ -282,14 +282,21 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     (async () => {
+      // Hoisted so the finally block can always call setPlayerId even on error.
+      let id = "";
       try {
         // ── Player ID ────────────────────────────────────────────────────────
-        let id = await AsyncStorage.getItem(PLAYER_ID_KEY);
-        if (!id) {
+        const storedId = await AsyncStorage.getItem(PLAYER_ID_KEY);
+        if (storedId) {
+          id = storedId;
+        } else {
           id = generatePlayerId();
           await AsyncStorage.setItem(PLAYER_ID_KEY, id);
         }
-        setPlayerId(id);
+        // NOTE: setPlayerId(id) is deliberately called in the finally block
+        // BELOW, after the server sync completes.  This guarantees the player
+        // profile exists on the Railway server before the tasks/achievements
+        // React Query hooks fire (they are gated on !!playerId).
 
         // ── Local profile ────────────────────────────────────────────────────
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
@@ -383,6 +390,14 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const safeProfile = mergeProfile({ coins: STARTING_COINS, xp: 0, level: 1 });
         setProfile(safeProfile);
         try { await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(safeProfile)); } catch {}
+      } finally {
+        // ── Set player ID AFTER server sync ──────────────────────────────────
+        // This runs whether the try succeeded or threw.  By this point,
+        // GET /api/player/:id has already run and created the player profile on
+        // the server (or the call failed and we're offline).  Either way,
+        // tasks/achievements queries won't fire before here because they are
+        // gated on !!playerId.
+        if (id) setPlayerId(id);
       }
     })();
   }, []);
