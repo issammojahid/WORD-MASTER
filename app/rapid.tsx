@@ -54,15 +54,22 @@ type OpponentInfo = {
   skin: string;
 };
 
+type CoinTier = { entry: number; reward: number };
+const COIN_TIERS: CoinTier[] = [
+  { entry: 50, reward: 100 },
+  { entry: 100, reward: 250 },
+];
+
 export default function RapidScreen() {
   const insets = useSafeAreaInsets();
-  const { profile, playerId, reportGameResult } = usePlayer();
+  const { profile, playerId, reportGameResult, addCoins } = usePlayer();
   const equippedSkin = SKINS.find((s) => s.id === profile.equippedSkin) || SKINS[0];
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
-  const [phase, setPhase] = useState<"waiting" | "countdown" | "playing" | "round_result" | "game_over">("waiting");
+  const [phase, setPhase] = useState<"tier_select" | "waiting" | "countdown" | "playing" | "round_result" | "game_over">("tier_select");
+  const [selectedTier, setSelectedTier] = useState<CoinTier | null>(null);
   const [rapidRoomId, setRapidRoomId] = useState<string | null>(null);
   const [currentLetter, setCurrentLetter] = useState("");
   const [currentCategory, setCurrentCategory] = useState<RapidCategory>(RAPID_CATEGORIES[0]);
@@ -73,7 +80,7 @@ export default function RapidScreen() {
   const [opponentScore, setOpponentScore] = useState(0);
   const [opponent, setOpponent] = useState<OpponentInfo | null>(null);
   const [roundResult, setRoundResult] = useState<RoundResultData | null>(null);
-  const [gameOverData, setGameOverData] = useState<{ won: boolean; myScore: number; oppScore: number; coinsEarned: number; xpEarned: number } | null>(null);
+  const [gameOverData, setGameOverData] = useState<{ won: boolean; myScore: number; oppScore: number; coinsEarned: number; xpEarned: number; isDraw: boolean } | null>(null);
   const [matchmakingStatus, setMatchmakingStatus] = useState("جاري البحث عن لاعب...");
   const [countdownNum, setCountdownNum] = useState(3);
   const [wordSubmitted, setWordSubmitted] = useState(false);
@@ -85,7 +92,28 @@ export default function RapidScreen() {
   const letterAnim = useRef(new Animated.Value(0)).current;
   const socketIdRef = useRef<string | null>(null);
   const rapidRoomIdRef = useRef<string | null>(null);
-  const phaseRef = useRef<string>("waiting");
+  const phaseRef = useRef<string>("tier_select");
+
+  const selectedTierRef = useRef<CoinTier | null>(null);
+
+  const handleSelectTier = useCallback((tier: CoinTier) => {
+    if (profile.coins < tier.entry) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    addCoins(-tier.entry);
+    setSelectedTier(tier);
+    selectedTierRef.current = tier;
+    setPhase("waiting");
+    phaseRef.current = "waiting";
+
+    const socket = getSocket();
+    socket.emit("findMatch", {
+      playerName: profile.name,
+      playerSkin: profile.equippedSkin,
+      playerId,
+      mode: "rapid",
+      coinEntry: tier.entry,
+    });
+  }, [profile.coins, profile.name, profile.equippedSkin, playerId, addCoins]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -171,20 +199,33 @@ export default function RapidScreen() {
     }) => {
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       const won = data.winnerId === socketIdRef.current;
+      const isDraw = data.winnerId === null;
       const myFinalScore = socketIdRef.current ? (data.scores[socketIdRef.current] || 0) : 0;
       const oppId = Object.keys(data.scores).find((k) => k !== socketIdRef.current);
       const oppFinalScore = oppId ? (data.scores[oppId] || 0) : 0;
+
+      const tier = selectedTierRef.current;
+      let totalCoins = data.coinsEarned;
+      if (isDraw && tier) {
+        addCoins(tier.entry);
+        totalCoins = tier.entry;
+      } else if (won && tier) {
+        addCoins(tier.reward);
+        totalCoins = tier.reward;
+      }
+
       setGameOverData({
         won,
         myScore: myFinalScore,
         oppScore: oppFinalScore,
-        coinsEarned: data.coinsEarned,
+        coinsEarned: totalCoins,
         xpEarned: data.xpEarned,
+        isDraw,
       });
       setPhase("game_over");
       phaseRef.current = "game_over";
       rapidRoomIdRef.current = null;
-      reportGameResult(won, myFinalScore, data.coinsEarned, data.xpEarned);
+      reportGameResult(won, myFinalScore, data.coinsEarned, data.xpEarned, tier?.entry);
       if (won) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
@@ -196,13 +237,6 @@ export default function RapidScreen() {
     socket.on("rapid_word_result", handleRapidWordResult);
     socket.on("rapid_round_result", handleRapidRoundResult);
     socket.on("rapid_game_over", handleRapidGameOver);
-
-    socket.emit("findMatch", {
-      playerName: profile.name,
-      playerSkin: profile.equippedSkin,
-      playerId,
-      mode: "rapid",
-    });
 
     return () => {
       socket.off("connect", handleConnect);
@@ -288,6 +322,53 @@ export default function RapidScreen() {
   const timerColor =
     timeLeft > 6 ? Colors.emerald : timeLeft > 3 ? Colors.gold : Colors.ruby;
 
+  if (phase === "tier_select") {
+    return (
+      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
+        </TouchableOpacity>
+        <View style={styles.tierContent}>
+          <Ionicons name="flash" size={48} color={Colors.ruby} />
+          <Text style={styles.waitingTitle}>الوضع السريع</Text>
+          <Text style={styles.tierSubtitle}>اختر مستوى الدخول</Text>
+
+          <View style={styles.coinBalance}>
+            <Ionicons name="star" size={16} color={Colors.gold} />
+            <Text style={styles.coinBalanceText}>{profile.coins} عملة</Text>
+          </View>
+
+          <View style={styles.tierCards}>
+            {COIN_TIERS.map((tier) => {
+              const canAfford = profile.coins >= tier.entry;
+              return (
+                <TouchableOpacity
+                  key={tier.entry}
+                  style={[styles.tierCard, !canAfford && styles.tierCardDisabled]}
+                  onPress={() => handleSelectTier(tier)}
+                  disabled={!canAfford}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.tierEntry}>
+                    <Ionicons name="star" size={20} color={canAfford ? Colors.gold : Colors.textMuted} />
+                    <Text style={[styles.tierEntryText, !canAfford && { color: Colors.textMuted }]}>{tier.entry}</Text>
+                  </View>
+                  <Ionicons name="arrow-down" size={16} color={Colors.textMuted} />
+                  <View style={styles.tierReward}>
+                    <Text style={[styles.tierRewardText, !canAfford && { color: Colors.textMuted }]}>+{tier.reward} 🪙</Text>
+                  </View>
+                  {!canAfford && (
+                    <Text style={styles.tierInsufficient}>رصيدك غير كافٍ</Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   if (phase === "waiting") {
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
@@ -297,6 +378,12 @@ export default function RapidScreen() {
         <View style={styles.waitingContent}>
           <Ionicons name="flash" size={48} color={Colors.ruby} />
           <Text style={styles.waitingTitle}>الوضع السريع</Text>
+          {selectedTier && (
+            <View style={styles.tierSelectedBadge}>
+              <Ionicons name="star" size={14} color={Colors.gold} />
+              <Text style={styles.tierSelectedText}>الدخول: {selectedTier.entry} عملة · الجائزة: +{selectedTier.reward} 🪙</Text>
+            </View>
+          )}
           <Text style={styles.waitingSubtitle}>{matchmakingStatus}</Text>
           <View style={styles.loadingDots}>
             <Animated.View style={[styles.loadingDot, { backgroundColor: Colors.ruby }]} />
@@ -331,6 +418,11 @@ export default function RapidScreen() {
             </View>
           )}
         </View>
+        {selectedTier && (
+          <View style={styles.rewardBanner}>
+            <Text style={styles.rewardBannerText}>الجائزة: {selectedTier.reward} عملة 🪙</Text>
+          </View>
+        )}
         <Text style={styles.countdownLabel}>الجولة تبدأ في</Text>
         <View style={[styles.countdownCircle, { borderColor: color }]}>
           <Text style={[styles.countdownNumber, { color }]}>{countdownNum}</Text>
@@ -403,11 +495,19 @@ export default function RapidScreen() {
   }
 
   if (phase === "game_over" && gameOverData) {
+    const gameEmoji = gameOverData.isDraw ? "🤝" : gameOverData.won ? "🏆" : "😞";
+    const gameTitle = gameOverData.isDraw ? "تعادل!" : gameOverData.won ? "فزت!" : "خسرت";
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
         <View style={styles.gameOverContent}>
-          <Text style={styles.gameOverEmoji}>{gameOverData.won ? "🏆" : "😞"}</Text>
-          <Text style={styles.gameOverTitle}>{gameOverData.won ? "فزت!" : "خسرت"}</Text>
+          <Text style={styles.gameOverEmoji}>{gameEmoji}</Text>
+          <Text style={styles.gameOverTitle}>{gameTitle}</Text>
+          {gameOverData.isDraw && selectedTier && (
+            <View style={styles.drawRefundBadge}>
+              <Ionicons name="refresh-circle" size={18} color={Colors.gold} />
+              <Text style={styles.drawRefundText}>تعادل! استرجعت عملاتك</Text>
+            </View>
+          )}
           <View style={styles.finalScoreBoard}>
             <View style={styles.finalScoreSide}>
               <Text style={styles.finalScoreLabel}>أنت</Text>
@@ -416,7 +516,7 @@ export default function RapidScreen() {
             <Text style={styles.finalScoreDash}>-</Text>
             <View style={styles.finalScoreSide}>
               <Text style={styles.finalScoreLabel}>{opponent?.name || "خصم"}</Text>
-              <Text style={[styles.finalScoreNum, !gameOverData.won && { color: Colors.emerald }]}>{gameOverData.oppScore}</Text>
+              <Text style={[styles.finalScoreNum, !gameOverData.won && !gameOverData.isDraw && { color: Colors.emerald }]}>{gameOverData.oppScore}</Text>
             </View>
           </View>
           <View style={styles.rewardsRow}>
@@ -556,6 +656,123 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     opacity: 0.6,
+  },
+
+  tierContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 16,
+    paddingHorizontal: 32,
+  },
+  tierSubtitle: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 15,
+    color: Colors.textSecondary,
+  },
+  coinBalance: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: Colors.card,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  coinBalanceText: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 14,
+    color: Colors.gold,
+  },
+  tierCards: {
+    width: "100%",
+    gap: 14,
+    marginTop: 8,
+  },
+  tierCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.gold + "40",
+    padding: 20,
+    alignItems: "center",
+    gap: 6,
+  },
+  tierCardDisabled: {
+    opacity: 0.45,
+    borderColor: Colors.cardBorder,
+  },
+  tierEntry: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  tierEntryText: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 22,
+    color: Colors.gold,
+  },
+  tierReward: {
+    backgroundColor: Colors.emerald + "18",
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  tierRewardText: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 16,
+    color: Colors.emerald,
+  },
+  tierInsufficient: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 11,
+    color: Colors.ruby,
+    marginTop: 2,
+  },
+  tierSelectedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: Colors.gold + "15",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.gold + "30",
+  },
+  tierSelectedText: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 12,
+    color: Colors.gold,
+  },
+  rewardBanner: {
+    backgroundColor: Colors.emerald + "18",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.emerald + "40",
+  },
+  rewardBannerText: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 15,
+    color: Colors.emerald,
+  },
+  drawRefundBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: Colors.gold + "18",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.gold + "40",
+  },
+  drawRefundText: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 14,
+    color: Colors.gold,
   },
 
   countdownContainer: {
