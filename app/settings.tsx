@@ -15,9 +15,12 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as Clipboard from "expo-clipboard";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { usePlayer } from "@/contexts/PlayerContext";
 import Colors from "@/constants/colors";
 import { type Language } from "@/constants/i18n";
+import { getDisplayCode } from "@/lib/player-code";
 
 const LOGO = {
   cyan:   "#00D4E8",
@@ -29,10 +32,21 @@ const LOGO = {
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { t, language, setLanguage, soundEffects, setSoundEffects, musicEnabled, setMusicEnabled } = useLanguage();
+  const { playerId, profile } = usePlayer();
   const [showExitModal, setShowExitModal] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+
+  const myDisplayCode = getDisplayCode(profile.name, playerId);
+
+  const handleCopyCode = async () => {
+    await Clipboard.setStringAsync(myDisplayCode);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 2000);
+  };
 
   const handleExit = () => {
     setShowExitModal(false);
@@ -55,6 +69,23 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+        {/* ── Player Code ─────────────────────────────── */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="id-card" size={20} color={LOGO.pink} />
+            <Text style={styles.sectionTitle}>كود اللاعب</Text>
+          </View>
+          <TouchableOpacity style={styles.codeCard} onPress={handleCopyCode} activeOpacity={0.7}>
+            <Text style={styles.codeValue}>{myDisplayCode}</Text>
+            <View style={styles.codeCopyBtn}>
+              <Ionicons name={codeCopied ? "checkmark-circle" : "copy-outline"} size={18} color={codeCopied ? Colors.emerald : Colors.textMuted} />
+              <Text style={[styles.codeCopyText, codeCopied && { color: Colors.emerald }]}>
+                {codeCopied ? "تم النسخ" : "نسخ"}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
 
         {/* ── Language ────────────────────────────────── */}
         <View style={styles.section}>
@@ -244,6 +275,15 @@ const styles = StyleSheet.create({
   section: { gap: 12 },
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
   sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary },
+
+  codeCard: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 14,
+    padding: 16, borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
+  },
+  codeValue: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.gold },
+  codeCopyBtn: { flexDirection: "row", alignItems: "center", gap: 6 },
+  codeCopyText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
 
   optionsRow: { flexDirection: "row", gap: 10 },
   languageOption: {

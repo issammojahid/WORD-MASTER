@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { fetch } from "expo/fetch";
 import * as Haptics from "expo-haptics";
+import * as Clipboard from "expo-clipboard";
 import { router } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -20,6 +21,7 @@ import { usePlayer, SKINS } from "@/contexts/PlayerContext";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { ScreenErrorBoundary } from "@/components/ScreenErrorBoundary";
+import { getDisplayCode } from "@/lib/player-code";
 
 type PlayerResult = { id: string; name: string; skin: string; level: number; wins: number };
 type FriendEntry = {
@@ -44,12 +46,24 @@ async function apiFetch(url: string, options?: RequestInit) {
 
 function FriendsScreenInner() {
   const insets = useSafeAreaInsets();
-  const { playerId } = usePlayer();
+  const { playerId, profile } = usePlayer();
   const qc = useQueryClient();
   const [tab, setTab] = useState<TabType>("friends");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
+  const [copiedToast, setCopiedToast] = useState(false);
   const searchTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const myDisplayCode = getDisplayCode(profile.name, playerId);
+
+  const copyToClipboard = useCallback(async (text: string) => {
+    await Clipboard.setStringAsync(text);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setCopiedToast(true);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setCopiedToast(false), 2000);
+  }, []);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
@@ -151,6 +165,27 @@ function FriendsScreenInner() {
         <View style={{ width: 40 }} />
       </View>
 
+      {/* Player Code Banner */}
+      <TouchableOpacity
+        style={styles.codeBanner}
+        onPress={() => copyToClipboard(myDisplayCode)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.codeBannerLeft}>
+          <Ionicons name="id-card" size={18} color={Colors.gold} />
+          <Text style={styles.codeBannerLabel}>كودك:</Text>
+          <Text style={styles.codeBannerValue}>{myDisplayCode}</Text>
+        </View>
+        <Ionicons name="copy-outline" size={18} color={Colors.textMuted} />
+      </TouchableOpacity>
+
+      {copiedToast && (
+        <View style={styles.toast}>
+          <Ionicons name="checkmark-circle" size={16} color={Colors.emerald} />
+          <Text style={styles.toastText}>تم نسخ المعرف</Text>
+        </View>
+      )}
+
       {/* Play Section */}
       <View style={styles.playSection}>
         <TouchableOpacity
@@ -200,15 +235,23 @@ function FriendsScreenInner() {
             acceptedFriends.map((row) =>
               renderPlayerCard(
                 row.player,
-                <TouchableOpacity
-                  style={styles.removeBtn}
-                  onPress={() => Alert.alert("إزالة صديق", `هل تريد إزالة ${row.player.name}؟`, [
-                    { text: "إلغاء", style: "cancel" },
-                    { text: "إزالة", style: "destructive", onPress: () => removeFriend.mutate(row.player.id) },
-                  ])}
-                >
-                  <Ionicons name="person-remove" size={18} color={Colors.ruby} />
-                </TouchableOpacity>
+                <View style={styles.friendActions}>
+                  <TouchableOpacity
+                    style={styles.inviteBtn}
+                    onPress={() => copyToClipboard(row.player.id)}
+                  >
+                    <Ionicons name="paper-plane" size={16} color={Colors.sapphire} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.removeBtn}
+                    onPress={() => Alert.alert("إزالة صديق", `هل تريد إزالة ${row.player.name}؟`, [
+                      { text: "إلغاء", style: "cancel" },
+                      { text: "إزالة", style: "destructive", onPress: () => removeFriend.mutate(row.player.id) },
+                    ])}
+                  >
+                    <Ionicons name="person-remove" size={18} color={Colors.ruby} />
+                  </TouchableOpacity>
+                </View>
               )
             )
           )}
@@ -360,6 +403,26 @@ const styles = StyleSheet.create({
   friendBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.emerald },
   sentBadge: { backgroundColor: Colors.textMuted + "20", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
   sentBadgeText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  codeBanner: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    backgroundColor: Colors.card, borderRadius: 14, marginHorizontal: 16, marginBottom: 10,
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderWidth: 1, borderColor: Colors.gold + "30",
+  },
+  codeBannerLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
+  codeBannerLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
+  codeBannerValue: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.gold },
+  toast: {
+    position: "absolute", top: 120, alignSelf: "center",
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: Colors.backgroundTertiary, borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 8,
+    borderWidth: 1, borderColor: Colors.emerald + "40",
+    zIndex: 100,
+  },
+  toastText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.emerald },
+  friendActions: { flexDirection: "row", alignItems: "center", gap: 6 },
+  inviteBtn: { padding: 8, borderRadius: 10, backgroundColor: Colors.sapphire + "20" },
   sectionLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textSecondary, marginTop: 8, marginBottom: 4 },
   playSection: {
     flexDirection: "row", alignItems: "center",
