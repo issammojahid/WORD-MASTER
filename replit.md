@@ -60,7 +60,7 @@ server/
     wordDatabase.json  # 3500+ Arabic words across 8 categories
 
 constants/
-  colors.ts            # Moroccan-themed color palette (base tokens for both dark/light)
+  colors.ts            # Accent-only color constants (gold, emerald, ruby, etc.) — neutral/surface/text tokens live in ThemeContext
   i18n.ts              # Arabic/English translations, letter list
 ```
 

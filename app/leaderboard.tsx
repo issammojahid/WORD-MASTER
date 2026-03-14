@@ -166,7 +166,7 @@ export default function LeaderboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1, backgroundColor: "#0D1B2A" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
     flexDirection: "row",
@@ -177,10 +177,10 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     width: 40, height: 40, borderRadius: 12,
-    backgroundColor: Colors.card,
+    backgroundColor: "#1E3448",
     justifyContent: "center", alignItems: "center",
   },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#F0E6D3" },
   podium: {
     flexDirection: "row", justifyContent: "center",
     alignItems: "flex-end", paddingHorizontal: 16, paddingVertical: 8, gap: 8,
@@ -192,20 +192,20 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.gold + "20", borderRadius: 6,
     paddingHorizontal: 6, paddingVertical: 2,
   },
-  podiumName: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.textSecondary, textAlign: "center", maxWidth: 80 },
-  podiumScore: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary },
+  podiumName: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#A8B8CC", textAlign: "center", maxWidth: 80 },
+  podiumScore: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#F0E6D3" },
   podiumBlock: {
     width: "100%", borderTopWidth: 3, borderRadius: 8,
     alignItems: "center", justifyContent: "center", gap: 4, paddingTop: 8,
   },
   podiumRankNum: { fontFamily: "Cairo_700Bold", fontSize: 20 },
   filterTabs: {
-    flexDirection: "row", backgroundColor: Colors.card,
+    flexDirection: "row", backgroundColor: "#1E3448",
     borderRadius: 12, padding: 4, marginHorizontal: 16, marginBottom: 12,
   },
   filterTab: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: "center" },
-  filterTabActive: { backgroundColor: Colors.backgroundTertiary },
-  filterTabText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
+  filterTabActive: { backgroundColor: "#1A2D42" },
+  filterTabText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#6B7E91" },
   filterTabTextActive: { color: Colors.gold },
   myRankBanner: {
     flexDirection: "row", alignItems: "center",
@@ -220,15 +220,15 @@ const styles = StyleSheet.create({
   listContent: { paddingHorizontal: 16, paddingBottom: 20, gap: 8 },
   rankRow: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: Colors.card, borderRadius: 14,
-    padding: 12, borderWidth: 1, borderColor: Colors.cardBorder,
+    backgroundColor: "#1E3448", borderRadius: 14,
+    padding: 12, borderWidth: 1, borderColor: "#2A4560",
   },
   rankRowMe: { borderColor: Colors.gold + "60", backgroundColor: Colors.gold + "08" },
-  rankRowNum: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textMuted, width: 28, textAlign: "center" },
+  rankRowNum: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#6B7E91", width: 28, textAlign: "center" },
   rankRowAvatar: { width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center", marginRight: 10 },
   rankRowEmoji: { fontSize: 20 },
   rankRowInfo: { flex: 1 },
-  rankRowName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
-  rankRowSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginTop: 2 },
-  rankRowValue: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
+  rankRowName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#F0E6D3" },
+  rankRowSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6B7E91", marginTop: 2 },
+  rankRowValue: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#F0E6D3" },
 });

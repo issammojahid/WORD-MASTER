@@ -625,7 +625,7 @@ export default function RapidScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: "#0D1B2A",
   },
   backBtn: {
     position: "absolute",
@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: Colors.card,
+    backgroundColor: "#1E3448",
     justifyContent: "center",
     alignItems: "center",
     zIndex: 10,
@@ -649,12 +649,12 @@ const styles = StyleSheet.create({
   waitingTitle: {
     fontFamily: "Cairo_700Bold",
     fontSize: 26,
-    color: Colors.textPrimary,
+    color: "#F0E6D3",
   },
   waitingSubtitle: {
     fontFamily: "Cairo_400Regular",
     fontSize: 15,
-    color: Colors.textSecondary,
+    color: "#A8B8CC",
     textAlign: "center",
   },
   loadingDots: {
@@ -679,13 +679,13 @@ const styles = StyleSheet.create({
   tierSubtitle: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 15,
-    color: Colors.textSecondary,
+    color: "#A8B8CC",
   },
   coinBalance: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: Colors.card,
+    backgroundColor: "#1E3448",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 12,
@@ -701,7 +701,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   tierCard: {
-    backgroundColor: Colors.card,
+    backgroundColor: "#1E3448",
     borderRadius: 16,
     borderWidth: 1,
     borderColor: Colors.gold + "40",
@@ -711,7 +711,7 @@ const styles = StyleSheet.create({
   },
   tierCardDisabled: {
     opacity: 0.45,
-    borderColor: Colors.cardBorder,
+    borderColor: "#2A4560",
   },
   tierEntry: {
     flexDirection: "row",
@@ -812,7 +812,7 @@ const styles = StyleSheet.create({
   vsName: {
     fontFamily: "Cairo_700Bold",
     fontSize: 14,
-    color: Colors.textPrimary,
+    color: "#F0E6D3",
   },
   vsText: {
     fontFamily: "Cairo_700Bold",
@@ -822,7 +822,7 @@ const styles = StyleSheet.create({
   countdownLabel: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 16,
-    color: Colors.textSecondary,
+    color: "#A8B8CC",
   },
   countdownCircle: {
     width: 100,
@@ -831,7 +831,7 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: Colors.card,
+    backgroundColor: "#1E3448",
   },
   countdownNumber: {
     fontFamily: "Cairo_700Bold",
@@ -852,7 +852,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   roundInfo: {
-    backgroundColor: Colors.card,
+    backgroundColor: "#1E3448",
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 10,
@@ -860,13 +860,13 @@ const styles = StyleSheet.create({
   roundText: {
     fontFamily: "Cairo_700Bold",
     fontSize: 13,
-    color: Colors.textPrimary,
+    color: "#F0E6D3",
   },
   miniScoreRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: Colors.card,
+    backgroundColor: "#1E3448",
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 10,
@@ -880,12 +880,12 @@ const styles = StyleSheet.create({
   miniScoreNum: {
     fontFamily: "Cairo_700Bold",
     fontSize: 16,
-    color: Colors.textPrimary,
+    color: "#F0E6D3",
   },
   miniScoreDash: {
     fontFamily: "Cairo_700Bold",
     fontSize: 14,
-    color: Colors.textMuted,
+    color: "#6B7E91",
   },
 
   playBody: {
@@ -902,7 +902,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: Colors.card,
+    backgroundColor: "#1E3448",
   },
   timerNum: {
     fontFamily: "Cairo_700Bold",
@@ -945,15 +945,15 @@ const styles = StyleSheet.create({
   },
   wordInput: {
     width: "100%",
-    backgroundColor: Colors.inputBg,
+    backgroundColor: "#162840",
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: Colors.inputBorder,
+    borderColor: "#2A4560",
     paddingHorizontal: 20,
     paddingVertical: 14,
     fontSize: 20,
     fontFamily: "Cairo_700Bold",
-    color: Colors.inputText,
+    color: "#F0E6D3",
     textAlign: "right",
   },
   wordInputSubmitted: {
@@ -1002,7 +1002,7 @@ const styles = StyleSheet.create({
   roundResultRound: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 14,
-    color: Colors.textMuted,
+    color: "#6B7E91",
   },
   scoreBoard: {
     flexDirection: "row",
@@ -1017,7 +1017,7 @@ const styles = StyleSheet.create({
   scoreNum: {
     fontFamily: "Cairo_700Bold",
     fontSize: 36,
-    color: Colors.textPrimary,
+    color: "#F0E6D3",
   },
   scoreWinner: {
     color: Colors.emerald,
@@ -1025,7 +1025,7 @@ const styles = StyleSheet.create({
   scoreName: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 12,
-    color: Colors.textSecondary,
+    color: "#A8B8CC",
   },
   scoreDivider: {
     paddingHorizontal: 8,
@@ -1033,7 +1033,7 @@ const styles = StyleSheet.create({
   scoreDash: {
     fontFamily: "Cairo_700Bold",
     fontSize: 24,
-    color: Colors.textMuted,
+    color: "#6B7E91",
   },
   resultBadge: {
     paddingHorizontal: 20,
@@ -1053,7 +1053,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: Colors.card,
+    backgroundColor: "#1E3448",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 10,
@@ -1081,13 +1081,13 @@ const styles = StyleSheet.create({
   gameOverTitle: {
     fontFamily: "Cairo_700Bold",
     fontSize: 30,
-    color: Colors.textPrimary,
+    color: "#F0E6D3",
   },
   finalScoreBoard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 20,
-    backgroundColor: Colors.card,
+    backgroundColor: "#1E3448",
     paddingHorizontal: 30,
     paddingVertical: 20,
     borderRadius: 16,
@@ -1099,17 +1099,17 @@ const styles = StyleSheet.create({
   finalScoreLabel: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 12,
-    color: Colors.textSecondary,
+    color: "#A8B8CC",
   },
   finalScoreNum: {
     fontFamily: "Cairo_700Bold",
     fontSize: 32,
-    color: Colors.textPrimary,
+    color: "#F0E6D3",
   },
   finalScoreDash: {
     fontFamily: "Cairo_700Bold",
     fontSize: 24,
-    color: Colors.textMuted,
+    color: "#6B7E91",
   },
   rewardsRow: {
     flexDirection: "row",
@@ -1120,7 +1120,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: Colors.card,
+    backgroundColor: "#1E3448",
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10,
@@ -1128,7 +1128,7 @@ const styles = StyleSheet.create({
   rewardText: {
     fontFamily: "Cairo_700Bold",
     fontSize: 14,
-    color: Colors.textPrimary,
+    color: "#F0E6D3",
   },
   homeBtn: {
     flexDirection: "row",

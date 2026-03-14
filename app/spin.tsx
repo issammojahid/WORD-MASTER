@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
     width: 38, height: 38, borderRadius: 12,
     backgroundColor: "rgba(255,255,255,0.08)", justifyContent: "center", alignItems: "center",
   },
-  title: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F0E6D3" },
   content: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 20, gap: 20 },
 
   wheelContainer: { width: 300, height: 300, alignItems: "center", justifyContent: "center" },
@@ -438,12 +438,12 @@ const styles = StyleSheet.create({
   },
   rewardEmoji: { fontSize: 36 },
   rewardTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: LOGO.yellow },
-  rewardValue: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary },
+  rewardValue: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#F0E6D3" },
 
   cooldownContainer: { alignItems: "center", gap: 6 },
-  cooldownMsg: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted, textAlign: "center" },
+  cooldownMsg: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#6B7E91", textAlign: "center" },
   countdownRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  countdownLabel: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
+  countdownLabel: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#6B7E91" },
   countdownTime: { fontFamily: "Cairo_700Bold", fontSize: 15, color: LOGO.yellow },
 
   spinBtnWrapper: { width: "100%", borderRadius: 18, overflow: "hidden" },
@@ -456,5 +456,5 @@ const styles = StyleSheet.create({
   infoRow: { flexDirection: "row", gap: 16 },
   infoItem: { alignItems: "center", gap: 4 },
   infoIcon: { fontSize: 22 },
-  infoLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
+  infoLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#6B7E91" },
 });

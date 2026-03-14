@@ -562,7 +562,7 @@ const pStyles = StyleSheet.create({
   },
   subtitle: {
     fontFamily: "Cairo_400Regular", fontSize: 13,
-    color: Colors.textSecondary, textAlign: "center",
+    color: "#A8B8CC", textAlign: "center",
     marginBottom: 16, lineHeight: 22,
   },
   rewardBadge: {
@@ -576,7 +576,7 @@ const pStyles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.32)", alignItems: "center",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
   },
-  skipText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
+  skipText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#A8B8CC" },
   playBtnWrapper: { flex: 2 },
   playBtn: {
     flex: 1, paddingVertical: 14, borderRadius: 14,
@@ -1423,7 +1423,7 @@ const styles = StyleSheet.create({
   avatarEmoji: { fontSize: 24 },
   profileMeta: { flex: 1 },
   nameEditRow: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
-  playerName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, flex: 1 },
+  playerName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#F0E6D3", flex: 1 },
   levelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   levelBadge: {
     backgroundColor: LOGO.yellow + "28", paddingHorizontal: 7,
@@ -1432,7 +1432,7 @@ const styles = StyleSheet.create({
   levelText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: LOGO.yellow },
   xpBarContainer: { flex: 1, height: 4, backgroundColor: "rgba(255,255,255,0.10)", borderRadius: 2, overflow: "hidden" },
   xpBar: { height: "100%", borderRadius: 2 },
-  xpText: { fontFamily: "Cairo_400Regular", fontSize: 9, color: Colors.textMuted },
+  xpText: { fontFamily: "Cairo_400Regular", fontSize: 9, color: "#6B7E91" },
 
   topRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   coinsBadge: {
@@ -1507,8 +1507,8 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: LOGO.cyan + "22",
   },
   statItem: { flex: 1, alignItems: "center" },
-  statValue: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, marginTop: 2 },
+  statValue: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#F0E6D3" },
+  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#6B7E91", marginTop: 2 },
   statDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.10)", marginVertical: 4 },
 
   bottomNav: {
@@ -1527,7 +1527,7 @@ const styles = StyleSheet.create({
     shadowColor: LOGO.yellow, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.55, shadowRadius: 12, elevation: 14,
   },
-  navLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.textMuted },
+  navLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#6B7E91" },
 
   modalOverlay: {
     flex: 1, backgroundColor: "rgba(0,0,0,0.65)",
@@ -1538,13 +1538,13 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: LOGO.purple + "40",
   },
   modalTitle: {
-    fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary,
+    fontFamily: "Cairo_700Bold", fontSize: 18, color: "#F0E6D3",
     textAlign: "center", marginBottom: 16,
   },
   nameInput: {
     borderWidth: 1, borderColor: LOGO.cyan + "40", borderRadius: 12,
     padding: 12, fontFamily: "Cairo_400Regular", fontSize: 16,
-    color: Colors.textPrimary, marginBottom: 16,
+    color: "#F0E6D3", marginBottom: 16,
     backgroundColor: "rgba(255,255,255,0.05)",
   },
   modalButtons: { flexDirection: "row", gap: 12 },
@@ -1553,7 +1553,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
   },
-  modalCancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
+  modalCancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#A8B8CC" },
   modalConfirm: {
     flex: 1, paddingVertical: 12, borderRadius: 12,
     backgroundColor: LOGO.yellow, alignItems: "center",

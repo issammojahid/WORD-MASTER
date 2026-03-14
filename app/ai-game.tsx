@@ -128,7 +128,7 @@ function normalize(word: string): string {
 function statusColor(s: CategoryStatus): string {
   if (s === "correct") return Colors.emerald;
   if (s === "duplicate") return Colors.gold;
-  return Colors.textMuted;
+  return "#6B7E91";
 }
 
 export default function AIGameScreen() {
@@ -628,7 +628,7 @@ export default function AIGameScreen() {
                   >
                     {r.playerAnswer || "—"}
                   </Text>
-                  <Text style={[styles.resultPts, { color: r.playerScore > 0 ? Colors.emerald : Colors.textMuted }]}>
+                  <Text style={[styles.resultPts, { color: r.playerScore > 0 ? Colors.emerald : "#6B7E91" }]}>
                     +{r.playerScore}
                   </Text>
                 </View>
@@ -637,7 +637,7 @@ export default function AIGameScreen() {
                   <Text style={[styles.resultAnswer, { color: statusColor(r.aiStatus) }, !r.aiAnswer && styles.resultAnswerEmpty]}>
                     {r.aiAnswer || "—"}
                   </Text>
-                  <Text style={[styles.resultPts, { color: r.aiScore > 0 ? Colors.ruby : Colors.textMuted }]}>
+                  <Text style={[styles.resultPts, { color: r.aiScore > 0 ? Colors.ruby : "#6B7E91" }]}>
                     +{r.aiScore}
                   </Text>
                 </View>
@@ -718,7 +718,7 @@ export default function AIGameScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: "#0D1B2A",
   },
 
   header: {
@@ -728,20 +728,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.cardBorder,
+    borderBottomColor: "#2A4560",
   },
   backBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: Colors.card,
+    backgroundColor: "#1E3448",
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
     fontFamily: "Cairo_700Bold",
     fontSize: 16,
-    color: Colors.textPrimary,
+    color: "#F0E6D3",
     textAlign: "center",
     flex: 1,
   },
@@ -759,19 +759,19 @@ const styles = StyleSheet.create({
   aiHeroTitle: {
     fontFamily: "Cairo_700Bold",
     fontSize: 22,
-    color: Colors.textPrimary,
+    color: "#F0E6D3",
     marginBottom: 6,
   },
   aiHeroSub: {
     fontFamily: "Cairo_400Regular",
     fontSize: 14,
-    color: Colors.textMuted,
+    color: "#6B7E91",
     textAlign: "center",
   },
   diffCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.card,
+    backgroundColor: "#1E3448",
     borderRadius: 16,
     borderWidth: 1.5,
     padding: 16,
@@ -795,14 +795,14 @@ const styles = StyleSheet.create({
   diffDesc: {
     fontFamily: "Cairo_400Regular",
     fontSize: 12,
-    color: Colors.textMuted,
+    color: "#6B7E91",
   },
 
   loadingEmoji: { fontSize: 56, textAlign: "center", marginBottom: 16 },
   loadingText: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 18,
-    color: Colors.textMuted,
+    color: "#6B7E91",
     textAlign: "center",
   },
 
@@ -813,13 +813,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.cardBorder,
+    borderBottomColor: "#2A4560",
   },
   gameHeaderLeft: { gap: 2 },
   roundLabel: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 13,
-    color: Colors.textMuted,
+    color: "#6B7E91",
   },
   diffBadge: {
     fontFamily: "Cairo_700Bold",
@@ -859,9 +859,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 8,
-    backgroundColor: Colors.card,
+    backgroundColor: "#1E3448",
     borderBottomWidth: 1,
-    borderBottomColor: Colors.cardBorder,
+    borderBottomColor: "#2A4560",
   },
   scoreHalf: {
     flex: 1,
@@ -871,7 +871,7 @@ const styles = StyleSheet.create({
   scoreName: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 11,
-    color: Colors.textMuted,
+    color: "#6B7E91",
     maxWidth: 110,
   },
   scoreNum: {
@@ -881,7 +881,7 @@ const styles = StyleSheet.create({
   vsChip: {
     fontFamily: "Cairo_700Bold",
     fontSize: 13,
-    color: Colors.textMuted,
+    color: "#6B7E91",
     paddingHorizontal: 12,
   },
 
@@ -891,20 +891,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.cardBorder + "50",
+    borderBottomColor: "#2A4560" + "50",
   },
   tableHeaderText: {
     flex: 1,
     fontFamily: "Cairo_600SemiBold",
     fontSize: 11,
-    color: Colors.textMuted,
+    color: "#6B7E91",
     textAlign: "center",
   },
   tableHeaderCenter: {
     width: 80,
     textAlign: "center",
     fontSize: 14,
-    color: Colors.textMuted,
+    color: "#6B7E91",
   },
 
   catListContent: {
@@ -916,14 +916,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.cardBorder + "40",
+    borderBottomColor: "#2A4560" + "40",
     gap: 8,
   },
   catLabel: {
     flex: 1,
     fontFamily: "Cairo_600SemiBold",
     fontSize: 13,
-    color: Colors.textPrimary,
+    color: "#F0E6D3",
     textAlign: "right",
   },
   catAiCol: {
@@ -933,7 +933,7 @@ const styles = StyleSheet.create({
   aiThinking: {
     fontFamily: "Cairo_400Regular",
     fontSize: 14,
-    color: Colors.textMuted,
+    color: "#6B7E91",
     letterSpacing: 2,
   },
   aiWord: {
@@ -945,19 +945,19 @@ const styles = StyleSheet.create({
   aiEmpty: {
     fontFamily: "Cairo_400Regular",
     fontSize: 13,
-    color: Colors.textMuted + "80",
+    color: "#6B7E91" + "80",
   },
   catInput: {
     flex: 1,
     height: 40,
-    backgroundColor: Colors.card,
+    backgroundColor: "#1E3448",
     borderRadius: 10,
     paddingHorizontal: 12,
     fontFamily: "Cairo_600SemiBold",
     fontSize: 14,
-    color: Colors.textPrimary,
+    color: "#F0E6D3",
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: "#2A4560",
     textAlign: "right",
   },
   catInputDisabled: {
@@ -986,27 +986,27 @@ const styles = StyleSheet.create({
   waitingChip: {
     alignItems: "center",
     paddingVertical: 14,
-    backgroundColor: Colors.card,
+    backgroundColor: "#1E3448",
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: "#2A4560",
   },
   waitingText: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 14,
-    color: Colors.textMuted,
+    color: "#6B7E91",
   },
 
   resultsHeader: {
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.cardBorder,
+    borderBottomColor: "#2A4560",
   },
   resultsTitle: {
     fontFamily: "Cairo_700Bold",
     fontSize: 18,
-    color: Colors.textPrimary,
+    color: "#F0E6D3",
     textAlign: "center",
     marginBottom: 8,
   },
@@ -1023,24 +1023,24 @@ const styles = StyleSheet.create({
   roundScoreSep: {
     fontFamily: "Cairo_400Regular",
     fontSize: 14,
-    color: Colors.textMuted,
+    color: "#6B7E91",
   },
   resultsList: {
     paddingHorizontal: 16,
     paddingTop: 10,
   },
   resultCard: {
-    backgroundColor: Colors.card,
+    backgroundColor: "#1E3448",
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: "#2A4560",
     padding: 12,
     marginBottom: 10,
   },
   resultCatName: {
     fontFamily: "Cairo_700Bold",
     fontSize: 13,
-    color: Colors.textMuted,
+    color: "#6B7E91",
     textAlign: "center",
     marginBottom: 8,
   },
@@ -1056,11 +1056,11 @@ const styles = StyleSheet.create({
   resultAnswer: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 15,
-    color: Colors.textPrimary,
+    color: "#F0E6D3",
     textAlign: "center",
   },
   resultAnswerEmpty: {
-    color: Colors.textMuted,
+    color: "#6B7E91",
     fontFamily: "Cairo_400Regular",
   },
   resultPts: {
@@ -1070,7 +1070,7 @@ const styles = StyleSheet.create({
   resultDivider: {
     width: 1,
     height: 40,
-    backgroundColor: Colors.cardBorder,
+    backgroundColor: "#2A4560",
     marginHorizontal: 10,
   },
 
@@ -1078,13 +1078,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: Colors.cardBorder,
+    borderTopColor: "#2A4560",
     gap: 10,
   },
   totalScoreText: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 13,
-    color: Colors.textMuted,
+    color: "#6B7E91",
     textAlign: "center",
   },
   nextBtn: {
@@ -1109,10 +1109,10 @@ const styles = StyleSheet.create({
   },
   gameOverCard: {
     width: "100%",
-    backgroundColor: Colors.card,
+    backgroundColor: "#1E3448",
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: "#2A4560",
     padding: 28,
     alignItems: "center",
     gap: 12,
@@ -1125,12 +1125,12 @@ const styles = StyleSheet.create({
   gameOverSub: {
     fontFamily: "Cairo_400Regular",
     fontSize: 14,
-    color: Colors.textMuted,
+    color: "#6B7E91",
     textAlign: "center",
   },
   finalScoreBox: {
     width: "100%",
-    backgroundColor: Colors.background,
+    backgroundColor: "#0D1B2A",
     borderRadius: 16,
     padding: 16,
     marginTop: 4,
@@ -1144,7 +1144,7 @@ const styles = StyleSheet.create({
   finalName: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 15,
-    color: Colors.textPrimary,
+    color: "#F0E6D3",
   },
   finalNum: {
     fontFamily: "Cairo_700Bold",
@@ -1152,7 +1152,7 @@ const styles = StyleSheet.create({
   },
   finalDivider: {
     height: 1,
-    backgroundColor: Colors.cardBorder,
+    backgroundColor: "#2A4560",
   },
   xpBadge: {
     flexDirection: "row",
@@ -1196,16 +1196,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.card,
+    backgroundColor: "#1E3448",
     borderRadius: 14,
     paddingVertical: 13,
     gap: 7,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: "#2A4560",
   },
   homeBtnText: {
     fontFamily: "Cairo_700Bold",
     fontSize: 15,
-    color: Colors.textPrimary,
+    color: "#F0E6D3",
   },
 });

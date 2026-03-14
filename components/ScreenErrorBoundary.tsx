@@ -65,7 +65,7 @@ export class ScreenErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: "#0D1B2A",
     justifyContent: "center",
     alignItems: "center",
     padding: 32,
@@ -75,13 +75,13 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: "Cairo_700Bold",
     fontSize: 20,
-    color: Colors.textPrimary,
+    color: "#F0E6D3",
     textAlign: "center",
   },
   subtitle: {
     fontFamily: "Cairo_400Regular",
     fontSize: 14,
-    color: Colors.textMuted,
+    color: "#6B7E91",
     textAlign: "center",
     lineHeight: 22,
   },
@@ -102,11 +102,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: "#2A4560",
   },
   retryBtnText: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: "#A8B8CC",
   },
 });

@@ -171,7 +171,7 @@ function TasksScreenInner() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1, backgroundColor: "#0D1B2A" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
     flexDirection: "row", alignItems: "center",
@@ -179,37 +179,37 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     width: 40, height: 40, borderRadius: 12,
-    backgroundColor: Colors.card, justifyContent: "center", alignItems: "center",
+    backgroundColor: "#1E3448", justifyContent: "center", alignItems: "center",
   },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#F0E6D3" },
   summary: {
     marginHorizontal: 16, marginBottom: 16,
-    backgroundColor: Colors.card, borderRadius: 16,
-    padding: 16, borderWidth: 1, borderColor: Colors.cardBorder,
+    backgroundColor: "#1E3448", borderRadius: 16,
+    padding: 16, borderWidth: 1, borderColor: "#2A4560",
     gap: 8,
   },
   summaryText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.gold },
   progressBar: {
-    height: 6, backgroundColor: Colors.cardBorder, borderRadius: 3, overflow: "hidden",
+    height: 6, backgroundColor: "#2A4560", borderRadius: 3, overflow: "hidden",
   },
   progressFill: { height: "100%", backgroundColor: Colors.gold, borderRadius: 3 },
-  summarySubText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  summarySubText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6B7E91" },
   list: { paddingHorizontal: 16, paddingBottom: 20, gap: 12 },
   taskCard: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: Colors.card, borderRadius: 16,
-    padding: 14, borderWidth: 1, borderColor: Colors.cardBorder,
+    backgroundColor: "#1E3448", borderRadius: 16,
+    padding: 14, borderWidth: 1, borderColor: "#2A4560",
     gap: 12,
   },
   taskClaimed: { opacity: 0.6 },
   taskIcon: { fontSize: 28 },
   taskContent: { flex: 1, gap: 4 },
-  taskTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary },
-  taskDesc: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  taskTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#F0E6D3" },
+  taskDesc: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6B7E91" },
   taskProgressRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
-  taskProgressBar: { flex: 1, height: 4, backgroundColor: Colors.cardBorder, borderRadius: 2, overflow: "hidden" },
+  taskProgressBar: { flex: 1, height: 4, backgroundColor: "#2A4560", borderRadius: 2, overflow: "hidden" },
   taskProgressFill: { height: "100%", backgroundColor: Colors.gold, borderRadius: 2 },
-  taskProgressText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, minWidth: 30 },
+  taskProgressText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#6B7E91", minWidth: 30 },
   taskRewards: { flexDirection: "row", gap: 6, marginTop: 4 },
   rewardBadge: {
     backgroundColor: Colors.gold + "20", borderRadius: 8,
@@ -229,12 +229,12 @@ const styles = StyleSheet.create({
   },
   lockCircle: {
     width: 34, height: 34, borderRadius: 17,
-    backgroundColor: Colors.cardBorder,
+    backgroundColor: "#2A4560",
     justifyContent: "center", alignItems: "center",
   },
   emptyIcon: { fontSize: 48, marginBottom: 8 },
-  emptyText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textSecondary },
-  emptySubText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, marginTop: 4 },
+  emptyText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#A8B8CC" },
+  emptySubText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#6B7E91", marginTop: 4 },
 });
 
 export default function TasksScreen() {

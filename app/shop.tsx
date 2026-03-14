@@ -332,8 +332,8 @@ const AvatarPreviewModal = memo(({ skin, owned, equipped, canAfford, profile, on
   let actionColor = Colors.gold;
   let actionBg = Colors.gold + "22";
   if (owned) { actionLabel = equipped ? "✓ مُجهَّز" : "تجهيز الآن"; actionColor = equipped ? Colors.emerald : "#60A5FA"; actionBg = equipped ? Colors.emerald + "22" : "#60A5FA22"; }
-  else if (unlockCond) { actionLabel = unlockMet ? "🔓 افتح الآن" : `${unlockCurrent}/${unlockCond.value}`; actionColor = unlockMet ? "#A78BFA" : Colors.textMuted; actionBg = unlockMet ? "#A78BFA22" : Colors.cardBorder; }
-  else { actionLabel = canAfford ? `شراء · ${skin.price} ⭐` : `غير كافٍ · ${skin.price} ⭐`; actionColor = canAfford ? Colors.gold : Colors.textMuted; actionBg = canAfford ? Colors.gold + "22" : Colors.cardBorder; }
+  else if (unlockCond) { actionLabel = unlockMet ? "🔓 افتح الآن" : `${unlockCurrent}/${unlockCond.value}`; actionColor = unlockMet ? "#A78BFA" : "#6B7E91"; actionBg = unlockMet ? "#A78BFA22" : "#2A4560"; }
+  else { actionLabel = canAfford ? `شراء · ${skin.price} ⭐` : `غير كافٍ · ${skin.price} ⭐`; actionColor = canAfford ? Colors.gold : "#6B7E91"; actionBg = canAfford ? Colors.gold + "22" : "#2A4560"; }
 
   return (
     <Modal visible={!!skin} transparent animationType="none" onRequestClose={onClose}>
@@ -1079,7 +1079,7 @@ export default function ShopScreen() {
           { rank: "1", color: Colors.rank1, text: "المركز الأول = 20 نقود" },
           { rank: "2", color: Colors.rank2, text: "المركز الثاني = 15 نقود" },
           { rank: "3", color: Colors.rank3, text: "المركز الثالث = 10 نقود" },
-          { rank: "+", color: Colors.textMuted, text: "باقي المراكز = 5 نقود" },
+          { rank: "+", color: "#6B7E91", text: "باقي المراكز = 5 نقود" },
         ].map((r, i) => (
           <View key={i} style={s.earnRow}>
             <View style={[s.earnBadge, { backgroundColor: r.color + "22" }]}>
@@ -1194,8 +1194,8 @@ const pm = StyleSheet.create({
     borderWidth: 2, marginBottom: 20, zIndex: 2,
   },
   avatarEmoji: { fontSize: 58 },
-  skinName: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary, textAlign: "center", marginBottom: 6 },
-  skinDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", marginBottom: 16, lineHeight: 20 },
+  skinName: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#F0E6D3", textAlign: "center", marginBottom: 6 },
+  skinDesc: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#A8B8CC", textAlign: "center", marginBottom: 16, lineHeight: 20 },
   priceRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 20 },
   priceText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.gold },
   balanceText: { fontFamily: "Cairo_400Regular", fontSize: 12 },
@@ -1222,7 +1222,7 @@ const ub = StyleSheet.create({
 
 // ── Main styles ───────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1, backgroundColor: "#0D1B2A" },
 
   // Header
   headerGrad: { zIndex: 2 },
@@ -1231,8 +1231,8 @@ const s = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 12,
     justifyContent: "space-between",
   },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: Colors.card, justifyContent: "center", alignItems: "center" },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary },
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#1E3448", justifyContent: "center", alignItems: "center" },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F0E6D3" },
   coinsBadge: {
     flexDirection: "row", alignItems: "center",
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, gap: 5,
@@ -1241,12 +1241,12 @@ const s = StyleSheet.create({
   coinsText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.gold },
 
   // Tab bar
-  tabBar: { maxHeight: 68, borderBottomWidth: 1, borderBottomColor: Colors.cardBorder },
+  tabBar: { maxHeight: 68, borderBottomWidth: 1, borderBottomColor: "#2A4560" },
   tabBarContent: { paddingHorizontal: 12, gap: 4, alignItems: "center", paddingVertical: 8 },
   tab: {
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
     alignItems: "center", flexDirection: "row", gap: 6,
-    backgroundColor: Colors.card, position: "relative",
+    backgroundColor: "#1E3448", position: "relative",
   },
   tabActive: { backgroundColor: Colors.gold + "22", borderWidth: 1, borderColor: Colors.gold + "55" },
   tabActiveLine: {
@@ -1254,7 +1254,7 @@ const s = StyleSheet.create({
     height: 2, borderRadius: 1, backgroundColor: Colors.gold,
   },
   tabEmoji: { fontSize: 16 },
-  tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
+  tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#6B7E91" },
   tabLabelActive: { color: Colors.gold },
 
   scrollContent: { padding: 16 },
@@ -1262,7 +1262,7 @@ const s = StyleSheet.create({
   // Current outfit bar
   currentBar: {
     flexDirection: "row", alignItems: "center", gap: 14,
-    backgroundColor: Colors.card, borderRadius: 18, padding: 14,
+    backgroundColor: "#1E3448", borderRadius: 18, padding: 14,
     marginBottom: 14, borderWidth: 1.5, overflow: "hidden",
     shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
@@ -1272,22 +1272,22 @@ const s = StyleSheet.create({
     justifyContent: "center", alignItems: "center", borderWidth: 2,
   },
   currentEmoji: { fontSize: 30 },
-  currentLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted, marginBottom: 1 },
+  currentLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6B7E91", marginBottom: 1 },
   currentName: { fontFamily: "Cairo_700Bold", fontSize: 15, marginBottom: 1 },
-  currentRarity: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  currentRarity: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6B7E91" },
 
   // Filter bar
   filterBar: { marginBottom: 14 },
   filterBarContent: { gap: 8 },
-  filterChip: { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 20, backgroundColor: Colors.card, borderWidth: 1, borderColor: Colors.cardBorder },
+  filterChip: { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 20, backgroundColor: "#1E3448", borderWidth: 1, borderColor: "#2A4560" },
   filterChipActive: { backgroundColor: Colors.gold + "22", borderColor: Colors.gold + "55" },
-  filterChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
+  filterChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#6B7E91" },
   filterChipTextActive: { color: Colors.gold },
 
   // Cards grid
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 20 },
   itemCard: {
-    backgroundColor: Colors.card, borderRadius: 18, padding: 12,
+    backgroundColor: "#1E3448", borderRadius: 18, padding: 12,
     alignItems: "center", borderWidth: 2, position: "relative", overflow: "hidden",
     shadowColor: "#000", shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2, shadowRadius: 8, elevation: 5,
@@ -1310,15 +1310,15 @@ const s = StyleSheet.create({
     borderRadius: 32, backgroundColor: "rgba(0,0,0,0.45)",
     justifyContent: "center", alignItems: "center",
   },
-  itemName: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.textPrimary, textAlign: "center", marginBottom: 3 },
-  itemDesc: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted, textAlign: "center", marginBottom: 10, lineHeight: 15 },
-  lockedText: { color: Colors.textMuted },
+  itemName: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#F0E6D3", textAlign: "center", marginBottom: 3 },
+  itemDesc: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#6B7E91", textAlign: "center", marginBottom: 10, lineHeight: 15 },
+  lockedText: { color: "#6B7E91" },
 
   actionBtn: { width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 8, borderRadius: 10, gap: 4 },
   actionEquipped: { backgroundColor: Colors.emerald + "18" },
   actionEquip: { backgroundColor: "#60A5FA18" },
   actionBuy: { backgroundColor: Colors.gold + "22" },
-  actionCantBuy: { backgroundColor: Colors.cardBorder },
+  actionCantBuy: { backgroundColor: "#2A4560" },
   actionBtnText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
 
   // Background card
@@ -1326,12 +1326,12 @@ const s = StyleSheet.create({
   bgPreviewEmoji: { fontSize: 30 },
 
   // Emotes
-  sectionHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textAlign: "center", marginBottom: 16 },
+  sectionHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7E91", textAlign: "center", marginBottom: 16 },
   emotesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "center", marginBottom: 20 },
-  emoteCard: { width: 90, backgroundColor: Colors.card, borderRadius: 16, padding: 12, alignItems: "center", borderWidth: 2, borderColor: Colors.cardBorder },
+  emoteCard: { width: 90, backgroundColor: "#1E3448", borderRadius: 16, padding: 12, alignItems: "center", borderWidth: 2, borderColor: "#2A4560" },
   emoteCardOwned: { borderColor: Colors.emerald + "60", backgroundColor: Colors.emerald + "08" },
   emoteEmoji: { fontSize: 34, marginBottom: 6 },
-  emoteName: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary, marginBottom: 6 },
+  emoteName: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#F0E6D3", marginBottom: 6 },
   emoteOwnedBadge: { backgroundColor: Colors.emerald + "22", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   emoteOwnedText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.emerald },
   emotePrice: { flexDirection: "row", alignItems: "center", gap: 3, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
@@ -1339,8 +1339,8 @@ const s = StyleSheet.create({
 
   // Mystery box
   boxContainer: { alignItems: "center", paddingTop: 10 },
-  boxTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary, marginBottom: 6 },
-  boxSubtitle: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, marginBottom: 28, textAlign: "center" },
+  boxTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#F0E6D3", marginBottom: 6 },
+  boxSubtitle: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#6B7E91", marginBottom: 28, textAlign: "center" },
   boxWrapper: { marginBottom: 28 },
   boxCard: { width: 180, height: 180, borderRadius: 24, justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#7C3AED55" },
   boxEmoji: { fontSize: 72, marginBottom: 6 },
@@ -1349,28 +1349,28 @@ const s = StyleSheet.create({
   boxPoolRow: { flexDirection: "row", gap: 16, marginBottom: 28 },
   boxPoolItem: { alignItems: "center", gap: 4 },
   boxPoolEmoji: { fontSize: 22 },
-  boxPoolLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.textMuted },
+  boxPoolLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#6B7E91" },
   openBoxBtn: { width: 240, borderRadius: 16, overflow: "hidden", marginBottom: 10 },
   openBoxBtnDisabled: { opacity: 0.5 },
   openBoxBtnGrad: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 16, gap: 8 },
-  openBoxBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary },
-  cantAffordHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 4 },
+  openBoxBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#F0E6D3" },
+  cantAffordHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7E91", marginTop: 4 },
   prizeReveal: { alignItems: "center", width: "100%" },
-  prizeCongrats: { fontFamily: "Cairo_700Bold", fontSize: 24, color: Colors.textPrimary, marginBottom: 16 },
+  prizeCongrats: { fontFamily: "Cairo_700Bold", fontSize: 24, color: "#F0E6D3", marginBottom: 16 },
   prizeCard: { width: "85%", borderRadius: 24, padding: 32, alignItems: "center", borderWidth: 1, borderColor: Colors.gold + "44", marginBottom: 24 },
   prizeEmoji: { fontSize: 72, marginBottom: 12 },
-  prizeName: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary, marginBottom: 8, textAlign: "center" },
-  prizeTypeLabel: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, textAlign: "center" },
-  openAgainBtn: { backgroundColor: Colors.card, borderRadius: 14, paddingHorizontal: 32, paddingVertical: 14, borderWidth: 1, borderColor: Colors.cardBorder },
-  openAgainText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary },
+  prizeName: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F0E6D3", marginBottom: 8, textAlign: "center" },
+  prizeTypeLabel: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#6B7E91", textAlign: "center" },
+  openAgainBtn: { backgroundColor: "#1E3448", borderRadius: 14, paddingHorizontal: 32, paddingVertical: 14, borderWidth: 1, borderColor: "#2A4560" },
+  openAgainText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#F0E6D3" },
 
   // Daily shop
-  dailyHeader: { borderRadius: 16, padding: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderWidth: 1, borderColor: Colors.cardBorder },
-  dailyTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: Colors.textPrimary, marginBottom: 3 },
-  dailySubtitle: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted },
+  dailyHeader: { borderRadius: 16, padding: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderWidth: 1, borderColor: "#2A4560" },
+  dailyTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#F0E6D3", marginBottom: 3 },
+  dailySubtitle: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7E91" },
   dailyTimer: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: Colors.gold + "18", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
   dailyTimerText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.gold },
-  dailyCard: { backgroundColor: Colors.card, borderRadius: 16, padding: 14, marginBottom: 12, borderWidth: 2, position: "relative", overflow: "hidden" },
+  dailyCard: { backgroundColor: "#1E3448", borderRadius: 16, padding: 14, marginBottom: 12, borderWidth: 2, position: "relative", overflow: "hidden" },
   discountBadge: { position: "absolute", top: 12, left: 12, backgroundColor: "#EF4444", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, zIndex: 1 },
   discountBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: "#FFFFFF" },
   dailyCardContent: { flexDirection: "row", alignItems: "center", gap: 12 },
@@ -1378,23 +1378,23 @@ const s = StyleSheet.create({
   dailyItemEmoji: { fontSize: 28 },
   dailyItemInfo: { flex: 1 },
   dailyItemTopRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 4 },
-  dailyItemType: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
-  dailyItemName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, marginBottom: 6 },
+  dailyItemType: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6B7E91" },
+  dailyItemName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#F0E6D3", marginBottom: 6 },
   dailyPriceRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  dailyOriginalPrice: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, textDecorationLine: "line-through" },
+  dailyOriginalPrice: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7E91", textDecorationLine: "line-through" },
   dailyDiscountedPrice: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.gold },
   dailyActionBtn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, minWidth: 72, alignItems: "center" },
   dailyActionBuy: { backgroundColor: Colors.gold + "22" },
-  dailyActionDisabled: { backgroundColor: Colors.cardBorder },
+  dailyActionDisabled: { backgroundColor: "#2A4560" },
   dailyActionOwned: { backgroundColor: Colors.emerald + "18" },
   dailyActionBuyText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.gold },
   dailyActionOwnedText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.emerald },
 
   // Earn card
-  earnCard: { backgroundColor: Colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: Colors.cardBorder, gap: 10 },
-  earnTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary, textAlign: "center", marginBottom: 4 },
+  earnCard: { backgroundColor: "#1E3448", borderRadius: 16, padding: 16, borderWidth: 1, borderColor: "#2A4560", gap: 10 },
+  earnTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#F0E6D3", textAlign: "center", marginBottom: 4 },
   earnRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   earnBadge: { width: 32, height: 32, borderRadius: 16, justifyContent: "center", alignItems: "center" },
   earnBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 14 },
-  earnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
+  earnText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#A8B8CC" },
 });

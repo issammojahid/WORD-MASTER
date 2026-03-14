@@ -1058,10 +1058,10 @@ const bk = StyleSheet.create({
   card: {
     width: BK_MATCH_W,
     height: BK_MATCH_H,
-    backgroundColor: Colors.card,
+    backgroundColor: "#1E3448",
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: "#2A4560",
     overflow: "hidden",
   },
   myCard: {
@@ -1083,7 +1083,7 @@ const bk = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: Colors.cardBorder,
+    backgroundColor: "#2A4560",
   },
   crown: {
     fontSize: 10,
@@ -1092,7 +1092,7 @@ const bk = StyleSheet.create({
     flex: 1,
     fontFamily: "Cairo_600SemiBold",
     fontSize: 11,
-    color: Colors.textPrimary,
+    color: "#F0E6D3",
   },
   meText: {
     color: Colors.gold,
@@ -1103,12 +1103,12 @@ const bk = StyleSheet.create({
   },
   loseName: {
     textDecorationLine: "line-through",
-    color: Colors.textMuted,
+    color: "#6B7E91",
   },
   colLabel: {
     fontFamily: "Cairo_700Bold",
     fontSize: 10,
-    color: Colors.textMuted,
+    color: "#6B7E91",
     textAlign: "center",
     marginBottom: 6,
     height: BK_LABEL_H - 6,
@@ -1118,22 +1118,22 @@ const bk = StyleSheet.create({
 
 // ─── Main StyleSheet ──────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1, backgroundColor: "#0D1B2A" },
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 16, paddingVertical: 12,
   },
   backBtn: {
-    width: 40, height: 40, borderRadius: 12, backgroundColor: Colors.card,
+    width: 40, height: 40, borderRadius: 12, backgroundColor: "#1E3448",
     justifyContent: "center", alignItems: "center",
   },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#F0E6D3" },
   refreshBtn: {
-    width: 40, height: 40, borderRadius: 12, backgroundColor: Colors.card,
+    width: 40, height: 40, borderRadius: 12, backgroundColor: "#1E3448",
     justifyContent: "center", alignItems: "center",
   },
   coinsBadge: {
-    flexDirection: "row", alignItems: "center", backgroundColor: Colors.card,
+    flexDirection: "row", alignItems: "center", backgroundColor: "#1E3448",
     paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, gap: 5,
     borderWidth: 1, borderColor: Colors.gold + "30",
   },
@@ -1141,21 +1141,21 @@ const styles = StyleSheet.create({
   listContent: { paddingHorizontal: 16, paddingBottom: 40 },
 
   infoCard: {
-    backgroundColor: Colors.card, borderRadius: 20, padding: 24, alignItems: "center",
+    backgroundColor: "#1E3448", borderRadius: 20, padding: 24, alignItems: "center",
     marginBottom: 20, borderWidth: 1, borderColor: Colors.gold + "25",
   },
   infoTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.gold, marginTop: 8 },
-  infoSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, textAlign: "center", marginTop: 6 },
+  infoSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#A8B8CC", textAlign: "center", marginTop: 6 },
   infoDetails: { flexDirection: "row", marginTop: 16, gap: 16 },
   infoDetailItem: { alignItems: "center" },
-  infoDetailLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
-  infoDetailValue: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textPrimary, marginTop: 2 },
+  infoDetailLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6B7E91" },
+  infoDetailValue: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#F0E6D3", marginTop: 2 },
 
-  listTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textSecondary, textAlign: "right", marginBottom: 12 },
+  listTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#A8B8CC", textAlign: "right", marginBottom: 12 },
 
   tournamentCard: {
-    backgroundColor: Colors.card, borderRadius: 16, padding: 16, marginBottom: 12,
-    borderWidth: 1, borderColor: Colors.cardBorder,
+    backgroundColor: "#1E3448", borderRadius: 16, padding: 16, marginBottom: 12,
+    borderWidth: 1, borderColor: "#2A4560",
   },
   tournamentCardCreate: {
     borderStyle: "dashed", borderColor: Colors.gold + "50", alignItems: "center",
@@ -1168,25 +1168,25 @@ const styles = StyleSheet.create({
   },
   joinedBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.emerald },
   createText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.gold, marginTop: 8 },
-  createSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 4 },
+  createSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7E91", marginTop: 4 },
 
   tournamentCardHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
-  tournamentCardTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary },
+  tournamentCardTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#F0E6D3" },
   tournamentCardStats: { flexDirection: "row", gap: 16, marginBottom: 10 },
   tournamentStat: { flexDirection: "row", alignItems: "center", gap: 4 },
-  tournamentStatText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
+  tournamentStatText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#A8B8CC" },
 
   progressBar: {
-    height: 6, backgroundColor: Colors.backgroundTertiary, borderRadius: 3, overflow: "hidden",
+    height: 6, backgroundColor: "#1A2D42", borderRadius: 3, overflow: "hidden",
   },
   progressFill: { height: "100%", backgroundColor: Colors.emerald, borderRadius: 3 },
 
   statusCard: {
-    flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: Colors.card,
+    flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#1E3448",
     borderRadius: 12, padding: 14, marginBottom: 12,
   },
   statusDot: { width: 10, height: 10, borderRadius: 5 },
-  statusText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
+  statusText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#F0E6D3" },
 
   winnerBanner: {
     backgroundColor: Colors.gold + "18", borderRadius: 16, padding: 20, alignItems: "center",
@@ -1194,21 +1194,21 @@ const styles = StyleSheet.create({
   },
   winnerEmoji: { fontSize: 40, marginBottom: 8 },
   winnerTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.gold },
-  winnerName: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textPrimary, marginTop: 4 },
+  winnerName: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#F0E6D3", marginTop: 4 },
 
   bracketSection: {
     marginBottom: 12,
-    backgroundColor: Colors.backgroundSecondary,
+    backgroundColor: "#142233",
     borderRadius: 16,
     marginHorizontal: 16,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: Colors.cardBorder,
+    borderColor: "#2A4560",
   },
   bracketSectionTitle: {
     fontFamily: "Cairo_700Bold",
     fontSize: 14,
-    color: Colors.textSecondary,
+    color: "#A8B8CC",
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 4,
@@ -1216,72 +1216,72 @@ const styles = StyleSheet.create({
   },
 
   waitingCard: {
-    backgroundColor: Colors.card, borderRadius: 16, padding: 16, marginBottom: 12,
-    borderWidth: 1, borderColor: Colors.cardBorder,
+    backgroundColor: "#1E3448", borderRadius: 16, padding: 16, marginBottom: 12,
+    borderWidth: 1, borderColor: "#2A4560",
   },
   waitingTitle: {
-    fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textPrimary,
+    fontFamily: "Cairo_700Bold", fontSize: 15, color: "#F0E6D3",
     textAlign: "center", marginBottom: 14,
   },
   waitingSlots: { gap: 8 },
   waitingSlot: {
     flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: Colors.backgroundTertiary, borderRadius: 10, padding: 10,
-    borderWidth: 1, borderColor: Colors.cardBorder,
+    backgroundColor: "#1A2D42", borderRadius: 10, padding: 10,
+    borderWidth: 1, borderColor: "#2A4560",
   },
   waitingSlotFilled: { borderColor: Colors.sapphire + "50" },
   waitingSlotEmoji: { fontSize: 18 },
-  waitingSlotName: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textPrimary, flex: 1 },
-  waitingSlotEmpty: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, flex: 1 },
+  waitingSlotName: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#F0E6D3", flex: 1 },
+  waitingSlotEmpty: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7E91", flex: 1 },
 
   prizesCard: {
-    backgroundColor: Colors.card, borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: Colors.cardBorder,
+    backgroundColor: "#1E3448", borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: "#2A4560",
   },
   prizesTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.gold, marginBottom: 10 },
   prizeRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 6 },
   prizeEmoji: { fontSize: 18 },
-  prizeText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textSecondary },
+  prizeText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#A8B8CC" },
 
-  sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.textSecondary, textAlign: "right", marginBottom: 10 },
+  sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#A8B8CC", textAlign: "right", marginBottom: 10 },
 
   playersGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   playerChip: {
-    flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.card,
+    flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#1E3448",
     borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8,
-    borderWidth: 1, borderColor: Colors.cardBorder,
+    borderWidth: 1, borderColor: "#2A4560",
   },
   playerChipEliminated: { opacity: 0.5 },
   playerChipMe: { borderColor: Colors.gold + "50" },
   playerChipEmoji: { fontSize: 16 },
-  playerChipName: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textPrimary, maxWidth: 80 },
-  playerChipNameEliminated: { textDecorationLine: "line-through", color: Colors.textMuted },
+  playerChipName: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#F0E6D3", maxWidth: 80 },
+  playerChipNameEliminated: { textDecorationLine: "line-through", color: "#6B7E91" },
 
   modalOverlay: {
     flex: 1, justifyContent: "center", alignItems: "center",
-    backgroundColor: Colors.overlay,
+    backgroundColor: "rgba(0,0,0,0.75)",
   },
   modalCard: {
-    backgroundColor: Colors.backgroundSecondary, borderRadius: 24, padding: 28,
-    width: "85%", alignItems: "center", borderWidth: 1, borderColor: Colors.cardBorder,
+    backgroundColor: "#142233", borderRadius: 24, padding: 28,
+    width: "85%", alignItems: "center", borderWidth: 1, borderColor: "#2A4560",
   },
-  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary, marginBottom: 8 },
-  modalSub: { fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary, textAlign: "center" },
+  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#F0E6D3", marginBottom: 8 },
+  modalSub: { fontFamily: "Cairo_400Regular", fontSize: 14, color: "#A8B8CC", textAlign: "center" },
   modalBalance: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.gold, marginTop: 8 },
   modalWarning: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.ruby, marginTop: 8 },
   modalButtons: { flexDirection: "row", gap: 12, marginTop: 20, width: "100%" },
   modalCancel: {
-    flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: Colors.card,
+    flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: "#1E3448",
     alignItems: "center",
   },
-  modalCancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
+  modalCancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#A8B8CC" },
   modalConfirm: {
     flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: Colors.gold,
     alignItems: "center",
   },
   modalConfirmText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.black },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject, backgroundColor: Colors.overlay,
+    ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.75)",
     justifyContent: "center", alignItems: "center",
   },
 
@@ -1296,16 +1296,16 @@ const styles = StyleSheet.create({
 
   // Leave confirmation modal
   modalBox: {
-    backgroundColor: Colors.backgroundSecondary, borderRadius: 24, padding: 28,
-    width: "85%", alignItems: "center", borderWidth: 1, borderColor: Colors.cardBorder,
+    backgroundColor: "#142233", borderRadius: 24, padding: 28,
+    width: "85%", alignItems: "center", borderWidth: 1, borderColor: "#2A4560",
   },
   modalDesc: {
-    fontFamily: "Cairo_400Regular", fontSize: 14, color: Colors.textSecondary,
+    fontFamily: "Cairo_400Regular", fontSize: 14, color: "#A8B8CC",
     textAlign: "center", lineHeight: 22, marginTop: 4,
   },
   modalBtns: { flexDirection: "row", gap: 12, marginTop: 20, width: "100%" },
   modalCancelBtn: {
-    flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: Colors.card,
+    flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: "#1E3448",
     alignItems: "center",
   },
   modalConfirmLeaveBtn: {
@@ -1326,11 +1326,11 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: "center", paddingVertical: 48, gap: 8,
   },
-  emptyStateText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textMuted },
-  emptyStateSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
+  emptyStateText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#6B7E91" },
+  emptyStateSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#6B7E91" },
 
   // Room card sub-text
-  tournamentCardSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+  tournamentCardSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7E91", marginTop: 2 },
 
   // Status pill
   statusPill: {
@@ -1359,13 +1359,13 @@ const styles = StyleSheet.create({
   sizePickerRow: { flexDirection: "row", gap: 10, marginTop: 16, marginBottom: 4 },
   sizeOption: {
     flex: 1, alignItems: "center", paddingVertical: 14, borderRadius: 14,
-    backgroundColor: Colors.card, borderWidth: 1.5, borderColor: Colors.cardBorder,
+    backgroundColor: "#1E3448", borderWidth: 1.5, borderColor: "#2A4560",
   },
   sizeOptionSelected: {
     borderColor: Colors.gold, backgroundColor: Colors.gold + "18",
   },
-  sizeOptionNum: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textMuted },
+  sizeOptionNum: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#6B7E91" },
   sizeOptionNumSelected: { color: Colors.gold },
-  sizeOptionLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+  sizeOptionLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7E91", marginTop: 2 },
   sizeOptionLabelSelected: { color: Colors.gold },
 });

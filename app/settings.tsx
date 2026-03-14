@@ -168,9 +168,9 @@ export default function SettingsScreen() {
               <View style={styles.toggleLeft}>
                 <Ionicons name={isDark ? "moon" : "sunny"} size={20} color={LOGO.purple} />
                 <View style={styles.toggleTexts}>
-                  <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>الوضع الداكن</Text>
+                  <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>{isDark ? "الوضع الليلي" : "الوضع النهاري"}</Text>
                   <Text style={[styles.toggleSub, { color: theme.textMuted }]}>
-                    {isDark ? "تم تفعيل الوضع الداكن" : "تم تفعيل الوضع الفاتح"}
+                    {isDark ? "تم تفعيل الوضع الليلي" : "تم تفعيل الوضع النهاري"}
                   </Text>
                 </View>
               </View>
@@ -299,12 +299,12 @@ const styles = StyleSheet.create({
     width: 40, height: 40, borderRadius: 12,
     backgroundColor: "rgba(255,255,255,0.08)", justifyContent: "center", alignItems: "center",
   },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.textPrimary },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#F0E6D3" },
   content: { padding: 16, gap: 20, paddingBottom: 40 },
 
   section: { gap: 12 },
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textPrimary },
+  sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#F0E6D3" },
 
   codeCard: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   },
   codeValue: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.gold },
   codeCopyBtn: { flexDirection: "row", alignItems: "center", gap: 6 },
-  codeCopyText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.textMuted },
+  codeCopyText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#6B7E91" },
 
   optionsRow: { flexDirection: "row", gap: 10 },
   languageOption: {
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
   },
   languageOptionActive: { borderColor: LOGO.yellow + "60", backgroundColor: LOGO.yellow + "12" },
   languageFlag: { fontSize: 20 },
-  languageLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textSecondary },
+  languageLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#A8B8CC" },
   languageLabelActive: { color: LOGO.yellow },
 
   toggleCard: {
@@ -336,8 +336,8 @@ const styles = StyleSheet.create({
   },
   toggleLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
   toggleTexts: { gap: 2 },
-  toggleTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.textPrimary },
-  toggleSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: Colors.textMuted },
+  toggleTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#F0E6D3" },
+  toggleSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6B7E91" },
   toggleDivider: { height: 1, backgroundColor: "rgba(255,255,255,0.07)", marginHorizontal: 16 },
 
   rulesList: {
@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
   },
   ruleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  ruleText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textSecondary, flex: 1 },
+  ruleText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#A8B8CC", flex: 1 },
 
   coinRulesGrid: { flexDirection: "row", gap: 10 },
   coinRuleCard: {
@@ -374,15 +374,15 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: LOGO.purple + "40",
   },
   modalIcon: { fontSize: 44, marginBottom: 12 },
-  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.textPrimary, textAlign: "center", marginBottom: 6 },
-  modalSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted, marginBottom: 24 },
+  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F0E6D3", textAlign: "center", marginBottom: 6 },
+  modalSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#6B7E91", marginBottom: 24 },
   modalButtons: { flexDirection: "row", gap: 12, width: "100%" },
   modalNo: {
     flex: 1, paddingVertical: 14, borderRadius: 14,
     backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
   },
-  modalNoText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.textSecondary },
+  modalNoText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#A8B8CC" },
   modalYes: { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: Colors.ruby, alignItems: "center" },
   modalYesText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
 });
