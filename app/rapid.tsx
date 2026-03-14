@@ -57,7 +57,7 @@ type OpponentInfo = {
 type CoinTier = { entry: number; reward: number };
 const COIN_TIERS: CoinTier[] = [
   { entry: 50, reward: 100 },
-  { entry: 100, reward: 250 },
+  { entry: 100, reward: 200 },
 ];
 
 export default function RapidScreen() {
@@ -199,26 +199,27 @@ export default function RapidScreen() {
     }) => {
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       const won = data.winnerId === socketIdRef.current;
-      const isDraw = data.winnerId === null;
       const myFinalScore = socketIdRef.current ? (data.scores[socketIdRef.current] || 0) : 0;
       const oppId = Object.keys(data.scores).find((k) => k !== socketIdRef.current);
       const oppFinalScore = oppId ? (data.scores[oppId] || 0) : 0;
-
       const tier = selectedTierRef.current;
-      let totalCoins = data.coinsEarned;
+      const isDraw = data.winnerId === null && myFinalScore === oppFinalScore;
+
       if (isDraw && tier) {
         addCoins(tier.entry);
-        totalCoins = tier.entry;
-      } else if (won && tier) {
-        addCoins(tier.reward);
-        totalCoins = tier.reward;
       }
+
+      const displayCoins = isDraw && tier
+        ? tier.entry
+        : won && tier
+          ? tier.reward
+          : data.coinsEarned;
 
       setGameOverData({
         won,
         myScore: myFinalScore,
         oppScore: oppFinalScore,
-        coinsEarned: totalCoins,
+        coinsEarned: displayCoins,
         xpEarned: data.xpEarned,
         isDraw,
       });
@@ -249,6 +250,9 @@ export default function RapidScreen() {
         socket.emit("rapid_leave", { rapidRoomId: rapidRoomIdRef.current });
       } else if (phaseRef.current === "waiting") {
         socket.emit("rapid_cancel");
+        if (selectedTierRef.current) {
+          addCoins(selectedTierRef.current.entry);
+        }
       }
       if (timerRef.current) clearInterval(timerRef.current);
     };
@@ -315,7 +319,14 @@ export default function RapidScreen() {
 
   const handleLeave = () => {
     const socket = getSocket();
-    if (rapidRoomId) socket.emit("rapid_leave", { rapidRoomId });
+    if (rapidRoomId) {
+      socket.emit("rapid_leave", { rapidRoomId });
+    } else if (phaseRef.current === "waiting") {
+      socket.emit("rapid_cancel");
+      if (selectedTierRef.current) {
+        addCoins(selectedTierRef.current.entry);
+      }
+    }
     router.back();
   };
 
@@ -522,7 +533,7 @@ export default function RapidScreen() {
           <View style={styles.rewardsRow}>
             <View style={styles.rewardItem}>
               <Ionicons name="star" size={18} color={Colors.gold} />
-              <Text style={styles.rewardText}>+{gameOverData.coinsEarned} عملة</Text>
+              <Text style={styles.rewardText}>{gameOverData.isDraw ? "" : "+"}{gameOverData.coinsEarned} 🪙</Text>
             </View>
             <View style={styles.rewardItem}>
               <Ionicons name="flash" size={18} color={Colors.sapphire} />
