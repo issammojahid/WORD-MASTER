@@ -373,7 +373,7 @@ export default function OfflineScreen() {
         </ScrollView>
         <TouchableOpacity style={styles.nextRoundBtn} onPress={handleNextRound}>
           <Text style={styles.nextRoundBtnText}>{currentRound >= TOTAL_ROUNDS ? t.gameOver : t.nextRound}</Text>
-          <Ionicons name="arrow-forward" size={20} color={Colors.black} style={{ marginLeft: 8 }} />
+          <Ionicons name="arrow-forward" size={20} color={"#000000"} style={{ marginLeft: 8 }} />
         </TouchableOpacity>
       </View>
     );
@@ -425,7 +425,7 @@ export default function OfflineScreen() {
 
       {!submitted ? (
         <TouchableOpacity style={[styles.submitBtn, { bottom: bottomInset + 12 }]} onPress={handleSubmit}>
-          <Ionicons name="send" size={20} color={Colors.black} style={{ marginRight: 8 }} />
+          <Ionicons name="send" size={20} color={"#000000"} style={{ marginRight: 8 }} />
           <Text style={styles.submitBtnText}>{t.submit}</Text>
         </TouchableOpacity>
       ) : (
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
   backBtnSmall: { width: 32, height: 32, borderRadius: 10, backgroundColor: "#1E3448", justifyContent: "center", alignItems: "center", marginRight: 10 },
   gameTopBar: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, backgroundColor: "#142233", borderBottomWidth: 1, borderBottomColor: "#2A4560" },
   letterDisplay: { width: 64, height: 64, borderRadius: 32, backgroundColor: Colors.gold, justifyContent: "center", alignItems: "center", marginRight: 14, shadowColor: Colors.gold, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 8 },
-  letterText: { fontFamily: "Cairo_700Bold", fontSize: 36, color: Colors.black, lineHeight: 48 },
+  letterText: { fontFamily: "Cairo_700Bold", fontSize: 36, color: "#000000", lineHeight: 48 },
   gameInfoRight: { flex: 1 },
   roundLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#A8B8CC", marginBottom: 8, textAlign: "right" },
   timerContainer: { flexDirection: "row", alignItems: "center", gap: 10 },
@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
   categoryInputFilled: { borderColor: Colors.gold + "80", backgroundColor: Colors.gold + "10" },
   categoryInputSubmitted: { opacity: 0.7 },
   submitBtn: { position: "absolute", left: 16, right: 16, backgroundColor: Colors.gold, borderRadius: 16, paddingVertical: 16, flexDirection: "row", justifyContent: "center", alignItems: "center", shadowColor: Colors.gold, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8 },
-  submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.black },
+  submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#000000" },
   submittedState: { position: "absolute", left: 16, right: 16, backgroundColor: Colors.emerald + "22", borderRadius: 16, paddingVertical: 16, flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 10, borderWidth: 1, borderColor: Colors.emerald + "40" },
   submittedStateText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.emerald },
   roundResultsHeader: { paddingHorizontal: 16, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: "#2A4560", backgroundColor: "#142233" },
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
   scoreSummaryName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#F0E6D3", paddingHorizontal: 10 },
   scoreSummaryTotal: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#F0E6D3" },
   nextRoundBtn: { backgroundColor: Colors.gold, borderRadius: 16, paddingVertical: 16, marginHorizontal: 16, marginVertical: 12, flexDirection: "row", justifyContent: "center", alignItems: "center", shadowColor: Colors.gold, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8 },
-  nextRoundBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.black },
+  nextRoundBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#000000" },
   gameOverContent: { padding: 20, alignItems: "center", paddingBottom: 40 },
   gameOverTitle: { fontFamily: "Cairo_700Bold", fontSize: 32, color: "#F0E6D3", textAlign: "center", marginBottom: 20 },
   trophyCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: Colors.gold + "22", justifyContent: "center", alignItems: "center", marginBottom: 20, borderWidth: 2, borderColor: Colors.gold + "40" },
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
   finalRankName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#F0E6D3", paddingHorizontal: 10 },
   finalRankScore: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#F0E6D3" },
   playAgainBtn: { backgroundColor: Colors.gold, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 40, marginBottom: 12, shadowColor: Colors.gold, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 8 },
-  playAgainBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.black },
-  homeBtn: { backgroundColor: "#1E3448", borderRadius: 16, paddingVertical: 14, paddingHorizontal: 40, borderWidth: 1, borderColor: "#2A4560" },
+  playAgainBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#000000" },
+  homeBtn: { backgroundColor: "#1E3448", borderRadius: 16, minHeight: 48, justifyContent: "center", paddingHorizontal: 40, borderWidth: 1, borderColor: "#2A4560" },
   homeBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: "#A8B8CC" },
 });

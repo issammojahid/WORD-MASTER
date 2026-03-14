@@ -613,7 +613,7 @@ export default function LobbyScreen() {
                           disabled={sent || sending}
                         >
                           {sending ? (
-                            <ActivityIndicator size="small" color={Colors.black} />
+                            <ActivityIndicator size="small" color={"#000000"} />
                           ) : sent ? (
                             <>
                               <Ionicons name="checkmark" size={14} color={Colors.emerald} />
@@ -621,7 +621,7 @@ export default function LobbyScreen() {
                             </>
                           ) : (
                             <>
-                              <Ionicons name="paper-plane" size={14} color={Colors.black} />
+                              <Ionicons name="paper-plane" size={14} color={"#000000"} />
                               <Text style={styles.inviteBtnText}>دعوة</Text>
                             </>
                           )}
@@ -746,7 +746,7 @@ export default function LobbyScreen() {
                     <Ionicons
                       name={isMuted ? "mic-off" : "mic"}
                       size={24}
-                      color={isMuted ? Colors.ruby : Colors.white}
+                      color={isMuted ? Colors.ruby : "#FFFFFF"}
                     />
                   </TouchableOpacity>
                 </Animated.View>
@@ -800,7 +800,7 @@ export default function LobbyScreen() {
               <Text style={[styles.startBtnText, { color: "#6B7E91" }]}>في انتظار لاعبين...</Text>
             ) : (
               <>
-                <Ionicons name="play" size={20} color={Colors.black} style={{ marginRight: 8 }} />
+                <Ionicons name="play" size={20} color={"#000000"} style={{ marginRight: 8 }} />
                 <Text style={styles.startBtnText}>{t.startGame}</Text>
               </>
             )}
@@ -926,7 +926,7 @@ export default function LobbyScreen() {
               disabled={loading || joinCode.length < 4}
             >
               {loading ? (
-                <ActivityIndicator size="small" color={Colors.black} />
+                <ActivityIndicator size="small" color={"#000000"} />
               ) : (
                 <Text style={[styles.startBtnText, joinCode.length < 4 && { color: "#6B7E91" }]}>{t.joinRoom}</Text>
               )}
@@ -1037,13 +1037,13 @@ const styles = StyleSheet.create({
   minPlayersHint: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 16, paddingVertical: 8 },
   minPlayersText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7E91" },
   startBtn: {
-    backgroundColor: Colors.gold, borderRadius: 16, paddingVertical: 16, marginHorizontal: 16,
+    backgroundColor: Colors.gold, borderRadius: 16, minHeight: 48, marginHorizontal: 16,
     flexDirection: "row", justifyContent: "center", alignItems: "center",
     shadowColor: Colors.gold, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
   },
   startBtnDisabled: { backgroundColor: "#1E3448", shadowOpacity: 0, elevation: 0 },
-  startBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.black },
+  startBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#000000" },
   waitingBar: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 16, paddingHorizontal: 16, backgroundColor: "#1E3448", marginHorizontal: 16, borderRadius: 16 },
   waitingText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#A8B8CC" },
 
@@ -1104,5 +1104,5 @@ const styles = StyleSheet.create({
   inviteFriendLevel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6B7E91" },
   inviteBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: Colors.gold, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
   inviteBtnSent: { backgroundColor: Colors.emerald + "20", borderWidth: 1, borderColor: Colors.emerald + "40" },
-  inviteBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.black },
+  inviteBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#000000" },
 });

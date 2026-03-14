@@ -9,7 +9,6 @@ const Colors = {
   sapphire: "#3498DB",
 
   letterBg: "#F5A623",
-  letterText: "#0D1B2A",
 
   timerGreen: "#2ECC71",
   timerYellow: "#F5A623",
@@ -30,9 +29,6 @@ const Colors = {
   rabat: "#1A5C2A",
   tangier: "#1A4A6B",
   chefchaouen: "#1A3A7A",
-
-  white: "#FFFFFF",
-  black: "#000000",
 };
 
 export default Colors;

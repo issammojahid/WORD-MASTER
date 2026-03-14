@@ -744,10 +744,10 @@ export default function TournamentScreen() {
           disabled={creating || joining}
         >
           {creating ? (
-            <ActivityIndicator size="small" color={Colors.black} />
+            <ActivityIndicator size="small" color={"#000000"} />
           ) : (
             <>
-              <Ionicons name="add-circle" size={22} color={Colors.black} />
+              <Ionicons name="add-circle" size={22} color={"#000000"} />
               <Text style={styles.createRoomBtnText}>إنشاء غرفة بطولة</Text>
             </>
           )}
@@ -1279,7 +1279,7 @@ const styles = StyleSheet.create({
     flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: Colors.gold,
     alignItems: "center",
   },
-  modalConfirmText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.black },
+  modalConfirmText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#000000" },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.75)",
     justifyContent: "center", alignItems: "center",
@@ -1320,7 +1320,7 @@ const styles = StyleSheet.create({
     gap: 8, backgroundColor: Colors.gold, borderRadius: 16,
     paddingVertical: 14, marginBottom: 16,
   },
-  createRoomBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.black },
+  createRoomBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#000000" },
 
   // Empty state
   emptyState: {

@@ -1361,7 +1361,7 @@ const s = StyleSheet.create({
   prizeEmoji: { fontSize: 72, marginBottom: 12 },
   prizeName: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F0E6D3", marginBottom: 8, textAlign: "center" },
   prizeTypeLabel: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#6B7E91", textAlign: "center" },
-  openAgainBtn: { backgroundColor: "#1E3448", borderRadius: 14, paddingHorizontal: 32, paddingVertical: 14, borderWidth: 1, borderColor: "#2A4560" },
+  openAgainBtn: { backgroundColor: "#1E3448", borderRadius: 16, paddingHorizontal: 32, minHeight: 48, justifyContent: "center", borderWidth: 1, borderColor: "#2A4560" },
   openAgainText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#F0E6D3" },
 
   // Daily shop

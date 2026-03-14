@@ -805,7 +805,7 @@ export default function GameScreen() {
         {isHost ? (
           <TouchableOpacity style={styles.nextRoundBtn} onPress={handleNextRound}>
             <Text style={styles.nextRoundBtnText}>{currentRound >= numTotalRounds ? t.gameOver : t.nextRound}</Text>
-            <Ionicons name="arrow-forward" size={20} color={Colors.black} style={{ marginLeft: 8 }} />
+            <Ionicons name="arrow-forward" size={20} color={"#000000"} style={{ marginLeft: 8 }} />
           </TouchableOpacity>
         ) : (
           <View style={[styles.waitingNextRound, { backgroundColor: theme.card }]}>
@@ -960,7 +960,7 @@ export default function GameScreen() {
           onPress={handleSubmit}
           disabled={isFrozen}
         >
-          <Ionicons name="send" size={20} color={Colors.black} style={{ marginRight: 8 }} />
+          <Ionicons name="send" size={20} color={"#000000"} style={{ marginRight: 8 }} />
           <Text style={styles.submitBtnText}>{t.submit}</Text>
         </TouchableOpacity>
       ) : (
@@ -1081,8 +1081,8 @@ const styles = StyleSheet.create({
   },
   chatBubbleMe: { backgroundColor: Colors.gold, alignSelf: "flex-end" },
   chatBubbleOther: { backgroundColor: "#1E3448", alignSelf: "flex-start", borderWidth: 1, borderColor: "#2A4560" },
-  chatBubbleSender: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.black + "88", marginBottom: 2 },
-  chatBubbleMessage: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.black },
+  chatBubbleSender: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#000000" + "88", marginBottom: 2 },
+  chatBubbleMessage: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#000000" },
 
   // Game top bar
   gameTopBar: {
@@ -1096,7 +1096,7 @@ const styles = StyleSheet.create({
     shadowColor: Colors.gold, shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.4, shadowRadius: 10, elevation: 8,
   },
-  letterText: { fontFamily: "Cairo_700Bold", fontSize: 36, color: Colors.black, lineHeight: 48 },
+  letterText: { fontFamily: "Cairo_700Bold", fontSize: 36, color: "#000000", lineHeight: 48 },
   gameInfoRight: { flex: 1 },
   roundLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#A8B8CC", marginBottom: 8, textAlign: "right" },
   timerContainer: { flexDirection: "row", alignItems: "center", gap: 10 },
@@ -1182,7 +1182,7 @@ const styles = StyleSheet.create({
     shadowColor: Colors.gold, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
   },
-  submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.black },
+  submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#000000" },
   submittedState: {
     position: "absolute", left: 16, right: 16, backgroundColor: Colors.emerald + "22",
     borderRadius: 16, paddingVertical: 16, flexDirection: "row",
@@ -1237,7 +1237,7 @@ const styles = StyleSheet.create({
     shadowColor: Colors.gold, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
   },
-  nextRoundBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.black },
+  nextRoundBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#000000" },
   waitingNextRound: { paddingVertical: 16, paddingHorizontal: 16, backgroundColor: "#1E3448", marginHorizontal: 16, marginVertical: 12, borderRadius: 16, alignItems: "center" },
   waitingNextRoundText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#A8B8CC" },
 
@@ -1287,7 +1287,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
     flexDirection: "row", alignItems: "center", justifyContent: "center",
   },
-  playAgainBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.black },
+  playAgainBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#000000" },
   homeBtn: { backgroundColor: "#1E3448", borderRadius: 16, paddingVertical: 14, paddingHorizontal: 40, borderWidth: 1, borderColor: "#2A4560" },
   homeBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: "#A8B8CC" },
 
@@ -1348,7 +1348,7 @@ const styles = StyleSheet.create({
     flexDirection: "row", gap: 12, width: "100%",
   },
   exitActionBtn: {
-    flex: 1, paddingVertical: 14, borderRadius: 14,
+    flex: 1, minHeight: 48, borderRadius: 16,
     justifyContent: "center", alignItems: "center", borderWidth: 1.5,
   },
   exitBtnNo: {

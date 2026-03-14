@@ -378,11 +378,11 @@ const styles = StyleSheet.create({
   modalSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#6B7E91", marginBottom: 24 },
   modalButtons: { flexDirection: "row", gap: 12, width: "100%" },
   modalNo: {
-    flex: 1, paddingVertical: 14, borderRadius: 14,
+    flex: 1, minHeight: 48, justifyContent: "center", borderRadius: 16,
     backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
   },
-  modalNoText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#A8B8CC" },
-  modalYes: { flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: Colors.ruby, alignItems: "center" },
-  modalYesText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
+  modalNoText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#A8B8CC" },
+  modalYes: { flex: 1, minHeight: 48, justifyContent: "center", borderRadius: 16, backgroundColor: Colors.ruby, alignItems: "center" },
+  modalYesText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
 });

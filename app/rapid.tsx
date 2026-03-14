@@ -541,7 +541,7 @@ export default function RapidScreen() {
             </View>
           </View>
           <TouchableOpacity style={styles.homeBtn} onPress={() => router.replace("/")}>
-            <Ionicons name="home" size={18} color={Colors.black} />
+            <Ionicons name="home" size={18} color={"#000000"} />
             <Text style={styles.homeBtnText}>الرئيسية</Text>
           </TouchableOpacity>
         </View>
@@ -614,7 +614,7 @@ export default function RapidScreen() {
           disabled={wordSubmitted || !wordInput.trim() || timeLeft <= 0}
           activeOpacity={0.85}
         >
-          <Ionicons name="send" size={18} color={Colors.black} />
+          <Ionicons name="send" size={18} color={"#000000"} />
           <Text style={styles.submitBtnText}>{wordSubmitted ? "تم الإرسال" : "أرسل"}</Text>
         </TouchableOpacity>
       </View>
@@ -937,7 +937,7 @@ const styles = StyleSheet.create({
   letterText: {
     fontFamily: "Cairo_700Bold",
     fontSize: 52,
-    color: Colors.black,
+    color: "#000000",
   },
   inputArea: {
     width: "100%",
@@ -989,7 +989,7 @@ const styles = StyleSheet.create({
   submitBtnText: {
     fontFamily: "Cairo_700Bold",
     fontSize: 16,
-    color: Colors.black,
+    color: "#000000",
   },
 
   roundResultContent: {
@@ -1143,6 +1143,6 @@ const styles = StyleSheet.create({
   homeBtnText: {
     fontFamily: "Cairo_700Bold",
     fontSize: 16,
-    color: Colors.black,
+    color: "#000000",
   },
 });

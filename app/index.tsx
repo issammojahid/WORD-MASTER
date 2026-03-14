@@ -103,7 +103,7 @@ function LoginRewardPopup({ onClaim }: { onClaim: () => void }) {
 
         <TouchableOpacity
           style={{
-            width: "100%", paddingVertical: 14, borderRadius: 16,
+            width: "100%", minHeight: 48, justifyContent: "center", borderRadius: 16,
             backgroundColor: "#F5C842", alignItems: "center",
             shadowColor: "#F5C842", shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.5, shadowRadius: 10, elevation: 8,
@@ -572,14 +572,14 @@ const pStyles = StyleSheet.create({
   rewardText: { fontFamily: "Cairo_600SemiBold", fontSize: 14 },
   buttonsRow: { flexDirection: "row", gap: 12, width: "100%", marginBottom: 20 },
   skipBtn: {
-    flex: 1, paddingVertical: 13, borderRadius: 14,
+    flex: 1, minHeight: 48, justifyContent: "center", borderRadius: 16,
     backgroundColor: "rgba(0,0,0,0.32)", alignItems: "center",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
   },
   skipText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#A8B8CC" },
   playBtnWrapper: { flex: 2 },
   playBtn: {
-    flex: 1, paddingVertical: 14, borderRadius: 14,
+    flex: 1, minHeight: 48, borderRadius: 16,
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     overflow: "hidden",
     shadowOffset: { width: 0, height: 4 },
