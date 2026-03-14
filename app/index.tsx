@@ -609,8 +609,8 @@ type GameMode = {
 };
 
 // ── Shared card constants ─────────────────────────────────────────────────────
-const ICON_SZ    = 64;
-const ICON_OUTER = ICON_SZ + 22;
+const ICON_SZ    = 68;
+const ICON_OUTER = ICON_SZ + 24;
 
 // Deterministic background dot positions
 const DOT_CFG = Array.from({ length: 8 }, (_, i) => ({
@@ -622,14 +622,14 @@ const DOT_CFG = Array.from({ length: 8 }, (_, i) => ({
 
 // ── Shared card StyleSheet ─────────────────────────────────────────────────────
 const cSt = StyleSheet.create({
-  shineBar:  { position: "absolute", top: -30, width: 26, height: "160%" as any, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 6 },
-  btnWrap:   { marginTop: 2 },
+  shineBar:  { position: "absolute", top: -30, width: 26, height: "160%" as any, backgroundColor: "rgba(255,255,255,0.10)", borderRadius: 6 },
+  btnWrap:   { marginTop: 6, width: "100%" },
   btnShine:  { position: "absolute", top: -14, width: 18, height: 56, backgroundColor: "rgba(255,255,255,0.30)", borderRadius: 4 },
-  iconOuter: { width: ICON_OUTER, height: ICON_OUTER, alignItems: "center", justifyContent: "center", marginBottom: 2 },
+  iconOuter: { width: ICON_OUTER, height: ICON_OUTER, alignItems: "center", justifyContent: "center", marginBottom: 4 },
   iconCircle:{ width: ICON_SZ, height: ICON_SZ, borderRadius: ICON_SZ / 2, justifyContent: "center", alignItems: "center", overflow: "hidden" },
-  iconGlow:  { position: "absolute", width: ICON_OUTER, height: ICON_OUTER, borderRadius: ICON_OUTER / 2, opacity: 0.65 },
+  iconGlow:  { position: "absolute", width: ICON_OUTER, height: ICON_OUTER, borderRadius: ICON_OUTER / 2, opacity: 0.55 },
   sparkle:   { position: "absolute", fontSize: 9 },
-  inner:     { paddingHorizontal: 18, paddingVertical: 18, alignItems: "center", gap: 8, minHeight: 182, justifyContent: "center" },
+  inner:     { paddingHorizontal: 20, paddingVertical: 22, alignItems: "center", gap: 6, minHeight: 210, justifyContent: "center" },
 });
 
 // ── Background floating dot ────────────────────────────────────────────────────
@@ -844,8 +844,11 @@ const MODE_ICONS: Record<string, IconFC> = {
 };
 
 // ── Mode card ─────────────────────────────────────────────────────────────────
-const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: number; isActive: boolean }) => {
+const ModeCard = memo(({ item, index, isActive, isDark, theme }: {
+  item: GameMode; index: number; isActive: boolean; isDark: boolean; theme: any;
+}) => {
   const pressScl  = useRef(new Animated.Value(1)).current;
+  const activeScl = useRef(new Animated.Value(isActive ? 1.04 : 0.94)).current;
   const cardShine = useRef(new Animated.Value(-CARD_WIDTH)).current;
   const btnPulse  = useRef(new Animated.Value(1)).current;
   const btnShine  = useRef(new Animated.Value(-120)).current;
@@ -871,8 +874,8 @@ const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: numbe
     const t0 = setTimeout(() => runShine(), index * 500 + 700);
 
     Animated.loop(Animated.sequence([
-      Animated.timing(btnPulse, { toValue: 1.07, duration: 680, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      Animated.timing(btnPulse, { toValue: 1,    duration: 680, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(btnPulse, { toValue: 1.06, duration: 700, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(btnPulse, { toValue: 1,    duration: 700, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
     ])).start();
 
     const runBtnShine = () => {
@@ -886,13 +889,20 @@ const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: numbe
 
     return () => {
       clearTimeout(t0);
-      [pressScl, cardShine, btnPulse, btnShine, entrY, entrOp].forEach(a => a.stopAnimation());
+      [pressScl, activeScl, cardShine, btnPulse, btnShine, entrY, entrOp].forEach(a => a.stopAnimation());
     };
   }, []);
 
+  useEffect(() => {
+    Animated.spring(activeScl, {
+      toValue: isActive ? 1.04 : 0.93,
+      tension: 160, friction: 12, useNativeDriver: true,
+    }).start();
+  }, [isActive]);
+
   const onPressIn = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Animated.spring(pressScl, { toValue: 0.95, tension: 320, friction: 10, useNativeDriver: true }).start();
+    Animated.spring(pressScl, { toValue: 0.96, tension: 320, friction: 10, useNativeDriver: true }).start();
   };
   const onPressOut = () => {
     Animated.spring(pressScl, { toValue: 1, tension: 200, friction: 8, useNativeDriver: true }).start();
@@ -900,66 +910,88 @@ const ModeCard = memo(({ item, index, isActive }: { item: GameMode; index: numbe
 
   const Icon = MODE_ICONS[item.id] ?? QuickIcon;
 
+  const darkGrad: [string, string, string] = [item.accent + "38", "#14082A", "#0C051E"];
+  const lightGrad: [string, string, string] = [item.accent + "20", "#FFFFFF", "#F5F3FF"];
+  const cardGrad = isDark ? darkGrad : lightGrad;
+
   return (
     <Animated.View style={{
       width: CARD_WIDTH, marginHorizontal: CARD_MARGIN,
-      opacity: entrOp, borderRadius: 22,
+      opacity: entrOp, borderRadius: 24,
       shadowColor: item.accent,
-      shadowOffset: { width: 0, height: isActive ? 10 : 5 },
-      shadowOpacity: isActive ? 0.50 : 0.18,
-      shadowRadius: isActive ? 22 : 10,
-      elevation: isActive ? 14 : 5,
-      transform: [{ translateY: entrY }, { scale: pressScl }],
+      shadowOffset: { width: 0, height: isActive ? 12 : 4 },
+      shadowOpacity: isActive ? 0.45 : 0.12,
+      shadowRadius: isActive ? 24 : 8,
+      elevation: isActive ? 16 : 4,
+      transform: [{ translateY: entrY }, { scale: Animated.multiply(pressScl, activeScl) as any }],
     }}>
       <TouchableOpacity
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         onPress={item.onPress}
         activeOpacity={0.92}
-        style={{ borderRadius: 22, overflow: "hidden",
+        style={{
+          borderRadius: 24, overflow: "hidden",
           borderWidth: isActive ? 1.5 : 1,
-          borderColor: isActive ? item.accent + "88" : item.accent + "30",
+          borderColor: isActive ? item.accent + (isDark ? "90" : "60") : item.accent + (isDark ? "28" : "25"),
         }}
       >
-        {/* ── Single clean gradient — dark card with subtle accent at top ── */}
         <LinearGradient
-          colors={[item.accent + "28", "#1A0D35", "#100828"]}
+          colors={cardGrad}
           start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }}
           style={StyleSheet.absoluteFillObject}
         />
 
-        {/* ── Slim gloss sweep (decorative only) ── */}
+        {/* Top accent stripe */}
+        <LinearGradient
+          colors={[item.accent + "60", item.accent + "00"]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
+        />
+
+        {/* Gloss sweep */}
         <Animated.View
           pointerEvents="none"
           style={[cSt.shineBar, { transform: [{ translateX: cardShine }, { rotate: "20deg" }] }]}
         />
 
-        {/* ── Tiny floating dots (accent sparkle) ── */}
+        {/* Tiny floating dots */}
         {DOT_CFG.map((d, i) => (
           <CardDot key={i} x={d.x} bot={d.bot} sz={d.sz} del={d.del} accent={item.accent} />
         ))}
 
-        {/* ── Content ── */}
+        {/* Content */}
         <View style={cSt.inner}>
-          <Icon accent={item.accent} />
-          <Text style={[styles.modeTitle, { color: item.accent }]}>{item.title}</Text>
-          <Text style={styles.modeSubtitle}>{item.subtitle}</Text>
+          <View style={{
+            backgroundColor: item.accent + (isDark ? "18" : "14"),
+            borderRadius: ICON_OUTER / 2 + 10,
+            padding: 8,
+            borderWidth: 1.5,
+            borderColor: item.accent + (isDark ? "35" : "25"),
+          }}>
+            <Icon accent={item.accent} />
+          </View>
+
+          <Text style={[styles.modeTitle, { color: item.accent, marginTop: 4 }]}>{item.title}</Text>
+          <Text style={[styles.modeSubtitle, { color: theme.textSecondary }]}>{item.subtitle}</Text>
 
           {/* Play button */}
           <Animated.View style={[cSt.btnWrap, { transform: [{ scale: btnPulse }] }]}>
             <LinearGradient
-              colors={[item.accent + "FF", item.accent + "CC"]}
+              colors={[item.accent, item.accent + "CC"]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
               style={[styles.modePlayBtn, {
                 overflow: "hidden",
                 shadowColor: item.accent,
                 shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.45,
+                shadowOpacity: 0.5,
                 shadowRadius: 8,
                 elevation: 6,
+                width: "100%",
+                justifyContent: "center",
               }]}
             >
-              <Ionicons name="play" size={14} color="#fff" />
+              <Ionicons name="play-circle" size={17} color="#fff" />
               <Text style={styles.modePlayText}>العب الآن</Text>
               <Animated.View
                 pointerEvents="none"
@@ -1079,7 +1111,7 @@ export default function HomeScreen() {
     {
       id: "quick",
       title: "مباراة سريعة",
-      subtitle: "العب مع لاعبين عشوائيين فوراً",
+      subtitle: "العب فوراً وكسب العملات",
       emoji: "⚡",
       gradient: [Colors.gold + "30", Colors.gold + "10"],
       accent: LOGO.yellow,
@@ -1088,7 +1120,7 @@ export default function HomeScreen() {
     {
       id: "rapid",
       title: "الوضع السريع",
-      subtitle: "أول كلمة صحيحة تربح في 10 ثوان",
+      subtitle: "أول كلمة صحيحة تربح — 10 ثوانٍ فقط!",
       emoji: "🚀",
       gradient: [Colors.ruby + "30", Colors.ruby + "10"],
       accent: "#FF5733",
@@ -1096,8 +1128,8 @@ export default function HomeScreen() {
     },
     {
       id: "friends",
-      title: "اللعب مع الأصدقاء",
-      subtitle: "أنشئ غرفة وادعُ أصدقاءك",
+      title: "مع الأصدقاء",
+      subtitle: "أنشئ غرفة وادعُ أصدقاءك للمنافسة",
       emoji: "👥",
       gradient: [Colors.emerald + "30", Colors.emerald + "10"],
       accent: "#22C55E",
@@ -1106,7 +1138,7 @@ export default function HomeScreen() {
     {
       id: "tournament",
       title: "البطولات",
-      subtitle: "8 لاعبين، 3 جولات إقصائية، جائزة كبرى",
+      subtitle: "8 لاعبين — جولات إقصائية وجوائز كبرى",
       emoji: "🏆",
       gradient: ["#7C3AED30", "#7C3AED10"],
       accent: LOGO.purple,
@@ -1114,8 +1146,8 @@ export default function HomeScreen() {
     },
     {
       id: "ai",
-      title: "اللعب ضد الذكاء الاصطناعي",
-      subtitle: "تحدّى الذكاء الاصطناعي بمستويات صعوبة مختلفة",
+      title: "ضد الذكاء الاصطناعي",
+      subtitle: "تحدّى الذكاء الاصطناعي بمستويات متعددة",
       emoji: "🤖",
       gradient: ["#0EA5E930", "#0EA5E910"],
       accent: LOGO.cyan,
@@ -1259,7 +1291,7 @@ export default function HomeScreen() {
             scrollEventThrottle={16}
             keyExtractor={(item) => item.id}
             renderItem={({ item, index }) => (
-              <ModeCard item={item} index={index} isActive={activeModeIdx === index} />
+              <ModeCard item={item} index={index} isActive={activeModeIdx === index} isDark={isDark} theme={theme} />
             )}
           />
           <View style={styles.dotsRow}>
@@ -1268,6 +1300,7 @@ export default function HomeScreen() {
                 key={idx}
                 style={[
                   styles.dot,
+                  { backgroundColor: isDark ? "rgba(255,255,255,0.20)" : "rgba(0,0,0,0.15)" },
                   activeModeIdx === idx && [styles.dotActive, { backgroundColor: gameModes[idx].accent }],
                 ]}
               />
@@ -1484,18 +1517,18 @@ const styles = StyleSheet.create({
     color: LOGO.purple,
     marginBottom: 12, textAlign: "right", paddingHorizontal: 16,
   },
-  carouselContent: { paddingHorizontal: Math.max(0, Math.round((width - width * 0.63) / 2 - 10)) },
-  modeTitle: { fontFamily: "Cairo_700Bold", fontSize: 19, textAlign: "center" },
+  carouselContent: { paddingHorizontal: Math.max(0, Math.round((width - CARD_WIDTH) / 2 - CARD_MARGIN)) },
+  modeTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, textAlign: "center" },
   modeSubtitle: {
-    fontFamily: "Cairo_400Regular", fontSize: 13,
-    color: "rgba(210,210,230,0.88)", textAlign: "center",
-    lineHeight: 20, marginTop: 2,
+    fontFamily: "Cairo_400Regular", fontSize: 12,
+    textAlign: "center",
+    lineHeight: 18, marginTop: 2,
   },
   modePlayBtn: {
     flexDirection: "row", alignItems: "center", gap: 7,
-    paddingHorizontal: 22, paddingVertical: 10, borderRadius: 12, marginTop: 2,
+    paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14,
   },
-  modePlayText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" },
+  modePlayText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
 
   dotsRow: { flexDirection: "row", justifyContent: "center", gap: 6, marginTop: 12 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.20)" },
