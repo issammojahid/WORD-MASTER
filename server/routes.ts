@@ -1537,7 +1537,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const existingPlayers = await db.select().from(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, tournamentId));
       if (existingPlayers.some(p => p.playerId === playerId)) return res.status(400).json({ error: "already_joined" });
-      if (existingPlayers.length >= TOURNAMENT_SIZE) return res.status(400).json({ error: "tournament_full" });
+      const maxCapacity = t.maxPlayers ?? TOURNAMENT_SIZE;
+      if (existingPlayers.length >= maxCapacity) return res.status(400).json({ error: "tournament_full" });
 
       const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
       if (!profile || profile.coins < TOURNAMENT_ENTRY_FEE) return res.status(400).json({ error: "insufficient_coins" });

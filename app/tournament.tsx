@@ -796,7 +796,7 @@ export default function TournamentScreen() {
                   </View>
 
                   <View style={styles.progressBar}>
-                    <View style={[styles.progressFill, { width: `${Math.min((t.playerCount / Math.max(t.maxPlayers, 1)) * 100, 100)}%` as any }]} />
+                    <View style={[styles.progressFill, { width: `${Math.min((t.playerCount / Math.max(t.maxPlayers, 1)) * 100, 100)}%` }]} />
                   </View>
 
                   {t.joined ? (
