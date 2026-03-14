@@ -16,6 +16,7 @@ import * as Haptics from "expo-haptics";
 import { usePlayer, SKINS } from "@/contexts/PlayerContext";
 import Colors from "@/constants/colors";
 import { getSocket } from "@/services/socket";
+import { playSound } from "@/lib/sound-manager";
 
 const { width } = Dimensions.get("window");
 const ROUND_TIME = 10;
@@ -168,10 +169,12 @@ export default function RapidScreen() {
       if (data.valid) {
         setSubmissionFeedback("✓");
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        playSound("correct");
       } else {
         setWordSubmitted(false);
         setSubmissionFeedback(data.reason === "wrong_letter" ? "حرف خطأ!" : data.reason === "too_short" ? "قصيرة جداً!" : "غير صحيحة!");
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        playSound("wrong");
         setTimeout(() => setSubmissionFeedback(null), 1200);
       }
     };
@@ -221,6 +224,7 @@ export default function RapidScreen() {
       phaseRef.current = "game_over";
       rapidRoomIdRef.current = null;
       reportGameResult(won, myFinalScore, data.coinsEarned, data.xpEarned, tier?.entry);
+      playSound(won ? "win" : "lose");
       if (won) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }

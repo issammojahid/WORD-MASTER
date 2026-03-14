@@ -26,6 +26,7 @@ import Colors from "@/constants/colors";
 import { getSocket } from "@/services/socket";
 import { GAME_CATEGORIES, GameCategory } from "@/constants/i18n";
 import { getApiUrl } from "@/lib/query-client";
+import { playSound } from "@/lib/sound-manager";
 
 const ROUND_TIME = 50;
 const FREEZE_SECS = 4;
@@ -402,12 +403,19 @@ export default function GameScreen() {
     doSubmit(answersRef.current);
   };
 
+  const playEmojiSound = (message: string) => {
+    if (message.includes("😂")) playSound("laugh");
+    else if (message.includes("👏")) playSound("clap");
+    else if (message.includes("🔥")) playSound("fire");
+  };
+
   const sendQuickChat = (message: string) => {
     setShowChatPanel(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const bubbleId = Date.now().toString();
     const bubble: ChatBubble = { id: bubbleId, message, playerName: profile.name, isMe: true };
     addChatBubble(bubble);
+    playEmojiSound(message);
     socket.emit("quick_chat", { roomId, message, playerName: profile.name });
   };
 
@@ -471,6 +479,13 @@ export default function GameScreen() {
       setRoundResults(data.results);
       setGamePlayers(data.players);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const myResult = data.results.find((r) => r.playerId === socketId);
+      if (myResult) {
+        const hasCorrect = Object.values(myResult.status).some((s) => s === "correct");
+        const allBad = Object.values(myResult.status).every((s) => s === "empty" || s === "invalid");
+        if (hasCorrect) playSound("correct");
+        else if (allBad) playSound("wrong");
+      }
     });
 
     socket.on("new_round", (data: { letter: string; round: number; totalRounds: number }) => {
@@ -551,6 +566,7 @@ export default function GameScreen() {
         const sorted = [...data.players].sort((a, b) => b.score - a.score);
         const rank = sorted.findIndex((p) => p.id === socketId);
         const won = rank === 0;
+        playSound(won ? "win" : "lose");
         reportGameResult(won, me.score, me.coins, Math.floor(me.score / 2), gameCoinEntry).then((result) => {
           if (result.streakBonus > 0 || result.coinEntryReward > 0) {
             setStreakReward({ streakBonus: result.streakBonus, coinEntryReward: result.coinEntryReward });
@@ -580,6 +596,9 @@ export default function GameScreen() {
     socket.on("quick_chat", (data: { message: string; playerName: string }) => {
       const bubbleId = Date.now().toString() + Math.random();
       addChatBubble({ id: bubbleId, message: data.message, playerName: data.playerName, isMe: false });
+      if (data.message.includes("😂")) playSound("laugh");
+      else if (data.message.includes("👏")) playSound("clap");
+      else if (data.message.includes("🔥")) playSound("fire");
     });
 
     // Opponent disconnected without using forfeit — declare me winner

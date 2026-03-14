@@ -19,6 +19,7 @@ import { usePlayer } from "@/contexts/PlayerContext";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { GAME_CATEGORIES, type GameCategory, ARABIC_LETTERS } from "@/constants/i18n";
+import { playSound } from "@/lib/sound-manager";
 
 type Difficulty = "easy" | "normal" | "hard" | "legendary";
 
@@ -293,6 +294,10 @@ export default function AIGameScreen() {
       setPlayerTotalScore((prev) => prev + pRound);
       setAiTotalScore((prev) => prev + aRound);
       setPhase("roundResults");
+      const hasCorrect = results.some((r) => r.playerStatus === "correct");
+      const allBad = results.every((r) => r.playerStatus === "empty" || r.playerStatus === "invalid");
+      if (hasCorrect) playSound("correct");
+      else if (allBad) playSound("wrong");
     },
     []
   );
@@ -395,6 +400,7 @@ export default function AIGameScreen() {
     if (phase === "gameOver" && !gameOverCalcDone.current) {
       gameOverCalcDone.current = true;
       const won = playerTotalScore > aiTotalScore;
+      playSound(won ? "win" : "lose");
       const xpGain = Math.max(10, Math.floor(playerTotalScore / 2));
       addXp(xpGain);
       updateProfile({
