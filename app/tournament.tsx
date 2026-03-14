@@ -156,7 +156,7 @@ export default function TournamentScreen() {
           const myRes = await safeFetch(new URL(`/api/player/${playerId}/tournaments`, baseUrl).toString());
           if (myRes.ok) {
             const myData = await myRes.json();
-            myTournaments = Array.isArray(myData) ? myData.map((t: any) => t.id) : [];
+            myTournaments = Array.isArray(myData) ? myData.map((t: { id: string }) => t.id) : [];
           }
         } catch {}
         const enriched = Array.isArray(data) ? data.map((t: TournamentListItem) => ({
