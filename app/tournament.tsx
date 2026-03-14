@@ -40,6 +40,7 @@ const BK_LINE_OP = 0.8;
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ROUND_LABELS: Record<string, string> = {
+  round1: "الدور الأول",
   quarter: "ربع النهائي",
   semi: "نصف النهائي",
   final: "النهائي",
@@ -54,6 +55,7 @@ type TournamentListItem = {
   entryFee: number;
   prizePool: number;
   joined?: boolean;
+  hostPlayerName?: string | null;
 };
 
 type TournamentMatch = {
@@ -73,6 +75,7 @@ type TournamentDetail = {
   id: string;
   status: string;
   currentRound: string;
+  maxPlayers: number;
   players: { playerId: string; name: string; skin: string; eliminated: boolean }[];
   matches: TournamentMatch[];
   prizes: Record<string, number>;
@@ -93,6 +96,9 @@ export default function TournamentScreen() {
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedSize, setSelectedSize] = useState<4 | 8 | 16>(8);
+  const [creating, setCreating] = useState(false);
 
   // Mutable refs that always reflect the latest state values — used inside
   // socket handlers to avoid stale-closure bugs without re-registering listeners.
@@ -216,15 +222,12 @@ export default function TournamentScreen() {
       }
     };
 
-    const handleTournamentCreated = (data: { id: string; status: string; playerCount: number; maxPlayers: number; entryFee: number; prizePool: number; createdAt: string }) => {
+    const handleTournamentCreated = (data: { id: string; status: string; playerCount: number; maxPlayers: number; entryFee: number; prizePool: number; createdAt: string; hostPlayerName?: string | null }) => {
       // Add the new tournament to the list if it's not already there.
       // The creator's own event also arrives here — the setTournaments check
       // prevents duplicates.
       setTournaments(prev => {
         if (prev.some(t => t.id === data.id)) return prev;
-        // Insert before the __create__ placeholder (always last)
-        const withoutCreate = prev.filter(t => t.id !== "__create__");
-        const createSlot = prev.find(t => t.id === "__create__");
         const newTournament: TournamentListItem = {
           id: data.id,
           status: data.status,
@@ -233,10 +236,9 @@ export default function TournamentScreen() {
           entryFee: data.entryFee,
           prizePool: data.prizePool,
           joined: false,
+          hostPlayerName: data.hostPlayerName ?? null,
         };
-        return createSlot
-          ? [...withoutCreate, newTournament, createSlot]
-          : [...withoutCreate, newTournament];
+        return [...prev.filter(t => t.status !== "create"), newTournament];
       });
     };
 
@@ -247,9 +249,11 @@ export default function TournamentScreen() {
       setTournaments(prev => {
         const exists = prev.some(t => t.id === data.tournamentId);
         if (!exists) return prev; // Full re-fetch triggered below
-        return prev.map(t =>
-          t.id === data.tournamentId ? { ...t, playerCount: data.playerCount } : t
-        );
+        return prev.map(t => {
+          if (t.id !== data.tournamentId) return t;
+          const hostName = t.hostPlayerName ?? (data.playerCount === 1 ? data.playerName : null);
+          return { ...t, playerCount: data.playerCount, hostPlayerName: hostName };
+        });
       });
 
       // If the tournament wasn't in our local list yet, refresh the full list
@@ -318,6 +322,60 @@ export default function TournamentScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleCreateAndJoin = async (size: 4 | 8 | 16) => {
+    setShowCreateModal(false);
+    setCreating(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    try {
+      const baseUrl = getApiUrl();
+      const socket = getSocket();
+
+      const createRes = await fetch(
+        new URL("/api/tournament/create", baseUrl).toString(),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ maxPlayers: size }),
+        }
+      );
+      if (!createRes.ok) {
+        Alert.alert("خطأ", "فشل إنشاء الغرفة");
+        return;
+      }
+      const created = await createRes.json();
+
+      const joinRes = await fetch(
+        new URL(`/api/tournament/${created.id}/join`, baseUrl).toString(),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            playerId,
+            playerName: profile.name,
+            playerSkin: profile.equippedSkin,
+            socketId: socket.id,
+          }),
+        }
+      );
+      const joinData = await joinRes.json();
+      if (joinRes.ok) {
+        addCoins(-100);
+        setViewMode("detail");
+        fetchTournamentDetail(created.id);
+      } else {
+        const msg =
+          joinData.error === "insufficient_coins" ? "رصيدك غير كافي" :
+          joinData.error === "already_joined" ? "أنت مسجل بالفعل" :
+          "فشل الانضمام للغرفة";
+        Alert.alert("خطأ", msg);
+      }
+    } catch {
+      Alert.alert("خطأ", "فشل الاتصال بالخادم");
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const handleJoinTournament = (tournamentId: string) => {
     // Always show the confirm modal first — the actual API call (and tournament
     // creation if needed) happens in confirmJoin. This prevents the 0-player
@@ -333,27 +391,13 @@ export default function TournamentScreen() {
     setJoining(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
-    let tournamentId = selectedTournamentId;
+    const tournamentId = selectedTournamentId;
 
     try {
       const baseUrl = getApiUrl();
       const socket = getSocket();
 
-      // ── PART 1: create the tournament (if needed) ──────────────────────────
-      if (selectedTournamentId === "__create__") {
-        const createRes = await fetch(
-          new URL("/api/tournament/create", baseUrl).toString(),
-          { method: "POST" }
-        );
-        if (!createRes.ok) {
-          Alert.alert("خطأ", "فشل إنشاء البطولة");
-          return;
-        }
-        const created = await createRes.json();
-        tournamentId = created.id;
-      }
-
-      // ── PART 2: join the tournament ────────────────────────────────────────
+      // ── Join the tournament ────────────────────────────────────────────────
       const res = await fetch(
         new URL(`/api/tournament/${tournamentId}/join`, baseUrl).toString(),
         {
@@ -463,7 +507,7 @@ export default function TournamentScreen() {
             }]} />
             <Text style={styles.statusText}>
               {isOpen
-                ? `في انتظار اللاعبين (${activeTournament.players.length}/8)`
+                ? `في انتظار اللاعبين (${activeTournament.players.length}/${activeTournament.maxPlayers ?? 8})`
                 : isCompleted
                 ? "انتهت البطولة"
                 : `${currentRoundLabel} — جارٍ الآن`}
@@ -483,7 +527,7 @@ export default function TournamentScreen() {
           {!isOpen && activeTournament.matches.length > 0 && (
             <View style={styles.bracketSection}>
               <Text style={styles.bracketSectionTitle}>جدول البطولة</Text>
-              <TournamentBracket matches={activeTournament.matches} myId={playerId} />
+              <TournamentBracket matches={activeTournament.matches} myId={playerId} maxPlayers={activeTournament.maxPlayers} />
             </View>
           )}
 
@@ -492,7 +536,7 @@ export default function TournamentScreen() {
             <View style={[styles.waitingCard, { marginHorizontal: 16 }]}>
               <Text style={styles.waitingTitle}>في انتظار اللاعبين</Text>
               <View style={styles.waitingSlots}>
-                {Array.from({ length: 8 }).map((_, i) => {
+                {Array.from({ length: activeTournament.maxPlayers ?? 8 }).map((_, i) => {
                   const player = activeTournament.players[i];
                   const skin = player ? (SKINS.find(s => s.id === player.skin) || SKINS[0]) : null;
                   return (
@@ -636,66 +680,147 @@ export default function TournamentScreen() {
           </View>
         </View>
 
+        {/* Create Room Button */}
+        <TouchableOpacity
+          style={styles.createRoomBtn}
+          onPress={() => setShowCreateModal(true)}
+          activeOpacity={0.85}
+          disabled={creating || joining}
+        >
+          {creating ? (
+            <ActivityIndicator size="small" color={Colors.black} />
+          ) : (
+            <>
+              <Ionicons name="add-circle" size={22} color={Colors.black} />
+              <Text style={styles.createRoomBtnText}>إنشاء غرفة بطولة</Text>
+            </>
+          )}
+        </TouchableOpacity>
+
         {loading ? (
           <ActivityIndicator size="large" color={Colors.gold} style={{ marginTop: 40 }} />
         ) : (
           <>
-            <Text style={styles.listTitle}>البطولات المتاحة</Text>
-            {tournaments.map((t) => (
-              <TouchableOpacity
-                key={t.id}
-                style={[styles.tournamentCard, t.status === "create" && styles.tournamentCardCreate, t.joined && styles.tournamentCardJoined]}
-                onPress={() => {
-                  if (t.status === "create") {
-                    handleJoinTournament("__create__");
-                  } else if (t.joined) {
-                    openTournamentDetail(t.id);
-                  } else {
-                    handleJoinTournament(t.id);
-                  }
-                }}
-                activeOpacity={0.85}
-                disabled={joining}
-              >
-                {t.status === "create" ? (
-                  <>
-                    <Ionicons name="add-circle" size={32} color={Colors.gold} />
-                    <Text style={styles.createText}>إنشاء بطولة جديدة</Text>
-                    <Text style={styles.createSub}>رسم الدخول: 100 🪙</Text>
-                  </>
-                ) : (
-                  <>
-                    <View style={styles.tournamentCardHeader}>
-                      <Ionicons name="trophy" size={20} color={Colors.gold} />
+            <Text style={styles.listTitle}>الغرف المتاحة</Text>
+            {tournaments.filter(t => t.status !== "create").length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="trophy-outline" size={48} color={Colors.textMuted} />
+                <Text style={styles.emptyStateText}>لا توجد بطولات حالياً</Text>
+                <Text style={styles.emptyStateSub}>أنشئ غرفة وادعُ أصدقاءك!</Text>
+              </View>
+            ) : (
+              tournaments.filter(t => t.status !== "create").map((t) => (
+                <View key={t.id} style={[styles.tournamentCard, t.joined && styles.tournamentCardJoined]}>
+                  <View style={styles.tournamentCardHeader}>
+                    <Ionicons name="trophy" size={20} color={Colors.gold} />
+                    <View style={{ flex: 1 }}>
                       <Text style={styles.tournamentCardTitle}>
-                        {t.joined ? "بطولتك" : "بطولة مفتوحة"}
+                        {t.hostPlayerName ? `غرفة ${t.hostPlayerName}` : "بطولة مفتوحة"}
                       </Text>
-                      {t.joined && (
-                        <View style={styles.joinedBadge}>
-                          <Text style={styles.joinedBadgeText}>مشترك</Text>
-                        </View>
+                      <Text style={styles.tournamentCardSub}>
+                        رسم الدخول: {t.entryFee} 🪙
+                      </Text>
+                    </View>
+                    {t.joined && (
+                      <View style={styles.joinedBadge}>
+                        <Text style={styles.joinedBadgeText}>مشترك</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.tournamentCardStats}>
+                    <View style={styles.tournamentStat}>
+                      <Ionicons name="people" size={16} color={Colors.sapphire} />
+                      <Text style={styles.tournamentStatText}>
+                        {t.playerCount} / {t.maxPlayers} لاعب
+                      </Text>
+                    </View>
+                    <View style={[styles.statusPill, { backgroundColor: Colors.emerald + "22" }]}>
+                      <View style={[styles.statusDotSmall, { backgroundColor: Colors.emerald }]} />
+                      <Text style={[styles.statusPillText, { color: Colors.emerald }]}>في انتظار اللاعبين</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.progressBar}>
+                    <View style={[styles.progressFill, { width: `${Math.min((t.playerCount / Math.max(t.maxPlayers, 1)) * 100, 100)}%` as any }]} />
+                  </View>
+
+                  {t.joined ? (
+                    <TouchableOpacity
+                      style={styles.viewRoomBtn}
+                      onPress={() => openTournamentDetail(t.id)}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="eye-outline" size={16} color={Colors.gold} />
+                      <Text style={styles.viewRoomBtnText}>عرض الغرفة</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={[styles.joinRoomBtn, joining && { opacity: 0.6 }]}
+                      onPress={() => handleJoinTournament(t.id)}
+                      disabled={joining}
+                      activeOpacity={0.85}
+                    >
+                      {joining && selectedTournamentId === t.id ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <>
+                          <Ionicons name="enter-outline" size={16} color="#fff" />
+                          <Text style={styles.joinRoomBtnText}>انضم للغرفة</Text>
+                        </>
                       )}
-                    </View>
-                    <View style={styles.tournamentCardStats}>
-                      <View style={styles.tournamentStat}>
-                        <Ionicons name="people" size={16} color={Colors.sapphire} />
-                        <Text style={styles.tournamentStatText}>{t.playerCount}/{t.maxPlayers}</Text>
-                      </View>
-                      <View style={styles.tournamentStat}>
-                        <Ionicons name="star" size={16} color={Colors.gold} />
-                        <Text style={styles.tournamentStatText}>{t.entryFee} دخول</Text>
-                      </View>
-                    </View>
-                    <View style={styles.progressBar}>
-                      <View style={[styles.progressFill, { width: `${(t.playerCount / t.maxPlayers) * 100}%` }]} />
-                    </View>
-                  </>
-                )}
-              </TouchableOpacity>
-            ))}
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))
+            )}
           </>
         )}
       </ScrollView>
+
+      {/* ── Create Room Modal ── */}
+      <Modal visible={showCreateModal} transparent animationType="fade" onRequestClose={() => setShowCreateModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Ionicons name="add-circle" size={40} color={Colors.gold} style={{ marginBottom: 12 }} />
+            <Text style={styles.modalTitle}>إنشاء غرفة بطولة</Text>
+            <Text style={styles.modalSub}>اختر حجم البطولة</Text>
+            <Text style={styles.modalBalance}>رصيدك: {profile.coins} 🪙 · رسم الدخول: 100 🪙</Text>
+            {profile.coins < 100 && (
+              <Text style={styles.modalWarning}>رصيدك غير كافي!</Text>
+            )}
+            <View style={styles.sizePickerRow}>
+              {([4, 8, 16] as const).map((size) => (
+                <TouchableOpacity
+                  key={size}
+                  style={[styles.sizeOption, selectedSize === size && styles.sizeOptionSelected]}
+                  onPress={() => setSelectedSize(size)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.sizeOptionNum, selectedSize === size && styles.sizeOptionNumSelected]}>
+                    {size}
+                  </Text>
+                  <Text style={[styles.sizeOptionLabel, selectedSize === size && styles.sizeOptionLabelSelected]}>
+                    لاعب
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancel} onPress={() => setShowCreateModal(false)}>
+                <Text style={styles.modalCancelText}>إلغاء</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalConfirm, profile.coins < 100 && { opacity: 0.5 }]}
+                onPress={() => handleCreateAndJoin(selectedSize)}
+                disabled={profile.coins < 100}
+              >
+                <Text style={styles.modalConfirmText}>إنشاء والانضمام</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={showConfirmModal} transparent animationType="fade" onRequestClose={() => setShowConfirmModal(false)}>
         <View style={styles.modalOverlay}>
@@ -769,84 +894,102 @@ function BracketMatchCard({ match, myId }: { match: TournamentMatch | undefined;
 }
 
 // ─── Tournament Bracket Visualization ────────────────────────────────────────
-function TournamentBracket({ matches, myId }: { matches: TournamentMatch[]; myId: string }) {
+function TournamentBracket({ matches, myId, maxPlayers }: { matches: TournamentMatch[]; myId: string; maxPlayers?: number }) {
+  const size = maxPlayers ?? 8;
   const getM = (round: string, idx: number) =>
     matches.find(m => m.roundName === round && m.matchIndex === idx);
 
-  const qf0 = getM("quarter", 0);
-  const qf1 = getM("quarter", 1);
-  const qf2 = getM("quarter", 2);
-  const qf3 = getM("quarter", 3);
-  const sf0 = getM("semi", 0);
-  const sf1 = getM("semi", 1);
-  const fin = getM("final", 0);
+  // ── 8-player standard bracket ────────────────────────────────────────────
+  if (size === 8) {
+    const qf0 = getM("quarter", 0);
+    const qf1 = getM("quarter", 1);
+    const qf2 = getM("quarter", 2);
+    const qf3 = getM("quarter", 3);
+    const sf0 = getM("semi", 0);
+    const sf1 = getM("semi", 1);
+    const fin = getM("final", 0);
+
+    return (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}>
+        <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+          <View style={{ width: BK_MATCH_W }}>
+            <Text style={bk.colLabel}>ربع النهائي</Text>
+            <BracketMatchCard match={qf0} myId={myId} />
+            <View style={{ height: BK_QF_GAP }} />
+            <BracketMatchCard match={qf1} myId={myId} />
+          </View>
+          <View style={{ width: BK_CONN_W, height: BK_CONN_H, marginTop: BK_CONN_TOP }}>
+            <View style={{ flex: 1, borderTopWidth: 2, borderRightWidth: 2, borderColor: BK_LINE, opacity: BK_LINE_OP }} />
+            <View style={{ flex: 1, borderBottomWidth: 2, borderRightWidth: 2, borderColor: BK_LINE, opacity: BK_LINE_OP }} />
+          </View>
+          <View style={{ width: BK_MATCH_W, height: BK_SEC_H }}>
+            <Text style={bk.colLabel}>نصف النهائي</Text>
+            <View style={{ flex: 1, justifyContent: "center" }}>
+              <BracketMatchCard match={sf0} myId={myId} />
+            </View>
+          </View>
+          <View style={{ width: BK_CONN_W, height: 2, backgroundColor: BK_LINE, opacity: BK_LINE_OP, marginTop: BK_CENTER_LINE_MT }} />
+          <View style={{ width: BK_MATCH_W, height: BK_SEC_H }}>
+            <Text style={bk.colLabel}>النهائي</Text>
+            <View style={{ flex: 1, justifyContent: "center" }}>
+              <BracketMatchCard match={fin} myId={myId} />
+            </View>
+          </View>
+          <View style={{ width: BK_CONN_W, height: 2, backgroundColor: BK_LINE, opacity: BK_LINE_OP, marginTop: BK_CENTER_LINE_MT }} />
+          <View style={{ width: BK_MATCH_W, height: BK_SEC_H }}>
+            <Text style={bk.colLabel}>نصف النهائي</Text>
+            <View style={{ flex: 1, justifyContent: "center" }}>
+              <BracketMatchCard match={sf1} myId={myId} />
+            </View>
+          </View>
+          <View style={{ width: BK_CONN_W, height: BK_CONN_H, marginTop: BK_CONN_TOP }}>
+            <View style={{ flex: 1, borderTopWidth: 2, borderLeftWidth: 2, borderColor: BK_LINE, opacity: BK_LINE_OP }} />
+            <View style={{ flex: 1, borderBottomWidth: 2, borderLeftWidth: 2, borderColor: BK_LINE, opacity: BK_LINE_OP }} />
+          </View>
+          <View style={{ width: BK_MATCH_W }}>
+            <Text style={bk.colLabel}>ربع النهائي</Text>
+            <BracketMatchCard match={qf2} myId={myId} />
+            <View style={{ height: BK_QF_GAP }} />
+            <BracketMatchCard match={qf3} myId={myId} />
+          </View>
+        </View>
+      </ScrollView>
+    );
+  }
+
+  // ── Generic bracket for 4 or 16 players ─────────────────────────────────
+  const allRounds = Array.from(new Set(matches.map(m => m.roundName)))
+    .sort((a, b) => {
+      const countA = matches.filter(m => m.roundName === a).length;
+      const countB = matches.filter(m => m.roundName === b).length;
+      return countB - countA; // more matches = earlier round
+    });
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}
-    >
-      <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
-
-        {/* ── Left QF Column ── */}
-        <View style={{ width: BK_MATCH_W }}>
-          <Text style={bk.colLabel}>ربع النهائي</Text>
-          <BracketMatchCard match={qf0} myId={myId} />
-          <View style={{ height: BK_QF_GAP }} />
-          <BracketMatchCard match={qf1} myId={myId} />
-        </View>
-
-        {/* ── Left QF → SF Connector ── */}
-        <View style={{ width: BK_CONN_W, height: BK_CONN_H, marginTop: BK_CONN_TOP }}>
-          <View style={{ flex: 1, borderTopWidth: 2, borderRightWidth: 2, borderColor: BK_LINE, opacity: BK_LINE_OP }} />
-          <View style={{ flex: 1, borderBottomWidth: 2, borderRightWidth: 2, borderColor: BK_LINE, opacity: BK_LINE_OP }} />
-        </View>
-
-        {/* ── Left Semi Column ── */}
-        <View style={{ width: BK_MATCH_W, height: BK_SEC_H }}>
-          <Text style={bk.colLabel}>نصف النهائي</Text>
-          <View style={{ flex: 1, justifyContent: "center" }}>
-            <BracketMatchCard match={sf0} myId={myId} />
-          </View>
-        </View>
-
-        {/* ── SF → Final connector (horizontal line) ── */}
-        <View style={{ width: BK_CONN_W, height: 2, backgroundColor: BK_LINE, opacity: BK_LINE_OP, marginTop: BK_CENTER_LINE_MT }} />
-
-        {/* ── Final Column ── */}
-        <View style={{ width: BK_MATCH_W, height: BK_SEC_H }}>
-          <Text style={bk.colLabel}>النهائي</Text>
-          <View style={{ flex: 1, justifyContent: "center" }}>
-            <BracketMatchCard match={fin} myId={myId} />
-          </View>
-        </View>
-
-        {/* ── Final → SF connector (horizontal line) ── */}
-        <View style={{ width: BK_CONN_W, height: 2, backgroundColor: BK_LINE, opacity: BK_LINE_OP, marginTop: BK_CENTER_LINE_MT }} />
-
-        {/* ── Right Semi Column ── */}
-        <View style={{ width: BK_MATCH_W, height: BK_SEC_H }}>
-          <Text style={bk.colLabel}>نصف النهائي</Text>
-          <View style={{ flex: 1, justifyContent: "center" }}>
-            <BracketMatchCard match={sf1} myId={myId} />
-          </View>
-        </View>
-
-        {/* ── Right SF → QF Connector (mirror) ── */}
-        <View style={{ width: BK_CONN_W, height: BK_CONN_H, marginTop: BK_CONN_TOP }}>
-          <View style={{ flex: 1, borderTopWidth: 2, borderLeftWidth: 2, borderColor: BK_LINE, opacity: BK_LINE_OP }} />
-          <View style={{ flex: 1, borderBottomWidth: 2, borderLeftWidth: 2, borderColor: BK_LINE, opacity: BK_LINE_OP }} />
-        </View>
-
-        {/* ── Right QF Column ── */}
-        <View style={{ width: BK_MATCH_W }}>
-          <Text style={bk.colLabel}>ربع النهائي</Text>
-          <BracketMatchCard match={qf2} myId={myId} />
-          <View style={{ height: BK_QF_GAP }} />
-          <BracketMatchCard match={qf3} myId={myId} />
-        </View>
-
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}>
+      <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 4 }}>
+        {allRounds.map((roundName, colIdx) => {
+          const roundMatches = matches
+            .filter(m => m.roundName === roundName)
+            .sort((a, b) => a.matchIndex - b.matchIndex);
+          const label = ROUND_LABELS[roundName] || roundName;
+          return (
+            <React.Fragment key={roundName}>
+              <View style={{ width: BK_MATCH_W }}>
+                <Text style={bk.colLabel}>{label}</Text>
+                {roundMatches.map((m, i) => (
+                  <React.Fragment key={m.id}>
+                    <BracketMatchCard match={m} myId={myId} />
+                    {i < roundMatches.length - 1 && <View style={{ height: BK_QF_GAP }} />}
+                  </React.Fragment>
+                ))}
+              </View>
+              {colIdx < allRounds.length - 1 && (
+                <View style={{ width: BK_CONN_W, height: 2, backgroundColor: BK_LINE, opacity: BK_LINE_OP, marginTop: BK_CENTER_LINE_MT }} />
+              )}
+            </React.Fragment>
+          );
+        })}
       </View>
     </ScrollView>
   );
@@ -1112,4 +1255,59 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.ruby, alignItems: "center",
   },
   modalConfirmLeaveText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
+
+  // Create Room button
+  createRoomBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, backgroundColor: Colors.gold, borderRadius: 16,
+    paddingVertical: 14, marginBottom: 16,
+  },
+  createRoomBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.black },
+
+  // Empty state
+  emptyState: {
+    alignItems: "center", paddingVertical: 48, gap: 8,
+  },
+  emptyStateText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.textMuted },
+  emptyStateSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
+
+  // Room card sub-text
+  tournamentCardSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+
+  // Status pill
+  statusPill: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8,
+  },
+  statusDotSmall: { width: 6, height: 6, borderRadius: 3 },
+  statusPillText: { fontFamily: "Cairo_600SemiBold", fontSize: 11 },
+
+  // Join / View room buttons
+  joinRoomBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 6, marginTop: 10, paddingVertical: 10, borderRadius: 12,
+    backgroundColor: Colors.sapphire,
+  },
+  joinRoomBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
+  viewRoomBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 6, marginTop: 10, paddingVertical: 10, borderRadius: 12,
+    borderWidth: 1.5, borderColor: Colors.gold + "60",
+    backgroundColor: Colors.gold + "10",
+  },
+  viewRoomBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.gold },
+
+  // Size picker in create modal
+  sizePickerRow: { flexDirection: "row", gap: 10, marginTop: 16, marginBottom: 4 },
+  sizeOption: {
+    flex: 1, alignItems: "center", paddingVertical: 14, borderRadius: 14,
+    backgroundColor: Colors.card, borderWidth: 1.5, borderColor: Colors.cardBorder,
+  },
+  sizeOptionSelected: {
+    borderColor: Colors.gold, backgroundColor: Colors.gold + "18",
+  },
+  sizeOptionNum: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.textMuted },
+  sizeOptionNumSelected: { color: Colors.gold },
+  sizeOptionLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+  sizeOptionLabelSelected: { color: Colors.gold },
 });

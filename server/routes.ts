@@ -18,7 +18,7 @@ import { validateWord, CATEGORY_MAP, getWordsForLetter, type WordCategory } from
 import { ARABIC_LETTERS } from "./gameLogic";
 import { db } from "./db";
 import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, playerDailyTasks, playerAchievements, roomInvites } from "@shared/schema";
-import { eq, and, desc, or, ilike, ne } from "drizzle-orm";
+import { eq, and, desc, asc, or, ilike, ne } from "drizzle-orm";
 
 // ── DAILY TASK DEFINITIONS ──────────────────────────────────────────────────
 const DAILY_TASK_DEFS = [
@@ -101,10 +101,20 @@ const TOURNAMENT_SIZE = 8;
 const TOURNAMENT_ENTRY_FEE = 100;
 const TOURNAMENT_PRIZES = { 1: 500, 2: 200, 3: 100 };
 const TOURNAMENT_XP = { 1: 150, 2: 75, 3: 50 };
-const TOURNAMENT_ROUNDS = ["quarter", "semi", "final"] as const;
+
+// Returns ordered round names from first round → final for a given player count.
+// 4 players:  ["semi", "final"]
+// 8 players:  ["quarter", "semi", "final"]
+// 16 players: ["round1", "quarter", "semi", "final"]
+function getTournamentRounds(maxPlayers: number): string[] {
+  if (maxPlayers === 4) return ["semi", "final"];
+  if (maxPlayers === 16) return ["round1", "quarter", "semi", "final"];
+  return ["quarter", "semi", "final"];
+}
 
 type ActiveTournament = {
   id: string;
+  maxPlayers: number;
   players: { playerId: string; socketId: string; name: string; skin: string; eliminated: boolean }[];
   matches: {
     id: string;
@@ -128,52 +138,34 @@ const playerTournamentMap = new Map<string, string>();
 const roomTournamentMap = new Map<string, { tournamentId: string; matchId: string }>();
 const tournamentPlayerSocketMap = new Map<string, string>();
 
-function generateTournamentBracket(tournamentId: string, players: { playerId: string; name: string }[]): ActiveTournament["matches"] {
+function generateTournamentBracket(tournamentId: string, players: { playerId: string; name: string }[], maxPlayers: number = 8): ActiveTournament["matches"] {
   const shuffled = [...players].sort(() => Math.random() - 0.5);
+  const rounds = getTournamentRounds(maxPlayers);
   const matches: ActiveTournament["matches"] = [];
-  for (let i = 0; i < 4; i++) {
-    matches.push({
-      id: `${tournamentId}_q${i}`,
-      roundName: "quarter",
-      matchIndex: i,
-      player1Id: shuffled[i * 2]?.playerId || null,
-      player1Name: shuffled[i * 2]?.name || null,
-      player2Id: shuffled[i * 2 + 1]?.playerId || null,
-      player2Name: shuffled[i * 2 + 1]?.name || null,
-      winnerId: null,
-      winnerName: null,
-      roomId: null,
-      status: "pending",
-    });
+
+  for (let r = 0; r < rounds.length; r++) {
+    const roundName = rounds[r];
+    const matchCount = maxPlayers / Math.pow(2, r + 1);
+    const isFirstRound = r === 0;
+    const prefix = roundName === "final" ? "f" : roundName === "semi" ? "s" : roundName === "quarter" ? "q" : "r";
+
+    for (let i = 0; i < matchCount; i++) {
+      matches.push({
+        id: `${tournamentId}_${prefix}${i}`,
+        roundName,
+        matchIndex: i,
+        player1Id: isFirstRound ? (shuffled[i * 2]?.playerId || null) : null,
+        player1Name: isFirstRound ? (shuffled[i * 2]?.name || null) : null,
+        player2Id: isFirstRound ? (shuffled[i * 2 + 1]?.playerId || null) : null,
+        player2Name: isFirstRound ? (shuffled[i * 2 + 1]?.name || null) : null,
+        winnerId: null,
+        winnerName: null,
+        roomId: null,
+        status: "pending",
+      });
+    }
   }
-  for (let i = 0; i < 2; i++) {
-    matches.push({
-      id: `${tournamentId}_s${i}`,
-      roundName: "semi",
-      matchIndex: i,
-      player1Id: null,
-      player1Name: null,
-      player2Id: null,
-      player2Name: null,
-      winnerId: null,
-      winnerName: null,
-      roomId: null,
-      status: "pending",
-    });
-  }
-  matches.push({
-    id: `${tournamentId}_f0`,
-    roundName: "final",
-    matchIndex: 0,
-    player1Id: null,
-    player1Name: null,
-    player2Id: null,
-    player2Name: null,
-    winnerId: null,
-    winnerName: null,
-    roomId: null,
-    status: "pending",
-  });
+
   return matches;
 }
 
@@ -190,41 +182,33 @@ function advanceTournamentWinner(tournament: ActiveTournament, matchId: string, 
     if (loserPlayer) loserPlayer.eliminated = true;
   }
 
-  if (match.roundName === "quarter") {
-    const semiIndex = Math.floor(match.matchIndex / 2);
-    const semiMatch = tournament.matches.find(m => m.roundName === "semi" && m.matchIndex === semiIndex);
-    if (semiMatch) {
-      if (match.matchIndex % 2 === 0) {
-        semiMatch.player1Id = winnerId;
-        semiMatch.player1Name = winnerName;
-      } else {
-        semiMatch.player2Id = winnerId;
-        semiMatch.player2Name = winnerName;
-      }
-    }
-  } else if (match.roundName === "semi") {
-    const finalMatch = tournament.matches.find(m => m.roundName === "final");
-    if (finalMatch) {
-      if (match.matchIndex === 0) {
-        finalMatch.player1Id = winnerId;
-        finalMatch.player1Name = winnerName;
-      } else {
-        finalMatch.player2Id = winnerId;
-        finalMatch.player2Name = winnerName;
-      }
-    }
-  } else if (match.roundName === "final") {
+  const rounds = getTournamentRounds(tournament.maxPlayers);
+  const currentRoundIdx = rounds.indexOf(match.roundName);
+
+  if (match.roundName === "final") {
     tournament.status = "completed";
     tournament.currentRound = "completed";
+  } else if (currentRoundIdx >= 0 && currentRoundIdx < rounds.length - 1) {
+    const nextRoundName = rounds[currentRoundIdx + 1];
+    const nextMatchIndex = Math.floor(match.matchIndex / 2);
+    const nextMatch = tournament.matches.find(m => m.roundName === nextRoundName && m.matchIndex === nextMatchIndex);
+    if (nextMatch) {
+      if (match.matchIndex % 2 === 0) {
+        nextMatch.player1Id = winnerId;
+        nextMatch.player1Name = winnerName;
+      } else {
+        nextMatch.player2Id = winnerId;
+        nextMatch.player2Name = winnerName;
+      }
+    }
   }
 
   const currentRoundMatches = tournament.matches.filter(m => m.roundName === tournament.currentRound);
   const allDone = currentRoundMatches.every(m => m.status === "completed");
   if (allDone && tournament.status !== "completed") {
-    const roundOrder = ["quarter", "semi", "final"];
-    const currentIdx = roundOrder.indexOf(tournament.currentRound);
-    if (currentIdx < roundOrder.length - 1) {
-      tournament.currentRound = roundOrder[currentIdx + 1];
+    const currentIdx = rounds.indexOf(tournament.currentRound);
+    if (currentIdx >= 0 && currentIdx < rounds.length - 1) {
+      tournament.currentRound = rounds[currentIdx + 1];
     }
   }
 }
@@ -1449,10 +1433,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const openTournaments = await db.select().from(tournaments).where(eq(tournaments.status, "open")).orderBy(desc(tournaments.createdAt));
       const result = [];
       for (const t of openTournaments) {
-        const players = await db.select().from(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, t.id));
-        result.push({ ...t, playerCount: players.length, maxPlayers: TOURNAMENT_SIZE, entryFee: t.entryFee });
+        const players = await db.select().from(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, t.id)).orderBy(asc(tournamentPlayers.joinedAt));
+        const maxP = t.maxPlayers ?? TOURNAMENT_SIZE;
+        result.push({
+          ...t,
+          playerCount: players.length,
+          maxPlayers: maxP,
+          entryFee: t.entryFee,
+          hostPlayerName: players[0]?.playerName ?? null,
+        });
       }
-      result.push({ id: "__create__", status: "create", playerCount: 0, maxPlayers: TOURNAMENT_SIZE, entryFee: TOURNAMENT_ENTRY_FEE, prizePool: 0, createdAt: new Date().toISOString() });
       res.json(result);
     } catch (e) {
       console.error("GET /api/tournaments/open error:", e);
@@ -1469,6 +1459,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: active.id,
           status: active.status,
           currentRound: active.currentRound,
+          maxPlayers: active.maxPlayers,
           players: active.players.map(p => ({ playerId: p.playerId, name: p.name, skin: p.skin, eliminated: p.eliminated })),
           matches: active.matches,
           prizes: TOURNAMENT_PRIZES,
@@ -1502,22 +1493,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/tournament/create", async (_req, res) => {
+  app.post("/api/tournament/create", async (req, res) => {
     try {
+      const rawSize = Number(req.body?.maxPlayers);
+      const maxPlayers = [4, 8, 16].includes(rawSize) ? rawSize : 8;
       const [t] = await db.insert(tournaments).values({
         entryFee: TOURNAMENT_ENTRY_FEE,
         prizePool: 0,
         status: "open",
+        maxPlayers,
       }).returning();
       // Broadcast to all clients so the new tournament appears in their list immediately
       io.emit("tournament_created", {
         id: t.id,
         status: "open",
         playerCount: 0,
-        maxPlayers: TOURNAMENT_SIZE,
+        maxPlayers,
         entryFee: TOURNAMENT_ENTRY_FEE,
         prizePool: 0,
         createdAt: t.createdAt,
+        hostPlayerName: null,
       });
       res.json(t);
     } catch (e) {
@@ -1557,11 +1552,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await db.update(tournaments).set({ prizePool: newPrizePool }).where(eq(tournaments.id, tournamentId));
 
       const allPlayers = await db.select().from(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, tournamentId));
+      const maxP = t.maxPlayers ?? TOURNAMENT_SIZE;
 
-      if (allPlayers.length >= TOURNAMENT_SIZE) {
+      if (allPlayers.length >= maxP) {
         await db.update(tournaments).set({ status: "in_progress", startedAt: new Date() }).where(eq(tournaments.id, tournamentId));
 
-        const bracket = generateTournamentBracket(tournamentId, allPlayers.map(p => ({ playerId: p.playerId, name: p.playerName })));
+        const bracket = generateTournamentBracket(tournamentId, allPlayers.map(p => ({ playerId: p.playerId, name: p.playerName })), maxP);
         for (const m of bracket) {
           await db.insert(tournamentMatches).values({
             id: m.id,
@@ -1583,11 +1579,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           skin: p.playerSkin,
           eliminated: false,
         }));
+        const rounds = getTournamentRounds(maxP);
         const active: ActiveTournament = {
           id: tournamentId,
+          maxPlayers: maxP,
           players: activePlayers,
           matches: bracket,
-          currentRound: "quarter",
+          currentRound: rounds[0],
           status: "in_progress",
         };
         activeTournaments.set(tournamentId, active);
@@ -1600,7 +1598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         setTimeout(() => startTournamentRoundMatches(io, active), 3000);
       }
 
-      io.emit("tournament_player_joined", { tournamentId, playerCount: allPlayers.length, maxPlayers: TOURNAMENT_SIZE, playerName });
+      io.emit("tournament_player_joined", { tournamentId, playerCount: allPlayers.length, maxPlayers: maxP, playerName });
 
       res.json({ success: true, playerCount: allPlayers.length, coins: profile.coins - TOURNAMENT_ENTRY_FEE });
     } catch (e) {
@@ -1663,10 +1661,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         io.emit("tournament_player_left", {
           tournamentId,
           playerCount: remainingPlayers.length,
-          maxPlayers: TOURNAMENT_SIZE,
+          maxPlayers: t.maxPlayers ?? TOURNAMENT_SIZE,
           playerName,
         });
-        console.log(`[leave] Player ${playerName} left tournament ${tournamentId} — ${remainingPlayers.length}/${TOURNAMENT_SIZE} remaining`);
+        console.log(`[leave] Player ${playerName} left tournament ${tournamentId} — ${remainingPlayers.length}/${t.maxPlayers ?? TOURNAMENT_SIZE} remaining`);
       }
 
       const [updatedProfile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
