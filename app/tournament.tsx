@@ -17,8 +17,37 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { usePlayer, SKINS } from "@/contexts/PlayerContext";
 import Colors from "@/constants/colors";
+import { fetch } from "expo/fetch";
 import { getApiUrl, apiRequest } from "@/lib/query-client";
 import { getSocket } from "@/services/socket";
+
+// ── Reliable fetch for APK builds ────────────────────────────────────────────
+// Uses expo/fetch (same as the rest of the app) and adds a timeout + retry
+// so that slow Railway cold-starts don't immediately surface as errors.
+async function safeFetch(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs = 15_000,
+  retries = 2
+): Promise<Response> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+      return res;
+    } catch (err) {
+      clearTimeout(timer);
+      lastErr = err;
+      if (attempt < retries) {
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
 
 // ─── Bracket layout constants ────────────────────────────────────────────────
 const BK_MATCH_H = 62;
@@ -119,21 +148,21 @@ export default function TournamentScreen() {
   const fetchTournaments = useCallback(async () => {
     try {
       const baseUrl = getApiUrl();
-      const res = await fetch(new URL("/api/tournaments/open", baseUrl).toString());
+      const res = await safeFetch(new URL("/api/tournaments/open", baseUrl).toString());
       if (res.ok) {
         const data = await res.json();
         let myTournaments: string[] = [];
         try {
-          const myRes = await fetch(new URL(`/api/player/${playerId}/tournaments`, baseUrl).toString());
+          const myRes = await safeFetch(new URL(`/api/player/${playerId}/tournaments`, baseUrl).toString());
           if (myRes.ok) {
             const myData = await myRes.json();
-            myTournaments = myData.map((t: any) => t.id);
+            myTournaments = Array.isArray(myData) ? myData.map((t: any) => t.id) : [];
           }
         } catch {}
-        const enriched = data.map((t: TournamentListItem) => ({
+        const enriched = Array.isArray(data) ? data.map((t: TournamentListItem) => ({
           ...t,
           joined: myTournaments.includes(t.id),
-        }));
+        })) : [];
         setTournaments(enriched);
       }
     } catch {}
@@ -144,7 +173,7 @@ export default function TournamentScreen() {
   const fetchTournamentDetail = useCallback(async (id: string) => {
     try {
       const baseUrl = getApiUrl();
-      const res = await fetch(new URL(`/api/tournament/${id}`, baseUrl).toString());
+      const res = await safeFetch(new URL(`/api/tournament/${id}`, baseUrl).toString());
       if (res.ok) {
         const data = await res.json();
         setActiveTournament(data);
@@ -325,52 +354,77 @@ export default function TournamentScreen() {
   const handleCreateAndJoin = async (size: 4 | 8 | 16) => {
     setShowCreateModal(false);
     setCreating(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); } catch {}
     try {
       const baseUrl = getApiUrl();
       const socket = getSocket();
 
-      const createRes = await fetch(
-        new URL("/api/tournament/create", baseUrl).toString(),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ maxPlayers: size }),
+      // ── Step 1: Create the tournament ───────────────────────────────────
+      let created: { id: string } | null = null;
+      try {
+        const createRes = await safeFetch(
+          new URL("/api/tournament/create", baseUrl).toString(),
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ maxPlayers: size }),
+          }
+        );
+        if (!createRes.ok) {
+          const errBody = await createRes.json().catch(() => ({}));
+          const msg = errBody?.error === "server_error"
+            ? "تعذر إنشاء الغرفة، حاول مرة أخرى"
+            : "تعذر إنشاء الغرفة، حاول مرة أخرى";
+          Alert.alert("خطأ", msg);
+          return;
         }
-      );
-      if (!createRes.ok) {
-        Alert.alert("خطأ", "فشل إنشاء الغرفة");
+        created = await createRes.json();
+      } catch {
+        Alert.alert("خطأ", "تعذر الاتصال بالخادم، تحقق من اتصالك وحاول مرة أخرى");
         return;
       }
-      const created = await createRes.json();
 
-      const joinRes = await fetch(
-        new URL(`/api/tournament/${created.id}/join`, baseUrl).toString(),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            playerId,
-            playerName: profile.name,
-            playerSkin: profile.equippedSkin,
-            socketId: socket.id,
-          }),
+      if (!created?.id) {
+        Alert.alert("خطأ", "تعذر إنشاء الغرفة، حاول مرة أخرى");
+        return;
+      }
+
+      // ── Step 2: Join the newly created tournament ────────────────────────
+      // socket.id may be undefined if the socket hasn't connected yet; the
+      // server accepts an empty string and will assign the socket later.
+      const socketId = socket.id ?? "";
+      try {
+        const joinRes = await safeFetch(
+          new URL(`/api/tournament/${created.id}/join`, baseUrl).toString(),
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              playerId,
+              playerName: profile.name,
+              playerSkin: profile.equippedSkin,
+              socketId,
+            }),
+          }
+        );
+        const joinData = await joinRes.json().catch(() => ({}));
+        if (joinRes.ok) {
+          addCoins(-100);
+          setViewMode("detail");
+          fetchTournamentDetail(created.id);
+        } else {
+          const msg =
+            joinData.error === "insufficient_coins" ? "رصيدك غير كافي" :
+            joinData.error === "already_joined"     ? "أنت مسجل بالفعل" :
+            joinData.error === "tournament_full"    ? "البطولة ممتلئة" :
+                                                     "تعذر الانضمام للغرفة، حاول مرة أخرى";
+          Alert.alert("خطأ", msg);
         }
-      );
-      const joinData = await joinRes.json();
-      if (joinRes.ok) {
-        addCoins(-100);
-        setViewMode("detail");
-        fetchTournamentDetail(created.id);
-      } else {
-        const msg =
-          joinData.error === "insufficient_coins" ? "رصيدك غير كافي" :
-          joinData.error === "already_joined" ? "أنت مسجل بالفعل" :
-          "فشل الانضمام للغرفة";
-        Alert.alert("خطأ", msg);
+      } catch {
+        Alert.alert("خطأ", "تعذر الاتصال بالخادم، تحقق من اتصالك وحاول مرة أخرى");
       }
     } catch {
-      Alert.alert("خطأ", "فشل الاتصال بالخادم");
+      Alert.alert("خطأ", "تعذر إنشاء الغرفة، حاول مرة أخرى");
     } finally {
       setCreating(false);
     }
@@ -398,7 +452,7 @@ export default function TournamentScreen() {
       const socket = getSocket();
 
       // ── Join the tournament ────────────────────────────────────────────────
-      const res = await fetch(
+      const res = await safeFetch(
         new URL(`/api/tournament/${tournamentId}/join`, baseUrl).toString(),
         {
           method: "POST",
@@ -407,11 +461,11 @@ export default function TournamentScreen() {
             playerId,
             playerName: profile.name,
             playerSkin: profile.equippedSkin,
-            socketId: socket.id,
+            socketId: socket.id ?? "",
           }),
         }
       );
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         // Reflect the entry fee deduction immediately so the coin balance
         // is correct before the server profile is re-synced at game end.
@@ -447,7 +501,7 @@ export default function TournamentScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       const baseUrl = getApiUrl();
-      const res = await fetch(
+      const res = await safeFetch(
         new URL(`/api/tournament/${activeTournament.id}/leave`, baseUrl).toString(),
         {
           method: "POST",
@@ -455,7 +509,7 @@ export default function TournamentScreen() {
           body: JSON.stringify({ playerId }),
         }
       );
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         // Refund reflected locally
         addCoins(100);
