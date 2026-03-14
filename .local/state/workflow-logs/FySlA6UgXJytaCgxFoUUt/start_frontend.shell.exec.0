@@ -1,0 +1,48 @@
+Starting project at /home/runner/workspace
+React Compiler enabled
+Metro is running in CI mode, reloads are disabled. Remove CI=true to enable watch mode.
+Starting Metro Bundler
+The following packages should be updated for best compatibility with the installed expo version:
+  expo@54.0.32 - expected version: ~54.0.33
+  expo-av@15.0.2 - expected version: ~16.0.8
+  expo-glass-effect@0.1.8 - expected version: ~0.1.9
+  expo-router@6.0.22 - expected version: ~6.0.23
+  react-native-keyboard-controller@1.20.6 - expected version: 1.18.5
+Your project may not work correctly until you install the expected versions of the packages.
+Waiting on http://localhost:8081
+Logs for your project will appear below.
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓░░░░░░░░░░░░░░░ 10.7% ( 50/153)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓░░░░░░░░░░░░░░ 16.0% (110/275)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓░░░░░░░░░░░░░ 22.0% (153/326)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓░░░░░░░░░░░░ 31.2% (296/530)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 48.0% (491/709)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 57.6% (651/858)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 62.3% (750/950)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 75.9% ( 934/1072)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 77.0% (1068/1217)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 90.9% (1264/1326)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 98.0% (1442/1457)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1473/1474)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1474/1474)
+[80D[1A[0JWeb Bundled 1893ms node_modules/expo-router/entry.js (1474 modules)
+Web node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 99.9% (1474/1474)
+[80D[1A[0J LOG  [web] Logs will appear in the browser console
+Web lib/query-client.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[80D[1A[0JWeb Bundled 24ms lib/query-client.ts (1 module)
+Web lib/query-client.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[80D[1A[0JWeb node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[80D[1A[0JWeb Bundled 63ms node_modules/expo-router/entry.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web lib/query-client.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[80D[1A[0JWeb Bundled 3ms lib/query-client.ts (1 module)
+Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[80D[1A[0JWeb Bundled 60ms node_modules/expo-router/entry.js (1 module)
+CommandError: Input is required, but 'npx expo' is in non-interactive mode.
+Use the EXPO_TOKEN environment variable to authenticate in CI (Learn more: https://docs.expo.dev/accounts/programmatic-access/)
+CommandError: Input is required, but 'npx expo' is in non-interactive mode.
+Use the EXPO_TOKEN environment variable to authenticate in CI (Learn more: https://docs.expo.dev/accounts/programmatic-access/)
+CommandError: Input is required, but 'npx expo' is in non-interactive mode.
+Use the EXPO_TOKEN environment variable to authenticate in CI (Learn more: https://docs.expo.dev/accounts/programmatic-access/)
+CommandError: Input is required, but 'npx expo' is in non-interactive mode.
+Use the EXPO_TOKEN environment variable to authenticate in CI (Learn more: https://docs.expo.dev/accounts/programmatic-access/)

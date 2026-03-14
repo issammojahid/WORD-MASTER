@@ -1,0 +1,34 @@
+Fix tournament room creation in APK builds
+
+Root causes identified and fixed:
+
+1. Global fetch vs expo/fetch mismatch
+   All fetch calls in tournament.tsx used the global React Native `fetch`
+   while the rest of the app used expo/fetch (undici-based). On Android APKs,
+   the native fetch can behave differently for HTTPS/TLS connections to Railway.
+   Fix: added `import { fetch } from "expo/fetch"` to tournament.tsx.
+
+2. EXPO_PUBLIC_DOMAIN not baked into APK builds
+   eas.json had no `env` section, so EXPO_PUBLIC_DOMAIN was undefined in APKs
+   and relied entirely on the runtime fallback. Added it explicitly to all
+   three build profiles (development/preview/production) to guarantee the
+   correct Railway URL is always available.
+
+3. No timeout — requests could hang indefinitely
+   Added `safeFetch()` helper with 15s AbortController timeout and 2 retries
+   with exponential backoff. Slow Railway cold-starts no longer surface
+   as immediate errors.
+
+4. socket.id used before socket connects
+   `socket.id` is undefined until the socket.io handshake completes. In APK
+   builds this can take longer. Fixed with `socket.id ?? ""` fallback in
+   both create-and-join and confirm-join flows.
+
+5. Better Arabic error messages
+   "فشل إنشاء الغرفة" → "تعذر إنشاء الغرفة، حاول مرة أخرى"
+   Network errors → "تعذر الاتصال بالخادم، تحقق من اتصالك وحاول مرة أخرى"
+
+6. Null-safe array handling
+   fetchTournaments now guards against null API responses with Array.isArray().
+
+No multiplayer/game/socket logic was modified.
