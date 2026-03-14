@@ -35,134 +35,220 @@ const WHEEL_SEGMENTS = [
   { type: "coins",     amount: 50,   label: "50",         color: LOGO.purple + "50", textColor: LOGO.purple,  icon: "🪙" },
 ];
 
+const SEG_COUNT = WHEEL_SEGMENTS.length;
+const SEG_ANGLE = SEG_COUNT > 0 ? 360 / SEG_COUNT : 45;
+
 export default function SpinScreen() {
   const insets = useSafeAreaInsets();
   const { profile, playerId, addCoins, addXp, updateProfile, addPowerCard } = usePlayer();
-  const [spinning, setSpinning] = useState(false);
-  const [reward, setReward] = useState<{ type: string; amount: number; label: string; icon: string } | null>(null);
-  const [canSpin, setCanSpin] = useState(true);
-  const [countdown, setCountdown] = useState("");
-  const spinAnim = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const rewardScale = useRef(new Animated.Value(0)).current;
+  const [spinning, setSpinning]     = useState(false);
+  const [reward, setReward]         = useState<{ type: string; amount: number; label: string; icon: string } | null>(null);
+  const [canSpin, setCanSpin]       = useState(true);
+  const [countdown, setCountdown]   = useState("");
+
+  // Tracks the accumulated rotation so each new spin starts from the correct angle.
+  const currentAngleRef = useRef(0);
+
+  // spinAnim drives a continuous, ever-increasing value.
+  const spinAnim      = useRef(new Animated.Value(0)).current;
+  const pulseAnim     = useRef(new Animated.Value(1)).current;
+  const rewardScale   = useRef(new Animated.Value(0)).current;
   const rewardOpacity = useRef(new Animated.Value(0)).current;
 
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
+  const topInset    = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
+  // ─── Cooldown checks ───────────────────────────────────────────────────────
   useEffect(() => {
     checkSpinAvailability();
+  }, [profile.lastSpinAt]);
+
+  useEffect(() => {
     const interval = setInterval(updateCountdown, 1000);
     return () => clearInterval(interval);
   }, [profile.lastSpinAt]);
 
-  useEffect(() => {
-    Animated.loop(
+  // ─── Idle pulse animation ──────────────────────────────────────────────────
+  const pulseLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  const startPulse = () => {
+    if (pulseLoopRef.current) return;
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1.04, duration: 1200, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 1200, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1,    duration: 1200, useNativeDriver: true }),
       ])
-    ).start();
+    );
+    pulseLoopRef.current = loop;
+    loop.start();
+  };
+
+  const stopPulse = () => {
+    if (pulseLoopRef.current) {
+      pulseLoopRef.current.stop();
+      pulseLoopRef.current = null;
+    }
+    pulseAnim.setValue(1);
+  };
+
+  useEffect(() => {
+    startPulse();
+    return () => stopPulse();
   }, []);
 
   const checkSpinAvailability = () => {
-    if (!profile.lastSpinAt) { setCanSpin(true); return; }
-    const last = new Date(profile.lastSpinAt).getTime();
-    setCanSpin(Date.now() - last >= 24 * 60 * 60 * 1000);
+    try {
+      if (!profile?.lastSpinAt) { setCanSpin(true); return; }
+      const last = new Date(profile.lastSpinAt).getTime();
+      setCanSpin(Date.now() - last >= 24 * 60 * 60 * 1000);
+    } catch {
+      setCanSpin(true);
+    }
   };
 
   const updateCountdown = () => {
-    if (!profile.lastSpinAt) { setCountdown(""); return; }
-    const next = new Date(profile.lastSpinAt).getTime() + 24 * 60 * 60 * 1000;
-    const remaining = next - Date.now();
-    if (remaining <= 0) { setCanSpin(true); setCountdown(""); return; }
-    const h = Math.floor(remaining / 3600000);
-    const m = Math.floor((remaining % 3600000) / 60000);
-    const s = Math.floor((remaining % 60000) / 1000);
-    setCountdown(`${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`);
+    try {
+      if (!profile?.lastSpinAt) { setCountdown(""); return; }
+      const next = new Date(profile.lastSpinAt).getTime() + 24 * 60 * 60 * 1000;
+      const remaining = next - Date.now();
+      if (remaining <= 0) { setCanSpin(true); setCountdown(""); return; }
+      const h = Math.floor(remaining / 3600000);
+      const m = Math.floor((remaining % 3600000) / 60000);
+      const s = Math.floor((remaining % 60000) / 1000);
+      setCountdown(`${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`);
+    } catch {
+      setCountdown("");
+    }
   };
 
+  // ─── Spin logic ────────────────────────────────────────────────────────────
   const handleSpin = async () => {
-    if (spinning || !canSpin) return;
+    if (spinning || !canSpin || SEG_COUNT === 0) return;
+
     setSpinning(true);
     setReward(null);
     rewardScale.setValue(0);
     rewardOpacity.setValue(0);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    stopPulse();
+
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    } catch {}
 
     try {
       const baseUrl = getApiUrl();
-      const res = await fetch(new URL(`/api/player/${playerId}/spin`, baseUrl).toString(), { method: "POST" });
+      const res = await fetch(
+        new URL(`/api/player/${playerId}/spin`, baseUrl).toString(),
+        { method: "POST" }
+      );
 
-      let serverReward: { type: string; amount: number; label: string } | null = null;
-      if (res.ok) {
-        const data = await res.json();
-        serverReward = data.reward;
-        if (data.profile) {
-          updateProfile({
-            coins: data.profile.coins,
-            xp: data.profile.xp,
-            level: data.profile.level,
-            lastSpinAt: data.profile.lastSpinAt,
-          });
-        }
-      } else if (res.status === 429) {
+      if (res.status === 429) {
         const data = await res.json().catch(() => ({}));
         if (data.nextSpinAt) {
           updateProfile({ lastSpinAt: new Date(data.nextSpinAt - 24 * 60 * 60 * 1000).toISOString() });
         }
         setCanSpin(false);
         setSpinning(false);
-        return;
-      } else {
-        setSpinning(false);
+        startPulse();
         return;
       }
 
-      // Find matching segment or pick a random one
-      let targetIdx = serverReward
-        ? WHEEL_SEGMENTS.findIndex(s => s.type === serverReward!.type && s.amount === serverReward!.amount)
-        : -1;
-      if (targetIdx < 0) targetIdx = Math.floor(Math.random() * WHEEL_SEGMENTS.length);
+      let targetIdx = -1;
+      if (res.ok) {
+        const data = await res.json();
+        const serverReward: { type: string; amount: number } | null = data.reward ?? null;
 
-      const segAngle = 360 / WHEEL_SEGMENTS.length;
-      const currentAngle = (spinAnim as any).__getValue() % 360;
-      const targetAngle = (spinAnim as any).__getValue() - currentAngle + 360 * 6 + (360 - targetIdx * segAngle - segAngle / 2);
-
-      Animated.timing(spinAnim, {
-        toValue: targetAngle,
-        duration: 4200,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start(() => {
-        const seg = WHEEL_SEGMENTS[targetIdx];
-        const finalReward = { type: seg.type, amount: seg.amount, label: seg.label, icon: seg.icon };
-        setReward(finalReward);
-
-        // Apply reward client-side if not applied by server
-        if (seg.type === "powerCard") {
-          const cards: ("time" | "freeze" | "hint")[] = ["time", "freeze", "hint"];
-          addPowerCard(cards[Math.floor(Math.random() * cards.length)], 1);
+        // Sync updated profile (coins, xp, lastSpinAt) from server
+        if (data.profile) {
+          updateProfile({
+            coins:      data.profile.coins,
+            xp:         data.profile.xp,
+            level:      data.profile.level,
+            lastSpinAt: data.profile.lastSpinAt,
+          });
         }
 
-        setSpinning(false);
-        setCanSpin(false);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Animated.parallel([
-          Animated.spring(rewardScale, { toValue: 1, tension: 80, friction: 7, useNativeDriver: true }),
-          Animated.timing(rewardOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-        ]).start();
-      });
+        // Find the wheel segment that matches the server reward
+        if (serverReward) {
+          targetIdx = WHEEL_SEGMENTS.findIndex(
+            s => s.type === serverReward.type && s.amount === serverReward.amount
+          );
+        }
+      }
+
+      // Fallback: pick a random segment if server didn't match any
+      if (targetIdx < 0) {
+        targetIdx = Math.floor(Math.random() * SEG_COUNT);
+      }
+
+      runSpinAnimation(targetIdx);
     } catch {
-      setSpinning(false);
+      // Network error — still spin to a random reward so the screen doesn't freeze
+      const targetIdx = Math.floor(Math.random() * SEG_COUNT);
+      runSpinAnimation(targetIdx);
     }
   };
 
+  const runSpinAnimation = (targetIdx: number) => {
+    // The pointer is at the top (0°).  Each segment i occupies degrees [i*SEG_ANGLE, (i+1)*SEG_ANGLE].
+    // To land segment targetIdx under the pointer we need its centre at 0°.
+    // Segment centre = targetIdx * SEG_ANGLE + SEG_ANGLE/2 (measured clockwise from 0°).
+    // We want to rotate the wheel CLOCKWISE so that centre ends at top (0°).
+    // Clockwise rotation needed = 360 - (targetIdx * SEG_ANGLE + SEG_ANGLE/2)
+    const segmentCentre = targetIdx * SEG_ANGLE + SEG_ANGLE / 2;
+    const landingAngle  = 360 - segmentCentre;
+
+    // Add 6 full extra rotations for a satisfying spin, then land on the target.
+    const nextAngle = currentAngleRef.current + 360 * 6 + ((landingAngle - currentAngleRef.current % 360) + 360) % 360;
+    currentAngleRef.current = nextAngle;
+
+    Animated.timing(spinAnim, {
+      toValue:        nextAngle,
+      duration:       4000,
+      easing:         Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (!finished) return;
+
+      const seg = WHEEL_SEGMENTS[targetIdx];
+      if (!seg) { setSpinning(false); startPulse(); return; }
+
+      const finalReward = { type: seg.type, amount: seg.amount, label: seg.label, icon: seg.icon };
+      setReward(finalReward);
+
+      // Apply reward locally as a UI-layer safety net
+      try {
+        if (seg.type === "coins")     addCoins(seg.amount);
+        else if (seg.type === "xp")   addXp(seg.amount);
+        else if (seg.type === "powerCard") {
+          const cards: ("time" | "freeze" | "hint")[] = ["time", "freeze", "hint"];
+          addPowerCard(cards[Math.floor(Math.random() * cards.length)], 1);
+        }
+      } catch {}
+
+      setSpinning(false);
+      setCanSpin(false);
+
+      try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
+
+      Animated.parallel([
+        Animated.spring(rewardScale,   { toValue: 1, tension: 80, friction: 7, useNativeDriver: true }),
+        Animated.timing(rewardOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+      ]).start();
+
+      startPulse();
+    });
+  };
+
+  // KEY FIX: extrapolate: "extend" allows values beyond [0,360] to map correctly
+  // Without this the interpolation clamps at 360° and the wheel barely moves.
   const spinRotation = spinAnim.interpolate({
-    inputRange: [0, 360],
+    inputRange:  [0, 360],
     outputRange: ["0deg", "360deg"],
+    extrapolate: "extend",
   });
 
+  // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
       <LinearGradient
@@ -170,6 +256,7 @@ export default function SpinScreen() {
         style={StyleSheet.absoluteFillObject}
       />
 
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
@@ -179,20 +266,31 @@ export default function SpinScreen() {
       </View>
 
       <View style={styles.content}>
+
         {/* Wheel */}
         <View style={styles.wheelContainer}>
+          {/* Pointer triangle */}
           <View style={styles.pointerContainer}>
             <View style={styles.pointer} />
           </View>
-          <Animated.View style={[styles.wheel, { transform: [{ rotate: spinRotation }, { scale: pulseAnim }] }]}>
+
+          <Animated.View
+            style={[
+              styles.wheel,
+              { transform: [{ rotate: spinRotation }, { scale: pulseAnim }] },
+            ]}
+          >
             {WHEEL_SEGMENTS.map((seg, idx) => {
-              const angle = (idx * 360) / WHEEL_SEGMENTS.length;
+              const angle = (idx * 360) / SEG_COUNT;
               return (
                 <View
                   key={idx}
                   style={[
                     styles.segment,
-                    { transform: [{ rotate: `${angle}deg` }, { translateY: -88 }], backgroundColor: seg.color },
+                    {
+                      transform: [{ rotate: `${angle}deg` }, { translateY: -88 }],
+                      backgroundColor: seg.color,
+                    },
                   ]}
                 >
                   <Text style={styles.segmentIcon}>{seg.icon}</Text>
@@ -200,6 +298,7 @@ export default function SpinScreen() {
                 </View>
               );
             })}
+
             <LinearGradient
               colors={[LOGO.yellow + "60", LOGO.yellow + "30"]}
               style={styles.wheelCenter}
@@ -211,7 +310,12 @@ export default function SpinScreen() {
 
         {/* Reward banner */}
         {reward && (
-          <Animated.View style={[styles.rewardBanner, { opacity: rewardOpacity, transform: [{ scale: rewardScale }] }]}>
+          <Animated.View
+            style={[
+              styles.rewardBanner,
+              { opacity: rewardOpacity, transform: [{ scale: rewardScale }] },
+            ]}
+          >
             <Text style={styles.rewardEmoji}>{reward.icon}</Text>
             <View>
               <Text style={styles.rewardTitle}>🎉 مبروك!</Text>
@@ -219,21 +323,26 @@ export default function SpinScreen() {
                 {reward.type === "powerCard"
                   ? "بطاقة قوة إضافية! 🃏"
                   : reward.type === "xp"
-                    ? `⭐ +${reward.amount} XP`
-                    : `🪙 +${reward.amount} عملة`}
+                  ? `⭐ +${reward.amount} XP`
+                  : `🪙 +${reward.amount} عملة`}
               </Text>
             </View>
           </Animated.View>
         )}
 
-        {/* Countdown */}
-        {!canSpin && countdown ? (
-          <View style={styles.countdownContainer}>
-            <Ionicons name="time-outline" size={20} color={Colors.textMuted} />
-            <Text style={styles.countdownLabel}>الدورة القادمة بعد</Text>
-            <Text style={styles.countdownTime}>{countdown}</Text>
+        {/* Cooldown message + countdown */}
+        {!canSpin && (
+          <View style={styles.cooldownContainer}>
+            <Text style={styles.cooldownMsg}>يمكنك تدوير العجلة مرة واحدة يومياً</Text>
+            {countdown ? (
+              <View style={styles.countdownRow}>
+                <Ionicons name="time-outline" size={16} color={Colors.textMuted} />
+                <Text style={styles.countdownLabel}>الدورة القادمة بعد</Text>
+                <Text style={styles.countdownTime}>{countdown}</Text>
+              </View>
+            ) : null}
           </View>
-        ) : null}
+        )}
 
         {/* Spin button */}
         <TouchableOpacity
@@ -244,17 +353,22 @@ export default function SpinScreen() {
         >
           <LinearGradient
             colors={canSpin && !spinning ? [LOGO.yellow, LOGO.pink] : ["#333", "#222"]}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
             style={styles.spinBtn}
           >
-            <Ionicons name="sync" size={22} color={canSpin && !spinning ? "#000" : Colors.textMuted} />
+            <Ionicons
+              name="sync"
+              size={22}
+              color={canSpin && !spinning ? "#000" : Colors.textMuted}
+            />
             <Text style={[styles.spinBtnText, (!canSpin || spinning) && { color: Colors.textMuted }]}>
               {spinning ? "جارٍ الدوران..." : canSpin ? "ادر العجلة!" : "غداً إن شاء الله"}
             </Text>
           </LinearGradient>
         </TouchableOpacity>
 
-        {/* Rewards info */}
+        {/* Reward types info */}
         <View style={styles.infoRow}>
           {[
             { icon: "🪙", label: "50-500 عملة" },
@@ -267,6 +381,7 @@ export default function SpinScreen() {
             </View>
           ))}
         </View>
+
       </View>
     </View>
   );
@@ -323,13 +438,11 @@ const styles = StyleSheet.create({
   rewardTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: LOGO.yellow },
   rewardValue: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: Colors.textPrimary },
 
-  countdownContainer: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: "rgba(255,255,255,0.06)", borderRadius: 12,
-    paddingHorizontal: 16, paddingVertical: 10,
-  },
+  cooldownContainer: { alignItems: "center", gap: 6 },
+  cooldownMsg: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.textMuted, textAlign: "center" },
+  countdownRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   countdownLabel: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.textMuted },
-  countdownTime: { fontFamily: "Cairo_700Bold", fontSize: 16, color: LOGO.yellow },
+  countdownTime: { fontFamily: "Cairo_700Bold", fontSize: 15, color: LOGO.yellow },
 
   spinBtnWrapper: { width: "100%", borderRadius: 18, overflow: "hidden" },
   spinBtn: {
