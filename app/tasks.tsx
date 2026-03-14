@@ -34,7 +34,8 @@ type Task = {
   claimed: boolean;
 };
 
-async function apiFetch(url: string, options?: RequestInit) {
+type ApiFetchOptions = { method?: string; body?: BodyInit; headers?: HeadersInit };
+async function apiFetch(url: string, options?: ApiFetchOptions) {
   try {
     const res = await fetch(url, { headers: { "Content-Type": "application/json" }, ...options });
     if (!res.ok) return null;

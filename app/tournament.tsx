@@ -25,9 +25,10 @@ import { getSocket } from "@/services/socket";
 // ── Reliable fetch for APK builds ────────────────────────────────────────────
 // Uses expo/fetch (same as the rest of the app) and adds a timeout + retry
 // so that slow Railway cold-starts don't immediately surface as errors.
+type SafeFetchOptions = { method?: string; body?: BodyInit; headers?: HeadersInit; signal?: AbortSignal };
 async function safeFetch(
   url: string,
-  options: RequestInit = {},
+  options: SafeFetchOptions = {},
   timeoutMs = 15_000,
   retries = 2
 ): Promise<Response> {

@@ -618,14 +618,16 @@ export default function ShopScreen() {
 
   // ── Skin action (tap = preview modal) ────────────────────────────────────
   const handleSkinAction = (skinId: SkinId) => {
-    const skin = SKINS.find(s => s.id === skinId)!;
+    const skin = SKINS.find(s => s.id === skinId);
+    if (!skin) return;
     setPreviewSkin(skin as PreviewSkin);
   };
 
   const executeSkinAction = useCallback(() => {
     if (!previewSkin) return;
     const skinId = previewSkin.id;
-    const skin = SKINS.find(s => s.id === skinId)!;
+    const skin = SKINS.find(s => s.id === skinId);
+    if (!skin) return;
 
     if (profile.ownedSkins.includes(skinId)) {
       equipSkin(skinId);
@@ -659,7 +661,8 @@ export default function ShopScreen() {
 
   // ── Background action ─────────────────────────────────────────────────────
   const handleBgAction = (id: BackgroundId) => {
-    const bg = BACKGROUNDS.find(b => b.id === id)!;
+    const bg = BACKGROUNDS.find(b => b.id === id);
+    if (!bg) return;
     if (profile.ownedBackgrounds.includes(id)) { equipBackground(id); playShopSound("select"); return; }
     if (profile.coins < bg.price) { playShopSound("error"); Alert.alert("نقود غير كافية", `تحتاج ${bg.price} نقود`); return; }
     Alert.alert("شراء الخلفية", `هل تريد شراء "${bg.nameAr}" مقابل ${bg.price} نقود؟`, [
@@ -669,7 +672,8 @@ export default function ShopScreen() {
   };
 
   const handleEmoteAction = (id: EmoteId) => {
-    const emote = EMOTES.find(e => e.id === id)!;
+    const emote = EMOTES.find(e => e.id === id);
+    if (!emote) return;
     if (profile.ownedEmotes.includes(id)) { playShopSound("select"); return; }
     if (profile.coins < emote.price) { playShopSound("error"); Alert.alert("نقود غير كافية", `تحتاج ${emote.price} نقود`); return; }
     Alert.alert("شراء التفاعل", `هل تريد شراء "${emote.nameAr}" مقابل ${emote.price} نقود؟`, [
@@ -679,7 +683,8 @@ export default function ShopScreen() {
   };
 
   const handleEffectAction = (id: EffectId) => {
-    const effect = EFFECTS.find(e => e.id === id)!;
+    const effect = EFFECTS.find(e => e.id === id);
+    if (!effect) return;
     if (profile.ownedEffects.includes(id)) { equipEffect(id); playShopSound("select"); return; }
     if (profile.coins < effect.price) { playShopSound("error"); Alert.alert("نقود غير كافية", `تحتاج ${effect.price} نقود`); return; }
     Alert.alert("شراء التأثير", `هل تريد شراء "${effect.nameAr}" مقابل ${effect.price} نقود؟`, [
