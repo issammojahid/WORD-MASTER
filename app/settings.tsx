@@ -191,16 +191,16 @@ export default function SettingsScreen() {
             <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>كيفية اللعب</Text>
           </View>
           <View style={[styles.rulesList, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-            {[
-              { icon: "text",         text: "سيظهر حرف عشوائي باللغة العربية",    color: LOGO.yellow },
-              { icon: "timer",        text: "لديك 25 ثانية لكتابة كلمة من كل فئة", color: LOGO.yellow },
-              { icon: "trophy",       text: "الإجابة الصحيحة = 3 نقاط",            color: Colors.emerald },
-              { icon: "copy",         text: "الإجابة المكررة = 0 نقاط",             color: Colors.scoreDuplicate },
-              { icon: "close-circle", text: "الفئة الفارغة = 0 نقاط",              color: Colors.ruby },
-              { icon: "star",         text: "الفائز الأول يحصل على 20 عملة",       color: LOGO.yellow },
-            ].map((rule, i) => (
+            {([
+              { icon: "text" as const,         text: "سيظهر حرف عشوائي باللغة العربية",    color: LOGO.yellow },
+              { icon: "timer" as const,        text: "لديك 25 ثانية لكتابة كلمة من كل فئة", color: LOGO.yellow },
+              { icon: "trophy" as const,       text: "الإجابة الصحيحة = 3 نقاط",            color: Colors.emerald },
+              { icon: "copy" as const,         text: "الإجابة المكررة = 0 نقاط",             color: Colors.scoreDuplicate },
+              { icon: "close-circle" as const, text: "الفئة الفارغة = 0 نقاط",              color: Colors.ruby },
+              { icon: "star" as const,         text: "الفائز الأول يحصل على 20 عملة",       color: LOGO.yellow },
+            ]).map((rule, i) => (
               <View key={i} style={styles.ruleRow}>
-                <Ionicons name={rule.icon as any} size={18} color={rule.color} />
+                <Ionicons name={rule.icon} size={18} color={rule.color} />
                 <Text style={[styles.ruleText, { color: theme.textSecondary }]}>{rule.text}</Text>
               </View>
             ))}
