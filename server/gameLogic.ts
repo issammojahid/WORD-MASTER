@@ -281,10 +281,10 @@ export function calculateRoundScores(roomId: string): RoundResult[] {
           const ansLower = ans.toLowerCase();
           const count = duplicateCounts[cat]!.get(ansLower) || 0;
           if (count > 1) {
-            scores[cat] = 0;
+            scores[cat] = 5;
             status[cat] = "duplicate";
           } else {
-            scores[cat] = 3;
+            scores[cat] = 10;
             status[cat] = "correct";
           }
         }

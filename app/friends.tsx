@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
 } from "react-native";
+import { fetch } from "expo/fetch";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";

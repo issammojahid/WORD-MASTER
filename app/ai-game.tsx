@@ -250,7 +250,7 @@ export default function AIGameScreen() {
 
         // Scoring rules:
         //  valid + different from AI  → player 10, AI 10
-        //  valid + same as AI answer  → player  0, AI 10 (not unique)
+        //  valid + same as AI answer  → player  5, AI  5 (duplicate)
         //  invalid / empty            → player  0, AI 10 (if AI had answer)
         const isSameAsAi =
           pIsValid && aIsValid && normalize(pAnswer) === normalize(aAnswer);
@@ -261,10 +261,10 @@ export default function AIGameScreen() {
         let aStatus: CategoryStatus = aAnswer ? "correct" : "empty";
 
         if (isSameAsAi) {
-          pScore = 0;        // player gets nothing for a non-unique answer
-          aScore = 10;
+          pScore = 5;
+          aScore = 5;
           pStatus = "duplicate";
-          aStatus = "correct";
+          aStatus = "duplicate";
         } else {
           if (pIsValid) {
             pScore = 10;
