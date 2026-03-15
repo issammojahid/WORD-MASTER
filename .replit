@@ -3,6 +3,7 @@ modules = ["nodejs-22"]
 
 [nix]
 channel = "stable-24_05"
+packages = ["flutter316"]
 
 [deployment]
 deploymentTarget = "autoscale"
