@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -42,6 +42,9 @@ export const playerProfiles = pgTable("player_profiles", {
   loginStreak: integer("login_streak").notNull().default(0),
   lastLoginDate: text("last_login_date"),
   longestLoginStreak: integer("longest_login_streak").notNull().default(0),
+  referralCode: text("referral_code").unique(),
+  referredBy: text("referred_by"),
+  referralCount: integer("referral_count").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
@@ -201,3 +204,14 @@ export const roomInvites = pgTable("room_invites", {
 });
 
 export type RoomInvite = typeof roomInvites.$inferSelect;
+
+export const coinGifts = pgTable("coin_gifts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fromPlayerId: varchar("from_player_id").notNull(),
+  toPlayerId: varchar("to_player_id").notNull(),
+  amount: integer("amount").notNull(),
+  seen: boolean("seen").notNull().default(false),
+  sentAt: timestamp("sent_at").notNull().default(sql`now()`),
+});
+
+export type CoinGift = typeof coinGifts.$inferSelect;

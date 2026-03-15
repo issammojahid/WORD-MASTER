@@ -17,7 +17,7 @@ import {
 import { validateWord, CATEGORY_MAP, getWordsForLetter, type WordCategory } from "./wordDatabase";
 import { ARABIC_LETTERS } from "./gameLogic";
 import { db } from "./db";
-import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, playerDailyTasks, playerAchievements, roomInvites, dailyTaskDefs, achievementDefs } from "@shared/schema";
+import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, playerDailyTasks, playerAchievements, roomInvites, dailyTaskDefs, achievementDefs, coinGifts } from "@shared/schema";
 import { eq, and, desc, asc, or, ilike, ne, isNotNull, sql } from "drizzle-orm";
 
 // ── TASK POOL — larger random pool, 3 are picked per player per day ──────────
@@ -89,6 +89,19 @@ async function ensurePlayerCode(playerId: string): Promise<string> {
     code = generatePlayerCode();
     attempts++;
   }
+  return code;
+}
+
+async function ensureReferralCode(playerId: string): Promise<string> {
+  const [existing] = await db.select({ referralCode: playerProfiles.referralCode }).from(playerProfiles).where(eq(playerProfiles.id, playerId));
+  if (existing?.referralCode) return existing.referralCode;
+  let code = "REF-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const dup = await db.select({ id: playerProfiles.id }).from(playerProfiles).where(eq(playerProfiles.referralCode, code));
+    if (dup.length === 0) break;
+    code = "REF-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+  }
+  await db.update(playerProfiles).set({ referralCode: code }).where(eq(playerProfiles.id, playerId));
   return code;
 }
 
@@ -1072,6 +1085,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Quick chat relay — forward chat message to all players in the room
     socket.on("quick_chat", (data: { roomId: string; message: string; playerName: string }) => {
       socket.to(data.roomId).emit("quick_chat", { message: data.message, playerName: data.playerName });
+    });
+
+    socket.on("send_emote", (data: { roomId: string; emote: string; playerName: string }) => {
+      socket.to(data.roomId).emit("receive_emote", { emote: data.emote, playerName: data.playerName });
     });
 
     // Power card relay — broadcast card activation to all OTHER players in the room
@@ -2758,6 +2775,112 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, roomId: invite.roomId, action });
     } catch (e) {
       console.error("PUT /api/room-invites respond error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Gift System — send coins to friends (max 1 gift per pair per day)
+  // ─────────────────────────────────────────────────────────────────────────
+  app.post("/api/friends/gift", async (req, res) => {
+    try {
+      const { fromPlayerId, toPlayerId, amount } = req.body;
+      if (!fromPlayerId || !toPlayerId || !amount) return res.status(400).json({ error: "missing_fields" });
+      const validAmounts = [50, 100, 200];
+      if (!validAmounts.includes(amount)) return res.status(400).json({ error: "invalid_amount" });
+
+      const today = new Date().toISOString().slice(0, 10);
+      const recentGifts = await db.select().from(coinGifts).where(
+        and(
+          eq(coinGifts.fromPlayerId, fromPlayerId),
+          eq(coinGifts.toPlayerId, toPlayerId),
+          sql`DATE(${coinGifts.sentAt}) = ${today}`
+        )
+      );
+      if (recentGifts.length > 0) return res.json({ error: "already_gifted_today" });
+
+      const [sender] = await db.select({ coins: playerProfiles.coins }).from(playerProfiles).where(eq(playerProfiles.id, fromPlayerId));
+      if (!sender || sender.coins < amount) return res.json({ error: "insufficient_coins" });
+
+      await db.update(playerProfiles).set({ coins: sql`coins - ${amount}` }).where(eq(playerProfiles.id, fromPlayerId));
+      await db.update(playerProfiles).set({ coins: sql`coins + ${amount}` }).where(eq(playerProfiles.id, toPlayerId));
+      await db.insert(coinGifts).values({ fromPlayerId, toPlayerId, amount });
+
+      res.json({ success: true });
+    } catch (e) {
+      console.error("POST /api/friends/gift error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.get("/api/friends/gifts/pending/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const pending = await db.select().from(coinGifts).where(
+        and(eq(coinGifts.toPlayerId, playerId), eq(coinGifts.seen, false))
+      ).orderBy(desc(coinGifts.sentAt));
+
+      const enriched = [];
+      for (const g of pending) {
+        const [sender] = await db.select({ name: playerProfiles.name }).from(playerProfiles).where(eq(playerProfiles.id, g.fromPlayerId));
+        enriched.push({ ...g, fromPlayerName: sender?.name || "لاعب" });
+      }
+      res.json(enriched);
+    } catch (e) {
+      console.error("GET /api/friends/gifts/pending error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.put("/api/friends/gifts/seen/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      await db.update(coinGifts).set({ seen: true }).where(and(eq(coinGifts.toPlayerId, playerId), eq(coinGifts.seen, false)));
+      res.json({ success: true });
+    } catch (e) {
+      console.error("PUT /api/friends/gifts/seen error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Referral System
+  // ─────────────────────────────────────────────────────────────────────────
+  app.get("/api/referral/:playerId", async (req, res) => {
+    try {
+      const code = await ensureReferralCode(req.params.playerId);
+      const [profile] = await db.select({ referralCount: playerProfiles.referralCount }).from(playerProfiles).where(eq(playerProfiles.id, req.params.playerId));
+      res.json({ referralCode: code, referralCount: profile?.referralCount || 0 });
+    } catch (e) {
+      console.error("GET /api/referral error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.post("/api/referral/claim", async (req, res) => {
+    try {
+      const { playerId, referralCode } = req.body;
+      if (!playerId || !referralCode) return res.status(400).json({ error: "missing_fields" });
+
+      const [player] = await db.select({ referredBy: playerProfiles.referredBy }).from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      if (!player) return res.status(404).json({ error: "not_found" });
+      if (player.referredBy) return res.json({ error: "already_claimed" });
+
+      const [referrer] = await db.select({ id: playerProfiles.id, referralCode: playerProfiles.referralCode }).from(playerProfiles).where(eq(playerProfiles.referralCode, referralCode.toUpperCase()));
+      if (!referrer) return res.json({ error: "invalid_code" });
+      if (referrer.id === playerId) return res.json({ error: "self_referral" });
+
+      const REFERRAL_REWARD = 200;
+      await db.update(playerProfiles).set({ referredBy: referralCode.toUpperCase() }).where(eq(playerProfiles.id, playerId));
+      await db.update(playerProfiles).set({
+        referralCount: sql`referral_count + 1`,
+        coins: sql`coins + ${REFERRAL_REWARD}`,
+      }).where(eq(playerProfiles.id, referrer.id));
+      await db.update(playerProfiles).set({ coins: sql`coins + ${REFERRAL_REWARD}` }).where(eq(playerProfiles.id, playerId));
+
+      res.json({ success: true, reward: REFERRAL_REWARD });
+    } catch (e) {
+      console.error("POST /api/referral/claim error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });

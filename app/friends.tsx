@@ -46,15 +46,19 @@ async function apiFetch(url: string, options?: ApiFetchOptions) {
   }
 }
 
+type GiftModalState = { visible: boolean; targetId: string; targetName: string };
+
 function FriendsScreenInner() {
   const insets = useSafeAreaInsets();
-  const { playerId, profile } = usePlayer();
+  const { playerId, profile, addCoins } = usePlayer();
   const { theme } = useTheme();
   const qc = useQueryClient();
   const [tab, setTab] = useState<TabType>("friends");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const [copiedToast, setCopiedToast] = useState(false);
+  const [giftModal, setGiftModal] = useState<GiftModalState>({ visible: false, targetId: "", targetName: "" });
+  const [giftSending, setGiftSending] = useState(false);
   const searchTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -148,6 +152,33 @@ function FriendsScreenInner() {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/friends", playerId] }),
   });
+
+  const sendGift = async (amount: number) => {
+    if (!giftModal.targetId || giftSending) return;
+    setGiftSending(true);
+    try {
+      const url = new URL("/api/friends/gift", getApiUrl());
+      const result = await apiFetch(url.toString(), {
+        method: "POST",
+        body: JSON.stringify({ fromPlayerId: playerId, toPlayerId: giftModal.targetId, amount }),
+      });
+      if (result?.success) {
+        addCoins(-amount);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert("", `تم إرسال ${amount} عملة إلى ${giftModal.targetName} 🎁`);
+      } else if (result?.error === "already_gifted_today") {
+        Alert.alert("", "لقد أرسلت هدية لهذا اللاعب اليوم بالفعل");
+      } else if (result?.error === "insufficient_coins") {
+        Alert.alert("", "رصيدك غير كافٍ");
+      } else {
+        Alert.alert("", "حدث خطأ، حاول مرة أخرى");
+      }
+    } catch {
+      Alert.alert("", "حدث خطأ، حاول مرة أخرى");
+    }
+    setGiftSending(false);
+    setGiftModal({ visible: false, targetId: "", targetName: "" });
+  };
 
   const getRelationship = (playerId2: string) => {
     return allFriendRows.find((r) => r.player.id === playerId2);
@@ -253,6 +284,15 @@ function FriendsScreenInner() {
               renderPlayerCard(
                 row.player,
                 <View style={styles.friendActions}>
+                  <TouchableOpacity
+                    style={styles.giftBtn}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setGiftModal({ visible: true, targetId: row.player.id, targetName: row.player.name });
+                    }}
+                  >
+                    <Text style={{ fontSize: 14 }}>🎁</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.inviteBtn}
                     onPress={() => {
@@ -381,6 +421,36 @@ function FriendsScreenInner() {
           )}
         </ScrollView>
       )}
+
+      {/* Gift Modal */}
+      {giftModal.visible && (
+        <View style={styles.giftOverlay}>
+          <View style={[styles.giftCard, { backgroundColor: theme.card, borderColor: Colors.gold + "40" }]}>
+            <Text style={styles.giftTitle}>🎁 أهدِ عملات</Text>
+            <Text style={[styles.giftSubtitle, { color: theme.textSecondary }]}>إلى {giftModal.targetName}</Text>
+            <View style={styles.giftAmountRow}>
+              {[50, 100, 200].map((amount) => (
+                <TouchableOpacity
+                  key={amount}
+                  style={[styles.giftAmountBtn, { borderColor: Colors.gold + "40" }]}
+                  onPress={() => sendGift(amount)}
+                  disabled={giftSending}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="star" size={14} color={Colors.gold} />
+                  <Text style={styles.giftAmountText}>{amount}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={[styles.giftCancelBtn, { backgroundColor: theme.cardBorder + "40" }]}
+              onPress={() => setGiftModal({ visible: false, targetId: "", targetName: "" })}
+            >
+              <Text style={[styles.giftCancelText, { color: theme.textMuted }]}>إلغاء</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -469,6 +539,33 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 40 },
   emptyText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#9898CC" },
   emptySubText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#5A5A88", textAlign: "center" },
+  giftBtn: {
+    padding: 8, borderRadius: 10, backgroundColor: Colors.gold + "18",
+    borderWidth: 1, borderColor: Colors.gold + "30",
+  },
+  giftOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "center", alignItems: "center",
+    paddingHorizontal: 24, zIndex: 100,
+  },
+  giftCard: {
+    width: "100%", maxWidth: 340, borderRadius: 20,
+    padding: 24, alignItems: "center",
+    borderWidth: 1.5, backgroundColor: "#12122A",
+  },
+  giftTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.gold, marginBottom: 4 },
+  giftSubtitle: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#9898CC", marginBottom: 16 },
+  giftAmountRow: { flexDirection: "row", gap: 12, marginBottom: 16 },
+  giftAmountBtn: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 18, paddingVertical: 12,
+    borderRadius: 14, borderWidth: 1.5,
+    backgroundColor: Colors.gold + "12",
+  },
+  giftAmountText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.gold },
+  giftCancelBtn: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12 },
+  giftCancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 14 },
 });
 
 export default function FriendsScreen() {

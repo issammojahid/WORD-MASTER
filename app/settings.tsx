@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,9 @@ import {
   BackHandler,
   Alert,
   Switch,
+  TextInput,
+  Share,
+  ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,6 +26,8 @@ import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { type Language } from "@/constants/i18n";
 import { getDisplayCode } from "@/lib/player-code";
+import { getApiUrl } from "@/lib/query-client";
+import { fetch } from "expo/fetch";
 
 const LOGO = {
   cyan:   "#00F5FF",
@@ -34,10 +39,16 @@ const LOGO = {
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { t, language, setLanguage, soundEffects, setSoundEffects, musicEnabled, setMusicEnabled } = useLanguage();
-  const { playerId, profile } = usePlayer();
+  const { playerId, profile, addCoins } = usePlayer();
   const { theme } = useTheme();
   const [showExitModal, setShowExitModal] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
+  const [referralCount, setReferralCount] = useState(0);
+  const [refCopied, setRefCopied] = useState(false);
+  const [refInput, setRefInput] = useState("");
+  const [refClaiming, setRefClaiming] = useState(false);
+  const [refAlreadyClaimed, setRefAlreadyClaimed] = useState(false);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
@@ -58,6 +69,66 @@ export default function SettingsScreen() {
     } else {
       Alert.alert("الخروج", "يمكنك الخروج من اللعبة عبر زر الإغلاق في جهازك.");
     }
+  };
+
+  useEffect(() => {
+    if (!playerId) return;
+    (async () => {
+      try {
+        const url = new URL(`/api/referral/${playerId}`, getApiUrl());
+        const res = await fetch(url.toString());
+        if (res.ok) {
+          const data = await res.json();
+          setReferralCode(data.referralCode || "");
+          setReferralCount(data.referralCount || 0);
+        }
+      } catch {}
+    })();
+  }, [playerId]);
+
+  const handleCopyReferral = async () => {
+    if (!referralCode) return;
+    await Clipboard.setStringAsync(referralCode);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setRefCopied(true);
+    setTimeout(() => setRefCopied(false), 2000);
+  };
+
+  const handleShareReferral = async () => {
+    if (!referralCode) return;
+    try {
+      await Share.share({ message: `انضم لحروف المغرب واستخدم كود الإحالة: ${referralCode} واحصل على 200 عملة مجاناً! 🎁` });
+    } catch {}
+  };
+
+  const handleClaimReferral = async () => {
+    if (!refInput.trim() || refClaiming) return;
+    setRefClaiming(true);
+    try {
+      const url = new URL("/api/referral/claim", getApiUrl());
+      const res = await fetch(url.toString(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId, referralCode: refInput.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        addCoins(data.reward);
+        setRefAlreadyClaimed(true);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert("مبروك! 🎉", `حصلت على ${data.reward} عملة مجاناً!`);
+      } else if (data.error === "already_claimed") {
+        setRefAlreadyClaimed(true);
+        Alert.alert("", "لقد استخدمت كود إحالة من قبل");
+      } else if (data.error === "invalid_code") {
+        Alert.alert("", "كود الإحالة غير صالح");
+      } else if (data.error === "self_referral") {
+        Alert.alert("", "لا يمكنك استخدام كودك الخاص");
+      }
+    } catch {
+      Alert.alert("", "حدث خطأ، حاول مرة أخرى");
+    }
+    setRefClaiming(false);
   };
 
   return (
@@ -99,6 +170,60 @@ export default function SettingsScreen() {
               </Text>
             </View>
           </TouchableOpacity>
+        </View>
+
+        {/* ── Referral System ──────────────────────────── */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="gift" size={20} color={Colors.emerald} />
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>نظام الإحالة</Text>
+          </View>
+          <View style={[styles.refCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+            <Text style={[styles.refLabel, { color: theme.textMuted }]}>كود الإحالة الخاص بك:</Text>
+            <View style={styles.refCodeRow}>
+              {referralCode ? (
+                <Text style={styles.refCodeValue}>{referralCode}</Text>
+              ) : (
+                <ActivityIndicator size="small" color={Colors.gold} />
+              )}
+              <TouchableOpacity onPress={handleCopyReferral} style={styles.refCopyBtn}>
+                <Ionicons name={refCopied ? "checkmark-circle" : "copy-outline"} size={18} color={refCopied ? Colors.emerald : theme.textMuted} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleShareReferral} style={styles.refShareBtn}>
+                <Ionicons name="share-social" size={18} color={LOGO.cyan} />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.refStats, { color: theme.textMuted }]}>
+              عدد الإحالات: {referralCount} · مكافأة: 200 عملة لكل إحالة
+            </Text>
+          </View>
+
+          {!refAlreadyClaimed && (
+            <View style={[styles.refInputCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+              <Text style={[styles.refLabel, { color: theme.textMuted }]}>هل لديك كود إحالة؟</Text>
+              <View style={styles.refInputRow}>
+                <TextInput
+                  style={[styles.refTextInput, { color: theme.textPrimary, backgroundColor: theme.inputBg || "#0A0A1A", borderColor: theme.cardBorder }]}
+                  placeholder="أدخل كود الإحالة..."
+                  placeholderTextColor={theme.textMuted}
+                  value={refInput}
+                  onChangeText={setRefInput}
+                  autoCapitalize="characters"
+                />
+                <TouchableOpacity
+                  style={[styles.refClaimBtn, !refInput.trim() && { opacity: 0.5 }]}
+                  onPress={handleClaimReferral}
+                  disabled={!refInput.trim() || refClaiming}
+                >
+                  {refClaiming ? (
+                    <ActivityIndicator size="small" color="#000" />
+                  ) : (
+                    <Text style={styles.refClaimBtnText}>تفعيل</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* ── Language ────────────────────────────────── */}
@@ -372,4 +497,29 @@ const styles = StyleSheet.create({
   modalNoText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#9898CC" },
   modalYes: { flex: 1, minHeight: 48, justifyContent: "center", borderRadius: 16, backgroundColor: Colors.ruby, alignItems: "center" },
   modalYesText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
+  refCard: {
+    borderRadius: 14, padding: 16, gap: 10,
+    borderWidth: 1, backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.10)",
+  },
+  refLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#5A5A88" },
+  refCodeRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  refCodeValue: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.emerald },
+  refCopyBtn: { padding: 6 },
+  refShareBtn: { padding: 6 },
+  refStats: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#5A5A88" },
+  refInputCard: {
+    borderRadius: 14, padding: 16, gap: 10, marginTop: 10,
+    borderWidth: 1, backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.10)",
+  },
+  refInputRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  refTextInput: {
+    flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 14,
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
+    borderWidth: 1,
+  },
+  refClaimBtn: {
+    paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12,
+    backgroundColor: Colors.emerald,
+  },
+  refClaimBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#000" },
 });

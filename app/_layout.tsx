@@ -91,6 +91,51 @@ function InvitePoller() {
   return null;
 }
 
+function GiftPoller() {
+  const { playerId, addCoins } = usePlayer();
+  const alertShowing = useRef(false);
+
+  useEffect(() => {
+    if (!playerId) return;
+
+    const poll = async () => {
+      if (alertShowing.current) return;
+      try {
+        const url = new URL(`/api/friends/gifts/pending/${playerId}`, getApiUrl());
+        const res = await fetch(url.toString());
+        if (!res.ok) return;
+        const gifts = await res.json();
+        if (!Array.isArray(gifts) || gifts.length === 0) return;
+
+        alertShowing.current = true;
+        const totalCoins = gifts.reduce((sum: number, g: any) => sum + (g.amount || 0), 0);
+        const names = [...new Set(gifts.map((g: any) => g.fromPlayerName))].join("، ");
+
+        Alert.alert(
+          "هدية! 🎁",
+          `${names} أرسل${gifts.length > 1 ? "وا" : ""} لك ${totalCoins} عملة`,
+          [{
+            text: "رائع!",
+            onPress: async () => {
+              alertShowing.current = false;
+              try {
+                const markUrl = new URL(`/api/friends/gifts/seen/${playerId}`, getApiUrl());
+                await fetch(markUrl.toString(), { method: "PUT" });
+              } catch {}
+            },
+          }]
+        );
+      } catch {}
+    };
+
+    const interval = setInterval(poll, 15000);
+    poll();
+    return () => clearInterval(interval);
+  }, [playerId]);
+
+  return null;
+}
+
 const LAST_RESET_DATE_KEY = "daily_reset_date_v1";
 
 function DailyResetChecker() {
@@ -223,6 +268,7 @@ function RootLayoutNav() {
   return (
     <>
       <InvitePoller />
+      <GiftPoller />
       <DailyResetChecker />
       <DailyLoginPopup />
       <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }}>

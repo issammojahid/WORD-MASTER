@@ -247,6 +247,8 @@ export default function GameScreen() {
   const [showChatPanel, setShowChatPanel] = useState(false);
   const [chatBubbles, setChatBubbles] = useState<ChatBubble[]>([]);
   const [streakReward, setStreakReward] = useState<{ streakBonus: number; coinEntryReward: number } | null>(null);
+  const [floatingEmote, setFloatingEmote] = useState<{ emote: string; playerName: string } | null>(null);
+  const emoteAnim = useRef(new Animated.Value(0)).current;
 
   const gameOverSlide = useRef(new Animated.Value(60)).current;
   const gameOverOpacity = useRef(new Animated.Value(0)).current;
@@ -631,6 +633,17 @@ export default function GameScreen() {
       else if (data.message.includes("🔥")) playSound("fire");
     });
 
+    socket.on("receive_emote", (data: { emote: string; playerName: string }) => {
+      setFloatingEmote(data);
+      emoteAnim.setValue(0);
+      Animated.sequence([
+        Animated.spring(emoteAnim, { toValue: 1, tension: 100, friction: 8, useNativeDriver: true }),
+        Animated.delay(2000),
+        Animated.timing(emoteAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]).start(() => setFloatingEmote(null));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    });
+
     // Opponent disconnected without using forfeit — declare me winner
     socket.on("player_left", ({ playerId: leftId }: { playerId: string }) => {
       if (isGameOverRef.current) return;
@@ -655,6 +668,7 @@ export default function GameScreen() {
       socket.off("new_round");
       socket.off("game_over");
       socket.off("quick_chat");
+      socket.off("receive_emote");
       socket.off("power_card");
       socket.off("player_left");
       if (freezeCountdownRef.current) { clearInterval(freezeCountdownRef.current); }
@@ -806,6 +820,48 @@ export default function GameScreen() {
               <Text style={styles.shareCardFooter}>حمّل اللعبة وتحداني! 🔥</Text>
             </LinearGradient>
           </ViewShot>
+
+          <View style={styles.emoteRow}>
+            {[
+              { emote: "🤝", label: "أحسنت" },
+              { emote: "🔥", label: "نار" },
+              { emote: "😢", label: "حظ" },
+              { emote: "👏", label: "برافو" },
+            ].map((e) => (
+              <TouchableOpacity
+                key={e.emote}
+                style={[styles.emoteBtn, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  socket.emit("send_emote", { roomId, emote: e.emote, playerName: profile.name });
+                  setFloatingEmote({ emote: e.emote, playerName: profile.name });
+                  emoteAnim.setValue(0);
+                  Animated.sequence([
+                    Animated.spring(emoteAnim, { toValue: 1, tension: 100, friction: 8, useNativeDriver: true }),
+                    Animated.delay(2000),
+                    Animated.timing(emoteAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
+                  ]).start(() => setFloatingEmote(null));
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.emoteBtnEmoji}>{e.emote}</Text>
+                <Text style={[styles.emoteBtnLabel, { color: theme.textMuted }]}>{e.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {floatingEmote && (
+            <Animated.View style={[styles.floatingEmote, {
+              opacity: emoteAnim,
+              transform: [
+                { scale: emoteAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) },
+                { translateY: emoteAnim.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) },
+              ],
+            }]}>
+              <Text style={styles.floatingEmoteText}>{floatingEmote.emote}</Text>
+              <Text style={styles.floatingEmoteName}>{floatingEmote.playerName}</Text>
+            </Animated.View>
+          )}
 
           <View style={styles.gameOverActions}>
             <TouchableOpacity style={styles.playAgainBtn} onPress={handlePlayAgain} activeOpacity={0.85}>
@@ -1488,4 +1544,25 @@ const styles = StyleSheet.create({
   exitBtnYesText: {
     fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.ruby,
   },
+  emoteRow: {
+    flexDirection: "row", justifyContent: "center", gap: 10,
+    marginVertical: 12, paddingHorizontal: 16,
+  },
+  emoteBtn: {
+    alignItems: "center", gap: 4,
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderRadius: 14, borderWidth: 1,
+    backgroundColor: "#12122A", borderColor: "#1E1E3A",
+  },
+  emoteBtnEmoji: { fontSize: 24 },
+  emoteBtnLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#5A5A88" },
+  floatingEmote: {
+    position: "absolute", top: "30%", alignSelf: "center",
+    alignItems: "center", zIndex: 200,
+    backgroundColor: "rgba(10,10,26,0.9)", borderRadius: 20,
+    paddingHorizontal: 24, paddingVertical: 16,
+    borderWidth: 1.5, borderColor: Colors.gold + "50",
+  },
+  floatingEmoteText: { fontSize: 48 },
+  floatingEmoteName: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.gold, marginTop: 4 },
 });
