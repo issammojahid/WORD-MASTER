@@ -13,6 +13,7 @@ import {
   Modal,
   Dimensions,
   BackHandler,
+  Share,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
@@ -783,14 +784,38 @@ export default function GameScreen() {
             </View>
           )}
 
-          <TouchableOpacity style={styles.playAgainBtn} onPress={handlePlayAgain} activeOpacity={0.85}>
-            <Ionicons name="refresh" size={18} color={"#0A0A1A"} style={{ marginRight: 8 }} />
-            <Text style={styles.playAgainBtnText}>{t.playAgain}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.homeBtn, { backgroundColor: theme.card, borderColor: theme.cardBorder }]} onPress={() => router.replace("/")} activeOpacity={0.8}>
-            <Ionicons name="home-outline" size={16} color={theme.textSecondary} style={{ marginRight: 6 }} />
-            <Text style={[styles.homeBtnText, { color: theme.textSecondary }]}>{t.backToHome}</Text>
-          </TouchableOpacity>
+          <View style={styles.gameOverActions}>
+            <TouchableOpacity style={styles.playAgainBtn} onPress={handlePlayAgain} activeOpacity={0.85}>
+              <Ionicons name="refresh" size={18} color={"#0A0A1A"} style={{ marginRight: 8 }} />
+              <Text style={styles.playAgainBtnText}>{t.playAgain}</Text>
+            </TouchableOpacity>
+
+            <View style={styles.gameOverBtnRow}>
+              <TouchableOpacity
+                style={styles.shareBtn}
+                activeOpacity={0.8}
+                onPress={async () => {
+                  const myPlayer = sortedPlayers.find(p => p.id === socketId);
+                  const myScore = myPlayer?.score ?? 0;
+                  const rank = myIdx + 1;
+                  const totalPlayers = sortedPlayers.length;
+                  const rankText = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
+                  const message = `${rankText} حصلت على المركز ${rank} من ${totalPlayers} في حروف المغرب!\n⭐ النتيجة: ${myScore} نقطة\n🔥 حمّل اللعبة وتحداني!\n#حروف_المغرب`;
+                  try {
+                    await Share.share({ message });
+                  } catch {}
+                }}
+              >
+                <Ionicons name="share-social" size={18} color="#BF00FF" />
+                <Text style={styles.shareBtnText}>مشاركة 📤</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={[styles.homeBtn, { backgroundColor: theme.card, borderColor: theme.cardBorder }]} onPress={() => router.replace("/")} activeOpacity={0.8}>
+                <Ionicons name="home-outline" size={16} color={theme.textSecondary} style={{ marginRight: 6 }} />
+                <Text style={[styles.homeBtnText, { color: theme.textSecondary }]}>{t.backToHome}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </ScrollView>
         </Animated.View>
       </View>
@@ -1323,16 +1348,24 @@ const styles = StyleSheet.create({
   coinEntryInfoText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#9898CC" },
   coinRewardBadge: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.gold + "22", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, gap: 3 },
   coinRewardText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.gold },
+  gameOverActions: { width: "100%", gap: 12, marginTop: 4 },
+  gameOverBtnRow: { flexDirection: "row", gap: 10 },
   playAgainBtn: {
     backgroundColor: Colors.gold, borderRadius: 16, paddingVertical: 16,
-    paddingHorizontal: 40, marginBottom: 12,
+    paddingHorizontal: 40,
     shadowColor: Colors.gold, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
     flexDirection: "row", alignItems: "center", justifyContent: "center",
   },
   playAgainBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#000000" },
-  homeBtn: { backgroundColor: "#12122A", borderRadius: 16, paddingVertical: 14, paddingHorizontal: 40, borderWidth: 1, borderColor: "#1E1E3A", flexDirection: "row", alignItems: "center", justifyContent: "center" },
-  homeBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: "#9898CC" },
+  shareBtn: {
+    flex: 1, backgroundColor: "rgba(191,0,255,0.12)", borderRadius: 16, paddingVertical: 14,
+    borderWidth: 1, borderColor: "rgba(191,0,255,0.3)",
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+  },
+  shareBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#BF00FF" },
+  homeBtn: { flex: 1, backgroundColor: "#12122A", borderRadius: 16, paddingVertical: 14, borderWidth: 1, borderColor: "#1E1E3A", flexDirection: "row", alignItems: "center", justifyContent: "center" },
+  homeBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#9898CC" },
 
   // Exit game button (top-left of gameTopBar)
   exitGameBtn: {

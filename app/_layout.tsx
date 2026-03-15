@@ -9,9 +9,10 @@ import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, Animated, StyleSheet } from "react-native";
+import { Alert, Animated, StyleSheet, View, Text, TouchableOpacity, Modal, Dimensions, Easing } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
+import { LinearGradient } from "expo-linear-gradient";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { queryClient, getApiUrl } from "@/lib/query-client";
 import { LanguageProvider } from "@/contexts/LanguageContext";
@@ -114,11 +115,116 @@ function DailyResetChecker() {
   return null;
 }
 
+const STREAK_DAY_REWARDS = [15, 20, 30, 25, 35, 50, 100];
+const STREAK_EMOJIS = ["🪙", "🪙", "💰", "🪙", "💰", "💎", "🏆"];
+
+function DailyLoginPopup() {
+  const { playerId, addCoins } = usePlayer();
+  const [visible, setVisible] = useState(false);
+  const [streakData, setStreakData] = useState<{ streak: number; reward: number; longestStreak: number } | null>(null);
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const coinAnim = useRef(new Animated.Value(0)).current;
+  const calledRef = useRef(false);
+
+  useEffect(() => {
+    if (!playerId || calledRef.current) return;
+    calledRef.current = true;
+
+    const timer = setTimeout(async () => {
+      try {
+        const url = new URL(`/api/player/${playerId}/daily-login`, getApiUrl());
+        const res = await fetch(url.toString(), { method: "POST", headers: { "Content-Type": "application/json" } });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.success) return;
+
+        setStreakData({ streak: data.streak, reward: data.reward, longestStreak: data.longestStreak });
+        addCoins(data.reward);
+        setVisible(true);
+
+        Animated.sequence([
+          Animated.spring(scaleAnim, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }),
+          Animated.timing(coinAnim, { toValue: 1, duration: 500, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        ]).start();
+      } catch {}
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [playerId]);
+
+  if (!visible || !streakData) return null;
+
+  const currentDayIndex = ((streakData.streak - 1) % 7);
+
+  return (
+    <Modal transparent visible={visible} animationType="none" onRequestClose={() => setVisible(false)}>
+      <View style={lp.overlay}>
+        <Animated.View style={[lp.popup, { transform: [{ scale: scaleAnim }] }]}>
+          <LinearGradient colors={["#0E0E24", "#12122A", "#0A0A1A"]} style={lp.popupGrad}>
+            <Text style={lp.title}>{"تسجيل دخول يومي 📅"}</Text>
+            <Text style={lp.streakNum}>{"🔥"} {streakData.streak} {"يوم متتالي"}</Text>
+
+            <View style={lp.calendarRow}>
+              {STREAK_DAY_REWARDS.map((reward, i) => {
+                const isDone = i < currentDayIndex;
+                const isToday = i === currentDayIndex;
+                return (
+                  <View key={i} style={[lp.dayCell, isDone && lp.dayCellDone, isToday && lp.dayCellToday]}>
+                    <Text style={lp.dayEmoji}>{isDone ? "✅" : STREAK_EMOJIS[i]}</Text>
+                    <Text style={[lp.dayNum, isToday && lp.dayNumToday]}>{"يوم"} {i + 1}</Text>
+                    <Text style={[lp.dayReward, isToday && lp.dayRewardToday]}>{reward}</Text>
+                  </View>
+                );
+              })}
+            </View>
+
+            <Animated.View style={[lp.rewardBanner, { opacity: coinAnim, transform: [{ translateY: coinAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }]}>
+              <Text style={lp.rewardText}>{"🪙"} +{streakData.reward} {"عملة"}</Text>
+            </Animated.View>
+
+            <TouchableOpacity style={lp.claimBtn} onPress={() => setVisible(false)} activeOpacity={0.8}>
+              <LinearGradient colors={["#F5C842", "#E6A800"]} style={lp.claimBtnGrad}>
+                <Text style={lp.claimBtnText}>{"رائع! 🎉"}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </LinearGradient>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+}
+
+const { width: SCREEN_W } = Dimensions.get("window");
+const lp = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", paddingHorizontal: 20 },
+  popup: { width: "100%", maxWidth: 380, borderRadius: 24, overflow: "hidden", borderWidth: 1.5, borderColor: "#F5C84240" },
+  popupGrad: { padding: 24, alignItems: "center", gap: 16 },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#E8E8FF" },
+  streakNum: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#F5C842" },
+  calendarRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, width: "100%" },
+  dayCell: {
+    width: (SCREEN_W - 80) / 7 - 8, alignItems: "center", backgroundColor: "rgba(255,255,255,0.04)",
+    borderRadius: 12, paddingVertical: 8, borderWidth: 1, borderColor: "rgba(255,255,255,0.06)",
+  },
+  dayCellDone: { backgroundColor: "rgba(0,255,135,0.08)", borderColor: "#00FF8740" },
+  dayCellToday: { backgroundColor: "rgba(245,200,66,0.12)", borderColor: "#F5C84260", borderWidth: 2 },
+  dayEmoji: { fontSize: 16 },
+  dayNum: { fontFamily: "Cairo_400Regular", fontSize: 8, color: "rgba(255,255,255,0.4)", marginTop: 2 },
+  dayNumToday: { color: "#F5C842" },
+  dayReward: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "rgba(255,255,255,0.5)" },
+  dayRewardToday: { color: "#F5C842" },
+  rewardBanner: { backgroundColor: "rgba(245,200,66,0.15)", borderRadius: 16, paddingHorizontal: 20, paddingVertical: 10, borderWidth: 1, borderColor: "#F5C84230" },
+  rewardText: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F5C842" },
+  claimBtn: { width: "100%", borderRadius: 16, overflow: "hidden" },
+  claimBtnGrad: { paddingVertical: 14, alignItems: "center", borderRadius: 16 },
+  claimBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#000" },
+});
+
 function RootLayoutNav() {
   return (
     <>
       <InvitePoller />
       <DailyResetChecker />
+      <DailyLoginPopup />
       <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
         <Stack.Screen name="index" options={{ animation: "fade" }} />
         <Stack.Screen name="lobby" options={{ animation: "slide_from_right" }} />

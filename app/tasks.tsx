@@ -34,6 +34,7 @@ type Task = {
   key: string; icon: string; titleAr: string; descAr: string;
   target: number; type: string; rewardCoins: number; rewardXp: number;
   rowId?: string; progress: number; completed: boolean; claimed: boolean;
+  isWeekly?: boolean;
 };
 
 type ApiFetchOptions = { method?: string; body?: BodyInit; headers?: HeadersInit };
@@ -341,7 +342,30 @@ function TasksScreenInner() {
           </View>
         ) : (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
-            {tasks.map((task) => (
+            {tasks.filter(t => t.isWeekly).map((task) => (
+              <View key={task.key}>
+                <View style={s.sectionHeader}>
+                  <Ionicons name="calendar" size={16} color={ACCENT.purple} />
+                  <Text style={[s.sectionTitle, { color: ACCENT.purple }]}>تحدي الأسبوع</Text>
+                </View>
+                <LinearGradient
+                  colors={["rgba(191,0,255,0.12)", "rgba(0,245,255,0.06)"]}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                  style={s.weeklyWrap}
+                >
+                  <TaskCard
+                    task={task}
+                    onClaim={() => claimTask.mutate(task.key)}
+                    isPending={claimTask.isPending}
+                  />
+                </LinearGradient>
+              </View>
+            ))}
+            <View style={s.sectionHeader}>
+              <Ionicons name="today" size={16} color={ACCENT.cyan} />
+              <Text style={[s.sectionTitle, { color: ACCENT.cyan }]}>المهام اليومية</Text>
+            </View>
+            {tasks.filter(t => !t.isWeekly).map((task) => (
               <TaskCard
                 key={task.key}
                 task={task}
@@ -399,6 +423,10 @@ const s = StyleSheet.create({
   emptySubText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.35)", marginTop: 4 },
 
   list: { paddingHorizontal: 16, paddingBottom: 24, gap: 12 },
+
+  sectionHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4, paddingHorizontal: 2 },
+  sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 14 },
+  weeklyWrap: { borderRadius: 22, padding: 3, borderWidth: 1.5, borderColor: "rgba(191,0,255,0.25)" },
 });
 
 export default function TasksScreen() {

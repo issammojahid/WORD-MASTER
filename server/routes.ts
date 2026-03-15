@@ -41,12 +41,24 @@ const DAILY_TASK_DEFS = TASK_POOL; // backward-compat alias
 const ACHIEVEMENT_DEFS = [
   { key: "first_win", titleAr: "أول انتصار", descAr: "فُز بأول مباراة لك", target: 1, type: "wins", rewardCoins: 50, rewardXp: 50, icon: "🥇" },
   { key: "win_10", titleAr: "10 انتصارات", descAr: "اربح 10 مباريات", target: 10, type: "wins", rewardCoins: 200, rewardXp: 100, icon: "🏆" },
+  { key: "win_25", titleAr: "25 انتصاراً", descAr: "اربح 25 مباراة", target: 25, type: "wins", rewardCoins: 350, rewardXp: 200, icon: "🎖️" },
   { key: "win_50", titleAr: "50 انتصاراً", descAr: "اربح 50 مباراة", target: 50, type: "wins", rewardCoins: 500, rewardXp: 300, icon: "👑" },
+  { key: "win_100", titleAr: "100 انتصار", descAr: "اربح 100 مباراة", target: 100, type: "wins", rewardCoins: 1000, rewardXp: 500, icon: "💎" },
   { key: "play_10", titleAr: "10 مباريات", descAr: "شارك في 10 مباريات", target: 10, type: "games", rewardCoins: 100, rewardXp: 50, icon: "🎮" },
+  { key: "play_50", titleAr: "50 مباراة", descAr: "شارك في 50 مباراة", target: 50, type: "games", rewardCoins: 200, rewardXp: 120, icon: "🕹️" },
   { key: "play_100", titleAr: "100 مباراة", descAr: "شارك في 100 مباراة", target: 100, type: "games", rewardCoins: 300, rewardXp: 200, icon: "💯" },
+  { key: "play_500", titleAr: "500 مباراة", descAr: "شارك في 500 مباراة", target: 500, type: "games", rewardCoins: 800, rewardXp: 400, icon: "🎯" },
   { key: "level_5", titleAr: "المستوى 5", descAr: "ابلغ المستوى الخامس", target: 5, type: "level", rewardCoins: 150, rewardXp: 0, icon: "⚡" },
   { key: "level_10", titleAr: "المستوى 10", descAr: "ابلغ المستوى العاشر", target: 10, type: "level", rewardCoins: 500, rewardXp: 0, icon: "🌟" },
+  { key: "level_15", titleAr: "المستوى 15", descAr: "ابلغ المستوى الخامس عشر", target: 15, type: "level", rewardCoins: 750, rewardXp: 0, icon: "🔮" },
+  { key: "level_20", titleAr: "المستوى 20", descAr: "ابلغ المستوى العشرين", target: 20, type: "level", rewardCoins: 1200, rewardXp: 0, icon: "🏰" },
   { key: "streak_3", titleAr: "3 انتصارات متتالية", descAr: "اربح 3 مباريات على التوالي", target: 3, type: "streak", rewardCoins: 100, rewardXp: 75, icon: "🔥" },
+  { key: "streak_5", titleAr: "5 انتصارات متتالية", descAr: "اربح 5 مباريات على التوالي", target: 5, type: "streak", rewardCoins: 250, rewardXp: 150, icon: "⚡" },
+  { key: "streak_10", titleAr: "10 انتصارات متتالية", descAr: "اربح 10 مباريات على التوالي", target: 10, type: "streak", rewardCoins: 500, rewardXp: 300, icon: "💥" },
+  { key: "login_7", titleAr: "7 أيام متتالية", descAr: "سجل دخولك 7 أيام متتالية", target: 7, type: "login_streak", rewardCoins: 200, rewardXp: 100, icon: "📅" },
+  { key: "login_30", titleAr: "30 يوم متتالي", descAr: "سجل دخولك 30 يوم متتالي", target: 30, type: "login_streak", rewardCoins: 1000, rewardXp: 500, icon: "🗓️" },
+  { key: "score_5000", titleAr: "5000 نقطة", descAr: "اجمع 5000 نقطة إجمالية", target: 5000, type: "total_score", rewardCoins: 500, rewardXp: 250, icon: "⭐" },
+  { key: "first_tournament", titleAr: "أول بطولة", descAr: "شارك في بطولة واحدة", target: 1, type: "tournaments", rewardCoins: 150, rewardXp: 100, icon: "🏟️" },
 ] as const;
 
 // ── PLAYER ID & NAME GENERATION ─────────────────────────────────────────────
@@ -2167,6 +2179,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── DAILY LOGIN STREAK ────────────────────────────────────────────────────
+  const LOGIN_STREAK_REWARDS: Record<number, number> = {
+    1: 15, 2: 20, 3: 30, 4: 25, 5: 35, 6: 50, 7: 100,
+    14: 150, 21: 200, 30: 500,
+  };
+  function getLoginReward(day: number): number {
+    if (LOGIN_STREAK_REWARDS[day]) return LOGIN_STREAK_REWARDS[day];
+    return 15;
+  }
+
+  app.post("/api/player/:id/daily-login", async (req, res) => {
+    try {
+      const { id: playerId } = req.params;
+      const today = new Date().toISOString().slice(0, 10);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+      let [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      if (!profile) {
+        const playerCode = await ensurePlayerCode(playerId);
+        const randomName = generateRandomPlayerName();
+        [profile] = await db.insert(playerProfiles).values({ id: playerId, playerCode, playerTag: await generateUniquePlayerTag(), name: randomName }).returning();
+      }
+
+      if (profile.lastLoginDate === today) {
+        return res.json({
+          success: false,
+          error: "already_claimed",
+          streak: profile.loginStreak,
+          longestStreak: profile.longestLoginStreak,
+          lastLoginDate: profile.lastLoginDate,
+        });
+      }
+
+      const continuesStreak = profile.lastLoginDate === yesterdayStr;
+      const newStreak = continuesStreak ? (profile.loginStreak ?? 0) + 1 : 1;
+      const longestStreak = Math.max(newStreak, profile.longestLoginStreak ?? 0);
+      const reward = getLoginReward(newStreak);
+
+      const updated = await db.update(playerProfiles).set({
+        loginStreak: newStreak,
+        lastLoginDate: today,
+        longestLoginStreak: longestStreak,
+        coins: sql`coins + ${reward}`,
+        updatedAt: new Date(),
+      }).where(
+        and(
+          eq(playerProfiles.id, playerId),
+          sql`${playerProfiles.lastLoginDate} IS DISTINCT FROM ${today}`
+        )
+      ).returning();
+
+      if (!updated.length) {
+        return res.json({ success: false, error: "already_claimed", streak: profile.loginStreak, longestStreak: profile.longestLoginStreak, lastLoginDate: profile.lastLoginDate });
+      }
+
+      syncAchievementProgress(playerId, updated[0]).catch(() => {});
+
+      res.json({
+        success: true,
+        streak: newStreak,
+        longestStreak,
+        reward,
+        lastLoginDate: today,
+      });
+    } catch (e) {
+      console.error("POST /api/player/daily-login error:", e);
+      res.json({ success: false, error: "server_error" });
+    }
+  });
+
+  // ── WEEKLY CHALLENGE ─────────────────────────────────────────────────────
+  const WEEKLY_TASK_POOL = [
+    { key: "weekly_win_20",    titleAr: "اربح 20 مباراة هذا الأسبوع",   descAr: "فُز بـ 20 مباراة خلال هذا الأسبوع", icon: "🏆", target: 20,  type: "wins",  rewardCoins: 200, rewardXp: 150 },
+    { key: "weekly_play_30",   titleAr: "العب 30 مباراة هذا الأسبوع",   descAr: "شارك في 30 مباراة خلال هذا الأسبوع", icon: "🎮", target: 30,  type: "games", rewardCoins: 150, rewardXp: 100 },
+    { key: "weekly_score_1000", titleAr: "اجمع 1000 نقطة هذا الأسبوع", descAr: "حصّل 1000 نقطة خلال هذا الأسبوع",    icon: "⭐", target: 1000, type: "score", rewardCoins: 250, rewardXp: 200 },
+    { key: "weekly_win_10",    titleAr: "اربح 10 مباريات هذا الأسبوع",  descAr: "فُز بـ 10 مباريات خلال هذا الأسبوع", icon: "🎖️", target: 10,  type: "wins",  rewardCoins: 120, rewardXp: 80  },
+  ];
+
+  function getWeekId(): string {
+    const now = new Date();
+    const jan1 = new Date(now.getFullYear(), 0, 1);
+    const days = Math.floor((now.getTime() - jan1.getTime()) / 86400000);
+    const weekNum = Math.ceil((days + jan1.getDay() + 1) / 7);
+    return `${now.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+  }
+
+  function pickWeeklyTask(): typeof WEEKLY_TASK_POOL[number] {
+    const weekId = getWeekId();
+    let hash = 0;
+    for (let i = 0; i < weekId.length; i++) { hash = ((hash << 5) - hash) + weekId.charCodeAt(i); hash |= 0; }
+    return WEEKLY_TASK_POOL[Math.abs(hash) % WEEKLY_TASK_POOL.length];
+  }
+
   // ── DAILY TASKS ───────────────────────────────────────────────────────────
   function getTodayDate() {
     return new Date().toISOString().slice(0, 10);
@@ -2190,13 +2297,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
-  async function syncAchievementProgress(playerId: string, profile: { wins: number; gamesPlayed: number; level: number; bestStreak: number }) {
+  async function syncAchievementProgress(playerId: string, profile: { wins: number; gamesPlayed: number; level: number; bestStreak: number; loginStreak?: number; longestLoginStreak?: number; totalScore?: number }) {
     for (const def of ACHIEVEMENT_DEFS) {
       let progress = 0;
-      if (def.type === "wins")   progress = Math.min(profile.wins, def.target);
-      if (def.type === "games")  progress = Math.min(profile.gamesPlayed, def.target);
-      if (def.type === "level")  progress = Math.min(profile.level, def.target);
-      if (def.type === "streak") progress = Math.min(profile.bestStreak, def.target);
+      if (def.type === "wins")         progress = Math.min(profile.wins, def.target);
+      if (def.type === "games")        progress = Math.min(profile.gamesPlayed, def.target);
+      if (def.type === "level")        progress = Math.min(profile.level, def.target);
+      if (def.type === "streak")       progress = Math.min(profile.bestStreak, def.target);
+      if (def.type === "login_streak") progress = Math.min(profile.longestLoginStreak ?? 0, def.target);
+      if (def.type === "total_score")  progress = Math.min(profile.totalScore ?? 0, def.target);
       const unlocked = progress >= def.target;
       const [existing] = await db.select().from(playerAchievements)
         .where(and(eq(playerAchievements.playerId, playerId), eq(playerAchievements.achievementKey, def.key)));
@@ -2247,7 +2356,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .where(and(eq(playerDailyTasks.playerId, playerId), eq(playerDailyTasks.assignedDate, today)));
       }
 
-      const result = todayRows.map(row => {
+      const dailyResult = todayRows.map(row => {
         const def = TASK_POOL.find(d => d.key === row.taskKey);
         if (!def) return null;
         let progress = row.progress ?? 0;
@@ -2260,10 +2369,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
           progress,
           completed: progress >= def.target,
           claimed: row.claimed === 1,
+          isWeekly: false,
         };
       }).filter(Boolean);
 
-      res.json(result);
+      const weekId = getWeekId();
+      const weeklyDef = pickWeeklyTask();
+      const weeklyTaskKey = `${weeklyDef.key}_${weekId}`;
+      let [weeklyRow] = await db.select().from(playerDailyTasks)
+        .where(and(eq(playerDailyTasks.playerId, playerId), eq(playerDailyTasks.taskKey, weeklyTaskKey)));
+
+      if (!weeklyRow) {
+        [weeklyRow] = await db.insert(playerDailyTasks).values({
+          playerId,
+          taskKey: weeklyTaskKey,
+          assignedDate: weekId,
+          progress: 0,
+          baselineWins: profile.wins,
+          baselineGames: profile.gamesPlayed,
+          baselineScore: profile.totalScore,
+        }).returning();
+      }
+
+      let weeklyProgress = weeklyRow.progress ?? 0;
+      if (weeklyDef.type === "wins")  weeklyProgress = Math.max(weeklyProgress, Math.min(Math.max(0, profile.wins - (weeklyRow.baselineWins ?? 0)), weeklyDef.target));
+      if (weeklyDef.type === "games") weeklyProgress = Math.max(weeklyProgress, Math.min(Math.max(0, profile.gamesPlayed - (weeklyRow.baselineGames ?? 0)), weeklyDef.target));
+      if (weeklyDef.type === "score") weeklyProgress = Math.max(weeklyProgress, Math.min(Math.max(0, profile.totalScore - (weeklyRow.baselineScore ?? 0)), weeklyDef.target));
+
+      const weeklyResult = {
+        ...weeklyDef,
+        key: weeklyTaskKey,
+        rowId: weeklyRow.id,
+        progress: weeklyProgress,
+        completed: weeklyProgress >= weeklyDef.target,
+        claimed: weeklyRow.claimed === 1,
+        isWeekly: true,
+      };
+
+      res.json([weeklyResult, ...dailyResult]);
     } catch (e) {
       console.error("GET /api/tasks error:", e);
       res.status(500).json({ error: "server_error" });
@@ -2275,25 +2418,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { playerId, taskKey } = req.params;
       const today = getTodayDate();
 
-      const def = DAILY_TASK_DEFS.find(d => d.key === taskKey);
+      const isWeekly = taskKey.startsWith("weekly_");
+      let def: { key: string; titleAr: string; descAr: string; icon: string; target: number; type: string; rewardCoins: number; rewardXp: number } | undefined;
+      if (isWeekly) {
+        const baseKey = taskKey.replace(/_\d{4}-W\d{2}$/, "");
+        def = WEEKLY_TASK_POOL.find(d => d.key === baseKey);
+      } else {
+        def = DAILY_TASK_DEFS.find(d => d.key === taskKey);
+      }
       if (!def) return res.json({ success: false, error: "unknown_task" });
 
       const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
       if (!profile) return res.json({ success: false, error: "player_not_found" });
 
+      const assignedDate = isWeekly ? getWeekId() : today;
       let [row] = await db.select().from(playerDailyTasks)
         .where(and(
           eq(playerDailyTasks.playerId, playerId),
           eq(playerDailyTasks.taskKey, taskKey),
-          eq(playerDailyTasks.assignedDate, today),
+          eq(playerDailyTasks.assignedDate, assignedDate),
         ));
 
-      // Auto-create the row if it doesn't exist for today
       if (!row) {
         const [inserted] = await db.insert(playerDailyTasks).values({
           playerId,
           taskKey,
-          assignedDate: today,
+          assignedDate,
           progress: 0,
           baselineWins: profile.wins,
           baselineGames: profile.gamesPlayed,
@@ -2304,7 +2454,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (row.claimed === 1) return res.json({ success: false, error: "already_claimed" });
 
-      // Calculate latest progress from live profile stats
       let progress = row.progress ?? 0;
       if (def.type === "wins")  progress = Math.max(progress, Math.min(Math.max(0, profile.wins - (row.baselineWins ?? 0)), def.target));
       if (def.type === "games") progress = Math.max(progress, Math.min(Math.max(0, profile.gamesPlayed - (row.baselineGames ?? 0)), def.target));
@@ -2343,6 +2492,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const rows = await db.select().from(playerAchievements).where(eq(playerAchievements.playerId, playerId));
 
+      const tournamentCount = await db.select({ count: sql<number>`count(*)` }).from(tournamentPlayers).where(eq(tournamentPlayers.playerId, playerId));
+      const tournamentsPlayed = Number(tournamentCount[0]?.count ?? 0);
+
       const result = ACHIEVEMENT_DEFS.map(def => {
         const row = rows.find(r => r.achievementKey === def.key);
         let progress = 0;
@@ -2350,6 +2502,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (def.type === "games") progress = Math.min(profile.gamesPlayed, def.target);
         if (def.type === "level") progress = Math.min(profile.level, def.target);
         if (def.type === "streak") progress = Math.min(profile.bestStreak, def.target);
+        if (def.type === "login_streak") progress = Math.min(profile.longestLoginStreak ?? 0, def.target);
+        if (def.type === "total_score") progress = Math.min(profile.totalScore, def.target);
+        if (def.type === "tournaments") progress = Math.min(tournamentsPlayed, def.target);
         const unlocked = progress >= def.target;
         return {
           ...def,
@@ -2379,10 +2534,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (existing?.claimed === 1) return { success: false, error: "already_claimed" };
 
     let liveProgress = 0;
-    if (def.type === "wins")   liveProgress = profile.wins;
-    if (def.type === "games")  liveProgress = profile.gamesPlayed;
-    if (def.type === "level")  liveProgress = profile.level;
-    if (def.type === "streak") liveProgress = profile.bestStreak;
+    if (def.type === "wins")          liveProgress = profile.wins;
+    if (def.type === "games")         liveProgress = profile.gamesPlayed;
+    if (def.type === "level")         liveProgress = profile.level;
+    if (def.type === "streak")        liveProgress = profile.bestStreak;
+    if (def.type === "login_streak")  liveProgress = profile.longestLoginStreak ?? 0;
+    if (def.type === "total_score")   liveProgress = profile.totalScore;
+    if (def.type === "tournaments") {
+      const tc = await db.select({ count: sql<number>`count(*)` }).from(tournamentPlayers).where(eq(tournamentPlayers.playerId, playerId));
+      liveProgress = Number(tc[0]?.count ?? 0);
+    }
 
     const storedUnlocked = existing?.unlocked === 1;
     const liveUnlocked = liveProgress >= def.target;
