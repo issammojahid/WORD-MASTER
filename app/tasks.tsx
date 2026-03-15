@@ -253,6 +253,10 @@ function TasksScreenInner() {
       if ((data.coinsEarned ?? 0) > 0) addCoins(data.coinsEarned);
       if ((data.xpEarned ?? 0) > 0) addXp(data.xpEarned);
       qc.invalidateQueries({ queryKey: ["/api/tasks", playerId] });
+      const parts: string[] = [];
+      if ((data.coinsEarned ?? 0) > 0) parts.push(`🪙 +${data.coinsEarned} عملة`);
+      if ((data.xpEarned ?? 0) > 0) parts.push(`⭐ +${data.xpEarned} XP`);
+      Alert.alert("تم الاستلام! 🎉", parts.length > 0 ? parts.join("  |  ") : "تم استلام المكافأة بنجاح");
     },
     onError: () => {
       Alert.alert("خطأ في الاتصال", "تعذّر الاتصال بالخادم. تحقق من اتصالك وحاول مجدداً.");
