@@ -2895,8 +2895,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const code = await ensureReferralCode(req.params.playerId);
       const [profile] = await db.select({ referralCount: playerProfiles.referralCount, referredBy: playerProfiles.referredBy, createdAt: playerProfiles.createdAt }).from(playerProfiles).where(eq(playerProfiles.id, req.params.playerId));
-      const accountAgeDays = profile ? (Date.now() - new Date(profile.createdAt).getTime()) / (1000 * 60 * 60 * 24) : 999;
-      const referralEligible = !profile?.referredBy && accountAgeDays <= 7;
+      const accountAgeHours = profile ? (Date.now() - new Date(profile.createdAt).getTime()) / (1000 * 60 * 60) : 9999;
+      const referralEligible = !profile?.referredBy && accountAgeHours <= 24;
       res.json({ referralCode: code, referralCount: profile?.referralCount || 0, referredBy: profile?.referredBy || null, referralEligible });
     } catch (e) {
       console.error("GET /api/referral error:", e);
@@ -2913,8 +2913,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!player) return res.status(404).json({ error: "not_found" });
       if (player.referredBy) return res.json({ error: "already_claimed" });
 
-      const accountAgeDays = (Date.now() - new Date(player.createdAt).getTime()) / (1000 * 60 * 60 * 24);
-      if (accountAgeDays > 7) return res.json({ error: "expired", message: "Referral window expired (7 days)" });
+      const accountAgeHours = (Date.now() - new Date(player.createdAt).getTime()) / (1000 * 60 * 60);
+      if (accountAgeHours > 24) return res.json({ error: "expired" });
 
       const [referrer] = await db.select({ id: playerProfiles.id, referralCode: playerProfiles.referralCode }).from(playerProfiles).where(eq(playerProfiles.referralCode, referralCode.toUpperCase()));
       if (!referrer) return res.json({ error: "invalid_code" });

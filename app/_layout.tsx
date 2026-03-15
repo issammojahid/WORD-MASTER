@@ -92,7 +92,7 @@ function InvitePoller() {
 }
 
 function GiftPoller() {
-  const { playerId, addCoins } = usePlayer();
+  const { playerId } = usePlayer();
   const alertShowing = useRef(false);
 
   useEffect(() => {
@@ -115,8 +115,6 @@ function GiftPoller() {
           const markUrl = new URL(`/api/friends/gifts/seen/${playerId}`, getApiUrl());
           await fetch(markUrl.toString(), { method: "PUT" });
         } catch {}
-
-        addCoins(totalCoins);
 
         Alert.alert(
           "هدية! 🎁",

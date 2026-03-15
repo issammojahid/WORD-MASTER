@@ -130,7 +130,7 @@ export default function SettingsScreen() {
         Alert.alert("", "لا يمكنك استخدام كودك الخاص");
       } else if (data.error === "expired") {
         setRefEligible(false);
-        Alert.alert("", "انتهت فترة استخدام كود الإحالة (7 أيام)");
+        Alert.alert("", "انتهت فترة استخدام كود الإحالة");
       }
     } catch {
       Alert.alert("", "حدث خطأ، حاول مرة أخرى");
