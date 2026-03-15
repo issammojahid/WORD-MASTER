@@ -2379,9 +2379,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
 
+    // Atomic increment — avoids race condition with concurrent updates
     await db.update(playerProfiles).set({
-      coins: profile.coins + def.rewardCoins,
-      xp: profile.xp + def.rewardXp,
+      coins: sql`coins + ${def.rewardCoins}`,
+      xp: sql`xp + ${def.rewardXp}`,
       updatedAt: new Date(),
     }).where(eq(playerProfiles.id, playerId));
 

@@ -9,6 +9,7 @@ import {
   Platform,
   Animated,
   Easing,
+  Alert,
 } from "react-native";
 import { fetch } from "expo/fetch";
 import { router, useFocusEffect } from "expo-router";
@@ -231,12 +232,32 @@ function AchievementsScreenInner() {
   const claimAchievement = useMutation({
     mutationFn: async (key: string) => {
       const url = new URL(`/api/achievements/${playerId}/claim/${key}`, getApiUrl());
-      return apiFetch(url.toString(), { method: "POST" });
+      const data = await apiFetch(url.toString(), { method: "POST" });
+      return data;
     },
     onSuccess: (data) => {
+      if (!data) {
+        Alert.alert("خطأ في الاتصال", "تعذّر الاتصال بالخادم. تحقق من اتصالك بالإنترنت وحاول مجدداً.");
+        return;
+      }
+      if (!data.success) {
+        const errorMessages: Record<string, string> = {
+          already_claimed: "لقد استلمت هذه المكافأة مسبقاً.",
+          not_unlocked: "لم تُكمل هذا الإنجاز بعد.",
+          player_not_found: "لم يتم العثور على ملفك الشخصي. أعد تشغيل التطبيق.",
+          unknown_achievement: "إنجاز غير معروف.",
+          server_error: "حدث خطأ في الخادم. حاول مجدداً.",
+        };
+        const msg = errorMessages[data.error] || "حدث خطأ غير متوقع.";
+        Alert.alert("تعذّر استلام المكافأة", msg);
+        return;
+      }
+      if (data.coinsEarned > 0) addCoins(data.coinsEarned);
+      if (data.xpEarned > 0) addXp(data.xpEarned);
       qc.invalidateQueries({ queryKey: ["/api/achievements", playerId] });
-      if (data?.coinsEarned) addCoins(data.coinsEarned);
-      if (data?.xpEarned) addXp(data.xpEarned);
+    },
+    onError: () => {
+      Alert.alert("خطأ في الاتصال", "تعذّر الاتصال بالخادم. تحقق من اتصالك بالإنترنت وحاول مجدداً.");
     },
   });
 
