@@ -80,6 +80,15 @@ async function ensurePlayerCode(playerId: string): Promise<string> {
   return code;
 }
 
+async function generateUniquePlayerTag(): Promise<number> {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const tag = Math.floor(1000 + Math.random() * 9000);
+    const existing = await db.select({ id: playerProfiles.id }).from(playerProfiles)
+      .where(eq(playerProfiles.playerTag, tag)).limit(1);
+    if (existing.length === 0) return tag;
+  }
+  return Math.floor(1000 + Math.random() * 9000);
+}
 function generatePlayerTag(): number {
   return Math.floor(1000 + Math.random() * 9000);
 }
@@ -1392,7 +1401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!profile) {
         const playerCode = await ensurePlayerCode(req.params.id);
         const randomName = generateRandomPlayerName();
-        const playerTag = generatePlayerTag();
+        const playerTag = await generateUniquePlayerTag();
         [profile] = await db.insert(playerProfiles).values({
           id: req.params.id,
           playerCode,
@@ -1402,7 +1411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         const updates: Record<string, unknown> = {};
         if (!profile.playerCode) updates.playerCode = await ensurePlayerCode(req.params.id);
-        if (!profile.playerTag) updates.playerTag = generatePlayerTag();
+        if (!profile.playerTag) updates.playerTag = await generateUniquePlayerTag();
         if (Object.keys(updates).length > 0) {
           [profile] = await db.update(playerProfiles)
             .set(updates)
@@ -1946,23 +1955,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       if (q.includes("#")) {
-        // ── Name#tag format: exact name + exact 4-digit tag ──────────────────
         const hashIdx = q.lastIndexOf("#");
         const namePart = q.slice(0, hashIdx).trim();
         const tagStr = q.slice(hashIdx + 1).trim();
         const tagNum = parseInt(tagStr, 10);
 
-        if (!namePart || isNaN(tagNum)) return res.json([]);
+        if (isNaN(tagNum)) return res.json([]);
 
-        const nameCondition = ilike(playerProfiles.name, namePart);
-        const tagCondition = eq(playerProfiles.playerTag, tagNum);
-        const whereClause = myId
-          ? and(nameCondition, tagCondition, ne(playerProfiles.id, myId))
-          : and(nameCondition, tagCondition);
+        let whereClause;
+        if (namePart) {
+          // ── Name#tag format: exact name + exact tag ──────────────────────
+          const nameCondition = ilike(playerProfiles.name, namePart);
+          const tagCondition = eq(playerProfiles.playerTag, tagNum);
+          whereClause = myId
+            ? and(nameCondition, tagCondition, ne(playerProfiles.id, myId))
+            : and(nameCondition, tagCondition);
+        } else {
+          // ── #tag only: search by tag number alone ──────────────────────
+          const tagCondition = eq(playerProfiles.playerTag, tagNum);
+          whereClause = myId ? and(tagCondition, ne(playerProfiles.id, myId)) : tagCondition;
+        }
 
         const rows = await db.select(selectFields).from(playerProfiles)
           .where(whereClause)
-          .limit(1);
+          .limit(10);
         return res.json(rows);
       }
 
@@ -2029,7 +2045,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           and(eq(friends.requesterId, targetId), eq(friends.receiverId, playerId))
         )
       );
-      if (existing.length > 0) return res.status(400).json({ error: "already_exists", status: existing[0].status });
+      if (existing.length > 0) {
+        const ex = existing[0];
+        if (ex.status === "rejected" && ex.requesterId === playerId) {
+          // Allow re-send after rejection — reset to pending
+          await db.update(friends)
+            .set({ status: "pending", updatedAt: new Date() })
+            .where(eq(friends.id, ex.id));
+          return res.json({ success: true, resent: true });
+        }
+        // Already pending or accepted
+        return res.json({ error: "already_exists", status: ex.status });
+      }
       const [row] = await db.insert(friends).values({ requesterId: playerId, receiverId: targetId, status: "pending" }).returning();
       res.json({ success: true, requestId: row.id });
     } catch (e) {
@@ -2160,7 +2187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!profile) {
         const playerCode = await ensurePlayerCode(playerId);
         const randomName = generateRandomPlayerName();
-        [profile] = await db.insert(playerProfiles).values({ id: playerId, playerCode, playerTag: generatePlayerTag(), name: randomName }).returning();
+        [profile] = await db.insert(playerProfiles).values({ id: playerId, playerCode, playerTag: await generateUniquePlayerTag(), name: randomName }).returning();
       }
 
       let todayRows = await db.select().from(playerDailyTasks)
@@ -2250,7 +2277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!profile) {
         const playerCode = await ensurePlayerCode(playerId);
         const randomName = generateRandomPlayerName();
-        [profile] = await db.insert(playerProfiles).values({ id: playerId, playerCode, playerTag: generatePlayerTag(), name: randomName }).returning();
+        [profile] = await db.insert(playerProfiles).values({ id: playerId, playerCode, playerTag: await generateUniquePlayerTag(), name: randomName }).returning();
       }
 
       const rows = await db.select().from(playerAchievements).where(eq(playerAchievements.playerId, playerId));

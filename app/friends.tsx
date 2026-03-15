@@ -115,10 +115,16 @@ function FriendsScreenInner() {
       return apiFetch(url.toString(), { method: "POST" });
     },
     onSuccess: (data) => {
-      if (data && data.error === "already_exists") {
-        Alert.alert("", "طلب الصداقة موجود مسبقاً");
-      } else if (data && data.success) {
-        Alert.alert("", "تم إرسال طلب الصداقة ✓");
+      if (!data) {
+        Alert.alert("", "حدث خطأ، حاول مرة أخرى");
+        return;
+      }
+      if (data.error === "already_exists") {
+        const msg = data.status === "accepted" ? "أنتم أصدقاء بالفعل ✓" : "طلب الصداقة تم إرساله مسبقاً";
+        Alert.alert("", msg);
+      } else if (data.success) {
+        const msg = data.resent ? "تمت إعادة إرسال طلب الصداقة ✓" : "تم إرسال طلب الصداقة ✓";
+        Alert.alert("", msg);
       }
       qc.invalidateQueries({ queryKey: ["/api/friends", playerId] });
     },
@@ -249,10 +255,13 @@ function FriendsScreenInner() {
                 <View style={styles.friendActions}>
                   <TouchableOpacity
                     style={styles.inviteBtn}
-                    onPress={() => copyToClipboard(row.player.id)}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push({ pathname: "/lobby", params: { action: "create" } });
+                    }}
                   >
-                    <Ionicons name="paper-plane" size={14} color={Colors.sapphire} />
-                    <Text style={styles.inviteBtnText}>دعوة</Text>
+                    <Ionicons name="game-controller" size={14} color={Colors.sapphire} />
+                    <Text style={styles.inviteBtnText}>العب معه</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.removeBtn}
