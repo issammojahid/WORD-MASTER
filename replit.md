@@ -13,6 +13,11 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
 
 ## Recent Features Added
 
+- **Titles System**: New `TITLES` array in PlayerContext with 9 titles (beginner/eloquent/word_master/lightning/genius/letter_king/streak_lord/morocco_legend/champion_title). Added `ownedTitles: TitleId[]` and `equippedTitle: TitleId | null` to PlayerProfile. New `purchaseTitle` and `equipTitle` context functions. Titles have rarity tiers, prices, and unlock conditions (wins/level/streak).
+- **Shop Redesign — Titles Tab**: New "ألقاب" (Titles) tab in the shop. Shows active title preview bar + full grid of all titles. Buy, unlock by condition, or equip titles. Uses same rarity card system as outfits.
+- **Shop Redesign — Spin Wheel Tab**: New "العجلة" (Spin Wheel) tab with a hero banner (purple gradient, animated) that navigates to `/spin`. Shows prizes list and daily tips.
+- **Shop Redesign — 3-tier Mystery Boxes**: Mystery box tab renamed to "صناديق" (Boxes). Shows 3 selectable tiers: صندوق أساسي (100 coins), صندوق نادر (300 coins), صندوق أسطوري (600 coins). Each tier has its own gradient, glow color, and reward range. Selected tier highlighted with glow border.
+
 - **Player Code System**: Each player profile now gets a unique `playerCode` (WM-XXXXXX format) generated on creation. Stored in `player_profiles.player_code` column. New players also get a random English name (e.g. Lion_482, Atlas_771) instead of the default Arabic "لاعب".
 - **Change Name Endpoint**: `PATCH /api/player/change-name` accepts `{ player_id, new_name }` body and updates the player name in the DB.
 - **Friends System**: Search players by name OR playerCode (WM-XXXXXX), send/accept/reject/remove friend requests. DB table `friends` with requesterId/receiverId/status. REST endpoints: `/api/players/search`, `/api/friends/:id`, `/api/friends/:id/request/:target`, `/api/friends/request/:id/:action`, `/api/friends/:id/:friendId`. Additional body-style endpoints: `POST /api/friends/request` and `POST /api/friends/accept`. Frontend: `app/friends.tsx` with 3 tabs (friends/search/requests) + Create/Join Room buttons.

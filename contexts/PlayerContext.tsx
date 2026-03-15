@@ -139,6 +139,37 @@ export const EFFECTS: Effect[] = [
   { id: "coins_burst", price: 400, emoji: "🪙", color: "#F59E0B", rarity: "epic",      nameAr: "انفجار عملات", descAr: "أمطار من العملات الذهبية" },
 ];
 
+// ── Titles ────────────────────────────────────────────────────────────────────
+export type TitleId =
+  | "beginner" | "eloquent" | "word_master" | "letter_king"
+  | "morocco_legend" | "lightning" | "genius" | "streak_lord" | "champion_title";
+
+export type Title = {
+  id: TitleId;
+  price: number;
+  emoji: string;
+  color: string;
+  rarity: Rarity;
+  nameAr: string;
+  descAr: string;
+  unlockCondition?: UnlockCondition;
+};
+
+export const TITLES: Title[] = [
+  { id: "beginner",       price: 0,   emoji: "🎓", color: "#9CA3AF", rarity: "common",    nameAr: "مبتدئ",             descAr: "لقبك الأول في رحلة الكلمات" },
+  { id: "eloquent",       price: 200, emoji: "🗣️", color: "#60A5FA", rarity: "common",    nameAr: "الفصيح",            descAr: "يتقن فن الكلام والبيان" },
+  { id: "word_master",    price: 350, emoji: "📖", color: "#A78BFA", rarity: "rare",      nameAr: "معلم الكلمات",      descAr: "خبير لا يُقهر في عالم المفردات" },
+  { id: "lightning",      price: 300, emoji: "⚡", color: "#60A5FA", rarity: "rare",      nameAr: "سريع البرق",        descAr: "أسرع من البرق في إيجاد الكلمات" },
+  { id: "genius",         price: 600, emoji: "🧠", color: "#A78BFA", rarity: "epic",      nameAr: "الذكاء الخارق",     descAr: "عقل استثنائي في عالم الحروف" },
+  { id: "letter_king",    price: 500, emoji: "👑", color: "#A78BFA", rarity: "epic",      nameAr: "ملك الحروف",        descAr: "حاكم مطلق على ممالك الكلمات" },
+  { id: "streak_lord",    price: 0,   emoji: "🔥", color: "#FF6D00", rarity: "epic",      nameAr: "سيد السلاسل",      descAr: "حقق سلسلة 5 انتصارات",
+    unlockCondition: { type: "streak", value: 5, label: "سلسلة 5 انتصارات" } },
+  { id: "morocco_legend", price: 0,   emoji: "🌟", color: "#F59E0B", rarity: "legendary", nameAr: "أسطورة المغرب",     descAr: "فز بـ 20 مباراة لتحمل هذا اللقب",
+    unlockCondition: { type: "wins", value: 20, label: "فز بـ 20 مباراة" } },
+  { id: "champion_title", price: 0,   emoji: "🏅", color: "#F59E0B", rarity: "legendary", nameAr: "البطل الأبدي",      descAr: "ابلغ المستوى 10 لتحمل هذا اللقب",
+    unlockCondition: { type: "level", value: 10, label: "ابلغ المستوى 10" } },
+];
+
 // ── Mystery Box ───────────────────────────────────────────────────────────────
 export const MYSTERY_BOX_PRICE = 100;
 
@@ -193,6 +224,9 @@ export type PlayerProfile = {
   dailyShopBought: string[];
   // Power cards inventory
   powerCards: PowerCards;
+  // Titles
+  ownedTitles: TitleId[];
+  equippedTitle: TitleId | null;
 };
 
 type PlayerContextType = {
@@ -216,6 +250,8 @@ type PlayerContextType = {
   useCard: (cardId: keyof PowerCards) => boolean;
   claimLoginReward: () => boolean;
   addPowerCard: (cardId: keyof PowerCards, count?: number) => void;
+  purchaseTitle: (id: TitleId) => boolean;
+  equipTitle: (id: TitleId) => void;
 };
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
@@ -250,6 +286,8 @@ const defaultProfile: PlayerProfile = {
   dailyShopDate: null,
   dailyShopBought: [],
   powerCards: { time: 3, freeze: 3, hint: 3 },
+  ownedTitles: ["beginner"],
+  equippedTitle: "beginner",
 };
 
 function calculateLevel(xp: number): number {
@@ -274,6 +312,8 @@ function mergeProfile(base: Partial<PlayerProfile>): PlayerProfile {
     powerCards: base.powerCards
       ? { ...defaultProfile.powerCards, ...base.powerCards }
       : defaultProfile.powerCards,
+    ownedTitles: [...new Set([...defaultProfile.ownedTitles, ...(base.ownedTitles || [])])] as TitleId[],
+    equippedTitle: (base.equippedTitle as TitleId | null) ?? defaultProfile.equippedTitle,
   };
 }
 
@@ -358,6 +398,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
                 : (parsed?.powerCards ? { ...defaultProfile.powerCards, ...parsed.powerCards } : defaultProfile.powerCards),
               lastLoginRewardAt: parsed?.lastLoginRewardAt || null,
               claimedLevelRewards: parsed?.claimedLevelRewards || [],
+              ownedTitles: [...new Set([...(sp.ownedTitles || []), ...(parsed?.ownedTitles || []), "beginner"])] as TitleId[],
+              equippedTitle: sp.equippedTitle || parsed?.equippedTitle || "beginner",
             };
 
             setProfile(merged);
@@ -611,6 +653,39 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const equipTitle = (id: TitleId) => {
+    if (!profile.ownedTitles.includes(id)) return;
+    updateProfile({ equippedTitle: id });
+  };
+
+  const purchaseTitle = (id: TitleId): boolean => {
+    const title = TITLES.find((t) => t.id === id);
+    if (!title) return false;
+    if (profile.ownedTitles.includes(id)) {
+      equipTitle(id);
+      return true;
+    }
+    if (title.unlockCondition) {
+      const { type, value } = title.unlockCondition;
+      const met =
+        type === "wins"   ? profile.wins >= value :
+        type === "level"  ? profile.level >= value :
+        type === "streak" ? profile.bestStreak >= value : false;
+      if (!met) return false;
+      setProfile((prev) => {
+        const updated = { ...prev, ownedTitles: [...prev.ownedTitles, id], equippedTitle: id };
+        saveProfile(updated); debouncedSync(updated); return updated;
+      });
+      return true;
+    }
+    if (profile.coins < title.price) return false;
+    setProfile((prev) => {
+      const updated = { ...prev, coins: prev.coins - title.price, ownedTitles: [...prev.ownedTitles, id], equippedTitle: id };
+      saveProfile(updated); debouncedSync(updated); return updated;
+    });
+    return true;
+  };
+
   const claimLoginReward = (): boolean => {
     const last = profile.lastLoginRewardAt ? new Date(profile.lastLoginRewardAt).getTime() : 0;
     if (Date.now() - last < 24 * 60 * 60 * 1000) return false;
@@ -671,6 +746,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             powerCards: sp.powerCards
               ? { ...defaultProfile.powerCards, ...sp.powerCards }
               : profile.powerCards,
+            ownedTitles: [...new Set([...(sp.ownedTitles || []), ...profile.ownedTitles, "beginner"])] as TitleId[],
+            equippedTitle: sp.equippedTitle || profile.equippedTitle || "beginner",
           };
           setProfile(merged);
           saveProfile(merged);
@@ -710,6 +787,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       grantItem, buyDailyItem,
       setPlayerName, syncToServer, reportGameResult, useCard,
       claimLoginReward, addPowerCard,
+      purchaseTitle, equipTitle,
     }}>
       {children}
     </PlayerContext.Provider>

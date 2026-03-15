@@ -1,0 +1,191 @@
+Improve the shop screen of my mobile game and redesign it into a modern professional mobile game shop.
+
+1. Add a new section in the shop called "Spin Wheel".
+
+The spin wheel already exists in the game as a popup reward wheel, but I want to integrate it into the shop.
+
+Create a large Spin Wheel card:
+
+Design:
+
+- Large premium card
+- Gradient background
+- Wheel icon
+- Title: Spin Wheel
+- Description: Win random rewards
+- Big button: Spin
+- Glow animation
+
+Behavior:
+When the player clicks the card or the Spin button,
+open the existing spin wheel popup.
+
+The spin logic must stay unchanged.
+
+Add:
+
+- Free spin every 24 hours
+- Optional extra spin using coins
+
+---
+
+2. Implement a REAL Mystery Box System.
+
+Add a new shop section called "Mystery Boxes".
+
+Boxes:
+
+Basic Box
+Cost: coins
+Rewards:
+
+- Coins
+- Small XP
+- Common avatar
+
+Rare Box
+Cost: higher coins
+Rewards:
+
+- Coins
+- Avatar
+- Title
+- Effects
+
+Legendary Box
+Cost: high price
+Rewards:
+
+- Rare avatar
+- Special effect
+- Big coins
+- Exclusive title
+
+Box Opening Animation:
+When the player opens a box:
+
+- show a box opening animation
+- reveal reward with glow effect
+- display reward card
+
+Rewards should feel exciting.
+
+---
+
+3. Add Avatars System
+
+Replace clothing items with Avatars.
+
+Avatars examples:
+
+- Lion
+- Falcon
+- Wolf
+- Wizard
+- Robot
+- King
+- Brain
+
+Avatars appear next to the player name in the profile and multiplayer screens.
+
+Each avatar should have rarity:
+
+Common
+Rare
+Epic
+Legendary
+
+---
+
+4. Add Titles System
+
+Players can unlock titles displayed under their name.
+
+Examples:
+
+- Word Master
+- Puzzle Genius
+- Champion
+- Legend
+- Fast Thinker
+
+Titles should appear like:
+
+PlayerName
+Legend
+
+---
+
+5. Add Effects System
+
+Players can buy visual effects.
+
+Examples:
+
+- Win explosion effect
+- Word discovery glow
+- Victory animation
+- XP sparkle effect
+
+Effects activate during gameplay.
+
+---
+
+6. Improve Shop Layout
+
+Redesign the shop screen to look like a modern mobile game store.
+
+Sections:
+
+Daily Offers
+Spin Wheel
+Mystery Boxes
+Avatars
+Effects
+Titles
+Coin Packs
+
+Each section should use horizontal swipe scrolling cards.
+
+Use large premium cards with:
+
+- gradient backgrounds
+- icons
+- soft shadows
+- glow highlights
+
+The shop must feel dynamic and interactive.
+
+---
+
+7. Daily Shop System
+
+Create a daily offers section.
+
+Every day the shop refreshes items automatically.
+
+Examples:
+Avatar discount
+Effect discount
+Coins bundle
+
+Add timer:
+"Refresh in 23:59"
+
+---
+
+8. Shop UI Design Improvements
+
+Use a modern game UI style similar to top mobile games.
+
+Add:
+
+- smooth animations
+- hover/press effects
+- glow highlights
+- responsive layout
+- swipe navigation between sections
+
+Keep everything optimized for mobile performance.
+
+The final result should feel like a premium mobile game shop similar to games like Clash Royale or Brawl Stars.
