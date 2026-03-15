@@ -24,10 +24,10 @@ import { ScreenErrorBoundary } from "@/components/ScreenErrorBoundary";
 
 const ACCENT = {
   gold:   "#F5C842",
-  cyan:   "#00D4E8",
-  purple: "#A855F7",
-  green:  "#22C55E",
-  red:    "#EF4444",
+  cyan:   "#00F5FF",
+  purple: "#BF00FF",
+  green:  "#00FF87",
+  red:    "#FF006E",
 };
 
 type Task = {
@@ -204,7 +204,7 @@ const tc = StyleSheet.create({
   iconWrap: { width: 50, height: 50, borderRadius: 25, justifyContent: "center", alignItems: "center" },
   icon: { fontSize: 26 },
   content: { flex: 1, gap: 4 },
-  title: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#F0E6D3" },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#E8E8FF" },
   desc: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.45)" },
   progressRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
   progressNum: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "rgba(255,255,255,0.4)", minWidth: 32, textAlign: "right" },
@@ -281,14 +281,14 @@ function TasksScreenInner() {
   return (
     <View style={{ flex: 1 }}>
       <LinearGradient
-        colors={isDark ? ["#0C0A1E", "#100C28", "#0A1428"] : ["#F8F6FF", "#EEF2FF", "#F8F6FF"]}
+        colors={["#0A0A1A", "#0E0E24", "#0A0A1A"]}
         style={StyleSheet.absoluteFillObject}
       />
 
       <View style={{ paddingTop: topInset + 8, paddingBottom: bottomInset, flex: 1 }}>
         <View style={s.header}>
           <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color="#F0E6D3" />
+            <Ionicons name="arrow-back" size={22} color="#E8E8FF" />
           </TouchableOpacity>
           <View style={s.headerCenter}>
             <Text style={s.headerTitle}>مهام اليوم</Text>
@@ -368,7 +368,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
   },
   headerCenter: { flex: 1, alignItems: "center" },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 19, color: "#F0E6D3" },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 19, color: "#E8E8FF" },
   headerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 1 },
   refreshBtn: {
     width: 42, height: 42, borderRadius: 14,
@@ -389,7 +389,7 @@ const s = StyleSheet.create({
   summaryBarFill: { height: "100%", backgroundColor: ACCENT.gold, borderRadius: 4, shadowColor: ACCENT.gold, shadowOpacity: 0.6, shadowRadius: 4, shadowOffset: { width: 0, height: 0 } },
   summaryStats: { flexDirection: "row", justifyContent: "space-around", alignItems: "center" },
   summaryStat: { alignItems: "center", gap: 2 },
-  summaryStatNum: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F0E6D3" },
+  summaryStatNum: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#E8E8FF" },
   summaryStatLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "rgba(255,255,255,0.45)" },
   summaryDivider: { width: 1, height: 28, backgroundColor: "rgba(255,255,255,0.10)" },
 

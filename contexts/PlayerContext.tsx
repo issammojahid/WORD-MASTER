@@ -5,11 +5,11 @@ import { getApiUrl } from "@/lib/query-client";
 // ── Rarity ───────────────────────────────────────────────────────────────────
 export type Rarity = "common" | "rare" | "epic" | "legendary";
 
-export const RARITY_COLORS: Record<Rarity, string> = {
-  common:    "#9CA3AF",
-  rare:      "#60A5FA",
-  epic:      "#A78BFA",
-  legendary: "#F59E0B",
+export const RARITY_COLORS: Record<string, string> = {
+  common:    "#00F5FF",
+  rare:      "#BF00FF",
+  epic:      "#FF006E",
+  legendary: "#F5C842",
 };
 
 export const RARITY_LABELS: Record<Rarity, string> = {
@@ -92,7 +92,7 @@ export type Background = {
 };
 
 export const BACKGROUNDS: Background[] = [
-  { id: "default",   price: 0,   emoji: "🌊", color: "#0D1B2A", rarity: "common",    nameAr: "الافتراضي" },
+  { id: "default",   price: 0,   emoji: "🌊", color: "#0A0A1A", rarity: "common",    nameAr: "الافتراضي" },
   { id: "desert",    price: 200, emoji: "🏜️", color: "#C19A6B", rarity: "common",    nameAr: "صحراء المغرب" },
   { id: "space",     price: 300, emoji: "🌌", color: "#0A0A2A", rarity: "rare",      nameAr: "الفضاء" },
   { id: "city",      price: 250, emoji: "🌆", color: "#1A3050", rarity: "common",    nameAr: "المدينة" },
@@ -132,11 +132,11 @@ export type Effect = {
 };
 
 export const EFFECTS: Effect[] = [
-  { id: "none",        price: 0,   emoji: "—",  color: "#6B7E91", rarity: "common",    nameAr: "بلا تأثير",     descAr: "لا يوجد تأثير خاص" },
+  { id: "none",        price: 0,   emoji: "—",  color: "#5A5A88", rarity: "common",    nameAr: "بلا تأثير",     descAr: "لا يوجد تأثير خاص" },
   { id: "confetti",    price: 200, emoji: "🎊", color: "#E040FB", rarity: "common",    nameAr: "كونفيتي",       descAr: "مطر من الألوان عند الفوز" },
   { id: "fire_effect", price: 300, emoji: "🔥", color: "#FF6D00", rarity: "rare",      nameAr: "تأثير النار",   descAr: "ألسنة نيران عند الفوز" },
   { id: "stars",       price: 250, emoji: "⭐", color: "#FFD600", rarity: "rare",      nameAr: "انفجار النجوم", descAr: "نجوم تتساقط عند الفوز" },
-  { id: "coins_burst", price: 400, emoji: "🪙", color: "#F59E0B", rarity: "epic",      nameAr: "انفجار عملات", descAr: "أمطار من العملات الذهبية" },
+  { id: "coins_burst", price: 400, emoji: "🪙", color: "#F5C842", rarity: "epic",      nameAr: "انفجار عملات", descAr: "أمطار من العملات الذهبية" },
 ];
 
 // ── Titles ────────────────────────────────────────────────────────────────────
@@ -157,16 +157,16 @@ export type Title = {
 
 export const TITLES: Title[] = [
   { id: "beginner",       price: 0,   emoji: "🎓", color: "#9CA3AF", rarity: "common",    nameAr: "مبتدئ",             descAr: "لقبك الأول في رحلة الكلمات" },
-  { id: "eloquent",       price: 200, emoji: "🗣️", color: "#60A5FA", rarity: "common",    nameAr: "الفصيح",            descAr: "يتقن فن الكلام والبيان" },
-  { id: "word_master",    price: 350, emoji: "📖", color: "#A78BFA", rarity: "rare",      nameAr: "معلم الكلمات",      descAr: "خبير لا يُقهر في عالم المفردات" },
-  { id: "lightning",      price: 300, emoji: "⚡", color: "#60A5FA", rarity: "rare",      nameAr: "سريع البرق",        descAr: "أسرع من البرق في إيجاد الكلمات" },
-  { id: "genius",         price: 600, emoji: "🧠", color: "#A78BFA", rarity: "epic",      nameAr: "الذكاء الخارق",     descAr: "عقل استثنائي في عالم الحروف" },
-  { id: "letter_king",    price: 500, emoji: "👑", color: "#A78BFA", rarity: "epic",      nameAr: "ملك الحروف",        descAr: "حاكم مطلق على ممالك الكلمات" },
+  { id: "eloquent",       price: 200, emoji: "🗣️", color: "#00F5FF", rarity: "common",    nameAr: "الفصيح",            descAr: "يتقن فن الكلام والبيان" },
+  { id: "word_master",    price: 350, emoji: "📖", color: "#BF00FF", rarity: "rare",      nameAr: "معلم الكلمات",      descAr: "خبير لا يُقهر في عالم المفردات" },
+  { id: "lightning",      price: 300, emoji: "⚡", color: "#00F5FF", rarity: "rare",      nameAr: "سريع البرق",        descAr: "أسرع من البرق في إيجاد الكلمات" },
+  { id: "genius",         price: 600, emoji: "🧠", color: "#BF00FF", rarity: "epic",      nameAr: "الذكاء الخارق",     descAr: "عقل استثنائي في عالم الحروف" },
+  { id: "letter_king",    price: 500, emoji: "👑", color: "#BF00FF", rarity: "epic",      nameAr: "ملك الحروف",        descAr: "حاكم مطلق على ممالك الكلمات" },
   { id: "streak_lord",    price: 0,   emoji: "🔥", color: "#FF6D00", rarity: "epic",      nameAr: "سيد السلاسل",      descAr: "حقق سلسلة 5 انتصارات",
     unlockCondition: { type: "streak", value: 5, label: "سلسلة 5 انتصارات" } },
-  { id: "morocco_legend", price: 0,   emoji: "🌟", color: "#F59E0B", rarity: "legendary", nameAr: "أسطورة المغرب",     descAr: "فز بـ 20 مباراة لتحمل هذا اللقب",
+  { id: "morocco_legend", price: 0,   emoji: "🌟", color: "#F5C842", rarity: "legendary", nameAr: "أسطورة المغرب",     descAr: "فز بـ 20 مباراة لتحمل هذا اللقب",
     unlockCondition: { type: "wins", value: 20, label: "فز بـ 20 مباراة" } },
-  { id: "champion_title", price: 0,   emoji: "🏅", color: "#F59E0B", rarity: "legendary", nameAr: "البطل الأبدي",      descAr: "ابلغ المستوى 10 لتحمل هذا اللقب",
+  { id: "champion_title", price: 0,   emoji: "🏅", color: "#F5C842", rarity: "legendary", nameAr: "البطل الأبدي",      descAr: "ابلغ المستوى 10 لتحمل هذا اللقب",
     unlockCondition: { type: "level", value: 10, label: "ابلغ المستوى 10" } },
 ];
 

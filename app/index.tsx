@@ -125,11 +125,10 @@ const { width, height } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.63;
 const CARD_MARGIN = 10;
 
-// Logo color palette (cyan, pink, purple, yellow)
 const LOGO = {
-  cyan:   "#00D4E8",
-  pink:   "#FF3D9A",
-  purple: "#A855F7",
+  cyan:   "#00F5FF",
+  pink:   "#FF006E",
+  purple: "#BF00FF",
   yellow: "#F5C842",
 };
 
@@ -562,7 +561,7 @@ const pStyles = StyleSheet.create({
   },
   subtitle: {
     fontFamily: "Cairo_400Regular", fontSize: 13,
-    color: "#A8B8CC", textAlign: "center",
+    color: "#9898CC", textAlign: "center",
     marginBottom: 16, lineHeight: 22,
   },
   rewardBadge: {
@@ -576,7 +575,7 @@ const pStyles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.32)", alignItems: "center",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
   },
-  skipText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#A8B8CC" },
+  skipText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#9898CC" },
   playBtnWrapper: { flex: 2 },
   playBtn: {
     flex: 1, minHeight: 48, borderRadius: 16,
@@ -910,9 +909,7 @@ const ModeCard = memo(({ item, index, isActive, isDark, theme }: {
 
   const Icon = MODE_ICONS[item.id] ?? QuickIcon;
 
-  const darkGrad: [string, string, string] = [item.accent + "38", "#14082A", "#0C051E"];
-  const lightGrad: [string, string, string] = [item.accent + "20", "#FFFFFF", "#F5F3FF"];
-  const cardGrad = isDark ? darkGrad : lightGrad;
+  const cardGrad: [string, string, string] = [item.accent + "38", "#0E0E24", "#0A0A1A"];
 
   return (
     <Animated.View style={{
@@ -1167,7 +1164,7 @@ export default function HomeScreen() {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Colorful gradient background */}
       <LinearGradient
-        colors={isDark ? ["#0C0A1E", "#160D33", "#0A1428"] : [theme.background, theme.backgroundSecondary, theme.background]}
+        colors={["#0A0A1A", "#0E0E24", "#0A0A1A"]}
         start={{ x: 0, y: 0 }} end={{ x: 0.6, y: 1 }}
         style={StyleSheet.absoluteFillObject}
       />
@@ -1207,8 +1204,8 @@ export default function HomeScreen() {
               style={StyleSheet.absoluteFillObject}
             />
             {(() => {
-              const skinRarityColors: Record<string, string> = { common: "#00D4E8", rare: "#A855F7", epic: "#FF3D9A", legendary: "#F5C842" };
-              const skinRingColor = skinRarityColors[equippedSkin.rarity] || "#00D4E8";
+              const skinRarityColors: Record<string, string> = { common: "#00F5FF", rare: "#BF00FF", epic: "#FF006E", legendary: "#F5C842" };
+              const skinRingColor = skinRarityColors[equippedSkin.rarity] || "#00F5FF";
               const isSpecialRarity = equippedSkin.rarity !== "common";
               return (
                 <View style={[styles.avatarCircle, {
@@ -1232,8 +1229,8 @@ export default function HomeScreen() {
               {(() => {
                 const titleData = TITLES.find((t) => t.id === profile.equippedTitle);
                 if (!titleData || titleData.id === "beginner") return null;
-                const tColors: Record<string, string> = { common: "#00D4E8", rare: "#A855F7", epic: "#FF3D9A", legendary: "#F5C842" };
-                const tColor = tColors[titleData.rarity] || "#00D4E8";
+                const tColors: Record<string, string> = { common: "#00F5FF", rare: "#BF00FF", epic: "#FF006E", legendary: "#F5C842" };
+                const tColor = tColors[titleData.rarity] || "#00F5FF";
                 return (
                   <View style={[styles.equippedTitleBadge, { backgroundColor: tColor + "18", borderColor: tColor + "50" }]}>
                     <Text style={[styles.equippedTitleText, { color: tColor }]}>{titleData.nameAr}</Text>
@@ -1490,7 +1487,7 @@ const styles = StyleSheet.create({
   avatarEmoji: { fontSize: 24 },
   profileMeta: { flex: 1 },
   nameEditRow: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
-  playerName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#F0E6D3", flex: 1 },
+  playerName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#E8E8FF", flex: 1 },
   equippedTitleBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, alignSelf: "flex-start", marginTop: 1 },
   equippedTitleText: { fontFamily: "Cairo_700Bold", fontSize: 9 },
   levelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
@@ -1501,7 +1498,7 @@ const styles = StyleSheet.create({
   levelText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: LOGO.yellow },
   xpBarContainer: { flex: 1, height: 4, backgroundColor: "rgba(255,255,255,0.10)", borderRadius: 2, overflow: "hidden" },
   xpBar: { height: "100%", borderRadius: 2 },
-  xpText: { fontFamily: "Cairo_400Regular", fontSize: 9, color: "#6B7E91" },
+  xpText: { fontFamily: "Cairo_400Regular", fontSize: 9, color: "#5A5A88" },
 
   topRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   coinsBadge: {
@@ -1576,8 +1573,8 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: LOGO.cyan + "22",
   },
   statItem: { flex: 1, alignItems: "center" },
-  statValue: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#F0E6D3" },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#6B7E91", marginTop: 2 },
+  statValue: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#E8E8FF" },
+  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#5A5A88", marginTop: 2 },
   statDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.10)", marginVertical: 4 },
 
   bottomNav: {
@@ -1612,13 +1609,13 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: LOGO.purple + "40",
   },
   modalTitle: {
-    fontFamily: "Cairo_700Bold", fontSize: 18, color: "#F0E6D3",
+    fontFamily: "Cairo_700Bold", fontSize: 18, color: "#E8E8FF",
     textAlign: "center", marginBottom: 16,
   },
   nameInput: {
     borderWidth: 1, borderColor: LOGO.cyan + "40", borderRadius: 12,
     padding: 12, fontFamily: "Cairo_400Regular", fontSize: 16,
-    color: "#F0E6D3", marginBottom: 16,
+    color: "#E8E8FF", marginBottom: 16,
     backgroundColor: "rgba(255,255,255,0.05)",
   },
   modalButtons: { flexDirection: "row", gap: 12 },
@@ -1627,7 +1624,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
   },
-  modalCancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#A8B8CC" },
+  modalCancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#9898CC" },
   modalConfirm: {
     flex: 1, paddingVertical: 12, borderRadius: 12,
     backgroundColor: LOGO.yellow, alignItems: "center",

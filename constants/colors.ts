@@ -1,34 +1,40 @@
 const Colors = {
-  gold: "#F5A623",
-  goldLight: "#F7C06B",
-  goldDark: "#C4851A",
-  emerald: "#2ECC71",
-  emeraldDark: "#27AE60",
-  ruby: "#E74C3C",
-  rubyDark: "#C0392B",
-  sapphire: "#3498DB",
+  gold: "#F5C842",
+  goldLight: "#FFE066",
+  goldDark: "#C4A010",
+  emerald: "#00FF87",
+  emeraldDark: "#00CC6A",
+  ruby: "#FF006E",
+  rubyDark: "#CC0058",
+  sapphire: "#00F5FF",
 
-  letterBg: "#F5A623",
+  letterBg: "#F5C842",
 
-  timerGreen: "#2ECC71",
-  timerYellow: "#F5A623",
-  timerRed: "#E74C3C",
+  timerGreen: "#00FF87",
+  timerYellow: "#F5C842",
+  timerRed: "#FF006E",
 
-  inputBorderFocus: "#F5A623",
+  inputBorderFocus: "#00F5FF",
 
-  scoreCorrect: "#2ECC71",
-  scoreDuplicate: "#F5A623",
-  scoreEmpty: "#E74C3C",
+  scoreCorrect: "#00FF87",
+  scoreDuplicate: "#F5C842",
+  scoreEmpty: "#FF006E",
 
-  rank1: "#F5A623",
+  rank1: "#F5C842",
   rank2: "#C0C0C0",
   rank3: "#CD7F32",
 
-  casablanca: "#1A3A5C",
-  marrakech: "#8B2500",
-  rabat: "#1A5C2A",
-  tangier: "#1A4A6B",
-  chefchaouen: "#1A3A7A",
+  neonCyan: "#00F5FF",
+  neonPurple: "#BF00FF",
+  neonPink: "#FF006E",
+  neonGreen: "#00FF87",
+  neonBlue: "#0080FF",
+
+  casablanca: "#0A0A1A",
+  marrakech: "#12001E",
+  rabat: "#001A12",
+  tangier: "#001020",
+  chefchaouen: "#0A0020",
 };
 
 export default Colors;

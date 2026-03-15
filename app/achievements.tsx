@@ -24,9 +24,9 @@ import { ScreenErrorBoundary } from "@/components/ScreenErrorBoundary";
 
 const ACCENT = {
   gold:   "#F5C842",
-  cyan:   "#00D4E8",
-  purple: "#A855F7",
-  green:  "#22C55E",
+  cyan:   "#00F5FF",
+  purple: "#BF00FF",
+  green:  "#00FF87",
 };
 
 type Achievement = {
@@ -152,7 +152,7 @@ function AchCard({ ach, onClaim, isPending }: { ach: Achievement; onClaim: () =>
       </View>
 
       <View style={ac.content}>
-        <Text style={[ac.title, { color: ach.unlocked ? "#F0E6D3" : "rgba(255,255,255,0.4)" }]}>
+        <Text style={[ac.title, { color: ach.unlocked ? "#E8E8FF" : "rgba(255,255,255,0.4)" }]}>
           {ach.titleAr}
         </Text>
         <Text style={ac.desc}>{ach.descAr}</Text>
@@ -203,7 +203,7 @@ const ac = StyleSheet.create({
     position: "absolute", top: 3, right: 3,
     width: 10, height: 10, borderRadius: 5,
     backgroundColor: ACCENT.gold,
-    borderWidth: 1.5, borderColor: "#0C0A1E",
+    borderWidth: 1.5, borderColor: "#0A0A1A",
   },
   content: { flex: 1, gap: 4 },
   title: { fontFamily: "Cairo_700Bold", fontSize: 14 },
@@ -292,14 +292,14 @@ function AchievementsScreenInner() {
   return (
     <View style={{ flex: 1 }}>
       <LinearGradient
-        colors={isDark ? ["#0C0A1E", "#10092A", "#0A1428"] : ["#F8F6FF", "#EEF2FF", "#F8F6FF"]}
+        colors={["#0A0A1A", "#0E0E24", "#0A0A1A"]}
         style={StyleSheet.absoluteFillObject}
       />
 
       <View style={{ paddingTop: topInset + 8, paddingBottom: bottomInset, flex: 1 }}>
         <View style={s.header}>
           <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color="#F0E6D3" />
+            <Ionicons name="arrow-back" size={22} color="#E8E8FF" />
           </TouchableOpacity>
           <View style={s.headerCenter}>
             <Text style={s.headerTitle}>الإنجازات</Text>
@@ -398,7 +398,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
   },
   headerCenter: { flex: 1, alignItems: "center", gap: 4 },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 19, color: "#F0E6D3" },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 19, color: "#E8E8FF" },
   readyBadge: {
     backgroundColor: ACCENT.gold + "25", borderRadius: 10,
     paddingHorizontal: 10, paddingVertical: 3,
@@ -435,7 +435,7 @@ const s = StyleSheet.create({
   filterTab: { flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", overflow: "hidden" },
   filterTabActive: { },
   filterText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "rgba(255,255,255,0.4)" },
-  filterTextActive: { color: "#F0E6D3" },
+  filterTextActive: { color: "#E8E8FF" },
 
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   emptyIcon: { fontSize: 52, marginBottom: 12 },

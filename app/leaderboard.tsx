@@ -20,11 +20,11 @@ import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 
 const LOGO = {
-  cyan:   "#00D4E8",
-  pink:   "#FF3D9A",
-  purple: "#A855F7",
+  cyan:   "#00F5FF",
+  pink:   "#FF006E",
+  purple: "#BF00FF",
   yellow: "#F5C842",
-  green:  "#22C55E",
+  green:  "#00FF87",
 };
 
 type TabFilter = "score" | "wins" | "xp";
@@ -170,7 +170,7 @@ export default function LeaderboardScreen() {
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
       <LinearGradient
-        colors={["#0A0E1A", "#0D1526", "#0A0E1A"]}
+        colors={["#0A0A1A", "#0E0E24", "#0A0A1A"]}
         style={StyleSheet.absoluteFillObject}
       />
 
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
   },
   headerCenter: { flexDirection: "row", alignItems: "center", gap: 8 },
   headerEmoji:  { fontSize: 22 },
-  headerTitle:  { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F0E6D3" },
+  headerTitle:  { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#E8E8FF" },
 
   filterRow: {
     flexDirection: "row", borderRadius: 16, padding: 4,
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
   podiumEmoji:       { fontSize: 24 },
   youBadge:          { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1 },
   youBadgeText:      { fontFamily: "Cairo_700Bold", fontSize: 9 },
-  podiumName:        { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#A8B8CC", textAlign: "center", maxWidth: 85 },
+  podiumName:        { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#9898CC", textAlign: "center", maxWidth: 85 },
   podiumScore:       { fontFamily: "Cairo_700Bold", fontSize: 13 },
   podiumBlock:       {
     width: "100%", borderTopWidth: 2, borderRadius: 8,

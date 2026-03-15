@@ -717,15 +717,15 @@ export default function GameScreen() {
                     <View style={[
                       styles.podiumAvatar,
                       isFirst && styles.podiumAvatarFirst,
-                      { backgroundColor: skin.color + "33", borderWidth: 2.5, borderColor: podiumBorderColors[pIdx] || "#2A4560" },
+                      { backgroundColor: skin.color + "33", borderWidth: 2.5, borderColor: podiumBorderColors[pIdx] || "#1E1E3A" },
                       isFirst && { shadowColor: Colors.gold, shadowOpacity: 0.5, shadowRadius: 12, elevation: 8 },
                     ]}>
                       <Text style={[styles.podiumEmoji, isFirst && styles.podiumEmojiFirst]}>{skin.emoji}</Text>
                     </View>
                     <Text style={[styles.podiumName, { color: isMe ? Colors.gold : theme.textPrimary }, isFirst && { fontFamily: "Cairo_700Bold" }]} numberOfLines={1}>{p.name}</Text>
                     <Text style={[styles.podiumScore, { color: isFirst ? Colors.gold : theme.textSecondary }]}>{p.score} نقطة</Text>
-                    <View style={[styles.podiumBase, { height: h, backgroundColor: podiumBaseColors[pIdx] || "#2A4560" }, isFirst && styles.podiumBaseFirst]}>
-                      <Text style={[styles.podiumRank, { color: isFirst ? "#0D1B2A" : "#F0E6D3" }]}>{pIdx + 1}</Text>
+                    <View style={[styles.podiumBase, { height: h, backgroundColor: podiumBaseColors[pIdx] || "#1E1E3A" }, isFirst && styles.podiumBaseFirst]}>
+                      <Text style={[styles.podiumRank, { color: isFirst ? "#0A0A1A" : "#E8E8FF" }]}>{pIdx + 1}</Text>
                     </View>
                   </View>
                 );
@@ -784,7 +784,7 @@ export default function GameScreen() {
           )}
 
           <TouchableOpacity style={styles.playAgainBtn} onPress={handlePlayAgain} activeOpacity={0.85}>
-            <Ionicons name="refresh" size={18} color={"#0D1B2A"} style={{ marginRight: 8 }} />
+            <Ionicons name="refresh" size={18} color={"#0A0A1A"} style={{ marginRight: 8 }} />
             <Text style={styles.playAgainBtnText}>{t.playAgain}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.homeBtn, { backgroundColor: theme.card, borderColor: theme.cardBorder }]} onPress={() => router.replace("/")} activeOpacity={0.8}>
@@ -1034,7 +1034,7 @@ export default function GameScreen() {
         <View style={[styles.exitOverlay, { backgroundColor: theme.overlay }]}>
           <Animated.View style={[styles.exitPopupWrapper, { transform: [{ scale: exitScaleAnim }] }]}>
             <LinearGradient
-              colors={isDark ? ["#2A0A1A", "#1A0A2E", "#0D1B2A"] : [theme.modalBg, theme.backgroundSecondary, theme.background]}
+              colors={["#0A0A1A", "#0E0E24", "#0A0A1A"]}
               style={styles.exitPopup}
             >
               {/* Warning icon */}
@@ -1110,7 +1110,7 @@ function ChatBubbleView({ bubble }: { bubble: ChatBubble }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0D1B2A" },
+  container: { flex: 1, backgroundColor: "#0A0A1A" },
 
   // Chat bubbles overlay
   bubblesOverlay: {
@@ -1123,15 +1123,15 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
   },
   chatBubbleMe: { backgroundColor: Colors.gold, alignSelf: "flex-end" },
-  chatBubbleOther: { backgroundColor: "#1E3448", alignSelf: "flex-start", borderWidth: 1, borderColor: "#2A4560" },
+  chatBubbleOther: { backgroundColor: "#12122A", alignSelf: "flex-start", borderWidth: 1, borderColor: "#1E1E3A" },
   chatBubbleSender: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#000000" + "88", marginBottom: 2 },
   chatBubbleMessage: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#000000" },
 
   // Game top bar
   gameTopBar: {
     flexDirection: "row", alignItems: "center", paddingHorizontal: 12,
-    paddingVertical: 12, backgroundColor: "#142233",
-    borderBottomWidth: 1, borderBottomColor: "#2A4560",
+    paddingVertical: 12, backgroundColor: "#0E0E24",
+    borderBottomWidth: 1, borderBottomColor: "#1E1E3A",
   },
   letterDisplay: {
     width: 64, height: 64, borderRadius: 32, backgroundColor: Colors.gold,
@@ -1141,15 +1141,15 @@ const styles = StyleSheet.create({
   },
   letterText: { fontFamily: "Cairo_700Bold", fontSize: 36, color: "#000000", lineHeight: 48 },
   gameInfoRight: { flex: 1 },
-  roundLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#A8B8CC", marginBottom: 8, textAlign: "right" },
+  roundLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#9898CC", marginBottom: 8, textAlign: "right" },
   timerContainer: { flexDirection: "row", alignItems: "center", gap: 10 },
-  timerTrack: { flex: 1, height: 8, backgroundColor: "#2A4560", borderRadius: 4, overflow: "hidden" },
+  timerTrack: { flex: 1, height: 8, backgroundColor: "#1E1E3A", borderRadius: 4, overflow: "hidden" },
   timerFill: { height: "100%", borderRadius: 4 },
   timerText: { fontFamily: "Cairo_700Bold", fontSize: 22, minWidth: 32, textAlign: "center" },
   chatBtn: {
-    width: 38, height: 38, borderRadius: 12, backgroundColor: "#1E3448",
+    width: 38, height: 38, borderRadius: 12, backgroundColor: "#12122A",
     justifyContent: "center", alignItems: "center", marginLeft: 8,
-    borderWidth: 1, borderColor: "#2A4560",
+    borderWidth: 1, borderColor: "#1E1E3A",
   },
 
   submittedBar: {
@@ -1159,11 +1159,11 @@ const styles = StyleSheet.create({
   submittedText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.emerald },
   inputsContent: { padding: 12, gap: 8 },
   categoryInputRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  categoryLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#A8B8CC", width: 72, textAlign: "right" },
+  categoryLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#9898CC", width: 72, textAlign: "right" },
   categoryInput: {
-    flex: 1, backgroundColor: "#162840", borderRadius: 12, borderWidth: 1,
-    borderColor: "#2A4560", paddingHorizontal: 14, paddingVertical: 10,
-    fontSize: 16, fontFamily: "Cairo_400Regular", color: "#F0E6D3",
+    flex: 1, backgroundColor: "#0E0E24", borderRadius: 12, borderWidth: 1,
+    borderColor: "#1E1E3A", paddingHorizontal: 14, paddingVertical: 10,
+    fontSize: 16, fontFamily: "Cairo_400Regular", color: "#E8E8FF",
   },
   categoryInputFilled: { borderColor: Colors.gold + "80", backgroundColor: Colors.gold + "10" },
   categoryInputSubmitted: { opacity: 0.6 },
@@ -1173,13 +1173,13 @@ const styles = StyleSheet.create({
     flexDirection: "row", gap: 8,
   },
   powerCard: {
-    flex: 1, backgroundColor: "#1E3448", borderRadius: 14, paddingVertical: 8,
+    flex: 1, backgroundColor: "#12122A", borderRadius: 14, paddingVertical: 8,
     alignItems: "center", borderWidth: 1.5,
     shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2, shadowRadius: 4, elevation: 3,
   },
   powerCardUsed: {
-    backgroundColor: "#0D1B2A", opacity: 0.5,
+    backgroundColor: "#0A0A1A", opacity: 0.5,
   },
   powerCardIcon: { fontSize: 20, marginBottom: 1 },
   powerCardLabel: { fontFamily: "Cairo_700Bold", fontSize: 11 },
@@ -1239,40 +1239,40 @@ const styles = StyleSheet.create({
     flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)",
   },
   chatPanel: {
-    backgroundColor: "#142233", borderTopLeftRadius: 24,
+    backgroundColor: "#0E0E24", borderTopLeftRadius: 24,
     borderTopRightRadius: 24, padding: 20, paddingBottom: 40,
-    borderTopWidth: 1, borderColor: "#2A4560",
+    borderTopWidth: 1, borderColor: "#1E1E3A",
   },
-  chatPanelTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#F0E6D3", textAlign: "center", marginBottom: 16 },
+  chatPanelTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#E8E8FF", textAlign: "center", marginBottom: 16 },
   chatMessagesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, justifyContent: "center" },
   chatMessageBtn: {
-    backgroundColor: "#1E3448", borderRadius: 20, paddingHorizontal: 16,
-    paddingVertical: 10, borderWidth: 1, borderColor: "#2A4560",
+    backgroundColor: "#12122A", borderRadius: 20, paddingHorizontal: 16,
+    paddingVertical: 10, borderWidth: 1, borderColor: "#1E1E3A",
   },
-  chatMessageText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#F0E6D3" },
+  chatMessageText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#E8E8FF" },
 
   // Round results
-  roundResultsHeader: { paddingHorizontal: 16, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: "#2A4560", backgroundColor: "#142233" },
-  roundResultsTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#F0E6D3", textAlign: "center" },
+  roundResultsHeader: { paddingHorizontal: 16, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: "#1E1E3A", backgroundColor: "#0E0E24" },
+  roundResultsTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#E8E8FF", textAlign: "center" },
   roundResultsContent: { padding: 12, gap: 12, paddingBottom: 100 },
-  resultPlayerCard: { backgroundColor: "#1E3448", borderRadius: 16, padding: 14, borderWidth: 1, borderColor: "#2A4560" },
+  resultPlayerCard: { backgroundColor: "#12122A", borderRadius: 16, padding: 14, borderWidth: 1, borderColor: "#1E1E3A" },
   resultPlayerCardMe: { borderColor: Colors.gold + "60" },
   resultPlayerHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
-  resultPlayerName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#F0E6D3" },
+  resultPlayerName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#E8E8FF" },
   resultTotalBadge: { backgroundColor: Colors.gold + "22", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
   resultTotalText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.gold },
-  resultCatRow: { flexDirection: "row", alignItems: "center", paddingVertical: 5, borderTopWidth: 1, borderTopColor: "#2A4560" + "50" },
-  resultCatName: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#6B7E91", width: 64, textAlign: "right" },
-  resultAnswer: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: "#F0E6D3", textAlign: "center", paddingHorizontal: 6 },
-  resultAnswerEmpty: { color: "#6B7E91" },
+  resultCatRow: { flexDirection: "row", alignItems: "center", paddingVertical: 5, borderTopWidth: 1, borderTopColor: "#1E1E3A" + "50" },
+  resultCatName: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#5A5A88", width: 64, textAlign: "right" },
+  resultAnswer: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: "#E8E8FF", textAlign: "center", paddingHorizontal: 6 },
+  resultAnswerEmpty: { color: "#5A5A88" },
   resultScoreBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, minWidth: 32, alignItems: "center" },
   resultScoreText: { fontFamily: "Cairo_700Bold", fontSize: 13 },
-  scoreSummary: { backgroundColor: "#1E3448", borderRadius: 16, padding: 14, borderWidth: 1, borderColor: "#2A4560" },
-  scoreSummaryTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#F0E6D3", textAlign: "center", marginBottom: 10 },
+  scoreSummary: { backgroundColor: "#12122A", borderRadius: 16, padding: 14, borderWidth: 1, borderColor: "#1E1E3A" },
+  scoreSummaryTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#E8E8FF", textAlign: "center", marginBottom: 10 },
   scoreSummaryRow: { flexDirection: "row", alignItems: "center", paddingVertical: 6 },
   scoreSummaryRank: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.gold, width: 30, textAlign: "center" },
-  scoreSummaryName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#F0E6D3", paddingHorizontal: 10 },
-  scoreSummaryTotal: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#F0E6D3" },
+  scoreSummaryName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#E8E8FF", paddingHorizontal: 10 },
+  scoreSummaryTotal: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#E8E8FF" },
   nextRoundBtn: {
     backgroundColor: Colors.gold, borderRadius: 16, paddingVertical: 16,
     marginHorizontal: 16, marginVertical: 12, flexDirection: "row",
@@ -1281,13 +1281,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
   },
   nextRoundBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#000000" },
-  waitingNextRound: { paddingVertical: 16, paddingHorizontal: 16, backgroundColor: "#1E3448", marginHorizontal: 16, marginVertical: 12, borderRadius: 16, alignItems: "center" },
-  waitingNextRoundText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#A8B8CC" },
+  waitingNextRound: { paddingVertical: 16, paddingHorizontal: 16, backgroundColor: "#12122A", marginHorizontal: 16, marginVertical: 12, borderRadius: 16, alignItems: "center" },
+  waitingNextRoundText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#9898CC" },
 
   // Game over
   gameOverContent: { padding: 20, alignItems: "center", paddingBottom: 40 },
-  gameOverTitle: { fontFamily: "Cairo_700Bold", fontSize: 28, color: "#F0E6D3", textAlign: "center", marginBottom: 6 },
-  gameOverSub: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: "#A8B8CC", textAlign: "center", marginBottom: 20 },
+  gameOverTitle: { fontFamily: "Cairo_700Bold", fontSize: 28, color: "#E8E8FF", textAlign: "center", marginBottom: 6 },
+  gameOverSub: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: "#9898CC", textAlign: "center", marginBottom: 20 },
   podiumRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center", gap: 8, width: "100%", marginBottom: 24 },
   podiumSlot: { alignItems: "center", flex: 1 },
   podiumMedal: { fontSize: 24, marginBottom: 4 },
@@ -1295,20 +1295,20 @@ const styles = StyleSheet.create({
   podiumAvatarFirst: { width: 64, height: 64, borderRadius: 32 },
   podiumEmoji: { fontSize: 26 },
   podiumEmojiFirst: { fontSize: 32 },
-  podiumName: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#F0E6D3", textAlign: "center", marginBottom: 2 },
-  podiumScore: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#A8B8CC", marginBottom: 4 },
-  podiumBase: { width: "100%", borderTopLeftRadius: 8, borderTopRightRadius: 8, justifyContent: "center", alignItems: "center", backgroundColor: "#2A4560" },
+  podiumName: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#E8E8FF", textAlign: "center", marginBottom: 2 },
+  podiumScore: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#9898CC", marginBottom: 4 },
+  podiumBase: { width: "100%", borderTopLeftRadius: 8, borderTopRightRadius: 8, justifyContent: "center", alignItems: "center", backgroundColor: "#1E1E3A" },
   podiumBaseFirst: { backgroundColor: Colors.gold + "60" },
-  podiumRank: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#F0E6D3" },
+  podiumRank: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#E8E8FF" },
   finalRankings: { width: "100%", gap: 10, marginBottom: 24 },
-  finalRankRow: { backgroundColor: "#1E3448", borderRadius: 14, padding: 12, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: "#2A4560", gap: 10 },
+  finalRankRow: { backgroundColor: "#12122A", borderRadius: 14, padding: 12, flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: "#1E1E3A", gap: 10 },
   finalRankRowMe: { borderColor: Colors.gold + "60", backgroundColor: Colors.gold + "08" },
   finalRankNum: { fontFamily: "Cairo_700Bold", fontSize: 20, width: 32, textAlign: "center" },
   finalRankAvatar: { width: 36, height: 36, borderRadius: 18, justifyContent: "center", alignItems: "center" },
   finalRankEmoji: { fontSize: 18 },
-  finalRankName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#F0E6D3" },
+  finalRankName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#E8E8FF" },
   finalRankRight: { flexDirection: "row", alignItems: "center", gap: 8 },
-  finalRankScore: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#F0E6D3" },
+  finalRankScore: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#E8E8FF" },
   bonusBanner: {
     backgroundColor: Colors.gold + "15", borderRadius: 14, padding: 14,
     width: "100%", gap: 8, borderWidth: 1, borderColor: Colors.gold + "30", marginBottom: 16,
@@ -1317,10 +1317,10 @@ const styles = StyleSheet.create({
   bonusText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.gold },
   coinEntryInfo: {
     flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: "#1E3448", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8,
+    backgroundColor: "#12122A", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8,
     marginBottom: 16,
   },
-  coinEntryInfoText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#A8B8CC" },
+  coinEntryInfoText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#9898CC" },
   coinRewardBadge: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.gold + "22", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, gap: 3 },
   coinRewardText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.gold },
   playAgainBtn: {
@@ -1331,8 +1331,8 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "center",
   },
   playAgainBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#000000" },
-  homeBtn: { backgroundColor: "#1E3448", borderRadius: 16, paddingVertical: 14, paddingHorizontal: 40, borderWidth: 1, borderColor: "#2A4560", flexDirection: "row", alignItems: "center", justifyContent: "center" },
-  homeBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: "#A8B8CC" },
+  homeBtn: { backgroundColor: "#12122A", borderRadius: 16, paddingVertical: 14, paddingHorizontal: 40, borderWidth: 1, borderColor: "#1E1E3A", flexDirection: "row", alignItems: "center", justifyContent: "center" },
+  homeBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: "#9898CC" },
 
   // Exit game button (top-left of gameTopBar)
   exitGameBtn: {
@@ -1368,11 +1368,11 @@ const styles = StyleSheet.create({
   },
   exitTitle: {
     fontFamily: "Cairo_700Bold", fontSize: 20,
-    color: "#F0E6D3", textAlign: "center", marginBottom: 8,
+    color: "#E8E8FF", textAlign: "center", marginBottom: 8,
   },
   exitMessage: {
     fontFamily: "Cairo_400Regular", fontSize: 14,
-    color: "#A8B8CC", textAlign: "center", lineHeight: 22,
+    color: "#9898CC", textAlign: "center", lineHeight: 22,
   },
   exitCoinWarning: {
     flexDirection: "row", alignItems: "center", gap: 6,
@@ -1384,7 +1384,7 @@ const styles = StyleSheet.create({
     fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.ruby,
   },
   exitDivider: {
-    width: "100%", height: 1, backgroundColor: "#2A4560",
+    width: "100%", height: 1, backgroundColor: "#1E1E3A",
     marginVertical: 20,
   },
   exitBtnsRow: {

@@ -25,9 +25,9 @@ import { type Language } from "@/constants/i18n";
 import { getDisplayCode } from "@/lib/player-code";
 
 const LOGO = {
-  cyan:   "#00D4E8",
-  pink:   "#FF3D9A",
-  purple: "#A855F7",
+  cyan:   "#00F5FF",
+  pink:   "#FF006E",
+  purple: "#BF00FF",
   yellow: "#F5C842",
 };
 
@@ -286,12 +286,12 @@ const styles = StyleSheet.create({
   },
   headerCenter: { flexDirection: "row", alignItems: "center", gap: 8 },
   headerEmoji: { fontSize: 20 },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F0E6D3" },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#E8E8FF" },
   content: { padding: 16, gap: 20, paddingBottom: 40 },
 
   section: { gap: 12 },
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#F0E6D3" },
+  sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#E8E8FF" },
 
   codeCard: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
   },
   codeValue: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.gold },
   codeCopyBtn: { flexDirection: "row", alignItems: "center", gap: 6 },
-  codeCopyText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#6B7E91" },
+  codeCopyText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#5A5A88" },
 
   optionsRow: { flexDirection: "row", gap: 10 },
   languageOption: {
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
   },
   languageOptionActive: { borderColor: LOGO.yellow + "60", backgroundColor: LOGO.yellow + "12" },
   languageFlag: { fontSize: 20 },
-  languageLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#A8B8CC" },
+  languageLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#9898CC" },
   languageLabelActive: { color: LOGO.yellow },
 
   toggleCard: {
@@ -323,8 +323,8 @@ const styles = StyleSheet.create({
   },
   toggleLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
   toggleTexts: { gap: 2 },
-  toggleTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#F0E6D3" },
-  toggleSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6B7E91" },
+  toggleTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#E8E8FF" },
+  toggleSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#5A5A88" },
   toggleDivider: { height: 1, backgroundColor: "rgba(255,255,255,0.07)", marginHorizontal: 16 },
 
   rulesList: {
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
   },
   ruleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  ruleText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#A8B8CC", flex: 1 },
+  ruleText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#9898CC", flex: 1 },
 
   coinRulesGrid: { flexDirection: "row", gap: 10 },
   coinRuleCard: {
@@ -361,15 +361,15 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: LOGO.purple + "40",
   },
   modalIcon: { fontSize: 44, marginBottom: 12 },
-  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F0E6D3", textAlign: "center", marginBottom: 6 },
-  modalSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#6B7E91", marginBottom: 24 },
+  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#E8E8FF", textAlign: "center", marginBottom: 6 },
+  modalSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#5A5A88", marginBottom: 24 },
   modalButtons: { flexDirection: "row", gap: 12, width: "100%" },
   modalNo: {
     flex: 1, minHeight: 48, justifyContent: "center", borderRadius: 16,
     backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center",
     borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
   },
-  modalNoText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#A8B8CC" },
+  modalNoText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#9898CC" },
   modalYes: { flex: 1, minHeight: 48, justifyContent: "center", borderRadius: 16, backgroundColor: Colors.ruby, alignItems: "center" },
   modalYesText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
 });

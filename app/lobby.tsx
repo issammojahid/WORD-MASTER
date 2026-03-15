@@ -763,8 +763,8 @@ export default function LobbyScreen() {
             const skin = SKINS.find((s) => s.id === player.skin) || SKINS[0];
             const isMe = player.id === socketId;
             const isSpeaking = speakingPlayers.has(player.id);
-            const rarityRingColors: Record<string, string> = { common: "#00D4E8", rare: "#A855F7", epic: "#FF3D9A", legendary: "#F5C842" };
-            const ringColor = rarityRingColors[skin.rarity] || "#00D4E8";
+            const rarityRingColors: Record<string, string> = { common: "#00F5FF", rare: "#BF00FF", epic: "#FF006E", legendary: "#F5C842" };
+            const ringColor = rarityRingColors[skin.rarity] || "#00F5FF";
             const isSpecialRarity = skin.rarity !== "common";
             return (
               <View key={player.id} style={[
@@ -800,7 +800,7 @@ export default function LobbyScreen() {
                       <Ionicons name="star" size={10} color={Colors.gold} />
                     </View>
                   )}
-                  <View style={[styles.playerIndexBadge, { backgroundColor: "#2A4560" }]}>
+                  <View style={[styles.playerIndexBadge, { backgroundColor: "#1E1E3A" }]}>
                     <Text style={styles.playerIndexText}>{idx + 1}</Text>
                   </View>
                 </View>
@@ -969,132 +969,132 @@ export default function LobbyScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0D1B2A" },
+  container: { flex: 1, backgroundColor: "#0A0A1A" },
   header: {
     flexDirection: "row", alignItems: "center", paddingHorizontal: 16,
-    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#2A4560",
-    backgroundColor: "#142233",
+    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#1E1E3A",
+    backgroundColor: "#0E0E24",
   },
   backBtn: { width: 40, height: 40, justifyContent: "center" },
-  headerTitle: { flex: 1, fontFamily: "Cairo_700Bold", fontSize: 18, color: "#F0E6D3", textAlign: "center" },
+  headerTitle: { flex: 1, fontFamily: "Cairo_700Bold", fontSize: 18, color: "#E8E8FF", textAlign: "center" },
   codeBtn: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.gold + "20", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
   codeText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.gold },
 
   // Lobby select
   selectContent: { padding: 16, gap: 16 },
-  miniProfile: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#1E3448", borderRadius: 16, padding: 14, borderWidth: 1, borderColor: "#2A4560" },
+  miniProfile: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#12122A", borderRadius: 16, padding: 14, borderWidth: 1, borderColor: "#1E1E3A" },
   miniAvatarCircle: { width: 46, height: 46, borderRadius: 23, justifyContent: "center", alignItems: "center" },
   miniAvatarEmoji: { fontSize: 24 },
-  miniPlayerName: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#F0E6D3" },
-  miniPlayerLevel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7E91" },
-  sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#F0E6D3", textAlign: "right", marginBottom: 4 },
+  miniPlayerName: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#E8E8FF" },
+  miniPlayerLevel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#5A5A88" },
+  sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#E8E8FF", textAlign: "right", marginBottom: 4 },
   selectButtons: { gap: 12 },
   lobbyOptionCard: {
-    flexDirection: "row", alignItems: "center", backgroundColor: "#1E3448",
-    borderRadius: 16, padding: 16, borderWidth: 1, borderColor: "#2A4560", gap: 14,
+    flexDirection: "row", alignItems: "center", backgroundColor: "#12122A",
+    borderRadius: 16, padding: 16, borderWidth: 1, borderColor: "#1E1E3A", gap: 14,
   },
   lobbyOptionCardPrimary: { borderColor: Colors.gold + "40", backgroundColor: Colors.gold + "08" },
-  lobbyOptionIcon: { width: 58, height: 58, borderRadius: 16, backgroundColor: "#1A2D42", justifyContent: "center", alignItems: "center" },
+  lobbyOptionIcon: { width: 58, height: 58, borderRadius: 16, backgroundColor: "#0E0E24", justifyContent: "center", alignItems: "center" },
   lobbyOptionText: { flex: 1 },
-  lobbyOptionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#F0E6D3", marginBottom: 2 },
-  lobbyOptionSubtitle: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7E91" },
+  lobbyOptionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#E8E8FF", marginBottom: 2 },
+  lobbyOptionSubtitle: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#5A5A88" },
 
   loadingContainer: { alignItems: "center", paddingVertical: 40, gap: 16 },
-  loadingText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: "#A8B8CC" },
+  loadingText: { fontFamily: "Cairo_400Regular", fontSize: 14, color: "#9898CC" },
 
   joinContainer: { gap: 12 },
   codeInput: {
-    backgroundColor: "#162840", borderRadius: 16, borderWidth: 2, borderColor: "#2A4560",
+    backgroundColor: "#0E0E24", borderRadius: 16, borderWidth: 2, borderColor: "#1E1E3A",
     paddingVertical: 20, fontSize: 32, fontFamily: "Cairo_700Bold", color: Colors.gold,
     letterSpacing: 12,
   },
   errorText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: Colors.ruby, textAlign: "center" },
   backLinkBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10 },
-  backLinkText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#6B7E91" },
+  backLinkText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#5A5A88" },
 
   // Waiting room
-  roomCodeCard: { backgroundColor: "#1E3448", borderRadius: 20, padding: 20, alignItems: "center", marginHorizontal: 16, marginBottom: 12, borderWidth: 2, borderColor: Colors.gold + "40" },
-  roomCodeLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7E91", marginBottom: 8 },
+  roomCodeCard: { backgroundColor: "#12122A", borderRadius: 20, padding: 20, alignItems: "center", marginHorizontal: 16, marginBottom: 12, borderWidth: 2, borderColor: Colors.gold + "40" },
+  roomCodeLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#5A5A88", marginBottom: 8 },
   roomCodeBig: { fontFamily: "Cairo_700Bold", fontSize: 48, color: Colors.gold, letterSpacing: 12, marginBottom: 4 },
-  roomCodeHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7E91" },
+  roomCodeHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#5A5A88" },
 
   // Voice chat
   voiceChatCard: {
-    backgroundColor: "#1E3448" + "80", borderRadius: 16, marginHorizontal: 16,
-    marginBottom: 12, padding: 14, borderWidth: 1, borderColor: "#2A4560",
+    backgroundColor: "#12122A" + "80", borderRadius: 16, marginHorizontal: 16,
+    marginBottom: 12, padding: 14, borderWidth: 1, borderColor: "#1E1E3A",
   },
   voiceChatHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  voiceChatTitle: { flex: 1, fontFamily: "Cairo_700Bold", fontSize: 14, color: "#F0E6D3" },
+  voiceChatTitle: { flex: 1, fontFamily: "Cairo_700Bold", fontSize: 14, color: "#E8E8FF" },
   voiceToggleBtn: {
     paddingHorizontal: 14, paddingVertical: 6, borderRadius: 12,
-    backgroundColor: "#1A2D42", borderWidth: 1, borderColor: "#2A4560",
+    backgroundColor: "#0E0E24", borderWidth: 1, borderColor: "#1E1E3A",
   },
   voiceToggleBtnActive: { backgroundColor: Colors.emerald + "22", borderColor: Colors.emerald + "60" },
-  voiceToggleText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#6B7E91" },
+  voiceToggleText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#5A5A88" },
   voiceToggleTextActive: { color: Colors.emerald },
   voiceControls: { marginTop: 12, gap: 10 },
   speakingList: { gap: 6 },
   speakingPlayerRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   speakingAvatar: { width: 30, height: 30, borderRadius: 15, justifyContent: "center", alignItems: "center", position: "relative" },
   speakingEmoji: { fontSize: 16 },
-  speakingDot: { position: "absolute", bottom: 0, right: 0, width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.emerald, borderWidth: 1, borderColor: "#0D1B2A" },
-  speakingName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#F0E6D3" },
+  speakingDot: { position: "absolute", bottom: 0, right: 0, width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.emerald, borderWidth: 1, borderColor: "#0A0A1A" },
+  speakingName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#E8E8FF" },
   speakingBadge: { backgroundColor: Colors.emerald + "22", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
-  micControls: { flexDirection: "row", alignItems: "center", gap: 12, paddingTop: 6, borderTopWidth: 1, borderTopColor: "#2A4560" },
+  micControls: { flexDirection: "row", alignItems: "center", gap: 12, paddingTop: 6, borderTopWidth: 1, borderTopColor: "#1E1E3A" },
   micBtn: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: "#1A2D42",
-    justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#2A4560",
+    width: 44, height: 44, borderRadius: 22, backgroundColor: "#0E0E24",
+    justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#1E1E3A",
   },
   micBtnActive: { backgroundColor: Colors.emerald, borderColor: Colors.emerald },
-  micLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#A8B8CC" },
+  micLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#9898CC" },
 
-  playersTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#A8B8CC", paddingHorizontal: 16, marginBottom: 8 },
+  playersTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#9898CC", paddingHorizontal: 16, marginBottom: 8 },
   playersList: { flex: 1, paddingHorizontal: 16 },
-  playerRow: { flexDirection: "row", alignItems: "center", backgroundColor: "#1E3448", borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: "#2A4560" },
+  playerRow: { flexDirection: "row", alignItems: "center", backgroundColor: "#12122A", borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: "#1E1E3A" },
   playerRowMe: { borderColor: Colors.gold + "60", backgroundColor: Colors.gold + "06" },
   playerAvatarSmall: { width: 46, height: 46, borderRadius: 23, justifyContent: "center", alignItems: "center", marginRight: 12, position: "relative" },
   speakingRing: { position: "absolute", top: -3, left: -3, right: -3, bottom: -3, borderRadius: 26, borderWidth: 2, borderColor: Colors.emerald + "CC" },
   speakingActiveBadge: { width: 24, height: 24, borderRadius: 12, backgroundColor: Colors.emerald + "22", justifyContent: "center", alignItems: "center" },
   playerRoleText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.gold + "AA", marginTop: 1 },
   playerIndexBadge: { width: 22, height: 22, borderRadius: 11, justifyContent: "center", alignItems: "center" },
-  playerIndexText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#A8B8CC" },
+  playerIndexText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#9898CC" },
   playerAvatarEmoji: { fontSize: 22 },
-  playerRowName: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#F0E6D3" },
+  playerRowName: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#E8E8FF" },
   playerRowRight: { flexDirection: "row", alignItems: "center", gap: 6 },
   hostBadge: { width: 26, height: 26, borderRadius: 13, backgroundColor: Colors.gold + "22", justifyContent: "center", alignItems: "center" },
   hostBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.gold },
   minPlayersHint: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 16, paddingVertical: 8 },
-  minPlayersText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7E91" },
+  minPlayersText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#5A5A88" },
   startBtn: {
     backgroundColor: Colors.gold, borderRadius: 16, minHeight: 48, marginHorizontal: 16,
     flexDirection: "row", justifyContent: "center", alignItems: "center",
     shadowColor: Colors.gold, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
   },
-  startBtnDisabled: { backgroundColor: "#1E3448", shadowOpacity: 0, elevation: 0 },
+  startBtnDisabled: { backgroundColor: "#12122A", shadowOpacity: 0, elevation: 0 },
   startBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#000000" },
-  waitingBar: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 16, paddingHorizontal: 16, backgroundColor: "#1E3448", marginHorizontal: 16, borderRadius: 16 },
-  waitingText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#A8B8CC" },
+  waitingBar: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 16, paddingHorizontal: 16, backgroundColor: "#12122A", marginHorizontal: 16, borderRadius: 16 },
+  waitingText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#9898CC" },
 
   // Matchmaking
   matchmakingContainer: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32, gap: 20 },
   matchmakingCircle: { width: 120, height: 120, borderRadius: 60, backgroundColor: Colors.gold + "15", borderWidth: 2, borderColor: Colors.gold + "30", justifyContent: "center", alignItems: "center" },
-  matchmakingTitle: { fontFamily: "Cairo_700Bold", fontSize: 24, color: "#F0E6D3" },
-  matchmakingStatus: { fontFamily: "Cairo_400Regular", fontSize: 14, color: "#A8B8CC", textAlign: "center" },
-  cancelBtn: { backgroundColor: "#1E3448", borderRadius: 14, paddingVertical: 12, paddingHorizontal: 32, borderWidth: 1, borderColor: "#2A4560" },
-  cancelBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#A8B8CC" },
+  matchmakingTitle: { fontFamily: "Cairo_700Bold", fontSize: 24, color: "#E8E8FF" },
+  matchmakingStatus: { fontFamily: "Cairo_400Regular", fontSize: 14, color: "#9898CC", textAlign: "center" },
+  cancelBtn: { backgroundColor: "#12122A", borderRadius: 14, paddingVertical: 12, paddingHorizontal: 32, borderWidth: 1, borderColor: "#1E1E3A" },
+  cancelBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#9898CC" },
 
   // Countdown
   countdownContainer: { alignItems: "center", justifyContent: "center", gap: 20 },
-  countdownLabel: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#A8B8CC" },
-  countdownCircle: { width: 160, height: 160, borderRadius: 80, borderWidth: 4, justifyContent: "center", alignItems: "center", backgroundColor: "#142233" },
+  countdownLabel: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#9898CC" },
+  countdownCircle: { width: 160, height: 160, borderRadius: 80, borderWidth: 4, justifyContent: "center", alignItems: "center", backgroundColor: "#0E0E24" },
   countdownNumber: { fontFamily: "Cairo_700Bold", fontSize: 72, lineHeight: 80 },
-  countdownSub: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F0E6D3" },
+  countdownSub: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#E8E8FF" },
   vsRow: { flexDirection: "row", alignItems: "center", gap: 16, marginBottom: 8 },
   vsPlayer: { alignItems: "center", gap: 8 },
   vsAvatar: { width: 72, height: 72, borderRadius: 36, justifyContent: "center", alignItems: "center" },
   vsEmoji: { fontSize: 36 },
-  vsName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#F0E6D3", textAlign: "center", maxWidth: 100 },
+  vsName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#E8E8FF", textAlign: "center", maxWidth: 100 },
   vsText: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.ruby },
 
   // Room code copy button
@@ -1103,15 +1103,15 @@ const styles = StyleSheet.create({
 
   // Player Slots
   playerSlotsContainer: { flexDirection: "row", justifyContent: "center", gap: 16, paddingHorizontal: 16, paddingVertical: 12 },
-  playerSlot: { flex: 1, alignItems: "center", backgroundColor: "#1E3448", borderRadius: 16, padding: 14, borderWidth: 1.5, borderColor: "#2A4560" },
+  playerSlot: { flex: 1, alignItems: "center", backgroundColor: "#12122A", borderRadius: 16, padding: 14, borderWidth: 1.5, borderColor: "#1E1E3A" },
   playerSlotAvatar: { width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center", borderWidth: 2, marginBottom: 8, position: "relative" },
   playerSlotEmoji: { fontSize: 30 },
   hostCrown: { position: "absolute", top: -6, right: -6 },
-  playerSlotName: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#F0E6D3", textAlign: "center" },
-  playerSlotStatus: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#6B7E91", marginTop: 2 },
-  playerSlotEmpty: { flex: 1, alignItems: "center", backgroundColor: "#142233", borderRadius: 16, padding: 14, borderWidth: 1.5, borderColor: "#2A4560", borderStyle: "dashed" },
-  playerSlotEmptyAvatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#1A2D42", justifyContent: "center", alignItems: "center", marginBottom: 8 },
-  playerSlotEmptyText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6B7E91", textAlign: "center" },
+  playerSlotName: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#E8E8FF", textAlign: "center" },
+  playerSlotStatus: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#5A5A88", marginTop: 2 },
+  playerSlotEmpty: { flex: 1, alignItems: "center", backgroundColor: "#0E0E24", borderRadius: 16, padding: 14, borderWidth: 1.5, borderColor: "#1E1E3A", borderStyle: "dashed" },
+  playerSlotEmptyAvatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#14142E", justifyContent: "center", alignItems: "center", marginBottom: 8 },
+  playerSlotEmptyText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#5A5A88", textAlign: "center" },
 
   // Invite Friend button
   inviteFriendBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginHorizontal: 16, marginBottom: 4, paddingVertical: 12, borderRadius: 14, backgroundColor: Colors.sapphire + "18", borderWidth: 1, borderColor: Colors.sapphire + "40" },
@@ -1119,18 +1119,18 @@ const styles = StyleSheet.create({
 
   // Invite Friend Modal
   inviteOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
-  inviteSheet: { backgroundColor: "#142233", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40, maxHeight: "70%" },
+  inviteSheet: { backgroundColor: "#0E0E24", borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40, maxHeight: "70%" },
   inviteHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
-  inviteTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#F0E6D3" },
+  inviteTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#E8E8FF" },
   inviteEmpty: { alignItems: "center", paddingVertical: 40, gap: 8 },
-  inviteEmptyText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#A8B8CC" },
-  inviteEmptyHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7E91" },
-  inviteFriendRow: { flexDirection: "row", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#2A4560", gap: 12 },
+  inviteEmptyText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#9898CC" },
+  inviteEmptyHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#5A5A88" },
+  inviteFriendRow: { flexDirection: "row", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#1E1E3A", gap: 12 },
   inviteAvatar: { width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center" },
   inviteAvatarEmoji: { fontSize: 22 },
   inviteFriendInfo: { flex: 1 },
-  inviteFriendName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#F0E6D3" },
-  inviteFriendLevel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6B7E91" },
+  inviteFriendName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#E8E8FF" },
+  inviteFriendLevel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#5A5A88" },
   inviteBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: Colors.gold, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
   inviteBtnSent: { backgroundColor: Colors.emerald + "20", borderWidth: 1, borderColor: Colors.emerald + "40" },
   inviteBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#000000" },

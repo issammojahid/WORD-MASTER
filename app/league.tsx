@@ -213,7 +213,7 @@ export default function LeagueScreen() {
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <LinearGradient
-            colors={["#00D4E820", "#A855F718"]}
+            colors={["#00F5FF20", "#BF00FF18"]}
             style={StyleSheet.absoluteFillObject}
           />
           <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
@@ -305,14 +305,14 @@ const styles = StyleSheet.create({
   },
   headerCenter: { flexDirection: "row", alignItems: "center", gap: 8 },
   headerEmoji: { fontSize: 20 },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F0E6D3" },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#E8E8FF" },
   balanceRow: { alignItems: "center", marginBottom: 16 },
   balanceBadge: {
     flexDirection: "row", alignItems: "center", gap: 8,
     borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10,
     borderWidth: 1, borderColor: Colors.gold + "40",
   },
-  balanceLabel: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#A8B8CC" },
+  balanceLabel: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#9898CC" },
   balanceValue: { fontFamily: "Cairo_700Bold", fontSize: 18, color: Colors.gold },
   carouselContent: {
     paddingHorizontal: 32,
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: CARD_WIDTH,
-    backgroundColor: "#1E3448",
+    backgroundColor: "#12122A",
     borderRadius: 24,
     borderWidth: 1.5,
     overflow: "hidden",
@@ -337,15 +337,15 @@ const styles = StyleSheet.create({
   cardTitle: { fontFamily: "Cairo_700Bold", fontSize: 26, flex: 1 },
   lockedBadge: {
     flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: "#1A2D42", borderRadius: 8,
+    backgroundColor: "#14142E", borderRadius: 8,
     paddingHorizontal: 8, paddingVertical: 4,
   },
-  lockedText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#6B7E91" },
+  lockedText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#5A5A88" },
   tableHeader: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 8, paddingHorizontal: 20, paddingBottom: 10,
   },
-  tableHeaderText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#6B7E91" },
+  tableHeaderText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#5A5A88" },
   entriesContainer: { paddingHorizontal: 16, gap: 10, paddingBottom: 8 },
   entryRow: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -353,20 +353,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 14,
     position: "relative",
   },
-  entryRowAffordable: { backgroundColor: "#1A2D42" },
-  entryRowLocked: { backgroundColor: "#142233", opacity: 0.55 },
+  entryRowAffordable: { backgroundColor: "#14142E" },
+  entryRowLocked: { backgroundColor: "#0E0E24", opacity: 0.55 },
   entryLeft: { flex: 1 },
   entryRight: { flex: 1, alignItems: "flex-end" },
   entryAmount: { fontFamily: "Cairo_700Bold", fontSize: 15 },
-  entryLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#6B7E91", marginTop: 2 },
+  entryLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#5A5A88", marginTop: 2 },
   winAmount: { fontFamily: "Cairo_700Bold", fontSize: 15 },
-  winLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#6B7E91", marginTop: 2 },
+  winLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#5A5A88", marginTop: 2 },
   entryLockOverlay: {
     position: "absolute", right: 12, top: "50%",
     transform: [{ translateY: -8 }],
   },
   cardHint: {
-    fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6B7E91",
+    fontFamily: "Cairo_400Regular", fontSize: 11, color: "#5A5A88",
     textAlign: "center", padding: 14, paddingTop: 10,
   },
   dots: {
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
   },
   dot: {
     width: 8, height: 8, borderRadius: 4,
-    backgroundColor: "#6B7E91" + "60",
+    backgroundColor: "#5A5A88" + "60",
   },
   leagueNames: {
     flexDirection: "row", justifyContent: "center",
@@ -383,6 +383,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   leagueName: {
-    fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#6B7E91",
+    fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#5A5A88",
   },
 });

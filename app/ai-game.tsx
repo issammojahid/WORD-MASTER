@@ -67,7 +67,7 @@ const DIFFICULTY_CONFIG: Record<
     label: "أسطوري",
     emoji: "👑",
     desc: "شبه مستحيل — ذكاء اصطناعي كامل",
-    color: "#7C3AED",
+    color: "#BF00FF",
     minDelay: 1000,
     maxDelay: 2000,
     missRate: 0.02,
@@ -718,7 +718,7 @@ export default function AIGameScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0D1B2A",
+    backgroundColor: "#0A0A1A",
   },
 
   header: {
@@ -728,20 +728,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#2A4560",
+    borderBottomColor: "#1E1E3A",
   },
   backBtn: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: "#1E3448",
+    backgroundColor: "#12122A",
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
     fontFamily: "Cairo_700Bold",
     fontSize: 16,
-    color: "#F0E6D3",
+    color: "#E8E8FF",
     textAlign: "center",
     flex: 1,
   },
@@ -759,19 +759,19 @@ const styles = StyleSheet.create({
   aiHeroTitle: {
     fontFamily: "Cairo_700Bold",
     fontSize: 22,
-    color: "#F0E6D3",
+    color: "#E8E8FF",
     marginBottom: 6,
   },
   aiHeroSub: {
     fontFamily: "Cairo_400Regular",
     fontSize: 14,
-    color: "#6B7E91",
+    color: "#5A5A88",
     textAlign: "center",
   },
   diffCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1E3448",
+    backgroundColor: "#12122A",
     borderRadius: 16,
     borderWidth: 1.5,
     padding: 16,
@@ -795,14 +795,14 @@ const styles = StyleSheet.create({
   diffDesc: {
     fontFamily: "Cairo_400Regular",
     fontSize: 12,
-    color: "#6B7E91",
+    color: "#5A5A88",
   },
 
   loadingEmoji: { fontSize: 56, textAlign: "center", marginBottom: 16 },
   loadingText: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 18,
-    color: "#6B7E91",
+    color: "#5A5A88",
     textAlign: "center",
   },
 
@@ -813,13 +813,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#2A4560",
+    borderBottomColor: "#1E1E3A",
   },
   gameHeaderLeft: { gap: 2 },
   roundLabel: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 13,
-    color: "#6B7E91",
+    color: "#5A5A88",
   },
   diffBadge: {
     fontFamily: "Cairo_700Bold",
@@ -859,9 +859,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 8,
-    backgroundColor: "#1E3448",
+    backgroundColor: "#12122A",
     borderBottomWidth: 1,
-    borderBottomColor: "#2A4560",
+    borderBottomColor: "#1E1E3A",
   },
   scoreHalf: {
     flex: 1,
@@ -871,7 +871,7 @@ const styles = StyleSheet.create({
   scoreName: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 11,
-    color: "#6B7E91",
+    color: "#5A5A88",
     maxWidth: 110,
   },
   scoreNum: {
@@ -881,7 +881,7 @@ const styles = StyleSheet.create({
   vsChip: {
     fontFamily: "Cairo_700Bold",
     fontSize: 13,
-    color: "#6B7E91",
+    color: "#5A5A88",
     paddingHorizontal: 12,
   },
 
@@ -891,20 +891,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: "#2A4560" + "50",
+    borderBottomColor: "#1E1E3A" + "50",
   },
   tableHeaderText: {
     flex: 1,
     fontFamily: "Cairo_600SemiBold",
     fontSize: 11,
-    color: "#6B7E91",
+    color: "#5A5A88",
     textAlign: "center",
   },
   tableHeaderCenter: {
     width: 80,
     textAlign: "center",
     fontSize: 14,
-    color: "#6B7E91",
+    color: "#5A5A88",
   },
 
   catListContent: {
@@ -916,14 +916,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#2A4560" + "40",
+    borderBottomColor: "#1E1E3A" + "40",
     gap: 8,
   },
   catLabel: {
     flex: 1,
     fontFamily: "Cairo_600SemiBold",
     fontSize: 13,
-    color: "#F0E6D3",
+    color: "#E8E8FF",
     textAlign: "right",
   },
   catAiCol: {
@@ -933,7 +933,7 @@ const styles = StyleSheet.create({
   aiThinking: {
     fontFamily: "Cairo_400Regular",
     fontSize: 14,
-    color: "#6B7E91",
+    color: "#5A5A88",
     letterSpacing: 2,
   },
   aiWord: {
@@ -945,19 +945,19 @@ const styles = StyleSheet.create({
   aiEmpty: {
     fontFamily: "Cairo_400Regular",
     fontSize: 13,
-    color: "#6B7E91" + "80",
+    color: "#5A5A88" + "80",
   },
   catInput: {
     flex: 1,
     height: 40,
-    backgroundColor: "#1E3448",
+    backgroundColor: "#12122A",
     borderRadius: 10,
     paddingHorizontal: 12,
     fontFamily: "Cairo_600SemiBold",
     fontSize: 14,
-    color: "#F0E6D3",
+    color: "#E8E8FF",
     borderWidth: 1,
-    borderColor: "#2A4560",
+    borderColor: "#1E1E3A",
     textAlign: "right",
   },
   catInputDisabled: {
@@ -986,27 +986,27 @@ const styles = StyleSheet.create({
   waitingChip: {
     alignItems: "center",
     paddingVertical: 14,
-    backgroundColor: "#1E3448",
+    backgroundColor: "#12122A",
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#2A4560",
+    borderColor: "#1E1E3A",
   },
   waitingText: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 14,
-    color: "#6B7E91",
+    color: "#5A5A88",
   },
 
   resultsHeader: {
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#2A4560",
+    borderBottomColor: "#1E1E3A",
   },
   resultsTitle: {
     fontFamily: "Cairo_700Bold",
     fontSize: 18,
-    color: "#F0E6D3",
+    color: "#E8E8FF",
     textAlign: "center",
     marginBottom: 8,
   },
@@ -1023,24 +1023,24 @@ const styles = StyleSheet.create({
   roundScoreSep: {
     fontFamily: "Cairo_400Regular",
     fontSize: 14,
-    color: "#6B7E91",
+    color: "#5A5A88",
   },
   resultsList: {
     paddingHorizontal: 16,
     paddingTop: 10,
   },
   resultCard: {
-    backgroundColor: "#1E3448",
+    backgroundColor: "#12122A",
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#2A4560",
+    borderColor: "#1E1E3A",
     padding: 12,
     marginBottom: 10,
   },
   resultCatName: {
     fontFamily: "Cairo_700Bold",
     fontSize: 13,
-    color: "#6B7E91",
+    color: "#5A5A88",
     textAlign: "center",
     marginBottom: 8,
   },
@@ -1056,11 +1056,11 @@ const styles = StyleSheet.create({
   resultAnswer: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 15,
-    color: "#F0E6D3",
+    color: "#E8E8FF",
     textAlign: "center",
   },
   resultAnswerEmpty: {
-    color: "#6B7E91",
+    color: "#5A5A88",
     fontFamily: "Cairo_400Regular",
   },
   resultPts: {
@@ -1070,7 +1070,7 @@ const styles = StyleSheet.create({
   resultDivider: {
     width: 1,
     height: 40,
-    backgroundColor: "#2A4560",
+    backgroundColor: "#1E1E3A",
     marginHorizontal: 10,
   },
 
@@ -1078,13 +1078,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "#2A4560",
+    borderTopColor: "#1E1E3A",
     gap: 10,
   },
   totalScoreText: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 13,
-    color: "#6B7E91",
+    color: "#5A5A88",
     textAlign: "center",
   },
   nextBtn: {
@@ -1109,10 +1109,10 @@ const styles = StyleSheet.create({
   },
   gameOverCard: {
     width: "100%",
-    backgroundColor: "#1E3448",
+    backgroundColor: "#12122A",
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#2A4560",
+    borderColor: "#1E1E3A",
     padding: 28,
     alignItems: "center",
     gap: 12,
@@ -1125,12 +1125,12 @@ const styles = StyleSheet.create({
   gameOverSub: {
     fontFamily: "Cairo_400Regular",
     fontSize: 14,
-    color: "#6B7E91",
+    color: "#5A5A88",
     textAlign: "center",
   },
   finalScoreBox: {
     width: "100%",
-    backgroundColor: "#0D1B2A",
+    backgroundColor: "#0A0A1A",
     borderRadius: 16,
     padding: 16,
     marginTop: 4,
@@ -1144,7 +1144,7 @@ const styles = StyleSheet.create({
   finalName: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 15,
-    color: "#F0E6D3",
+    color: "#E8E8FF",
   },
   finalNum: {
     fontFamily: "Cairo_700Bold",
@@ -1152,7 +1152,7 @@ const styles = StyleSheet.create({
   },
   finalDivider: {
     height: 1,
-    backgroundColor: "#2A4560",
+    backgroundColor: "#1E1E3A",
   },
   xpBadge: {
     flexDirection: "row",
@@ -1196,16 +1196,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#1E3448",
+    backgroundColor: "#12122A",
     borderRadius: 14,
     paddingVertical: 13,
     gap: 7,
     borderWidth: 1,
-    borderColor: "#2A4560",
+    borderColor: "#1E1E3A",
   },
   homeBtnText: {
     fontFamily: "Cairo_700Bold",
     fontSize: 15,
-    color: "#F0E6D3",
+    color: "#E8E8FF",
   },
 });

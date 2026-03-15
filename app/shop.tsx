@@ -22,21 +22,21 @@ const CARD_W = (SW - 52) / 2;
 
 // ── Shop Design Tokens (Dark Theme) ──────────────────────────────────────────
 const L = {
-  bg:         "#0D1B2A",
-  card:       "#1E3448",
-  cardBorder: "#2A4560",
-  shadow:     "#00000060",
-  textMain:   "#F0E6D3",
-  textSub:    "#A8B8CC",
-  purple:     "#7C5CFC",
-  purpleLight:"#2D1B69",
-  gold:       "#F59E0B",
-  goldLight:  "#3A2800",
-  cyan:       "#06B6D4",
-  green:      "#10B981",
-  pink:       "#EC4899",
-  tabBg:      "#142233",
-  tabActive:  "#7C5CFC",
+  bg:         "#0A0A1A",
+  card:       "#12122A",
+  cardBorder: "#1E1E3A",
+  shadow:     "#00000080",
+  textMain:   "#E8E8FF",
+  textSub:    "#9898CC",
+  purple:     "#BF00FF",
+  purpleLight:"#1A0033",
+  gold:       "#F5C842",
+  goldLight:  "#2A2000",
+  cyan:       "#00F5FF",
+  green:      "#00FF87",
+  pink:       "#FF006E",
+  tabBg:      "#0E0E24",
+  tabActive:  "#BF00FF",
 };
 
 // ── Sound helper ─────────────────────────────────────────────────────────────
@@ -138,7 +138,7 @@ function getTimeUntilMidnight(): string {
 
 // ── Box tiers ─────────────────────────────────────────────────────────────────
 const BOX_TIERS = [
-  { id: "basic" as const,     nameAr: "صندوق أساسي",   emoji: "🎁", price: 100, glowColor: "#9CA3AF", lightGlow: "#9CA3AF40", gradient: ["#1A2D42", "#142233"] as [string,string], accentColor: "#A8B8CC", poolLabel: "عادي · نادر",    coinMin: 50,  coinMax: 150 },
+  { id: "basic" as const,     nameAr: "صندوق أساسي",   emoji: "🎁", price: 100, glowColor: "#9CA3AF", lightGlow: "#9CA3AF40", gradient: ["#14142E", "#0E0E24"] as [string,string], accentColor: "#9898CC", poolLabel: "عادي · نادر",    coinMin: 50,  coinMax: 150 },
   { id: "rare" as const,      nameAr: "صندوق نادر",     emoji: "💜", price: 300, glowColor: "#8B5CF6", lightGlow: "#8B5CF630", gradient: ["#2D1B69", "#1A1040"] as [string,string], accentColor: "#A78BFA", poolLabel: "نادر · ملحمي",  coinMin: 150, coinMax: 350 },
   { id: "legendary" as const, nameAr: "صندوق أسطوري",  emoji: "⭐", price: 600, glowColor: "#F59E0B", lightGlow: "#F59E0B30", gradient: ["#3A2800", "#4A3200"] as [string,string], accentColor: "#F59E0B", poolLabel: "ملحمي · أسطوري", coinMin: 300, coinMax: 700 },
 ] as const;
@@ -327,7 +327,7 @@ function BoxOpeningModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.boxModalOverlay}>
         <View style={styles.boxModalContent}>
-          <LinearGradient colors={["#1A1040", "#0D1B2A", "#142233"]} style={StyleSheet.absoluteFillObject} />
+          <LinearGradient colors={["#1A1040", "#0A0A1A", "#0E0E24"]} style={StyleSheet.absoluteFillObject} />
 
           {/* Floating particles inside modal */}
           <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
@@ -599,7 +599,7 @@ export default function ShopScreen() {
               </View>
             ) : (
               <TouchableOpacity
-                style={[styles.dailyActionBtn, { backgroundColor: canAfford ? L.purple : "#2A4560" }]}
+                style={[styles.dailyActionBtn, { backgroundColor: canAfford ? L.purple : "#1E1E3A" }]}
                 onPress={() => handleDailyBuy(item)}
                 activeOpacity={0.85}
               >
@@ -735,7 +735,7 @@ export default function ShopScreen() {
                       <Text style={[styles.cardActionText, { color: "#A78BFA" }]} numberOfLines={1}>{unlockCurrent}/{unlockCond.value}</Text>
                     </View>
                   ) : (
-                    <View style={[styles.cardActionBtn, canAfford ? { backgroundColor: L.goldLight } : { backgroundColor: "#2A4560" }]}>
+                    <View style={[styles.cardActionBtn, canAfford ? { backgroundColor: L.goldLight } : { backgroundColor: "#1E1E3A" }]}>
                       <Ionicons name="star" size={11} color={canAfford ? L.gold : L.textSub} />
                       <Text style={[styles.cardActionText, { color: canAfford ? L.gold : L.textSub }]}>{skin.price}</Text>
                     </View>
@@ -789,7 +789,7 @@ export default function ShopScreen() {
                     <Text style={[styles.cardActionText, { color: L.purple }]}>تجهيز</Text>
                   </View>
                 ) : (
-                  <View style={[styles.cardActionBtn, canAfford ? { backgroundColor: L.goldLight } : { backgroundColor: "#2A4560" }]}>
+                  <View style={[styles.cardActionBtn, canAfford ? { backgroundColor: L.goldLight } : { backgroundColor: "#1E1E3A" }]}>
                     <Ionicons name="star" size={11} color={canAfford ? L.gold : L.textSub} />
                     <Text style={[styles.cardActionText, { color: canAfford ? L.gold : L.textSub }]}>{effect.price}</Text>
                   </View>
@@ -877,7 +877,7 @@ export default function ShopScreen() {
                       <Text style={[styles.cardActionText, { color: condMet ? L.green : "#A78BFA" }]}>{condMet ? "افتح الآن" : `${unlockCur}/${unlockCond.value}`}</Text>
                     </View>
                   ) : (
-                    <View style={[styles.cardActionBtn, canAfford ? { backgroundColor: L.goldLight } : { backgroundColor: "#2A4560" }]}>
+                    <View style={[styles.cardActionBtn, canAfford ? { backgroundColor: L.goldLight } : { backgroundColor: "#1E1E3A" }]}>
                       <Ionicons name="star" size={11} color={canAfford ? L.gold : L.textSub} />
                       <Text style={[styles.cardActionText, { color: canAfford ? L.gold : L.textSub }]}>{title.price}</Text>
                     </View>
@@ -923,7 +923,7 @@ export default function ShopScreen() {
             </View>
 
             <View style={styles.boxTierRight}>
-              <View style={[styles.priceBadge, { backgroundColor: canAfford ? L.goldLight : "#2A4560" }]}>
+              <View style={[styles.priceBadge, { backgroundColor: canAfford ? L.goldLight : "#1E1E3A" }]}>
                 <Ionicons name="star" size={12} color={canAfford ? L.gold : L.textSub} />
                 <Text style={[styles.priceText, { color: canAfford ? L.gold : L.textSub }]}>{tier.price}</Text>
               </View>
@@ -1045,7 +1045,7 @@ export default function ShopScreen() {
   return (
     <View style={[styles.container, { paddingTop: topInset }]}>
       {/* Dark gradient background */}
-      <LinearGradient colors={["#0D1B2A", "#142233", "#0D1B2A"]} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={["#0A0A1A", "#0E0E24", "#0A0A1A"]} style={StyleSheet.absoluteFillObject} />
       <ShopParticles />
 
       {/* Header */}
@@ -1129,7 +1129,7 @@ export default function ShopScreen() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0D1B2A" },
+  container: { flex: 1, backgroundColor: "#0A0A1A" },
 
   header: {
     flexDirection: "row", alignItems: "center",
