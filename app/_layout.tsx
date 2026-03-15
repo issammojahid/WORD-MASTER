@@ -18,6 +18,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { PlayerProvider, usePlayer } from "@/contexts/PlayerContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import SplashOverlay from "@/components/SplashOverlay";
+import { preloadAllSounds } from "@/lib/sound-manager";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -154,6 +155,9 @@ export default function RootLayout() {
     if (fontsLoaded || fontError) {
       // Hide the native OS splash screen as soon as fonts are ready
       SplashScreen.hideAsync();
+
+      // Preload all game sounds during the splash screen display period
+      preloadAllSounds();
 
       // Show our custom in-app splash for ~4.5 s, then fade it out
       const displayTimer = setTimeout(() => {

@@ -13,6 +13,13 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
 
 ## Recent Features Added
 
+- **Sound System APK Fix**: Ensured game sounds work in both Expo preview and production APK builds:
+  - Added `assetBundlePatterns: ["**/*"]` to `app.json` — primary fix so sound files are bundled in APK
+  - Added `expo-av` to the plugins list in `app.json` for proper native audio initialization
+  - Rewrote `lib/sound-manager.ts`: changed `require("@/assets/...")` to relative `require("../assets/...")`, added `Audio.setAudioModeAsync({ playsInSilentModeIOS: true, shouldDuckAndroid: true })` before any playback, added `Platform.OS === "web"` guard (skip audio on web), added `preloadAllSounds()` export
+  - `app/_layout.tsx` calls `preloadAllSounds()` during the splash screen period so all 7 sounds are cached before gameplay starts
+  - Freeze/unfreeze sounds in `game.tsx` use `window.AudioContext` (web-only) and already have proper `typeof window === "undefined"` guards — safe on native
+
 - **Friends System Fix**: Fixed three broken flows in `app/friends.tsx` and `server/routes.ts`:
   - **Search** now searches by both player name AND WM code (`playerCode` via ILIKE) — users can type "WM-XXXXXX" to find friends directly
   - **Friends list** endpoint now returns `playerCode` and `playerTag` for each friend (previously missing)
