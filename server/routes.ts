@@ -1533,9 +1533,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/player/:id/game-result", async (req, res) => {
     try {
       const id = req.params.id;
-      const { won, score, coinsEarned, xpEarned, coinEntry } = req.body as {
-        won: boolean; score: number; coinsEarned: number; xpEarned: number; coinEntry?: number;
-      };
+      const { won, coinEntry } = req.body as { won: boolean; coinEntry?: number; };
+      const score = Number(req.body.score) || 0;
+      const coinsEarned = Number(req.body.coinsEarned) || 0;
+      const xpEarned = Number(req.body.xpEarned) || 0;
       let [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, id));
       if (!profile) {
         [profile] = await db.insert(playerProfiles).values({ id }).returning();
@@ -2205,21 +2206,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const today = getTodayDate();
       const [row] = await db.select().from(playerDailyTasks)
         .where(and(eq(playerDailyTasks.playerId, playerId), eq(playerDailyTasks.taskKey, taskKey), eq(playerDailyTasks.assignedDate, today)));
-      if (!row) return res.status(404).json({ error: "task_not_found" });
-      if (row.claimed === 1) return res.status(400).json({ error: "already_claimed" });
+      if (!row) return res.json({ success: false, error: "task_not_found" });
+      if (row.claimed === 1) return res.json({ success: false, error: "already_claimed" });
+
       const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
-      if (!profile) return res.status(404).json({ error: "player_not_found" });
+      if (!profile) return res.json({ success: false, error: "player_not_found" });
 
       const def = DAILY_TASK_DEFS.find(d => d.key === taskKey);
-      if (!def) return res.status(404).json({ error: "unknown_task" });
+      if (!def) return res.json({ success: false, error: "unknown_task" });
 
-      let progress = 0;
-      if (def.type === "wins") progress = Math.max(0, profile.wins - (row.baselineWins ?? 0));
-      if (def.type === "games") progress = Math.max(0, profile.gamesPlayed - (row.baselineGames ?? 0));
-      if (def.type === "score") progress = Math.max(0, profile.totalScore - (row.baselineScore ?? 0));
-      if (progress < def.target) return res.status(400).json({ error: "not_completed" });
+      let progress = row.progress ?? 0;
+      if (def.type === "wins")  progress = Math.max(progress, Math.max(0, profile.wins - (row.baselineWins ?? 0)));
+      if (def.type === "games") progress = Math.max(progress, Math.max(0, profile.gamesPlayed - (row.baselineGames ?? 0)));
+      if (def.type === "score") progress = Math.max(progress, Math.max(0, profile.totalScore - (row.baselineScore ?? 0)));
 
-      await db.update(playerDailyTasks).set({ claimed: 1, claimedAt: new Date() }).where(eq(playerDailyTasks.id, row.id));
+      if (progress < def.target) return res.json({ success: false, error: "not_completed" });
+
+      await db.update(playerDailyTasks).set({ claimed: 1, claimedAt: new Date(), progress }).where(eq(playerDailyTasks.id, row.id));
       await db.update(playerProfiles).set({
         coins: profile.coins + def.rewardCoins,
         xp: profile.xp + def.rewardXp,
@@ -2229,7 +2232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, coinsEarned: def.rewardCoins, xpEarned: def.rewardXp });
     } catch (e) {
       console.error("POST /api/tasks/claim error:", e);
-      res.status(500).json({ error: "server_error" });
+      res.json({ success: false, error: "server_error" });
     }
   });
 
@@ -2269,42 +2272,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  async function processAchievementClaim(playerId: string, key: string): Promise<{ success: boolean; error?: string; coinsEarned?: number; xpEarned?: number }> {
+    const def = ACHIEVEMENT_DEFS.find(d => d.key === key);
+    if (!def) return { success: false, error: "unknown_achievement" };
+
+    const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+    if (!profile) return { success: false, error: "player_not_found" };
+
+    const [existing] = await db.select().from(playerAchievements)
+      .where(and(eq(playerAchievements.playerId, playerId), eq(playerAchievements.achievementKey, key)));
+
+    if (existing?.claimed === 1) return { success: false, error: "already_claimed" };
+
+    let liveProgress = 0;
+    if (def.type === "wins")   liveProgress = profile.wins;
+    if (def.type === "games")  liveProgress = profile.gamesPlayed;
+    if (def.type === "level")  liveProgress = profile.level;
+    if (def.type === "streak") liveProgress = profile.bestStreak;
+
+    const storedUnlocked = existing?.unlocked === 1;
+    const liveUnlocked = liveProgress >= def.target;
+    if (!storedUnlocked && !liveUnlocked) return { success: false, error: "not_unlocked" };
+
+    const finalProgress = Math.max(liveProgress, existing?.progress ?? 0);
+
+    if (existing) {
+      await db.update(playerAchievements).set({
+        claimed: 1, claimedAt: new Date(), unlocked: 1,
+        unlockedAt: existing.unlockedAt ?? new Date(),
+        progress: finalProgress,
+      }).where(eq(playerAchievements.id, existing.id));
+    } else {
+      await db.insert(playerAchievements).values({
+        playerId, achievementKey: key, progress: finalProgress,
+        unlocked: 1, claimed: 1, unlockedAt: new Date(), claimedAt: new Date(),
+      });
+    }
+
+    await db.update(playerProfiles).set({
+      coins: profile.coins + def.rewardCoins,
+      xp: profile.xp + def.rewardXp,
+      updatedAt: new Date(),
+    }).where(eq(playerProfiles.id, playerId));
+
+    return { success: true, coinsEarned: def.rewardCoins, xpEarned: def.rewardXp };
+  }
+
   app.post("/api/achievements/:playerId/claim/:key", async (req, res) => {
     try {
-      const { playerId, key } = req.params;
-      const def = ACHIEVEMENT_DEFS.find(d => d.key === key);
-      if (!def) return res.status(404).json({ error: "unknown_achievement" });
-
-      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
-      if (!profile) return res.status(404).json({ error: "player_not_found" });
-
-      let progress = 0;
-      if (def.type === "wins") progress = profile.wins;
-      if (def.type === "games") progress = profile.gamesPlayed;
-      if (def.type === "level") progress = profile.level;
-      if (def.type === "streak") progress = profile.bestStreak;
-      if (progress < def.target) return res.status(400).json({ error: "not_unlocked" });
-
-      const [existing] = await db.select().from(playerAchievements)
-        .where(and(eq(playerAchievements.playerId, playerId), eq(playerAchievements.achievementKey, key)));
-      if (existing?.claimed === 1) return res.status(400).json({ error: "already_claimed" });
-
-      if (existing) {
-        await db.update(playerAchievements).set({ claimed: 1, claimedAt: new Date(), unlocked: 1, unlockedAt: new Date() }).where(eq(playerAchievements.id, existing.id));
-      } else {
-        await db.insert(playerAchievements).values({ playerId, achievementKey: key, progress, unlocked: 1, claimed: 1, unlockedAt: new Date(), claimedAt: new Date() });
-      }
-
-      await db.update(playerProfiles).set({
-        coins: profile.coins + def.rewardCoins,
-        xp: profile.xp + def.rewardXp,
-        updatedAt: new Date(),
-      }).where(eq(playerProfiles.id, playerId));
-
-      res.json({ success: true, coinsEarned: def.rewardCoins, xpEarned: def.rewardXp });
+      const result = await processAchievementClaim(req.params.playerId, req.params.key);
+      res.json(result);
     } catch (e) {
       console.error("POST /api/achievements/claim error:", e);
-      res.status(500).json({ error: "server_error" });
+      res.json({ success: false, error: "server_error" });
+    }
+  });
+
+  app.post("/api/claim-achievement", async (req, res) => {
+    try {
+      const { playerId, achievementKey } = req.body;
+      if (!playerId || !achievementKey) return res.json({ success: false, error: "missing_fields" });
+      const result = await processAchievementClaim(playerId, achievementKey);
+      res.json(result);
+    } catch (e) {
+      console.error("POST /api/claim-achievement error:", e);
+      res.json({ success: false, error: "server_error" });
     }
   });
 
