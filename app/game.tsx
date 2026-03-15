@@ -29,6 +29,7 @@ import { getSocket } from "@/services/socket";
 import { GAME_CATEGORIES, GameCategory } from "@/constants/i18n";
 import { getApiUrl } from "@/lib/query-client";
 import { playSound } from "@/lib/sound-manager";
+import ViewShot, { captureRef } from "react-native-view-shot";
 
 const ROUND_TIME = 50;
 const FREEZE_SECS = 4;
@@ -279,6 +280,7 @@ export default function GameScreen() {
   const answersRef = useRef<Record<GameCategory, string>>({} as Record<GameCategory, string>);
   const submittedRef = useRef(false);
   const isGameOverRef = useRef(false);
+  const shareCardRef = useRef<ViewShot>(null);
   const gamePlayersRef = useRef<{ id: string; name: string; score: number }[]>([]);
   const socketId = socket.id;
 
@@ -784,6 +786,24 @@ export default function GameScreen() {
             </View>
           )}
 
+          <ViewShot ref={shareCardRef} options={{ format: "png", quality: 1 }} style={styles.shareCardContainer}>
+            <LinearGradient colors={["#0A0A1A", "#12122A", "#0E0E24"]} style={styles.shareCard}>
+              <Text style={styles.shareCardTitle}>حروف المغرب 🇲🇦</Text>
+              <View style={styles.shareCardDivider} />
+              <Text style={styles.shareCardRank}>
+                {amWinner ? "🏆" : myIdx === 1 ? "🥈" : myIdx === 2 ? "🥉" : "🎖️"} المركز {myIdx + 1}
+              </Text>
+              <Text style={styles.shareCardScore}>
+                ⭐ {sortedPlayers.find(p => p.id === socketId)?.score ?? 0} نقطة
+              </Text>
+              <Text style={styles.shareCardName}>
+                {sortedPlayers.find(p => p.id === socketId)?.name ?? ""}
+              </Text>
+              <View style={styles.shareCardDivider} />
+              <Text style={styles.shareCardFooter}>حمّل اللعبة وتحداني! 🔥</Text>
+            </LinearGradient>
+          </ViewShot>
+
           <View style={styles.gameOverActions}>
             <TouchableOpacity style={styles.playAgainBtn} onPress={handlePlayAgain} activeOpacity={0.85}>
               <Ionicons name="refresh" size={18} color={"#0A0A1A"} style={{ marginRight: 8 }} />
@@ -795,15 +815,31 @@ export default function GameScreen() {
                 style={styles.shareBtn}
                 activeOpacity={0.8}
                 onPress={async () => {
-                  const myPlayer = sortedPlayers.find(p => p.id === socketId);
-                  const myScore = myPlayer?.score ?? 0;
-                  const rank = myIdx + 1;
-                  const totalPlayers = sortedPlayers.length;
-                  const rankText = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
-                  const message = `${rankText} حصلت على المركز ${rank} من ${totalPlayers} في حروف المغرب!\n⭐ النتيجة: ${myScore} نقطة\n🔥 حمّل اللعبة وتحداني!\n#حروف_المغرب`;
                   try {
+                    if (Platform.OS === "web") {
+                      const myPlayer = sortedPlayers.find(p => p.id === socketId);
+                      const myScore = myPlayer?.score ?? 0;
+                      const rank = myIdx + 1;
+                      const totalPlayers = sortedPlayers.length;
+                      const rankText = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
+                      const message = `${rankText} حصلت على المركز ${rank} من ${totalPlayers} في حروف المغرب!\n⭐ النتيجة: ${myScore} نقطة\n🔥 حمّل اللعبة وتحداني!\n#حروف_المغرب`;
+                      await Share.share({ message });
+                    } else {
+                      const uri = await captureRef(shareCardRef, { format: "png", quality: 1 });
+                      await Share.share(
+                        { url: uri },
+                        { dialogTitle: "شارك نتيجتك" }
+                      );
+                    }
+                  } catch (err) {
+                    const myPlayer = sortedPlayers.find(p => p.id === socketId);
+                    const myScore = myPlayer?.score ?? 0;
+                    const rank = myIdx + 1;
+                    const totalPlayers = sortedPlayers.length;
+                    const rankText = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
+                    const message = `${rankText} حصلت على المركز ${rank} من ${totalPlayers} في حروف المغرب!\n⭐ النتيجة: ${myScore} نقطة\n🔥 حمّل اللعبة وتحداني!\n#حروف_المغرب`;
                     await Share.share({ message });
-                  } catch {}
+                  }
                 }}
               >
                 <Ionicons name="share-social" size={18} color="#BF00FF" />
@@ -1358,6 +1394,14 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "center",
   },
   playAgainBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#000000" },
+  shareCardContainer: { width: 320, alignSelf: "center", marginBottom: 16, borderRadius: 20, overflow: "hidden", borderWidth: 2, borderColor: "#F5C84240" },
+  shareCard: { padding: 24, alignItems: "center", gap: 8 },
+  shareCardTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#F5C842" },
+  shareCardDivider: { width: 60, height: 2, backgroundColor: "#F5C84230", borderRadius: 1, marginVertical: 4 },
+  shareCardRank: { fontFamily: "Cairo_700Bold", fontSize: 28, color: "#00F5FF" },
+  shareCardScore: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#E8E8FF" },
+  shareCardName: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: "#9898CC" },
+  shareCardFooter: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#BF00FF" },
   shareBtn: {
     flex: 1, backgroundColor: "rgba(191,0,255,0.12)", borderRadius: 16, paddingVertical: 14,
     borderWidth: 1, borderColor: "rgba(191,0,255,0.3)",

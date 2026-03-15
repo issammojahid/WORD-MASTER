@@ -269,6 +269,7 @@ function TasksScreenInner() {
       const parts: string[] = [];
       if ((data.coinsEarned ?? 0) > 0) parts.push(`🪙 +${data.coinsEarned} عملة`);
       if ((data.xpEarned ?? 0) > 0) parts.push(`⭐ +${data.xpEarned} XP`);
+      if (data.titleAwarded) parts.push(`👑 لقب نادر مُنح!`);
       Alert.alert("تم الاستلام! 🎉", parts.length > 0 ? parts.join("  |  ") : "تم استلام المكافأة بنجاح");
     },
     onError: () => {
@@ -310,7 +311,7 @@ function TasksScreenInner() {
             <Text style={s.summaryCountdown}>{countdown}</Text>
           </View>
           <View style={s.summaryBarTrack}>
-            <Animated.View style={[s.summaryBarFill, { width: `${totalPct * 100}%` as any }]} />
+            <Animated.View style={[s.summaryBarFill, { width: `${totalPct * 100}%` }]} />
           </View>
           <View style={s.summaryStats}>
             <View style={s.summaryStat}>

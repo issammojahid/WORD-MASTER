@@ -2261,10 +2261,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   function getWeekId(): string {
     const now = new Date();
-    const jan1 = new Date(now.getFullYear(), 0, 1);
-    const days = Math.floor((now.getTime() - jan1.getTime()) / 86400000);
-    const weekNum = Math.ceil((days + jan1.getDay() + 1) / 7);
-    return `${now.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+    const day = now.getDay();
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    const monday = new Date(now);
+    monday.setDate(monday.getDate() + mondayOffset);
+    const jan1 = new Date(monday.getFullYear(), 0, 1);
+    const days = Math.floor((monday.getTime() - jan1.getTime()) / 86400000);
+    const weekNum = Math.ceil((days + 1) / 7);
+    return `${monday.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
   }
 
   function pickWeeklyTask(): typeof WEEKLY_TASK_POOL[number] {
@@ -2461,7 +2465,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (progress < def.target) return res.json({ success: false, error: "not_completed" });
 
-      // Mark task claimed and update coins/XP atomically
       await db.update(playerDailyTasks)
         .set({ claimed: 1, claimedAt: new Date(), progress })
         .where(eq(playerDailyTasks.id, row.id));
@@ -2472,7 +2475,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedAt: new Date(),
       }).where(eq(playerProfiles.id, playerId));
 
-      res.json({ success: true, coinsEarned: def.rewardCoins, xpEarned: def.rewardXp });
+      let titleAwarded: string | null = null;
+      if (isWeekly) {
+        const WEEKLY_TITLE_POOL = ["word_master", "lightning", "streak_lord"];
+        const weekId = getWeekId();
+        let titleHash = 0;
+        for (let i = 0; i < weekId.length; i++) { titleHash = ((titleHash << 5) - titleHash) + weekId.charCodeAt(i); titleHash |= 0; }
+        titleAwarded = WEEKLY_TITLE_POOL[Math.abs(titleHash) % WEEKLY_TITLE_POOL.length];
+      }
+
+      res.json({ success: true, coinsEarned: def.rewardCoins, xpEarned: def.rewardXp, titleAwarded });
     } catch (e) {
       console.error("POST /api/tasks/claim error:", e);
       res.json({ success: false, error: "server_error" });

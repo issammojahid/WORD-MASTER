@@ -337,7 +337,7 @@ function AchievementsScreenInner() {
           </View>
           <View style={s.overallBar}>
             <View style={[s.overallFill, {
-              width: `${achievements.length > 0 ? (claimedCount / achievements.length) * 100 : 0}%` as any,
+              width: `${achievements.length > 0 ? (claimedCount / achievements.length) * 100 : 0}%`,
             }]} />
           </View>
         </LinearGradient>
