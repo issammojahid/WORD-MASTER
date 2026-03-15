@@ -35,7 +35,7 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { t, language, setLanguage, soundEffects, setSoundEffects, musicEnabled, setMusicEnabled } = useLanguage();
   const { playerId, profile } = usePlayer();
-  const { isDark, toggleTheme, theme } = useTheme();
+  const { theme } = useTheme();
   const [showExitModal, setShowExitModal] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
 
@@ -163,34 +163,6 @@ export default function SettingsScreen() {
                 onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMusicEnabled(v); }}
                 trackColor={{ false: theme.cardBorder, true: LOGO.purple + "80" }}
                 thumbColor={musicEnabled ? LOGO.purple : theme.textMuted}
-              />
-            </View>
-          </View>
-        </View>
-
-        {/* ── Theme ─────────────────────────────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name={isDark ? "moon" : "sunny"} size={20} color={LOGO.purple} />
-            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>المظهر</Text>
-          </View>
-
-          <View style={[styles.toggleCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleLeft}>
-                <Ionicons name={isDark ? "moon" : "sunny"} size={20} color={LOGO.purple} />
-                <View style={styles.toggleTexts}>
-                  <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>{isDark ? "الوضع الليلي" : "الوضع النهاري"}</Text>
-                  <Text style={[styles.toggleSub, { color: theme.textMuted }]}>
-                    {isDark ? "تم تفعيل الوضع الليلي" : "تم تفعيل الوضع النهاري"}
-                  </Text>
-                </View>
-              </View>
-              <Switch
-                value={isDark}
-                onValueChange={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleTheme(); }}
-                trackColor={{ false: theme.cardBorder, true: LOGO.purple + "80" }}
-                thumbColor={isDark ? LOGO.purple : theme.textMuted}
               />
             </View>
           </View>
