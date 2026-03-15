@@ -24,6 +24,8 @@ import * as Haptics from "expo-haptics";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePlayer, SKINS, TITLES } from "@/contexts/PlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { getApiUrl } from "@/lib/query-client";
+import { fetch } from "expo/fetch";
 
 // ── Daily login reward coin animation ─────────────────────────────────────────
 function LoginRewardPopup({ onClaim }: { onClaim: () => void }) {
@@ -1014,6 +1016,7 @@ export default function HomeScreen() {
   const [activeModeIdx, setActiveModeIdx] = useState(0);
   const [tournamentWins, setTournamentWins] = useState(0);
   const [currentPopupIdx, setCurrentPopupIdx] = useState<number | null>(null);
+  const [pendingGiftsCount, setPendingGiftsCount] = useState(0);
   const hasShownPopup = useRef(false);
   const popupOpacity = useRef(new Animated.Value(0)).current;
   const popupScale = useRef(new Animated.Value(0.85)).current;
@@ -1023,6 +1026,23 @@ export default function HomeScreen() {
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
   const NAV_BAR_HEIGHT = 60 + bottomInset;
+
+  useEffect(() => {
+    if (!playerId) return;
+    const pollGifts = async () => {
+      try {
+        const url = new URL(`/api/friends/gifts/pending/${playerId}`, getApiUrl());
+        const res = await fetch(url.toString());
+        if (res.ok) {
+          const data = await res.json();
+          setPendingGiftsCount(Array.isArray(data) ? data.length : 0);
+        }
+      } catch {}
+    };
+    pollGifts();
+    const interval = setInterval(pollGifts, 20_000);
+    return () => clearInterval(interval);
+  }, [playerId]);
 
   const equippedSkin = SKINS.find((s) => s.id === profile.equippedSkin) || SKINS[0];
   const xpProgress = (profile.xp % 100) / 100;
@@ -1382,6 +1402,11 @@ export default function HomeScreen() {
         <TouchableOpacity style={styles.navItem} onPress={() => router.push("/friends")} activeOpacity={0.7}>
           <View style={styles.navIconWrap}>
             <Ionicons name="people" size={22} color={LOGO.pink} />
+            {pendingGiftsCount > 0 && (
+              <View style={styles.navBadge}>
+                <Text style={styles.navBadgeText}>{pendingGiftsCount}</Text>
+              </View>
+            )}
           </View>
           <Text style={[styles.navLabel, { color: LOGO.pink }]}>الأصدقاء</Text>
         </TouchableOpacity>
@@ -1592,6 +1617,13 @@ const styles = StyleSheet.create({
     justifyContent: "center", alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.06)",
   },
+  navBadge: {
+    position: "absolute", top: -4, right: -6,
+    minWidth: 16, height: 16, borderRadius: 8,
+    backgroundColor: "#FF006E", justifyContent: "center", alignItems: "center",
+    paddingHorizontal: 3, borderWidth: 1.5, borderColor: "#0A0A1A",
+  },
+  navBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 9, color: "#fff" },
   navHomeBtn: {
     width: 56, height: 56, borderRadius: 28,
     justifyContent: "center", alignItems: "center",

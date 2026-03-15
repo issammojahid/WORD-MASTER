@@ -2823,9 +2823,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [sender] = await db.select({ coins: playerProfiles.coins }).from(playerProfiles).where(eq(playerProfiles.id, fromPlayerId));
       if (!sender || sender.coins < amount) return res.json({ error: "insufficient_coins" });
 
-      await db.update(playerProfiles).set({ coins: sql`coins - ${amount}` }).where(eq(playerProfiles.id, fromPlayerId));
-      await db.update(playerProfiles).set({ coins: sql`coins + ${amount}` }).where(eq(playerProfiles.id, toPlayerId));
-      await db.insert(coinGifts).values({ fromPlayerId, toPlayerId, amount });
+      await db.transaction(async (tx) => {
+        await tx.update(playerProfiles).set({ coins: sql`coins - ${amount}` }).where(eq(playerProfiles.id, fromPlayerId));
+        await tx.update(playerProfiles).set({ coins: sql`coins + ${amount}` }).where(eq(playerProfiles.id, toPlayerId));
+        await tx.insert(coinGifts).values({ fromPlayerId, toPlayerId, amount });
+      });
 
       res.json({ success: true });
     } catch (e) {
