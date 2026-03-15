@@ -13,6 +13,13 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
 
 ## Recent Features Added
 
+- **Friends System Fix**: Fixed three broken flows in `app/friends.tsx` and `server/routes.ts`:
+  - **Search** now searches by both player name AND WM code (`playerCode` via ILIKE) — users can type "WM-XXXXXX" to find friends directly
+  - **Friends list** endpoint now returns `playerCode` and `playerTag` for each friend (previously missing)
+  - **Send request `onSuccess`** was crashing on 400 responses (null `data`) — fixed null-safety, added success/already-exists alerts and an `onError` handler
+  - Search placeholder updated to "ابحث بالاسم أو الكود (WM-XXXXXX)"
+  - Player cards now show WM code (or #tag) as the primary identifier in the subtitle
+
 - **Shop Complete Redesign (Light Theme)**: Full rewrite of `app/shop.tsx` with:
   - Light theme replacing dark mode: `#EEF2FF→#F5F3FF→#F0FDF4` gradient background, white cards, soft shadows
   - New tab structure: العروض / الأفاتار / تأثيرات / ألقاب / صناديق / العجلة / حزم (removed backgrounds tab)

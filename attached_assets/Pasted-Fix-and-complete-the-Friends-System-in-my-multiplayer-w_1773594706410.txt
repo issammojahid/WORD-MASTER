@@ -1,0 +1,177 @@
+Fix and complete the Friends System in my multiplayer word game.
+
+The friends system currently has issues:
+
+- searching players does not return results
+- friend requests are not received
+- accepting friend requests does not work
+
+Implement a complete and stable friends system.
+
+Do not modify gameplay logic or multiplayer mechanics.
+
+---
+
+BACKEND (Server changes)
+
+1. Player Identity
+
+Ensure every player has:
+
+player_id (unique)
+name
+avatar
+level
+
+Example player_id format:
+
+WM-483920
+
+Store this in the players or player_profiles table.
+
+---
+
+2. Player Search Endpoint
+
+Create or fix the endpoint:
+
+GET /friends/search?q=
+
+The search must support:
+
+player_id
+name
+
+Example SQL query:
+
+SELECT id, player_id, name, level, avatar
+FROM player_profiles
+WHERE name ILIKE '%' || $1 || '%'
+OR player_id ILIKE '%' || $1 || '%'
+LIMIT 20;
+
+Do not return the current player in results.
+
+---
+
+3. Friend Request System
+
+Create endpoint:
+
+POST /friends/request
+
+Body:
+
+sender_id
+receiver_id
+
+Insert into table:
+
+friends
+
+Columns:
+
+id
+requester_id
+receiver_id
+status
+created_at
+
+Default status:
+
+pending
+
+---
+
+4. Accept Friend Request
+
+Endpoint:
+
+POST /friends/accept
+
+Logic:
+
+UPDATE friends
+SET status = 'accepted'
+WHERE requester_id = $1
+AND receiver_id = $2;
+
+---
+
+5. Friend List
+
+Endpoint:
+
+GET /friends/list
+
+Return all friends where status = accepted.
+
+Include:
+
+player_id
+name
+avatar
+level
+
+---
+
+FRONTEND (Game code changes)
+
+1. Friend Search Screen
+
+Search input sends request to:
+
+/friends/search?q=
+
+Display results with:
+
+avatar
+player name
+player id
+Add Friend button
+
+---
+
+2. Send Friend Request Button
+
+When clicking "Add Friend":
+
+call API:
+
+POST /friends/request
+
+Show message:
+
+Friend request sent.
+
+---
+
+3. Accept Friend Request
+
+Add accept button in requests screen.
+
+Call:
+
+POST /friends/accept
+
+After accepting:
+update friend list.
+
+---
+
+4. Friends List UI
+
+Display friends list with:
+
+avatar
+name
+level
+Invite button
+
+---
+
+Goal:
+
+Create a stable and functional friends system similar to modern mobile games.
+
+Search → Send Request → Accept → Friends List must work correctly.

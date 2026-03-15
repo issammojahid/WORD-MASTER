@@ -1966,8 +1966,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(rows);
       }
 
-      // ── Normal search: partial name match ────────────────────────────────
-      const searchCondition = ilike(playerProfiles.name, `%${q}%`);
+      // ── Normal search: partial name OR playerCode match ──────────────────
+      const searchCondition = or(
+        ilike(playerProfiles.name, `%${q}%`),
+        ilike(playerProfiles.playerCode, `%${q}%`),
+      );
       const whereClause = myId
         ? and(searchCondition, ne(playerProfiles.id, myId))
         : searchCondition;
@@ -1993,6 +1996,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const otherId = row.requesterId === playerId ? row.receiverId : row.requesterId;
         const [profile] = await db.select({
           id: playerProfiles.id,
+          playerCode: playerProfiles.playerCode,
+          playerTag: playerProfiles.playerTag,
           name: playerProfiles.name,
           skin: playerProfiles.equippedSkin,
           level: playerProfiles.level,

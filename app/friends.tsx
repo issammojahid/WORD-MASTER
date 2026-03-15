@@ -24,7 +24,7 @@ import { getApiUrl } from "@/lib/query-client";
 import { ScreenErrorBoundary } from "@/components/ScreenErrorBoundary";
 import { getDisplayCode } from "@/lib/player-code";
 
-type PlayerResult = { id: string; name: string; playerTag?: number | null; skin: string; level: number; wins: number };
+type PlayerResult = { id: string; name: string; playerCode?: string | null; playerTag?: number | null; skin: string; level: number; wins: number };
 type FriendEntry = {
   requestId: string;
   status: "pending" | "accepted" | "rejected";
@@ -115,10 +115,15 @@ function FriendsScreenInner() {
       return apiFetch(url.toString(), { method: "POST" });
     },
     onSuccess: (data) => {
-      if (data.error === "already_exists") {
+      if (data && data.error === "already_exists") {
         Alert.alert("", "طلب الصداقة موجود مسبقاً");
+      } else if (data && data.success) {
+        Alert.alert("", "تم إرسال طلب الصداقة ✓");
       }
       qc.invalidateQueries({ queryKey: ["/api/friends", playerId] });
+    },
+    onError: () => {
+      Alert.alert("", "حدث خطأ، حاول مرة أخرى");
     },
   });
 
@@ -144,6 +149,7 @@ function FriendsScreenInner() {
 
   const renderPlayerCard = (player: PlayerResult, extra?: React.ReactNode) => {
     const skin = SKINS.find((s) => s.id === player.skin) || SKINS[0];
+    const codeLabel = player.playerCode || (player.playerTag ? `#${player.playerTag.toString().padStart(4, "0")}` : "");
     return (
       <View key={player.id} style={[styles.playerCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
         <View style={[styles.avatar, { backgroundColor: skin.color + "33" }]}>
@@ -152,7 +158,7 @@ function FriendsScreenInner() {
         <View style={styles.playerInfo}>
           <Text style={[styles.playerName, { color: theme.textPrimary }]}>{player.name}</Text>
           <Text style={[styles.playerSub, { color: theme.textMuted }]}>
-            {player.playerTag ? `#${player.playerTag.toString().padStart(4, "0")} · ` : ""}المستوى {player.level} · {player.wins} انتصار
+            {codeLabel ? `${codeLabel} · ` : ""}المستوى {player.level} · {player.wins} انتصار
           </Text>
         </View>
         {extra}
@@ -283,7 +289,7 @@ function FriendsScreenInner() {
             <Ionicons name="search" size={18} color={theme.textMuted} style={{ marginRight: 8 }} />
             <TextInput
               style={[styles.searchInput, { color: theme.inputText }]}
-              placeholder="ابحث باسم اللاعب..."
+              placeholder="ابحث بالاسم أو الكود (WM-XXXXXX)..."
               placeholderTextColor={theme.inputPlaceholder}
               value={searchQuery}
               onChangeText={handleSearchChange}
