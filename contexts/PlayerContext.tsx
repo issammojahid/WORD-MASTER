@@ -400,6 +400,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               claimedLevelRewards: parsed?.claimedLevelRewards || [],
               ownedTitles: [...new Set([...(sp.ownedTitles || []), ...(parsed?.ownedTitles || []), "beginner"])] as TitleId[],
               equippedTitle: sp.equippedTitle || parsed?.equippedTitle || "beginner",
+              playerTag: sp.playerTag ?? parsed?.playerTag ?? null,
             };
 
             setProfile(merged);
@@ -748,6 +749,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               : profile.powerCards,
             ownedTitles: [...new Set([...(sp.ownedTitles || []), ...profile.ownedTitles, "beginner"])] as TitleId[],
             equippedTitle: sp.equippedTitle || profile.equippedTitle || "beginner",
+            playerTag: sp.playerTag ?? profile.playerTag,
           };
           setProfile(merged);
           saveProfile(merged);
