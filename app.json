@@ -26,7 +26,13 @@
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
@@ -56,6 +62,12 @@
       "eas": {
         "projectId": "f1e0f4f2-8408-4fe9-b300-c8d8fb573b4d"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/f1e0f4f2-8408-4fe9-b300-c8d8fb573b4d"
     }
   }
 }
