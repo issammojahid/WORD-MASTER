@@ -1,0 +1,96 @@
+Improve the UI/UX design of my mobile word game.
+
+Goals:
+Make the game look modern, clean, and professional like top mobile games.
+
+1. Improve Main Home Screen
+Redesign the home screen layout:
+- Player profile card at the top with avatar, name, level, XP progress bar, and coins.
+- Add soft shadows, rounded cards, and modern spacing.
+- Use a glass / soft gradient style.
+
+2. Game Mode Cards
+Redesign the game mode cards to look premium.
+
+Each mode card should have:
+- Beautiful gradient background
+- Icon illustration
+- Short description
+- Large "Play Now" button
+- Hover/press animation
+- Soft glow effect
+
+Example modes:
+- VS AI
+- Online Match
+- Private Room
+- Tournaments
+
+3. Background System
+Add different background styles for each game mode:
+
+VS AI
+soft blue tech gradient background
+
+Online Match
+purple / neon competitive background
+
+Private Room
+dark elegant background
+
+Tournaments
+gold / royal gradient background
+
+Backgrounds should use:
+soft gradients
+light particles
+subtle glow effects
+
+Do not use heavy images, use lightweight gradients.
+
+4. Fix Mode Layout Bug
+Sometimes the mode screen looks broken or empty.
+Fix layout so:
+- cards are always centered
+- responsive for all screen sizes
+- no overflow or broken spacing
+
+5. Improve Bottom Navigation Bar
+Redesign the bottom bar:
+- icons with active glow
+- smooth color transitions
+- highlight the selected tab
+
+Tabs:
+Shop
+Friends
+Home
+Tasks
+Achievements
+
+6. Improve Tasks and Achievements UI
+Use modern card design:
+- progress bars
+- reward icons
+- claim button animation
+- locked state visual
+
+7. Animations
+Add smooth animations:
+- card hover
+- button press
+- page transitions
+- progress bar fill
+
+8. Performance
+Keep UI lightweight and optimized for mobile.
+Avoid heavy images.
+Prefer gradients and vector icons.
+
+Goal result:
+The game should look like a professional mobile game similar to:
+Clash Royale
+8 Ball Pool
+Wordscapes
+
+Focus on beautiful UI, smooth layout, and modern mobile design.

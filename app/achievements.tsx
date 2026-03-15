@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useEffect, memo } from "react";
 import {
   View,
   Text,
@@ -6,33 +6,33 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert,
   Platform,
+  Animated,
+  Easing,
 } from "react-native";
 import { fetch } from "expo/fetch";
 import { router, useFocusEffect } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { ScreenErrorBoundary } from "@/components/ScreenErrorBoundary";
 
+const ACCENT = {
+  gold:   "#F5C842",
+  cyan:   "#00D4E8",
+  purple: "#A855F7",
+  green:  "#22C55E",
+};
+
 type Achievement = {
-  key: string;
-  icon: string;
-  titleAr: string;
-  descAr: string;
-  target: number;
-  type: string;
-  rewardCoins: number;
-  rewardXp: number;
-  rowId?: string;
-  progress: number;
-  unlocked: boolean;
-  claimed: boolean;
+  key: string; icon: string; titleAr: string; descAr: string;
+  target: number; type: string; rewardCoins: number; rewardXp: number;
+  rowId?: string; progress: number; unlocked: boolean; claimed: boolean;
 };
 
 type ApiFetchOptions = { method?: string; body?: BodyInit; headers?: HeadersInit };
@@ -42,15 +42,172 @@ async function apiFetch(url: string, options?: ApiFetchOptions) {
     if (!res.ok) return null;
     const text = await res.text();
     return text ? JSON.parse(text) : null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
+
+function AnimatedProgressBar({ pct, color }: { pct: number; color: string }) {
+  const widthAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(widthAnim, {
+      toValue: pct,
+      duration: 900,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [pct]);
+  return (
+    <View style={pb.track}>
+      <Animated.View style={[pb.fill, {
+        width: widthAnim.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] }),
+        backgroundColor: color,
+        shadowColor: color,
+        shadowOpacity: 0.7,
+        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 0 },
+      }]} />
+    </View>
+  );
+}
+const pb = StyleSheet.create({
+  track: { flex: 1, height: 6, backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden" },
+  fill: { height: "100%", borderRadius: 3 },
+});
+
+const ClaimButton = memo(({ onPress, disabled }: { onPress: () => void; disabled: boolean }) => {
+  const pulse = useRef(new Animated.Value(1)).current;
+  const shine = useRef(new Animated.Value(-80)).current;
+  useEffect(() => {
+    Animated.loop(Animated.sequence([
+      Animated.timing(pulse, { toValue: 1.08, duration: 600, useNativeDriver: true }),
+      Animated.timing(pulse, { toValue: 1,    duration: 600, useNativeDriver: true }),
+    ])).start();
+    const runShine = () => {
+      shine.setValue(-80);
+      Animated.sequence([
+        Animated.timing(shine, { toValue: 110, duration: 700, useNativeDriver: true }),
+        Animated.delay(2500),
+      ]).start(() => runShine());
+    };
+    runShine();
+    return () => { pulse.stopAnimation(); shine.stopAnimation(); };
+  }, []);
+  return (
+    <Animated.View style={{ transform: [{ scale: pulse }] }}>
+      <TouchableOpacity onPress={onPress} disabled={disabled} activeOpacity={0.85} style={{ overflow: "hidden", borderRadius: 12 }}>
+        <LinearGradient colors={[ACCENT.gold, "#E6A800"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={clb.btn}>
+          <Text style={clb.text}>استلم</Text>
+          <Animated.View style={[clb.shine, { transform: [{ translateX: shine }, { rotate: "20deg" }] }]} />
+        </LinearGradient>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+});
+const clb = StyleSheet.create({
+  btn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, justifyContent: "center", alignItems: "center", overflow: "hidden" },
+  text: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#000" },
+  shine: { position: "absolute", top: 0, bottom: 0, width: 28, backgroundColor: "rgba(255,255,255,0.35)" },
+});
+
+function AchCard({ ach, onClaim, isPending }: { ach: Achievement; onClaim: () => void; isPending: boolean }) {
+  const pct = Math.min(1, ach.progress / ach.target);
+  const barColor = ach.unlocked ? ACCENT.gold : ACCENT.cyan;
+  const borderColor = ach.claimed
+    ? ACCENT.green + "40"
+    : ach.unlocked
+    ? ACCENT.gold + "55"
+    : "rgba(255,255,255,0.06)";
+  const bgGrad: [string, string] = ach.claimed
+    ? ["rgba(34,197,94,0.06)", "rgba(34,197,94,0.01)"]
+    : ach.unlocked
+    ? ["rgba(245,200,66,0.12)", "rgba(245,200,66,0.03)"]
+    : ["rgba(255,255,255,0.03)", "rgba(255,255,255,0.01)"];
+
+  return (
+    <LinearGradient colors={bgGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+      style={[ac.card, { borderColor, opacity: ach.claimed ? 0.65 : 1 }]}>
+      <View style={[ac.iconWrap, {
+        backgroundColor: ach.unlocked ? ACCENT.gold + "22" : "rgba(255,255,255,0.05)",
+        borderColor: ach.unlocked ? ACCENT.gold + "40" : "rgba(255,255,255,0.08)",
+        shadowColor: ach.unlocked ? ACCENT.gold : "transparent",
+        shadowOpacity: ach.unlocked ? 0.4 : 0,
+        shadowRadius: 8, shadowOffset: { width: 0, height: 0 },
+      }]}>
+        <Text style={[ac.icon, { opacity: ach.unlocked ? 1 : 0.35 }]}>{ach.icon}</Text>
+        {ach.unlocked && !ach.claimed && (
+          <View style={ac.unlockedDot} />
+        )}
+      </View>
+
+      <View style={ac.content}>
+        <Text style={[ac.title, { color: ach.unlocked ? "#F0E6D3" : "rgba(255,255,255,0.4)" }]}>
+          {ach.titleAr}
+        </Text>
+        <Text style={ac.desc}>{ach.descAr}</Text>
+        <View style={ac.progressRow}>
+          <AnimatedProgressBar pct={pct} color={barColor} />
+          <Text style={ac.progressNum}>{ach.progress}/{ach.target}</Text>
+        </View>
+        <View style={ac.rewards}>
+          {ach.rewardCoins > 0 && (
+            <View style={ac.rewardPill}>
+              <Text style={ac.rewardText}>🪙 {ach.rewardCoins}</Text>
+            </View>
+          )}
+          {ach.rewardXp > 0 && (
+            <View style={[ac.rewardPill, { backgroundColor: ACCENT.cyan + "18" }]}>
+              <Text style={[ac.rewardText, { color: ACCENT.cyan }]}>⭐ {ach.rewardXp} XP</Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      <View style={ac.action}>
+        {ach.claimed ? (
+          <Ionicons name="checkmark-circle" size={32} color={ACCENT.green} />
+        ) : ach.unlocked ? (
+          <ClaimButton onPress={onClaim} disabled={isPending} />
+        ) : (
+          <View style={ac.lockCircle}>
+            <Ionicons name="lock-closed" size={14} color="rgba(255,255,255,0.2)" />
+          </View>
+        )}
+      </View>
+    </LinearGradient>
+  );
+}
+const ac = StyleSheet.create({
+  card: {
+    flexDirection: "row", alignItems: "center",
+    borderRadius: 20, padding: 14, borderWidth: 1, gap: 12,
+  },
+  iconWrap: {
+    width: 54, height: 54, borderRadius: 27,
+    justifyContent: "center", alignItems: "center",
+    borderWidth: 1, elevation: 4,
+  },
+  icon: { fontSize: 26 },
+  unlockedDot: {
+    position: "absolute", top: 3, right: 3,
+    width: 10, height: 10, borderRadius: 5,
+    backgroundColor: ACCENT.gold,
+    borderWidth: 1.5, borderColor: "#0C0A1E",
+  },
+  content: { flex: 1, gap: 4 },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 14 },
+  desc: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.38)" },
+  progressRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
+  progressNum: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "rgba(255,255,255,0.38)", minWidth: 32, textAlign: "right" },
+  rewards: { flexDirection: "row", gap: 6, marginTop: 5 },
+  rewardPill: { backgroundColor: ACCENT.gold + "18", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  rewardText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: ACCENT.gold },
+  action: { alignItems: "center", justifyContent: "center" },
+  lockCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.05)", justifyContent: "center", alignItems: "center" },
+});
 
 function AchievementsScreenInner() {
   const insets = useSafeAreaInsets();
   const { playerId, addCoins, addXp } = usePlayer();
-  const { theme } = useTheme();
+  const { isDark } = useTheme();
   const qc = useQueryClient();
   const [filter, setFilter] = useState<"all" | "unlocked" | "locked">("all");
 
@@ -64,16 +221,10 @@ function AchievementsScreenInner() {
       const result = await apiFetch(url.toString());
       return Array.isArray(result) ? result : [];
     },
-    enabled: !!playerId,
-    staleTime: 0,
-    initialData: [],
+    enabled: !!playerId, staleTime: 0, initialData: [],
   });
 
-  useFocusEffect(
-    useCallback(() => {
-      if (playerId) refetch();
-    }, [playerId, refetch])
-  );
+  useFocusEffect(useCallback(() => { if (playerId) refetch(); }, [playerId, refetch]));
 
   const achievements: Achievement[] = Array.isArray(achievementsRaw) ? achievementsRaw : [];
 
@@ -84,10 +235,6 @@ function AchievementsScreenInner() {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["/api/achievements", playerId] });
-      if (!data) {
-        Alert.alert("خطأ", "تعذّر استلام المكافأة، حاول مرة أخرى");
-        return;
-      }
       if (data?.coinsEarned) addCoins(data.coinsEarned);
       if (data?.xpEarned) addXp(data.xpEarned);
     },
@@ -101,185 +248,164 @@ function AchievementsScreenInner() {
 
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
   const claimedCount = achievements.filter((a) => a.claimed).length;
+  const readyToClaim = achievements.filter((a) => a.unlocked && !a.claimed).length;
+
+  const FILTER_LABELS = { all: "الكل", unlocked: "مفتوحة", locked: "مقفلة" } as const;
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
-      <View style={styles.header}>
-        <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>الإنجازات</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <View style={{ flex: 1 }}>
+      <LinearGradient
+        colors={isDark ? ["#0C0A1E", "#10092A", "#0A1428"] : ["#F8F6FF", "#EEF2FF", "#F8F6FF"]}
+        style={StyleSheet.absoluteFillObject}
+      />
 
-      <View style={[styles.summary, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryNum}>{unlockedCount}</Text>
-            <Text style={[styles.summaryLabel, { color: theme.textMuted }]}>تم فتحها</Text>
-          </View>
-          <View style={[styles.summaryDivider, { backgroundColor: theme.cardBorder }]} />
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryNum}>{achievements.length - unlockedCount}</Text>
-            <Text style={[styles.summaryLabel, { color: theme.textMuted }]}>متبقية</Text>
-          </View>
-          <View style={[styles.summaryDivider, { backgroundColor: theme.cardBorder }]} />
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryNum}>{claimedCount}</Text>
-            <Text style={[styles.summaryLabel, { color: theme.textMuted }]}>استُلمت</Text>
-          </View>
-        </View>
-      </View>
-
-      <View style={[styles.filterTabs, { backgroundColor: theme.card }]}>
-        {(["all", "unlocked", "locked"] as const).map((f) => (
-          <TouchableOpacity
-            key={f}
-            style={[styles.filterTab, filter === f && [styles.filterTabActive, { backgroundColor: theme.backgroundTertiary }]]}
-            onPress={() => setFilter(f)}
-          >
-            <Text style={[styles.filterTabText, { color: theme.textMuted }, filter === f && styles.filterTabTextActive]}>
-              {f === "all" ? "الكل" : f === "unlocked" ? "مفتوحة" : "مقفلة"}
-            </Text>
+      <View style={{ paddingTop: topInset + 8, paddingBottom: bottomInset, flex: 1 }}>
+        <View style={s.header}>
+          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={22} color="#F0E6D3" />
           </TouchableOpacity>
-        ))}
-      </View>
-
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={Colors.gold} size="large" />
-        </View>
-      ) : filtered.length === 0 ? (
-        <View style={styles.center}>
-          <Text style={styles.emptyIcon}>🏆</Text>
-          <Text style={[styles.emptyText, { color: theme.textSecondary }]}>لم تحقق أي إنجاز بعد</Text>
-          <Text style={[styles.emptySubText, { color: theme.textMuted }]}>العب وتقدم للحصول على الإنجازات</Text>
-        </View>
-      ) : (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-          {filtered.map((ach) => {
-            const pct = Math.min(1, ach.progress / ach.target);
-            return (
-              <View key={ach.key} style={[styles.achCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }, ach.claimed && styles.achClaimed, !ach.unlocked && styles.achLocked]}>
-                <View style={[styles.achIconWrap, { backgroundColor: ach.unlocked ? Colors.gold + "20" : theme.cardBorder }]}>
-                  <Text style={[styles.achIcon, !ach.unlocked && styles.achIconLocked]}>{ach.icon}</Text>
-                </View>
-                <View style={styles.achContent}>
-                  <Text style={[styles.achTitle, { color: theme.textPrimary }, !ach.unlocked && styles.achTitleLocked]}>{ach.titleAr}</Text>
-                  <Text style={[styles.achDesc, { color: theme.textMuted }]}>{ach.descAr}</Text>
-                  <View style={styles.achProgressRow}>
-                    <View style={[styles.achProgressBar, { backgroundColor: theme.cardBorder }]}>
-                      <View style={[styles.achProgressFill, { width: `${pct * 100}%`, backgroundColor: ach.unlocked ? Colors.gold : Colors.emerald }]} />
-                    </View>
-                    <Text style={[styles.achProgressText, { color: theme.textMuted }]}>{ach.progress}/{ach.target}</Text>
-                  </View>
-                  <View style={styles.achRewards}>
-                    {ach.rewardCoins > 0 && (
-                      <Text style={styles.rewardText}>🪙 {ach.rewardCoins}</Text>
-                    )}
-                    {ach.rewardXp > 0 && (
-                      <Text style={[styles.rewardText, { color: Colors.emerald }]}>⭐ {ach.rewardXp} XP</Text>
-                    )}
-                  </View>
-                </View>
-                <View style={styles.achAction}>
-                  {ach.claimed ? (
-                    <View style={styles.doneCircle}>
-                      <Ionicons name="checkmark" size={18} color={Colors.emerald} />
-                    </View>
-                  ) : ach.unlocked ? (
-                    <TouchableOpacity
-                      style={styles.claimBtn}
-                      onPress={() => claimAchievement.mutate(ach.key)}
-                      disabled={claimAchievement.isPending}
-                    >
-                      <Text style={styles.claimBtnText}>استلم</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <View style={styles.lockCircle}>
-                      <Ionicons name="lock-closed" size={14} color={theme.textMuted} />
-                    </View>
-                  )}
-                </View>
+          <View style={s.headerCenter}>
+            <Text style={s.headerTitle}>الإنجازات</Text>
+            {readyToClaim > 0 && (
+              <View style={s.readyBadge}>
+                <Text style={s.readyBadgeText}>{readyToClaim} جاهزة للاستلام</Text>
               </View>
-            );
-          })}
-        </ScrollView>
-      )}
+            )}
+          </View>
+          <TouchableOpacity style={s.refreshBtn} onPress={() => refetch()}>
+            <Ionicons name="refresh" size={18} color={ACCENT.purple} />
+          </TouchableOpacity>
+        </View>
+
+        <LinearGradient
+          colors={["rgba(168,85,247,0.10)", "rgba(0,212,232,0.07)"]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={s.summaryCard}
+        >
+          <View style={s.summaryRow}>
+            <View style={s.summaryItem}>
+              <Text style={[s.summaryNum, { color: ACCENT.gold }]}>{unlockedCount}</Text>
+              <Text style={s.summaryLabel}>مفتوحة</Text>
+            </View>
+            <View style={s.summaryDivider} />
+            <View style={s.summaryItem}>
+              <Text style={[s.summaryNum, { color: ACCENT.cyan }]}>{achievements.length - unlockedCount}</Text>
+              <Text style={s.summaryLabel}>متبقية</Text>
+            </View>
+            <View style={s.summaryDivider} />
+            <View style={s.summaryItem}>
+              <Text style={[s.summaryNum, { color: ACCENT.green }]}>{claimedCount}</Text>
+              <Text style={s.summaryLabel}>استُلمت</Text>
+            </View>
+          </View>
+          <View style={s.overallBar}>
+            <View style={[s.overallFill, {
+              width: `${achievements.length > 0 ? (claimedCount / achievements.length) * 100 : 0}%` as any,
+            }]} />
+          </View>
+        </LinearGradient>
+
+        <View style={s.filterRow}>
+          {(["all", "unlocked", "locked"] as const).map((f) => (
+            <TouchableOpacity
+              key={f}
+              style={[s.filterTab, filter === f && s.filterTabActive]}
+              onPress={() => setFilter(f)}
+            >
+              {filter === f ? (
+                <LinearGradient colors={[ACCENT.purple + "40", ACCENT.cyan + "30"]} style={[StyleSheet.absoluteFillObject, { borderRadius: 10 }]} />
+              ) : null}
+              <Text style={[s.filterText, filter === f && s.filterTextActive]}>
+                {FILTER_LABELS[f]}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {isLoading ? (
+          <View style={s.center}>
+            <ActivityIndicator color={ACCENT.gold} size="large" />
+          </View>
+        ) : filtered.length === 0 ? (
+          <View style={s.center}>
+            <Text style={s.emptyIcon}>🏆</Text>
+            <Text style={s.emptyText}>لا توجد إنجازات هنا</Text>
+            <Text style={s.emptySubText}>العب وتقدم للحصول على الإنجازات</Text>
+          </View>
+        ) : (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
+            {filtered.map((ach) => (
+              <AchCard
+                key={ach.key}
+                ach={ach}
+                onClaim={() => claimAchievement.mutate(ach.key)}
+                isPending={claimAchievement.isPending}
+              />
+            ))}
+          </ScrollView>
+        )}
+      </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0D1B2A" },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+const s = StyleSheet.create({
   header: {
     flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 16, paddingVertical: 12, justifyContent: "space-between",
+    paddingHorizontal: 16, paddingBottom: 12, gap: 12,
   },
   backBtn: {
-    width: 40, height: 40, borderRadius: 12,
-    backgroundColor: "#1E3448", justifyContent: "center", alignItems: "center",
+    width: 42, height: 42, borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    justifyContent: "center", alignItems: "center",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
   },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#F0E6D3" },
-  summary: {
-    marginHorizontal: 16, marginBottom: 12,
-    backgroundColor: "#1E3448", borderRadius: 16,
-    padding: 16, borderWidth: 1, borderColor: "#2A4560",
+  headerCenter: { flex: 1, alignItems: "center", gap: 4 },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 19, color: "#F0E6D3" },
+  readyBadge: {
+    backgroundColor: ACCENT.gold + "25", borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 3,
+    borderWidth: 1, borderColor: ACCENT.gold + "40",
+  },
+  readyBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: ACCENT.gold },
+  refreshBtn: {
+    width: 42, height: 42, borderRadius: 14,
+    backgroundColor: ACCENT.purple + "18",
+    justifyContent: "center", alignItems: "center",
+    borderWidth: 1, borderColor: ACCENT.purple + "30",
+  },
+
+  summaryCard: {
+    marginHorizontal: 16, marginBottom: 14,
+    borderRadius: 22, padding: 18,
+    borderWidth: 1, borderColor: "rgba(168,85,247,0.20)",
+    gap: 14,
   },
   summaryRow: { flexDirection: "row", justifyContent: "space-around", alignItems: "center" },
-  summaryItem: { alignItems: "center", gap: 4 },
-  summaryNum: { fontFamily: "Cairo_700Bold", fontSize: 22, color: Colors.gold },
-  summaryLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6B7E91" },
-  summaryDivider: { width: 1, height: 30, backgroundColor: "#2A4560" },
-  filterTabs: {
-    flexDirection: "row", backgroundColor: "#1E3448",
-    borderRadius: 12, padding: 4, marginHorizontal: 16, marginBottom: 12,
+  summaryItem: { alignItems: "center", gap: 3 },
+  summaryNum: { fontFamily: "Cairo_700Bold", fontSize: 24 },
+  summaryLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.45)" },
+  summaryDivider: { width: 1, height: 30, backgroundColor: "rgba(255,255,255,0.10)" },
+  overallBar: { height: 5, backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 3, overflow: "hidden" },
+  overallFill: { height: "100%", borderRadius: 3, backgroundColor: ACCENT.purple },
+
+  filterRow: {
+    flexDirection: "row", marginHorizontal: 16, marginBottom: 14,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    borderRadius: 14, padding: 4, gap: 4,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.08)",
   },
-  filterTab: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: "center" },
-  filterTabActive: { backgroundColor: "#1A2D42" },
-  filterTabText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#6B7E91" },
-  filterTabTextActive: { color: Colors.gold },
-  list: { paddingHorizontal: 16, paddingBottom: 20, gap: 12 },
-  achCard: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: "#1E3448", borderRadius: 16,
-    padding: 14, borderWidth: 1, borderColor: "#2A4560", gap: 12,
-  },
-  achClaimed: { opacity: 0.55 },
-  achLocked: { opacity: 0.8 },
-  achIconWrap: { width: 52, height: 52, borderRadius: 26, justifyContent: "center", alignItems: "center" },
-  achIcon: { fontSize: 26 },
-  achIconLocked: { opacity: 0.4 },
-  achContent: { flex: 1, gap: 4 },
-  achTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#F0E6D3" },
-  achTitleLocked: { color: "#6B7E91" },
-  achDesc: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#6B7E91" },
-  achProgressRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
-  achProgressBar: { flex: 1, height: 4, backgroundColor: "#2A4560", borderRadius: 2, overflow: "hidden" },
-  achProgressFill: { height: "100%", borderRadius: 2 },
-  achProgressText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#6B7E91", minWidth: 30 },
-  achRewards: { flexDirection: "row", gap: 10, marginTop: 2 },
-  rewardText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.gold },
-  achAction: { alignItems: "center", justifyContent: "center" },
-  claimBtn: {
-    backgroundColor: Colors.gold, borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 8,
-  },
-  claimBtnText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#000" },
-  doneCircle: {
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: Colors.emerald + "20",
-    justifyContent: "center", alignItems: "center",
-  },
-  lockCircle: {
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: "#2A4560",
-    justifyContent: "center", alignItems: "center",
-  },
-  emptyIcon: { fontSize: 48, marginBottom: 8 },
-  emptyText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#A8B8CC" },
-  emptySubText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#6B7E91", marginTop: 4 },
+  filterTab: { flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: "center", overflow: "hidden" },
+  filterTabActive: { },
+  filterText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "rgba(255,255,255,0.4)" },
+  filterTextActive: { color: "#F0E6D3" },
+
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  emptyIcon: { fontSize: 52, marginBottom: 12 },
+  emptyText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "rgba(255,255,255,0.7)" },
+  emptySubText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "rgba(255,255,255,0.35)", marginTop: 4 },
+
+  list: { paddingHorizontal: 16, paddingBottom: 24, gap: 12 },
 });
 
 export default function AchievementsScreen() {

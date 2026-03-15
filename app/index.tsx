@@ -1347,20 +1347,24 @@ export default function HomeScreen() {
 
       {/* ── BOTTOM NAVIGATION ───────────────────────────── */}
       <LinearGradient
-        colors={isDark ? ["#0C0A1E", "#120B2A"] : [theme.card, theme.backgroundSecondary]}
+        colors={isDark ? ["rgba(12,10,30,0.97)", "rgba(18,11,42,0.99)"] : [theme.card + "FA", theme.backgroundSecondary + "FA"]}
         style={[styles.bottomNav, { paddingBottom: bottomInset, height: NAV_BAR_HEIGHT }]}
       >
         <TouchableOpacity style={styles.navItem} onPress={() => router.push("/shop")} activeOpacity={0.7}>
-          <MaterialCommunityIcons name="shopping" size={24} color={theme.textMuted} />
-          <Text style={[styles.navLabel, { color: theme.textMuted }]}>المتجر</Text>
+          <View style={styles.navIconWrap}>
+            <MaterialCommunityIcons name="shopping" size={22} color={LOGO.cyan} />
+          </View>
+          <Text style={[styles.navLabel, { color: LOGO.cyan }]}>المتجر</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push("/friends")} activeOpacity={0.7}>
-          <Ionicons name="people-outline" size={24} color={theme.textMuted} />
-          <Text style={[styles.navLabel, { color: theme.textMuted }]}>الأصدقاء</Text>
+          <View style={styles.navIconWrap}>
+            <Ionicons name="people" size={22} color={LOGO.pink} />
+          </View>
+          <Text style={[styles.navLabel, { color: LOGO.pink }]}>الأصدقاء</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItemCenter} onPress={() => {}} activeOpacity={0.9}>
           <LinearGradient
-            colors={[LOGO.yellow, LOGO.yellow + "CC"]}
+            colors={[LOGO.yellow, "#E6A800"]}
             style={styles.navHomeBtn}
           >
             <Ionicons name="home" size={26} color="#000" />
@@ -1368,12 +1372,16 @@ export default function HomeScreen() {
           <Text style={[styles.navLabel, { color: LOGO.yellow }]}>الرئيسية</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push("/tasks")} activeOpacity={0.7}>
-          <Ionicons name="star-outline" size={24} color={theme.textMuted} />
-          <Text style={[styles.navLabel, { color: theme.textMuted }]}>المهام</Text>
+          <View style={styles.navIconWrap}>
+            <Ionicons name="star" size={22} color={LOGO.purple} />
+          </View>
+          <Text style={[styles.navLabel, { color: LOGO.purple }]}>المهام</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push("/achievements")} activeOpacity={0.7}>
-          <Ionicons name="trophy-outline" size={24} color={theme.textMuted} />
-          <Text style={[styles.navLabel, { color: theme.textMuted }]}>الإنجازات</Text>
+          <View style={styles.navIconWrap}>
+            <Ionicons name="trophy" size={22} color={LOGO.yellow} />
+          </View>
+          <Text style={[styles.navLabel, { color: LOGO.yellow }]}>الإنجازات</Text>
         </TouchableOpacity>
       </LinearGradient>
 
@@ -1552,15 +1560,20 @@ const styles = StyleSheet.create({
     shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.25, shadowRadius: 14, elevation: 24,
   },
-  navItem: { alignItems: "center", gap: 3, flex: 1 },
-  navItemCenter: { alignItems: "center", gap: 3, flex: 1, marginTop: -18 },
-  navHomeBtn: {
-    width: 54, height: 54, borderRadius: 27,
+  navItem: { alignItems: "center", gap: 4, flex: 1 },
+  navItemCenter: { alignItems: "center", gap: 4, flex: 1, marginTop: -20 },
+  navIconWrap: {
+    width: 40, height: 36, borderRadius: 12,
     justifyContent: "center", alignItems: "center",
-    shadowColor: LOGO.yellow, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.55, shadowRadius: 12, elevation: 14,
+    backgroundColor: "rgba(255,255,255,0.06)",
   },
-  navLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#6B7E91" },
+  navHomeBtn: {
+    width: 56, height: 56, borderRadius: 28,
+    justifyContent: "center", alignItems: "center",
+    shadowColor: LOGO.yellow, shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.65, shadowRadius: 14, elevation: 16,
+  },
+  navLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
 
   modalOverlay: {
     flex: 1, backgroundColor: "rgba(0,0,0,0.65)",
