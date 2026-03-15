@@ -32,7 +32,7 @@ type FriendEntry = {
   player: PlayerResult;
 };
 
-type TabType = "friends" | "search" | "requests";
+type TabType = "friends" | "search" | "requests" | "gifts";
 
 type ApiFetchOptions = { method?: string; body?: BodyInit; headers?: HeadersInit };
 async function apiFetch(url: string, options?: ApiFetchOptions) {
@@ -86,6 +86,31 @@ function FriendsScreenInner() {
     refetchInterval: 10_000,
     initialData: [],
   });
+
+  const { data: pendingGiftsRaw } = useQuery({
+    queryKey: ["/api/friends/gifts/pending", playerId],
+    queryFn: async () => {
+      const url = new URL(`/api/friends/gifts/pending/${playerId}`, getApiUrl());
+      const result = await apiFetch(url.toString());
+      return Array.isArray(result) ? result : [];
+    },
+    enabled: !!playerId,
+    refetchInterval: 15_000,
+    initialData: [],
+  });
+  const pendingGiftsCount = Array.isArray(pendingGiftsRaw) ? pendingGiftsRaw.length : 0;
+
+  const { data: giftHistoryRaw, isLoading: loadingGifts } = useQuery({
+    queryKey: ["/api/friends/gifts/history", playerId],
+    queryFn: async () => {
+      const url = new URL(`/api/friends/gifts/history/${playerId}`, getApiUrl());
+      const result = await apiFetch(url.toString());
+      return Array.isArray(result) ? result : [];
+    },
+    enabled: !!playerId && tab === "gifts",
+    initialData: [],
+  });
+  const giftHistory: any[] = Array.isArray(giftHistoryRaw) ? giftHistoryRaw : [];
 
   const allFriendRows: FriendEntry[] = Array.isArray(friendRowsRaw) ? friendRowsRaw : [];
 
@@ -256,15 +281,22 @@ function FriendsScreenInner() {
       </View>
 
       <View style={[styles.tabs, { backgroundColor: theme.card }]}>
-        {(["friends", "search", "requests"] as TabType[]).map((t) => (
+        {(["friends", "search", "requests", "gifts"] as TabType[]).map((t) => (
           <TouchableOpacity
             key={t}
             style={[styles.tab, tab === t && styles.tabActive]}
             onPress={() => setTab(t)}
           >
-            <Text style={[styles.tabText, { color: theme.textMuted }, tab === t && styles.tabTextActive]}>
-              {t === "friends" ? `الأصدقاء (${acceptedFriends.length})` : t === "search" ? "بحث" : `الطلبات (${pendingReceived.length})`}
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <Text style={[styles.tabText, { color: theme.textMuted }, tab === t && styles.tabTextActive]}>
+                {t === "friends" ? `الأصدقاء (${acceptedFriends.length})` : t === "search" ? "بحث" : t === "requests" ? `الطلبات (${pendingReceived.length})` : "🎁"}
+              </Text>
+              {t === "gifts" && pendingGiftsCount > 0 && (
+                <View style={styles.giftBadge}>
+                  <Text style={styles.giftBadgeText}>{pendingGiftsCount}</Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
         ))}
       </View>
@@ -422,6 +454,40 @@ function FriendsScreenInner() {
         </ScrollView>
       )}
 
+      {tab === "gifts" && (
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+          {loadingGifts ? (
+            <ActivityIndicator color={Colors.gold} style={{ marginTop: 40 }} />
+          ) : giftHistory.length === 0 ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyIcon}>🎁</Text>
+              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>لا توجد هدايا بعد</Text>
+              <Text style={[styles.emptySubText, { color: theme.textMuted }]}>أرسل هدية لأصدقائك من تبويب الأصدقاء</Text>
+            </View>
+          ) : (
+            giftHistory.map((gift: any, idx: number) => (
+              <View key={gift.id || idx} style={[styles.giftHistoryRow, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                <View style={[styles.giftHistoryIcon, { backgroundColor: gift.type === "sent" ? Colors.ruby + "18" : Colors.emerald + "18" }]}>
+                  <Ionicons name={gift.type === "sent" ? "arrow-up" : "arrow-down"} size={16} color={gift.type === "sent" ? Colors.ruby : Colors.emerald} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.giftHistoryName, { color: theme.textPrimary }]}>
+                    {gift.type === "sent" ? `أرسلت إلى ${gift.playerName}` : `استلمت من ${gift.playerName}`}
+                  </Text>
+                  <Text style={[styles.giftHistoryDate, { color: theme.textMuted }]}>
+                    {new Date(gift.sentAt).toLocaleDateString("ar-MA")}
+                  </Text>
+                </View>
+                <View style={styles.giftHistoryAmount}>
+                  <Ionicons name="star" size={12} color={Colors.gold} />
+                  <Text style={styles.giftHistoryAmountText}>{gift.type === "sent" ? "-" : "+"}{gift.amount}</Text>
+                </View>
+              </View>
+            ))
+          )}
+        </ScrollView>
+      )}
+
       {/* Gift Modal */}
       {giftModal.visible && (
         <View style={styles.giftOverlay}>
@@ -566,6 +632,25 @@ const styles = StyleSheet.create({
   giftAmountText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.gold },
   giftCancelBtn: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12 },
   giftCancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 14 },
+  giftBadge: {
+    minWidth: 18, height: 18, borderRadius: 9,
+    backgroundColor: Colors.ruby, justifyContent: "center", alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  giftBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#fff" },
+  giftHistoryRow: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    padding: 12, borderRadius: 14, borderWidth: 1,
+    backgroundColor: "#12122A", borderColor: "#1E1E3A",
+  },
+  giftHistoryIcon: {
+    width: 36, height: 36, borderRadius: 18,
+    justifyContent: "center", alignItems: "center",
+  },
+  giftHistoryName: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#E8E8FF" },
+  giftHistoryDate: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#5A5A88", marginTop: 2 },
+  giftHistoryAmount: { flexDirection: "row", alignItems: "center", gap: 4 },
+  giftHistoryAmountText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.gold },
 });
 
 export default function FriendsScreen() {

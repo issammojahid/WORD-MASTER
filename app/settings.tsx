@@ -81,6 +81,7 @@ export default function SettingsScreen() {
           const data = await res.json();
           setReferralCode(data.referralCode || "");
           setReferralCount(data.referralCount || 0);
+          if (data.referredBy) setRefAlreadyClaimed(true);
         }
       } catch {}
     })();
@@ -97,7 +98,7 @@ export default function SettingsScreen() {
   const handleShareReferral = async () => {
     if (!referralCode) return;
     try {
-      await Share.share({ message: `انضم لحروف المغرب واستخدم كود الإحالة: ${referralCode} واحصل على 200 عملة مجاناً! 🎁` });
+      await Share.share({ message: `انضم لحروف المغرب واستخدم كود الإحالة: ${referralCode} واحصل على 100 عملة مجاناً! 🎁` });
     } catch {}
   };
 
@@ -194,7 +195,7 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </View>
             <Text style={[styles.refStats, { color: theme.textMuted }]}>
-              عدد الإحالات: {referralCount} · مكافأة: 200 عملة لكل إحالة
+              عدد الإحالات: {referralCount} · مكافأة: 100 عملة لكل إحالة
             </Text>
           </View>
 

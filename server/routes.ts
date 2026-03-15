@@ -92,15 +92,20 @@ async function ensurePlayerCode(playerId: string): Promise<string> {
   return code;
 }
 
-async function ensureReferralCode(playerId: string): Promise<string> {
-  const [existing] = await db.select({ referralCode: playerProfiles.referralCode }).from(playerProfiles).where(eq(playerProfiles.id, playerId));
-  if (existing?.referralCode) return existing.referralCode;
+async function generateUniqueReferralCode(): Promise<string> {
   let code = "REF-" + Math.random().toString(36).substring(2, 8).toUpperCase();
   for (let attempt = 0; attempt < 10; attempt++) {
     const dup = await db.select({ id: playerProfiles.id }).from(playerProfiles).where(eq(playerProfiles.referralCode, code));
     if (dup.length === 0) break;
     code = "REF-" + Math.random().toString(36).substring(2, 8).toUpperCase();
   }
+  return code;
+}
+
+async function ensureReferralCode(playerId: string): Promise<string> {
+  const [existing] = await db.select({ referralCode: playerProfiles.referralCode }).from(playerProfiles).where(eq(playerProfiles.id, playerId));
+  if (existing?.referralCode) return existing.referralCode;
+  const code = await generateUniqueReferralCode();
   await db.update(playerProfiles).set({ referralCode: code }).where(eq(playerProfiles.id, playerId));
   return code;
 }
@@ -1451,11 +1456,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const playerCode = await ensurePlayerCode(req.params.id);
         const randomName = generateRandomPlayerName();
         const playerTag = await generateUniquePlayerTag();
+        const refCode = await generateUniqueReferralCode();
         [profile] = await db.insert(playerProfiles).values({
           id: req.params.id,
           playerCode,
           playerTag,
           name: randomName,
+          referralCode: refCode,
         }).returning();
       } else {
         const updates: Record<string, unknown> = {};
@@ -1483,10 +1490,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing) {
         const playerCode = await ensurePlayerCode(id);
         const playerTag = await generateUniquePlayerTag();
+        const refCode = await generateUniqueReferralCode();
         const [created] = await db.insert(playerProfiles).values({
           id,
           playerCode,
           playerTag,
+          referralCode: refCode,
           name: data.name || generateRandomPlayerName(),
           coins: data.coins ?? 100,
           xp: data.xp ?? 0,
@@ -1505,6 +1514,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updateData: Record<string, unknown> = { updatedAt: new Date() };
       if (!existing.playerCode) updateData.playerCode = await ensurePlayerCode(id);
       if (!existing.playerTag) updateData.playerTag = await generateUniquePlayerTag();
+      if (!existing.referralCode) updateData.referralCode = await generateUniqueReferralCode();
       const allowedFields = ["name", "coins", "xp", "level", "equippedSkin", "ownedSkins", "equippedTitle", "ownedTitles", "totalScore", "gamesPlayed", "wins", "winStreak", "bestStreak", "lastStreakReward", "powerCards"];
       for (const key of allowedFields) {
         if (data[key] !== undefined) updateData[key] = data[key];
@@ -2789,6 +2799,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validAmounts = [50, 100, 200];
       if (!validAmounts.includes(amount)) return res.status(400).json({ error: "invalid_amount" });
 
+      const friendship = await db.select().from(friends).where(
+        and(
+          or(
+            and(eq(friends.requesterId, fromPlayerId), eq(friends.receiverId, toPlayerId)),
+            and(eq(friends.requesterId, toPlayerId), eq(friends.receiverId, fromPlayerId))
+          ),
+          eq(friends.status, "accepted")
+        )
+      );
+      if (friendship.length === 0) return res.json({ error: "not_friends" });
+
       const today = new Date().toISOString().slice(0, 10);
       const recentGifts = await db.select().from(coinGifts).where(
         and(
@@ -2843,14 +2864,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/friends/gifts/history/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const sent = await db.select().from(coinGifts).where(eq(coinGifts.fromPlayerId, playerId)).orderBy(desc(coinGifts.sentAt)).limit(20);
+      const received = await db.select().from(coinGifts).where(eq(coinGifts.toPlayerId, playerId)).orderBy(desc(coinGifts.sentAt)).limit(20);
+
+      const enrichSent = [];
+      for (const g of sent) {
+        const [recipient] = await db.select({ name: playerProfiles.name }).from(playerProfiles).where(eq(playerProfiles.id, g.toPlayerId));
+        enrichSent.push({ ...g, playerName: recipient?.name || "لاعب", type: "sent" as const });
+      }
+      const enrichReceived = [];
+      for (const g of received) {
+        const [sender] = await db.select({ name: playerProfiles.name }).from(playerProfiles).where(eq(playerProfiles.id, g.fromPlayerId));
+        enrichReceived.push({ ...g, playerName: sender?.name || "لاعب", type: "received" as const });
+      }
+      const all = [...enrichSent, ...enrichReceived].sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime()).slice(0, 30);
+      res.json(all);
+    } catch (e) {
+      console.error("GET /api/friends/gifts/history error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
   // ─────────────────────────────────────────────────────────────────────────
   // Referral System
   // ─────────────────────────────────────────────────────────────────────────
   app.get("/api/referral/:playerId", async (req, res) => {
     try {
       const code = await ensureReferralCode(req.params.playerId);
-      const [profile] = await db.select({ referralCount: playerProfiles.referralCount }).from(playerProfiles).where(eq(playerProfiles.id, req.params.playerId));
-      res.json({ referralCode: code, referralCount: profile?.referralCount || 0 });
+      const [profile] = await db.select({ referralCount: playerProfiles.referralCount, referredBy: playerProfiles.referredBy }).from(playerProfiles).where(eq(playerProfiles.id, req.params.playerId));
+      res.json({ referralCode: code, referralCount: profile?.referralCount || 0, referredBy: profile?.referredBy || null });
     } catch (e) {
       console.error("GET /api/referral error:", e);
       res.status(500).json({ error: "server_error" });
@@ -2870,7 +2915,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!referrer) return res.json({ error: "invalid_code" });
       if (referrer.id === playerId) return res.json({ error: "self_referral" });
 
-      const REFERRAL_REWARD = 200;
+      const REFERRAL_REWARD = 100;
       await db.update(playerProfiles).set({ referredBy: referralCode.toUpperCase() }).where(eq(playerProfiles.id, playerId));
       await db.update(playerProfiles).set({
         referralCount: sql`referral_count + 1`,
