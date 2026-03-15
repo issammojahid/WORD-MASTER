@@ -21,6 +21,7 @@ export type User = typeof users.$inferSelect;
 
 export const playerProfiles = pgTable("player_profiles", {
   id: varchar("id").primaryKey(),
+  playerCode: text("player_code").unique(),
   name: text("name").notNull().default("لاعب"),
   coins: integer("coins").notNull().default(100),
   xp: integer("xp").notNull().default(0),

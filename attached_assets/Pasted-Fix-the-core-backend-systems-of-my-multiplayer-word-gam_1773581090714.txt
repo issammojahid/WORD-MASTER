@@ -1,0 +1,170 @@
+Fix the core backend systems of my multiplayer word game.
+
+Current problems:
+
+1. Friend search does not return players.
+2. Friend requests are not sent.
+3. Accepting friend requests does not work.
+4. Player name cannot be changed.
+5. Player ID is not generated.
+6. Claiming rewards from tasks or achievements fails.
+
+Do not modify UI or game mechanics.
+Only fix backend logic and database.
+
+---
+
+1. FIX PLAYER ID SYSTEM
+
+Ensure the players table has:
+
+player_id TEXT UNIQUE
+
+Generate a player ID automatically when a new player is created.
+
+Format:
+WM-XXXXXX
+
+Example:
+WM-483920
+
+Create a function generatePlayerId().
+
+---
+
+2. FIX RANDOM PLAYER NAME
+
+When a new player is created and no name exists:
+
+Generate a random username.
+
+Format:
+Word_Number
+
+Examples:
+Lion_482
+Atlas_771
+Falcon_193
+Wolf_554
+
+Store it in players.name.
+
+---
+
+3. FIX CHANGE NAME
+
+Create endpoint:
+
+PATCH /player/change-name
+
+Request:
+{
+"player_id": "...",
+"new_name": "NewName"
+}
+
+Update:
+
+UPDATE players
+SET name = $1
+WHERE id = $2;
+
+---
+
+4. FIX FRIEND SEARCH
+
+Players must be searchable using name OR player_id.
+
+Use query:
+
+SELECT id, player_id, name, level
+FROM players
+WHERE (
+name ILIKE '%' || $1 || '%'
+OR player_id ILIKE '%' || $1 || '%'
+)
+AND id <> $2
+LIMIT 20;
+
+---
+
+5. FIX FRIEND REQUEST SYSTEM
+
+Ensure table exists:
+
+friends
+
+id SERIAL PRIMARY KEY
+requester_id TEXT
+receiver_id TEXT
+status TEXT
+created_at TIMESTAMP DEFAULT NOW()
+
+Status values:
+pending
+accepted
+
+Endpoint:
+
+POST /friends/request
+
+Insert request if it does not already exist.
+
+---
+
+6. FIX ACCEPT FRIEND
+
+Endpoint:
+
+POST /friends/accept
+
+Update:
+
+UPDATE friends
+SET status = 'accepted'
+WHERE requester_id = $1
+AND receiver_id = $2;
+
+---
+
+7. FIX REWARD CLAIMING (TASKS & ACHIEVEMENTS)
+
+Create tables if missing:
+
+task_claims
+
+id SERIAL
+player_id TEXT
+task_id TEXT
+claimed_at TIMESTAMP DEFAULT NOW()
+
+achievement_claims
+
+id SERIAL
+player_id TEXT
+achievement_id TEXT
+claimed_at TIMESTAMP DEFAULT NOW()
+
+When claiming reward:
+
+1. Check if reward already claimed.
+2. Add coins and XP.
+3. Insert claim record.
+
+Example:
+
+UPDATE players
+SET coins = coins + $1,
+xp = xp + $2
+WHERE id = $3;
+
+---
+
+8. RETURN SUCCESS RESPONSE
+
+Ensure APIs return success responses so the mobile app updates correctly.
+
+---
+
+Do not modify UI.
+Only repair backend logic, API endpoints, and PostgreSQL queries.

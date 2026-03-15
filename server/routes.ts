@@ -39,6 +39,37 @@ const ACHIEVEMENT_DEFS = [
   { key: "streak_3", titleAr: "3 انتصارات متتالية", descAr: "اربح 3 مباريات على التوالي", target: 3, type: "streak", rewardCoins: 100, rewardXp: 75, icon: "🔥" },
 ] as const;
 
+// ── PLAYER ID & NAME GENERATION ─────────────────────────────────────────────
+const RANDOM_NAME_WORDS = [
+  "Lion", "Atlas", "Falcon", "Wolf", "Eagle", "Tiger", "Storm", "Blaze",
+  "Cobra", "Shark", "Hawk", "Bear", "Fox", "Lynx", "Viper", "Phoenix",
+  "Raven", "Drake", "Orion", "Zephyr", "Titan", "Nova", "Rex", "Ace",
+];
+
+function generatePlayerCode(): string {
+  const num = Math.floor(100000 + Math.random() * 900000);
+  return `WM-${num}`;
+}
+
+function generateRandomPlayerName(): string {
+  const word = RANDOM_NAME_WORDS[Math.floor(Math.random() * RANDOM_NAME_WORDS.length)];
+  const num = Math.floor(100 + Math.random() * 900);
+  return `${word}_${num}`;
+}
+
+async function ensurePlayerCode(playerId: string): Promise<string> {
+  let code = generatePlayerCode();
+  let attempts = 0;
+  while (attempts < 10) {
+    const existing = await db.select({ id: playerProfiles.id }).from(playerProfiles)
+      .where(eq(playerProfiles.playerCode, code));
+    if (existing.length === 0) break;
+    code = generatePlayerCode();
+    attempts++;
+  }
+  return code;
+}
+
 // Track which room each socket is currently in
 const socketRoomMap = new Map<string, string>();
 
@@ -1264,7 +1295,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       let [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, req.params.id));
       if (!profile) {
-        [profile] = await db.insert(playerProfiles).values({ id: req.params.id }).returning();
+        const playerCode = await ensurePlayerCode(req.params.id);
+        const randomName = generateRandomPlayerName();
+        [profile] = await db.insert(playerProfiles).values({
+          id: req.params.id,
+          playerCode,
+          name: randomName,
+        }).returning();
+      } else if (!profile.playerCode) {
+        const playerCode = await ensurePlayerCode(req.params.id);
+        [profile] = await db.update(playerProfiles)
+          .set({ playerCode })
+          .where(eq(playerProfiles.id, req.params.id))
+          .returning();
       }
       res.json(profile);
     } catch (e) {
@@ -1305,6 +1348,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updated);
     } catch (e) {
       console.error("PUT /api/player error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.patch("/api/player/change-name", async (req, res) => {
+    try {
+      const { player_id, new_name } = req.body as { player_id: string; new_name: string };
+      if (!player_id || !new_name || new_name.trim().length === 0) {
+        return res.status(400).json({ error: "missing_fields" });
+      }
+      const trimmed = new_name.trim();
+      const [updated] = await db.update(playerProfiles)
+        .set({ name: trimmed, updatedAt: new Date() })
+        .where(eq(playerProfiles.id, player_id))
+        .returning();
+      if (!updated) return res.status(404).json({ error: "player_not_found" });
+      res.json({ success: true, name: updated.name });
+    } catch (e) {
+      console.error("PATCH /api/player/change-name error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });
@@ -1763,14 +1825,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const q = (req.query.q as string || "").trim();
       const myId = (req.query.playerId as string) || "";
       if (q.length < 2) return res.json([]);
+      const searchCondition = or(
+        ilike(playerProfiles.name, `%${q}%`),
+        ilike(playerProfiles.playerCode, `%${q}%`),
+      );
+      const whereClause = myId
+        ? and(searchCondition, ne(playerProfiles.id, myId))
+        : searchCondition;
       const rows = await db.select({
         id: playerProfiles.id,
+        playerCode: playerProfiles.playerCode,
         name: playerProfiles.name,
         skin: playerProfiles.equippedSkin,
         level: playerProfiles.level,
         wins: playerProfiles.wins,
       }).from(playerProfiles)
-        .where(and(ilike(playerProfiles.name, `%${q}%`), myId ? ne(playerProfiles.id, myId) : undefined))
+        .where(whereClause)
         .limit(20);
       res.json(rows);
     } catch (e) {
@@ -1826,6 +1896,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, requestId: row.id });
     } catch (e) {
       console.error("POST /api/friends/request error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.post("/api/friends/request", async (req, res) => {
+    try {
+      const { requesterId, receiverId } = req.body as { requesterId: string; receiverId: string };
+      if (!requesterId || !receiverId) return res.status(400).json({ error: "missing_fields" });
+      if (requesterId === receiverId) return res.status(400).json({ error: "cannot_add_self" });
+      const existing = await db.select().from(friends).where(
+        or(
+          and(eq(friends.requesterId, requesterId), eq(friends.receiverId, receiverId)),
+          and(eq(friends.requesterId, receiverId), eq(friends.receiverId, requesterId))
+        )
+      );
+      if (existing.length > 0) return res.status(400).json({ error: "already_exists", status: existing[0].status });
+      const [row] = await db.insert(friends).values({ requesterId, receiverId, status: "pending" }).returning();
+      res.json({ success: true, requestId: row.id });
+    } catch (e) {
+      console.error("POST /api/friends/request (body) error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.post("/api/friends/accept", async (req, res) => {
+    try {
+      const { requester_id, receiver_id } = req.body as { requester_id: string; receiver_id: string };
+      if (!requester_id || !receiver_id) return res.status(400).json({ error: "missing_fields" });
+      const [updated] = await db.update(friends)
+        .set({ status: "accepted", updatedAt: new Date() })
+        .where(and(eq(friends.requesterId, requester_id), eq(friends.receiverId, receiver_id)))
+        .returning();
+      if (!updated) return res.status(404).json({ error: "request_not_found" });
+      res.json({ success: true });
+    } catch (e) {
+      console.error("POST /api/friends/accept error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });

@@ -13,7 +13,9 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
 
 ## Recent Features Added
 
-- **Friends System**: Search players by name, send/accept/reject/remove friend requests. DB table `friends` with requesterId/receiverId/status. REST endpoints: `/api/players/search`, `/api/friends/:id`, `/api/friends/:id/request/:target`, `/api/friends/request/:id/:action`, `/api/friends/:id/:friendId`. Frontend: `app/friends.tsx` with 3 tabs (friends/search/requests) + Create/Join Room buttons.
+- **Player Code System**: Each player profile now gets a unique `playerCode` (WM-XXXXXX format) generated on creation. Stored in `player_profiles.player_code` column. New players also get a random English name (e.g. Lion_482, Atlas_771) instead of the default Arabic "لاعب".
+- **Change Name Endpoint**: `PATCH /api/player/change-name` accepts `{ player_id, new_name }` body and updates the player name in the DB.
+- **Friends System**: Search players by name OR playerCode (WM-XXXXXX), send/accept/reject/remove friend requests. DB table `friends` with requesterId/receiverId/status. REST endpoints: `/api/players/search`, `/api/friends/:id`, `/api/friends/:id/request/:target`, `/api/friends/request/:id/:action`, `/api/friends/:id/:friendId`. Additional body-style endpoints: `POST /api/friends/request` and `POST /api/friends/accept`. Frontend: `app/friends.tsx` with 3 tabs (friends/search/requests) + Create/Join Room buttons.
 - **Real Leaderboard**: `/api/leaderboard?type=score|wins|xp` queries DB sorted by field. Frontend updated to use real data, shows local player highlighted.
 - **Daily Tasks**: DB table `player_daily_tasks`. 3 tasks (win_3, play_5, score_200). `/api/tasks/:id` and `/api/tasks/:id/:key/claim`. Frontend: `app/tasks.tsx` with claim buttons.
 - **Achievements**: DB table `player_achievements`. 8 achievements (first_win, win_10/50, play_10/100, level_5/10, streak_3). `/api/achievements/:id` and `/api/achievements/:id/claim/:key`. Frontend: `app/achievements.tsx` with filter tabs.
