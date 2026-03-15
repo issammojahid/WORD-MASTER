@@ -1,0 +1,21 @@
+Fix: Tasks/Achievements claim not working after playing a game
+
+Root cause: Tasks and Achievements screens did not refetch data when
+navigating back to them after a game. React Query's staleTime:0 makes
+data immediately stale but does NOT auto-refetch — a focus-based
+refetch is required for mobile screens.
+
+Changes:
+- app/tasks.tsx: Added useFocusEffect + useCallback to refetch tasks
+  on screen focus; added Alert when claim fails (silent failure → clear
+  error message in Arabic)
+- app/achievements.tsx: Same pattern — useFocusEffect refetch on focus;
+  Alert on claim failure; exposed refetch from useQuery
+- Both files: Added Alert and useCallback imports from React Native / React
+
+Result: After playing a game and navigating to Tasks or Achievements,
+data automatically refreshes showing updated progress. Claim button
+appears correctly and shows an Arabic error alert if something goes
+wrong instead of failing silently.
+
+New APK build: https://expo.dev/accounts/aissam09s-organization/projects/huroof-al-maghrib/builds/b2fdd931-2f2f-4d4d-a1b3-11d93471724f
