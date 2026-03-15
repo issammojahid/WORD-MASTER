@@ -6,6 +6,11 @@
       "sourceType": "github",
       "computedHash": "3316239df2bdcb41e992857b8142e0239e6964564dd5d7224e470c2ab350a03c"
     },
+    "canvas-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "a2fe47d24b3fd8e52faef731fff099c557e698083cd644b2e5695cc4dd8c7715"
+    },
     "nodejs-backend-patterns": {
       "source": "wshobson/agents",
       "sourceType": "github",
@@ -15,6 +20,11 @@
       "source": "wshobson/agents",
       "sourceType": "github",
       "computedHash": "0728424e6f56972333bd60e4f45da0322ac6db273744d863aa2b94f1e95d61ec"
+    },
+    "product-photography": {
+      "source": "skill-zero/s",
+      "sourceType": "github",
+      "computedHash": "23a31c9f4cffd4c0d87f203beed794574342f91ce8faa695c59bf93ed506c9bb"
     },
     "python-project-structure": {
       "source": "wshobson/agents",

@@ -1,0 +1,146 @@
+Redesign the shop UI of my mobile game with the following changes.
+
+1. Remove Dark Mode
+
+The shop currently uses a dark theme.
+Replace it with a clean modern light theme.
+
+Use:
+
+- soft gradients
+- light backgrounds
+- white cards
+- soft shadows
+
+Colors example:
+light blue
+soft gold
+light purple accents
+
+The shop should look bright and modern.
+
+---
+
+2. Replace Clothing with Avatars
+
+Remove the clothing system.
+
+Replace it with Avatars.
+
+Avatars should be circular profile icons.
+
+Examples of avatars:
+Lion
+Falcon
+Wolf
+Wizard
+Robot
+King
+Brain
+Phoenix
+
+Avatars must look like game icons, not clothing items.
+
+Each avatar should have rarity:
+
+Common
+Rare
+Epic
+Legendary
+
+Display rarity glow around the avatar card.
+
+---
+
+3. Remove Background Items
+
+Remove the backgrounds category from the shop.
+
+The shop should now contain:
+
+Daily Offers
+Spin Wheel
+Mystery Boxes
+Avatars
+Effects
+Titles
+Coin Packs
+
+---
+
+4. Improve Animations
+
+Add smooth modern animations for:
+
+Shop cards hover
+Button presses
+Reward reveal
+Section transitions
+Swipe scrolling
+
+Use soft glow and scale animations.
+
+---
+
+5. Mystery Box Animation
+
+The game already has mystery boxes.
+
+Improve the animation when opening boxes.
+
+When a player opens a box:
+
+Step 1
+Show the box in the center of the screen
+
+Step 2
+Play a shaking animation
+
+Step 3
+The box opens with light effect
+
+Step 4
+Reveal the reward card
+
+Example rewards:
+
+Coins
+Avatar
+Title
+Effect
+
+Add glow and spark particles when the reward appears.
+
+---
+
+6. Use Custom Canva Box Designs
+
+I already have custom box designs created in Canva.
+
+Integrate these box images in the mystery box system.
+
+Use them for:
+
+Basic Box
+Rare Box
+Legendary Box
+
+Keep the box opening animation.
+
+---
+
+7. Shop Layout Improvements
+
+Make the shop look like a professional mobile game shop.
+
+Use:
+
+Horizontal swipe sections
+Large premium cards
+Soft glow effects
+Clean spacing
+Smooth scrolling
+
+The design should feel similar to modern mobile games like Clash Royale or Brawl Stars.
+
+Make the shop UI polished and exciting.

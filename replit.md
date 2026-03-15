@@ -13,6 +13,14 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
 
 ## Recent Features Added
 
+- **Shop Complete Redesign (Light Theme)**: Full rewrite of `app/shop.tsx` with:
+  - Light theme replacing dark mode: `#EEF2FF→#F5F3FF→#F0FDF4` gradient background, white cards, soft shadows
+  - New tab structure: العروض / الأفاتار / تأثيرات / ألقاب / صناديق / العجلة / حزم (removed backgrounds tab)
+  - Avatar cards displayed as circular icons with rarity glow rings (borderColor + shadowColor based on rarity)
+  - Mystery box opening with full 4-phase animation: box entry → shake (Animated.sequence) → light burst → reward card reveal with spring animation + spark particles
+  - Coin Packs tab: 3 tiers (500/1200+200/3000+800 coins) with gradient cards, added locally for testing
+  - Design tokens `L` object: purple=#6C63FF, gold=#F59E0B, green=#10B981, card=#FFFFFF, textMain=#1A1A3A, textSub=#6B7A99
+
 - **Titles System**: New `TITLES` array in PlayerContext with 9 titles (beginner/eloquent/word_master/lightning/genius/letter_king/streak_lord/morocco_legend/champion_title). Added `ownedTitles: TitleId[]` and `equippedTitle: TitleId | null` to PlayerProfile. New `purchaseTitle` and `equipTitle` context functions. Titles have rarity tiers, prices, and unlock conditions (wins/level/streak).
 - **Shop Redesign — Titles Tab**: New "ألقاب" (Titles) tab in the shop. Shows active title preview bar + full grid of all titles. Buy, unlock by condition, or equip titles. Uses same rarity card system as outfits.
 - **Shop Redesign — Spin Wheel Tab**: New "العجلة" (Spin Wheel) tab with a hero banner (purple gradient, animated) that navigates to `/spin`. Shows prizes list and daily tips.
