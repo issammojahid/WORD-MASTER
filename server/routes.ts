@@ -2274,28 +2274,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { playerId, taskKey } = req.params;
       const today = getTodayDate();
-      const [row] = await db.select().from(playerDailyTasks)
-        .where(and(eq(playerDailyTasks.playerId, playerId), eq(playerDailyTasks.taskKey, taskKey), eq(playerDailyTasks.assignedDate, today)));
-      if (!row) return res.json({ success: false, error: "task_not_found" });
-      if (row.claimed === 1) return res.json({ success: false, error: "already_claimed" });
-
-      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
-      if (!profile) return res.json({ success: false, error: "player_not_found" });
 
       const def = DAILY_TASK_DEFS.find(d => d.key === taskKey);
       if (!def) return res.json({ success: false, error: "unknown_task" });
 
+      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      if (!profile) return res.json({ success: false, error: "player_not_found" });
+
+      let [row] = await db.select().from(playerDailyTasks)
+        .where(and(
+          eq(playerDailyTasks.playerId, playerId),
+          eq(playerDailyTasks.taskKey, taskKey),
+          eq(playerDailyTasks.assignedDate, today),
+        ));
+
+      // Auto-create the row if it doesn't exist for today
+      if (!row) {
+        const [inserted] = await db.insert(playerDailyTasks).values({
+          playerId,
+          taskKey,
+          assignedDate: today,
+          progress: 0,
+          baselineWins: profile.wins,
+          baselineGames: profile.gamesPlayed,
+          baselineScore: profile.totalScore,
+        }).returning();
+        row = inserted;
+      }
+
+      if (row.claimed === 1) return res.json({ success: false, error: "already_claimed" });
+
+      // Calculate latest progress from live profile stats
       let progress = row.progress ?? 0;
-      if (def.type === "wins")  progress = Math.max(progress, Math.max(0, profile.wins - (row.baselineWins ?? 0)));
-      if (def.type === "games") progress = Math.max(progress, Math.max(0, profile.gamesPlayed - (row.baselineGames ?? 0)));
-      if (def.type === "score") progress = Math.max(progress, Math.max(0, profile.totalScore - (row.baselineScore ?? 0)));
+      if (def.type === "wins")  progress = Math.max(progress, Math.min(Math.max(0, profile.wins - (row.baselineWins ?? 0)), def.target));
+      if (def.type === "games") progress = Math.max(progress, Math.min(Math.max(0, profile.gamesPlayed - (row.baselineGames ?? 0)), def.target));
+      if (def.type === "score") progress = Math.max(progress, Math.min(Math.max(0, profile.totalScore - (row.baselineScore ?? 0)), def.target));
 
       if (progress < def.target) return res.json({ success: false, error: "not_completed" });
 
-      await db.update(playerDailyTasks).set({ claimed: 1, claimedAt: new Date(), progress }).where(eq(playerDailyTasks.id, row.id));
+      // Mark task claimed and update coins/XP atomically
+      await db.update(playerDailyTasks)
+        .set({ claimed: 1, claimedAt: new Date(), progress })
+        .where(eq(playerDailyTasks.id, row.id));
+
       await db.update(playerProfiles).set({
-        coins: profile.coins + def.rewardCoins,
-        xp: profile.xp + def.rewardXp,
+        coins: sql`coins + ${def.rewardCoins}`,
+        xp: sql`xp + ${def.rewardXp}`,
         updatedAt: new Date(),
       }).where(eq(playerProfiles.id, playerId));
 
