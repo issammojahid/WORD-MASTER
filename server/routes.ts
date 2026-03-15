@@ -18,7 +18,7 @@ import { validateWord, CATEGORY_MAP, getWordsForLetter, type WordCategory } from
 import { ARABIC_LETTERS } from "./gameLogic";
 import { db } from "./db";
 import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, playerDailyTasks, playerAchievements, roomInvites, dailyTaskDefs, achievementDefs } from "@shared/schema";
-import { eq, and, desc, asc, or, ilike, ne } from "drizzle-orm";
+import { eq, and, desc, asc, or, ilike, ne, isNotNull, sql } from "drizzle-orm";
 
 // ── TASK POOL — larger random pool, 3 are picked per player per day ──────────
 const TASK_POOL = [
@@ -109,6 +109,25 @@ function pickDailyTasks(): typeof TASK_POOL {
 }
 
 // ── SEED TASK & ACHIEVEMENT DEFINITIONS ─────────────────────────────────────
+async function fixMissingPlayerCodes() {
+  try {
+    const missing = await db.select({ id: playerProfiles.id })
+      .from(playerProfiles)
+      .where(sql`player_code IS NULL OR player_tag IS NULL`);
+    if (missing.length === 0) return;
+    console.log(`[fix] Assigning playerCode/playerTag to ${missing.length} players...`);
+    for (const { id } of missing) {
+      const updates: Record<string, unknown> = {};
+      updates.playerCode = await ensurePlayerCode(id);
+      updates.playerTag = await generateUniquePlayerTag();
+      await db.update(playerProfiles).set(updates).where(eq(playerProfiles.id, id));
+    }
+    console.log(`[fix] Done assigning codes to ${missing.length} players.`);
+  } catch (e) {
+    console.error("[fix] Failed to fix missing player codes:", e);
+  }
+}
+
 async function seedTaskAndAchievementDefs() {
   try {
     const existingTasks = await db.select().from(dailyTaskDefs);
@@ -535,8 +554,9 @@ const roomPendingDeductions = new Map<string, string[]>();
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
-  // Seed static definition tables (daily_tasks, achievements) on startup
+  // On startup: seed static definitions and fix any players missing playerCode
   seedTaskAndAchievementDefs();
+  fixMissingPlayerCodes();
 
   // REST endpoint: validate all answers for one round (used by offline mode)
   // POST /api/validate-round
@@ -1432,9 +1452,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = req.body;
       const [existing] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, id));
       if (!existing) {
+        const playerCode = await ensurePlayerCode(id);
+        const playerTag = await generateUniquePlayerTag();
         const [created] = await db.insert(playerProfiles).values({
           id,
-          name: data.name || "لاعب",
+          playerCode,
+          playerTag,
+          name: data.name || generateRandomPlayerName(),
           coins: data.coins ?? 100,
           xp: data.xp ?? 0,
           level: data.level ?? 1,
@@ -1450,6 +1474,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(created);
       }
       const updateData: Record<string, unknown> = { updatedAt: new Date() };
+      if (!existing.playerCode) updateData.playerCode = await ensurePlayerCode(id);
+      if (!existing.playerTag) updateData.playerTag = await generateUniquePlayerTag();
       const allowedFields = ["name", "coins", "xp", "level", "equippedSkin", "ownedSkins", "equippedTitle", "ownedTitles", "totalScore", "gamesPlayed", "wins", "winStreak", "bestStreak", "lastStreakReward", "powerCards"];
       for (const key of allowedFields) {
         if (data[key] !== undefined) updateData[key] = data[key];
@@ -1983,17 +2009,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // ── Normal search: partial name OR playerCode match ──────────────────
+      // isNotNull guard ensures NULL player_code doesn't break the OR condition
       const searchCondition = or(
         ilike(playerProfiles.name, `%${q}%`),
-        ilike(playerProfiles.playerCode, `%${q}%`),
+        and(isNotNull(playerProfiles.playerCode), ilike(playerProfiles.playerCode, `%${q}%`)),
       );
-      const whereClause = myId
-        ? and(searchCondition, ne(playerProfiles.id, myId))
-        : searchCondition;
+      const excludeSelf = myId ? ne(playerProfiles.id, myId) : undefined;
+      const whereClause = excludeSelf ? and(searchCondition, excludeSelf) : searchCondition;
 
       const rows = await db.select(selectFields).from(playerProfiles)
         .where(whereClause)
+        .orderBy(desc(playerProfiles.wins))
         .limit(20);
+
+      // Auto-fix: if any returned player has no playerCode, assign one async
+      const missing = rows.filter(r => !r.playerCode);
+      if (missing.length > 0) {
+        Promise.all(missing.map(async (r) => {
+          const code = await ensurePlayerCode(r.id);
+          await db.update(playerProfiles).set({ playerCode: code }).where(eq(playerProfiles.id, r.id));
+        })).catch(() => {});
+      }
+
       res.json(rows);
     } catch (e) {
       console.error("GET /api/players/search error:", e);
