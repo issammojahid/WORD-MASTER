@@ -24,6 +24,7 @@ Web node_modules/expo-router/entry.js ░░░░░░░░░░░░░░
 [80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 56.3% (41/78)
 [80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 56.3% ( 43/151)
 [80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 56.3% ( 48/181)
+<<<<<<< HEAD
 [80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 56.3% ( 55/193)
 [80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 56.3% ( 56/193)
 [80D[1A[0JWeb node_modules/expo-router/entry.js ▓▓▓▓▓▓▓▓▓░░░░░░░ 56.3% ( 59/211)
@@ -141,3 +142,5 @@ Web lib/query-client.ts ░░░░░░░░░░░░░░░░  0.0% (
  LOG  [web] Logs will appear in the browser console
 Web lib/query-client.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
 [80D[1A[0JWeb Bundled 2ms lib/query-client.ts (1 module)
+=======
+>>>>>>> 945f2c8c421d4ec949c95ac3e0e439a9861b309b

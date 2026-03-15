@@ -10,6 +10,18 @@
     "validate-slides": "pnpm exec tsx scripts/validate-slides.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+  "dependencies": {
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-router-dom": "^7.9.5",
+    "zod": "catalog:"
+  },
+>>>>>>> b0d69105d1e4327f68660c2009a41f75b2532491
+>>>>>>> 945f2c8c421d4ec949c95ac3e0e439a9861b309b
   "devDependencies": {
     "@replit/vite-plugin-cartographer": "catalog:",
     "@replit/vite-plugin-dev-banner": "catalog:",
@@ -19,6 +31,10 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 945f2c8c421d4ec949c95ac3e0e439a9861b309b
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-router-dom": "^7.9.5",
@@ -26,5 +42,13 @@
     "tsx": "catalog:",
     "vite": "catalog:",
     "zod": "catalog:"
+<<<<<<< HEAD
+=======
+=======
+    "tailwindcss": "catalog:",
+    "tsx": "catalog:",
+    "vite": "catalog:"
+>>>>>>> b0d69105d1e4327f68660c2009a41f75b2532491
+>>>>>>> 945f2c8c421d4ec949c95ac3e0e439a9861b309b
   }
 }
