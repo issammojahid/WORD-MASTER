@@ -70,6 +70,10 @@ async function ensurePlayerCode(playerId: string): Promise<string> {
   return code;
 }
 
+function generatePlayerTag(): number {
+  return Math.floor(1000 + Math.random() * 9000);
+}
+
 // ── SEED TASK & ACHIEVEMENT DEFINITIONS ─────────────────────────────────────
 async function seedTaskAndAchievementDefs() {
   try {
@@ -1363,17 +1367,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!profile) {
         const playerCode = await ensurePlayerCode(req.params.id);
         const randomName = generateRandomPlayerName();
+        const playerTag = generatePlayerTag();
         [profile] = await db.insert(playerProfiles).values({
           id: req.params.id,
           playerCode,
+          playerTag,
           name: randomName,
         }).returning();
-      } else if (!profile.playerCode) {
-        const playerCode = await ensurePlayerCode(req.params.id);
-        [profile] = await db.update(playerProfiles)
-          .set({ playerCode })
-          .where(eq(playerProfiles.id, req.params.id))
-          .returning();
+      } else {
+        const updates: Record<string, unknown> = {};
+        if (!profile.playerCode) updates.playerCode = await ensurePlayerCode(req.params.id);
+        if (!profile.playerTag) updates.playerTag = generatePlayerTag();
+        if (Object.keys(updates).length > 0) {
+          [profile] = await db.update(playerProfiles)
+            .set(updates)
+            .where(eq(playerProfiles.id, req.params.id))
+            .returning();
+        }
       }
       res.json(profile);
     } catch (e) {
@@ -1891,21 +1901,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const q = (req.query.q as string || "").trim();
       const myId = (req.query.playerId as string) || "";
       if (q.length < 2) return res.json([]);
-      const searchCondition = or(
-        ilike(playerProfiles.name, `%${q}%`),
-        ilike(playerProfiles.playerCode, `%${q}%`),
-      );
-      const whereClause = myId
-        ? and(searchCondition, ne(playerProfiles.id, myId))
-        : searchCondition;
-      const rows = await db.select({
+
+      const selectFields = {
         id: playerProfiles.id,
         playerCode: playerProfiles.playerCode,
+        playerTag: playerProfiles.playerTag,
         name: playerProfiles.name,
         skin: playerProfiles.equippedSkin,
         level: playerProfiles.level,
         wins: playerProfiles.wins,
-      }).from(playerProfiles)
+      };
+
+      if (q.includes("#")) {
+        // ── Name#tag format: exact name + exact 4-digit tag ──────────────────
+        const hashIdx = q.lastIndexOf("#");
+        const namePart = q.slice(0, hashIdx).trim();
+        const tagStr = q.slice(hashIdx + 1).trim();
+        const tagNum = parseInt(tagStr, 10);
+
+        if (!namePart || isNaN(tagNum)) return res.json([]);
+
+        const nameCondition = ilike(playerProfiles.name, namePart);
+        const tagCondition = eq(playerProfiles.playerTag, tagNum);
+        const whereClause = myId
+          ? and(nameCondition, tagCondition, ne(playerProfiles.id, myId))
+          : and(nameCondition, tagCondition);
+
+        const rows = await db.select(selectFields).from(playerProfiles)
+          .where(whereClause)
+          .limit(1);
+        return res.json(rows);
+      }
+
+      // ── Normal search: partial name match ────────────────────────────────
+      const searchCondition = ilike(playerProfiles.name, `%${q}%`);
+      const whereClause = myId
+        ? and(searchCondition, ne(playerProfiles.id, myId))
+        : searchCondition;
+
+      const rows = await db.select(selectFields).from(playerProfiles)
         .where(whereClause)
         .limit(20);
       res.json(rows);
@@ -2044,7 +2078,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!profile) {
         const playerCode = await ensurePlayerCode(playerId);
         const randomName = generateRandomPlayerName();
-        [profile] = await db.insert(playerProfiles).values({ id: playerId, playerCode, name: randomName }).returning();
+        [profile] = await db.insert(playerProfiles).values({ id: playerId, playerCode, playerTag: generatePlayerTag(), name: randomName }).returning();
       }
 
       const existingRows = await db.select().from(playerDailyTasks)
@@ -2135,7 +2169,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!profile) {
         const playerCode = await ensurePlayerCode(playerId);
         const randomName = generateRandomPlayerName();
-        [profile] = await db.insert(playerProfiles).values({ id: playerId, playerCode, name: randomName }).returning();
+        [profile] = await db.insert(playerProfiles).values({ id: playerId, playerCode, playerTag: generatePlayerTag(), name: randomName }).returning();
       }
 
       const rows = await db.select().from(playerAchievements).where(eq(playerAchievements.playerId, playerId));

@@ -41,7 +41,7 @@ export default function SettingsScreen() {
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
-  const myDisplayCode = getDisplayCode(profile.name, playerId);
+  const myDisplayCode = getDisplayCode(profile.name, playerId, profile.playerTag);
 
   const handleCopyCode = async () => {
     await Clipboard.setStringAsync(myDisplayCode);

@@ -168,6 +168,7 @@ export const LEVEL_REWARDS: { level: number; coins?: number; skinId?: SkinId; la
 // ── Player Profile ────────────────────────────────────────────────────────────
 export type PlayerProfile = {
   name: string;
+  playerTag: number | null;
   coins: number;
   xp: number;
   level: number;
@@ -226,6 +227,7 @@ const STARTING_COINS = 1000;
 
 const defaultProfile: PlayerProfile = {
   name: "لاعب",
+  playerTag: null,
   coins: 100,
   xp: 0,
   level: 1,

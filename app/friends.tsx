@@ -24,7 +24,7 @@ import { getApiUrl } from "@/lib/query-client";
 import { ScreenErrorBoundary } from "@/components/ScreenErrorBoundary";
 import { getDisplayCode } from "@/lib/player-code";
 
-type PlayerResult = { id: string; name: string; skin: string; level: number; wins: number };
+type PlayerResult = { id: string; name: string; playerTag?: number | null; skin: string; level: number; wins: number };
 type FriendEntry = {
   requestId: string;
   status: "pending" | "accepted" | "rejected";
@@ -58,7 +58,7 @@ function FriendsScreenInner() {
   const searchTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const myDisplayCode = getDisplayCode(profile.name, playerId);
+  const myDisplayCode = getDisplayCode(profile.name, playerId, profile.playerTag);
 
   const copyToClipboard = useCallback(async (text: string) => {
     await Clipboard.setStringAsync(text);
@@ -151,7 +151,9 @@ function FriendsScreenInner() {
         </View>
         <View style={styles.playerInfo}>
           <Text style={[styles.playerName, { color: theme.textPrimary }]}>{player.name}</Text>
-          <Text style={[styles.playerSub, { color: theme.textMuted }]}>المستوى {player.level} · {player.wins} انتصار</Text>
+          <Text style={[styles.playerSub, { color: theme.textMuted }]}>
+            {player.playerTag ? `#${player.playerTag.toString().padStart(4, "0")} · ` : ""}المستوى {player.level} · {player.wins} انتصار
+          </Text>
         </View>
         {extra}
       </View>
