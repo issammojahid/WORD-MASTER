@@ -796,6 +796,9 @@ export default function GameScreen() {
               <Text style={styles.shareCardScore}>
                 ⭐ {sortedPlayers.find(p => p.id === socketId)?.score ?? 0} نقطة
               </Text>
+              <Text style={styles.shareCardScore}>
+                🏅 {profile?.wins ?? 0} انتصار
+              </Text>
               <Text style={styles.shareCardName}>
                 {sortedPlayers.find(p => p.id === socketId)?.name ?? ""}
               </Text>
@@ -821,8 +824,9 @@ export default function GameScreen() {
                       const myScore = myPlayer?.score ?? 0;
                       const rank = myIdx + 1;
                       const totalPlayers = sortedPlayers.length;
+                      const wins = profile?.wins ?? 0;
                       const rankText = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
-                      const message = `${rankText} حصلت على المركز ${rank} من ${totalPlayers} في حروف المغرب!\n⭐ النتيجة: ${myScore} نقطة\n🔥 حمّل اللعبة وتحداني!\n#حروف_المغرب`;
+                      const message = `${rankText} حصلت على المركز ${rank} من ${totalPlayers} في حروف المغرب!\n⭐ النتيجة: ${myScore} نقطة\n🏅 الانتصارات: ${wins}\n🔥 حمّل اللعبة وتحداني!\n#حروف_المغرب`;
                       await Share.share({ message });
                     } else {
                       const uri = await captureRef(shareCardRef, { format: "png", quality: 1 });
@@ -836,8 +840,9 @@ export default function GameScreen() {
                     const myScore = myPlayer?.score ?? 0;
                     const rank = myIdx + 1;
                     const totalPlayers = sortedPlayers.length;
+                    const wins = profile?.wins ?? 0;
                     const rankText = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
-                    const message = `${rankText} حصلت على المركز ${rank} من ${totalPlayers} في حروف المغرب!\n⭐ النتيجة: ${myScore} نقطة\n🔥 حمّل اللعبة وتحداني!\n#حروف_المغرب`;
+                    const message = `${rankText} حصلت على المركز ${rank} من ${totalPlayers} في حروف المغرب!\n⭐ النتيجة: ${myScore} نقطة\n🏅 الانتصارات: ${wins}\n🔥 حمّل اللعبة وتحداني!\n#حروف_المغرب`;
                     await Share.share({ message });
                   }
                 }}

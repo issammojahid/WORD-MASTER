@@ -2302,6 +2302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   async function syncAchievementProgress(playerId: string, profile: { wins: number; gamesPlayed: number; level: number; bestStreak: number; loginStreak?: number; longestLoginStreak?: number; totalScore?: number }) {
+    let tournamentsPlayed: number | null = null;
     for (const def of ACHIEVEMENT_DEFS) {
       let progress = 0;
       if (def.type === "wins")         progress = Math.min(profile.wins, def.target);
@@ -2310,6 +2311,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (def.type === "streak")       progress = Math.min(profile.bestStreak, def.target);
       if (def.type === "login_streak") progress = Math.min(profile.longestLoginStreak ?? 0, def.target);
       if (def.type === "total_score")  progress = Math.min(profile.totalScore ?? 0, def.target);
+      if (def.type === "tournaments") {
+        if (tournamentsPlayed === null) {
+          const result = await db.select({ count: sql<number>`count(*)` }).from(tournamentPlayers).where(eq(tournamentPlayers.playerId, playerId));
+          tournamentsPlayed = Number(result[0]?.count ?? 0);
+        }
+        progress = Math.min(tournamentsPlayed, def.target);
+      }
       const unlocked = progress >= def.target;
       const [existing] = await db.select().from(playerAchievements)
         .where(and(eq(playerAchievements.playerId, playerId), eq(playerAchievements.achievementKey, def.key)));
@@ -2482,6 +2490,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let titleHash = 0;
         for (let i = 0; i < weekId.length; i++) { titleHash = ((titleHash << 5) - titleHash) + weekId.charCodeAt(i); titleHash |= 0; }
         titleAwarded = WEEKLY_TITLE_POOL[Math.abs(titleHash) % WEEKLY_TITLE_POOL.length];
+
+        const freshProfile = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+        if (freshProfile.length > 0) {
+          const currentTitles: string[] = Array.isArray(freshProfile[0].ownedTitles) ? freshProfile[0].ownedTitles as string[] : [];
+          if (!currentTitles.includes(titleAwarded)) {
+            await db.update(playerProfiles).set({
+              ownedTitles: [...currentTitles, titleAwarded],
+              updatedAt: new Date(),
+            }).where(eq(playerProfiles.id, playerId));
+          }
+        }
       }
 
       res.json({ success: true, coinsEarned: def.rewardCoins, xpEarned: def.rewardXp, titleAwarded });
