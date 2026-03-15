@@ -2923,12 +2923,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (referrer.id === playerId) return res.json({ error: "self_referral" });
 
       const REFERRAL_REWARD = 100;
-      await db.update(playerProfiles).set({ referredBy: referralCode.toUpperCase() }).where(eq(playerProfiles.id, playerId));
-      await db.update(playerProfiles).set({
-        referralCount: sql`referral_count + 1`,
-        coins: sql`coins + ${REFERRAL_REWARD}`,
-      }).where(eq(playerProfiles.id, referrer.id));
-      await db.update(playerProfiles).set({ coins: sql`coins + ${REFERRAL_REWARD}` }).where(eq(playerProfiles.id, playerId));
+      await db.transaction(async (tx) => {
+        const result = await tx.update(playerProfiles)
+          .set({ referredBy: referralCode.toUpperCase() })
+          .where(and(eq(playerProfiles.id, playerId), sql`referred_by IS NULL`));
+        await tx.update(playerProfiles).set({
+          referralCount: sql`referral_count + 1`,
+          coins: sql`coins + ${REFERRAL_REWARD}`,
+        }).where(eq(playerProfiles.id, referrer.id));
+        await tx.update(playerProfiles).set({ coins: sql`coins + ${REFERRAL_REWARD}` }).where(eq(playerProfiles.id, playerId));
+      });
 
       res.json({ success: true, reward: REFERRAL_REWARD });
     } catch (e) {
