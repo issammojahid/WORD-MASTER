@@ -3,7 +3,7 @@
     "owner": "aissam09s-organization",
     "name": "حروف المغرب",
     "slug": "huroof-al-maghrib",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "huroofalmaghrib",
@@ -20,6 +20,7 @@
     },
     "android": {
       "package": "com.huroofalmaghrib",
+      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#0D1B2A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

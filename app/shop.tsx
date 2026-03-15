@@ -154,11 +154,11 @@ const COIN_PACKS = [
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 const TABS = [
   { id: "daily",   label: "العروض",    emoji: "🛒",  color: "#10B981" },
+  { id: "spin",    label: "العجلة",    emoji: "🎡",  color: "#06B6D4" },
+  { id: "mystery", label: "صناديق",    emoji: "📦",  color: "#8B5CF6" },
   { id: "avatars", label: "الأفاتار",  emoji: "🦁",  color: "#6C63FF" },
   { id: "effects", label: "تأثيرات",   emoji: "✨",  color: "#EC4899" },
   { id: "titles",  label: "ألقاب",     emoji: "🎖️", color: "#F59E0B" },
-  { id: "mystery", label: "صناديق",    emoji: "📦",  color: "#8B5CF6" },
-  { id: "spin",    label: "العجلة",    emoji: "🎡",  color: "#06B6D4" },
   { id: "coins",   label: "حزم",       emoji: "💎",  color: "#F59E0B" },
 ] as const;
 type TabId = typeof TABS[number]["id"];
@@ -168,11 +168,13 @@ const AnimatedCard = memo(({ children, style, onPress, disabled }: {
   children: React.ReactNode; style?: any; onPress: () => void; disabled?: boolean;
 }) => {
   const scale = useRef(new Animated.Value(1)).current;
+  const pressIn  = () => { Animated.spring(scale, { toValue: 0.94, tension: 260, friction: 9, useNativeDriver: true }).start(); playShopSound("click"); };
+  const pressOut = () => { Animated.spring(scale, { toValue: 1,    tension: 200, friction: 7, useNativeDriver: true }).start(); };
   return (
     <Animated.View style={[{ transform: [{ scale }] }, style]}>
       <TouchableOpacity
-        onPressIn={() => { Animated.spring(scale, { toValue: 0.96, tension: 400, friction: 12, useNativeDriver: true }).start(); playShopSound("click"); }}
-        onPressOut={() => Animated.spring(scale, { toValue: 1, tension: 400, friction: 12, useNativeDriver: true }).start()}
+        onPressIn={pressIn}
+        onPressOut={pressOut}
         onPress={onPress}
         activeOpacity={1}
         disabled={disabled}
@@ -686,7 +688,12 @@ export default function ShopScreen() {
 
             return (
               <AnimatedCard key={skin.id} style={{ width: CARD_W }} onPress={() => handleSkinAction(skin.id)}>
-                <View style={[styles.avatarCard, equipped && { borderColor: rarityColor + "80" }]}>
+                <View style={[
+                  styles.avatarCard,
+                  { borderColor: equipped ? rarityColor + "90" : rarityColor + (skin.rarity === "common" ? "20" : skin.rarity === "rare" ? "38" : skin.rarity === "epic" ? "50" : "70") },
+                  skin.rarity === "legendary" && { shadowColor: rarityColor, shadowOpacity: 0.30, shadowRadius: 14 },
+                  skin.rarity === "epic" && { shadowColor: rarityColor, shadowOpacity: 0.18, shadowRadius: 10 },
+                ]}>
                   {/* Soft rarity glow top strip */}
                   <LinearGradient colors={[rarityColor + "25", "transparent"]} style={styles.cardGlowTop} />
 
@@ -1068,18 +1075,29 @@ export default function ShopScreen() {
           return (
             <TouchableOpacity
               key={tab.id}
-              style={[styles.tabItem, active && { backgroundColor: L.card }]}
+              style={[
+                styles.tabItem,
+                active && {
+                  backgroundColor: L.card,
+                  borderWidth: 1,
+                  borderColor: tab.color + "50",
+                  shadowColor: tab.color,
+                  shadowOpacity: 0.22,
+                  shadowRadius: 8,
+                  elevation: 4,
+                },
+              ]}
               onPress={() => changeTab(tab.id)}
               activeOpacity={0.75}
             >
               {active && (
-                <LinearGradient colors={[tab.color + "18", tab.color + "08"]} style={StyleSheet.absoluteFillObject} />
+                <LinearGradient colors={[tab.color + "22", tab.color + "08"]} style={StyleSheet.absoluteFillObject} />
               )}
-              <Text style={styles.tabEmoji}>{tab.emoji}</Text>
+              <Text style={[styles.tabEmoji, active && { fontSize: 20 }]}>{tab.emoji}</Text>
               <Text style={[styles.tabLabel, { color: active ? tab.color : L.textSub }, active && { fontFamily: "Cairo_700Bold" }]}>
                 {tab.label}
               </Text>
-              {active && <View style={[styles.tabDot, { backgroundColor: tab.color }]} />}
+              {active && <View style={[styles.tabDot, { backgroundColor: tab.color, width: 20, borderRadius: 2 }]} />}
             </TouchableOpacity>
           );
         })}

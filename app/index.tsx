@@ -1206,9 +1206,24 @@ export default function HomeScreen() {
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFillObject}
             />
-            <View style={[styles.avatarCircle, { backgroundColor: equippedSkin.color + "33" }]}>
-              <Text style={styles.avatarEmoji}>{equippedSkin.emoji}</Text>
-            </View>
+            {(() => {
+              const skinRarityColors: Record<string, string> = { common: "#00D4E8", rare: "#A855F7", epic: "#FF3D9A", legendary: "#F5C842" };
+              const skinRingColor = skinRarityColors[equippedSkin.rarity] || "#00D4E8";
+              const isSpecialRarity = equippedSkin.rarity !== "common";
+              return (
+                <View style={[styles.avatarCircle, {
+                  borderWidth: isSpecialRarity ? 2 : 1.5,
+                  borderColor: skinRingColor + (equippedSkin.rarity === "legendary" ? "CC" : equippedSkin.rarity === "epic" ? "99" : "60"),
+                  shadowColor: skinRingColor,
+                  shadowOpacity: equippedSkin.rarity === "legendary" ? 0.55 : equippedSkin.rarity === "epic" ? 0.35 : equippedSkin.rarity === "rare" ? 0.20 : 0,
+                  shadowRadius: equippedSkin.rarity === "legendary" ? 12 : equippedSkin.rarity === "epic" ? 8 : 4,
+                  shadowOffset: { width: 0, height: 0 }, elevation: isSpecialRarity ? 6 : 1,
+                  backgroundColor: equippedSkin.color + "33",
+                }]}>
+                  <Text style={styles.avatarEmoji}>{equippedSkin.emoji}</Text>
+                </View>
+              );
+            })()}
             <View style={styles.profileMeta}>
               <View style={styles.nameEditRow}>
                 <Text style={[styles.playerName, { color: theme.textPrimary }]} numberOfLines={1}>{profile.name}</Text>
