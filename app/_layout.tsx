@@ -108,21 +108,22 @@ function GiftPoller() {
         if (!Array.isArray(gifts) || gifts.length === 0) return;
 
         alertShowing.current = true;
-        const totalCoins = gifts.reduce((sum: number, g: any) => sum + (g.amount || 0), 0);
-        const names = [...new Set(gifts.map((g: any) => g.fromPlayerName))].join("، ");
+        const totalCoins = gifts.reduce((sum: number, g: { amount?: number }) => sum + (g.amount || 0), 0);
+        const names = [...new Set(gifts.map((g: { fromPlayerName?: string }) => g.fromPlayerName))].join("، ");
+
+        try {
+          const markUrl = new URL(`/api/friends/gifts/seen/${playerId}`, getApiUrl());
+          await fetch(markUrl.toString(), { method: "PUT" });
+        } catch {}
+
+        addCoins(totalCoins);
 
         Alert.alert(
           "هدية! 🎁",
           `${names} أرسل${gifts.length > 1 ? "وا" : ""} لك ${totalCoins} عملة`,
           [{
             text: "رائع!",
-            onPress: async () => {
-              alertShowing.current = false;
-              try {
-                const markUrl = new URL(`/api/friends/gifts/seen/${playerId}`, getApiUrl());
-                await fetch(markUrl.toString(), { method: "PUT" });
-              } catch {}
-            },
+            onPress: () => { alertShowing.current = false; },
           }]
         );
       } catch {}
