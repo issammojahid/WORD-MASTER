@@ -339,7 +339,7 @@ function FriendsScreenInner() {
                       setGiftModal({ visible: true, targetId: row.player.id, targetName: row.player.name });
                     }}
                   >
-                    <Text style={{ fontSize: 14 }}>🎁</Text>
+                    <Text style={{ fontSize: 12, fontFamily: "Cairo_600SemiBold", color: Colors.gold }}>🎁 أهدِ</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.inviteBtn}

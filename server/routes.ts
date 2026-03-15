@@ -93,11 +93,11 @@ async function ensurePlayerCode(playerId: string): Promise<string> {
 }
 
 async function generateUniqueReferralCode(): Promise<string> {
-  let code = "REF-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+  let code = "WM-" + Math.random().toString(36).substring(2, 8).toUpperCase();
   for (let attempt = 0; attempt < 10; attempt++) {
     const dup = await db.select({ id: playerProfiles.id }).from(playerProfiles).where(eq(playerProfiles.referralCode, code));
     if (dup.length === 0) break;
-    code = "REF-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+    code = "WM-" + Math.random().toString(36).substring(2, 8).toUpperCase();
   }
   return code;
 }
