@@ -20,23 +20,23 @@ import Colors from "@/constants/colors";
 const { width: SW, height: SH } = Dimensions.get("window");
 const CARD_W = (SW - 52) / 2;
 
-// ── Light Design Tokens ──────────────────────────────────────────────────────
+// ── Shop Design Tokens (Dark Theme) ──────────────────────────────────────────
 const L = {
-  bg:         "#F0F3FF",
-  card:       "#FFFFFF",
-  cardBorder: "#E8EEF8",
-  shadow:     "#6C63FF22",
-  textMain:   "#1A1A3A",
-  textSub:    "#6B7A99",
-  purple:     "#6C63FF",
-  purpleLight:"#EDE9FE",
+  bg:         "#0D1B2A",
+  card:       "#1E3448",
+  cardBorder: "#2A4560",
+  shadow:     "#00000060",
+  textMain:   "#F0E6D3",
+  textSub:    "#A8B8CC",
+  purple:     "#7C5CFC",
+  purpleLight:"#2D1B69",
   gold:       "#F59E0B",
-  goldLight:  "#FEF3C7",
+  goldLight:  "#3A2800",
   cyan:       "#06B6D4",
   green:      "#10B981",
   pink:       "#EC4899",
-  tabBg:      "#F0F3FF",
-  tabActive:  "#6C63FF",
+  tabBg:      "#142233",
+  tabActive:  "#7C5CFC",
 };
 
 // ── Sound helper ─────────────────────────────────────────────────────────────
@@ -138,17 +138,17 @@ function getTimeUntilMidnight(): string {
 
 // ── Box tiers ─────────────────────────────────────────────────────────────────
 const BOX_TIERS = [
-  { id: "basic" as const,     nameAr: "صندوق أساسي",   emoji: "🎁", price: 100, glowColor: "#9CA3AF", lightGlow: "#9CA3AF40", gradient: ["#F8FAFC", "#E2E8F0"] as [string,string], accentColor: "#64748B", poolLabel: "عادي · نادر",    coinMin: 50,  coinMax: 150 },
-  { id: "rare" as const,      nameAr: "صندوق نادر",     emoji: "💜", price: 300, glowColor: "#8B5CF6", lightGlow: "#8B5CF630", gradient: ["#F5F3FF", "#EDE9FE"] as [string,string], accentColor: "#7C3AED", poolLabel: "نادر · ملحمي",  coinMin: 150, coinMax: 350 },
-  { id: "legendary" as const, nameAr: "صندوق أسطوري",  emoji: "⭐", price: 600, glowColor: "#F59E0B", lightGlow: "#F59E0B30", gradient: ["#FFFBEB", "#FEF3C7"] as [string,string], accentColor: "#D97706", poolLabel: "ملحمي · أسطوري", coinMin: 300, coinMax: 700 },
+  { id: "basic" as const,     nameAr: "صندوق أساسي",   emoji: "🎁", price: 100, glowColor: "#9CA3AF", lightGlow: "#9CA3AF40", gradient: ["#1A2D42", "#142233"] as [string,string], accentColor: "#A8B8CC", poolLabel: "عادي · نادر",    coinMin: 50,  coinMax: 150 },
+  { id: "rare" as const,      nameAr: "صندوق نادر",     emoji: "💜", price: 300, glowColor: "#8B5CF6", lightGlow: "#8B5CF630", gradient: ["#2D1B69", "#1A1040"] as [string,string], accentColor: "#A78BFA", poolLabel: "نادر · ملحمي",  coinMin: 150, coinMax: 350 },
+  { id: "legendary" as const, nameAr: "صندوق أسطوري",  emoji: "⭐", price: 600, glowColor: "#F59E0B", lightGlow: "#F59E0B30", gradient: ["#3A2800", "#4A3200"] as [string,string], accentColor: "#F59E0B", poolLabel: "ملحمي · أسطوري", coinMin: 300, coinMax: 700 },
 ] as const;
 type BoxTierId = typeof BOX_TIERS[number]["id"];
 
 // ── Coin packs ────────────────────────────────────────────────────────────────
 const COIN_PACKS = [
-  { id: "starter",  coins: 500,   bonus: 0,   price: "مجاناً مع الإعلان", priceCoins: 0,   emoji: "🪙", gradient: ["#EEF2FF","#E0E7FF"] as [string,string], accent: "#6C63FF", badge: null },
-  { id: "medium",   coins: 1200,  bonus: 200, price: "عرض خاص",           priceCoins: 0,   emoji: "💰", gradient: ["#F0FDF4","#DCFCE7"] as [string,string], accent: "#10B981", badge: "الأكثر شراءً" },
-  { id: "premium",  coins: 3000,  bonus: 800, price: "قيمة مضاعفة",       priceCoins: 0,   emoji: "💎", gradient: ["#FFF7ED","#FEF3C7"] as [string,string], accent: "#F59E0B", badge: "الأفضل قيمة" },
+  { id: "starter",  coins: 500,   bonus: 0,   price: "مجاناً مع الإعلان", priceCoins: 0,   emoji: "🪙", gradient: ["#1A1040","#2D1B69"] as [string,string], accent: "#7C5CFC", badge: null },
+  { id: "medium",   coins: 1200,  bonus: 200, price: "عرض خاص",           priceCoins: 0,   emoji: "💰", gradient: ["#0A2918","#0D3320"] as [string,string], accent: "#10B981", badge: "الأكثر شراءً" },
+  { id: "premium",  coins: 3000,  bonus: 800, price: "قيمة مضاعفة",       priceCoins: 0,   emoji: "💎", gradient: ["#3A2800","#4A3200"] as [string,string], accent: "#F59E0B", badge: "الأفضل قيمة" },
 ] as const;
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
@@ -325,7 +325,7 @@ function BoxOpeningModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.boxModalOverlay}>
         <View style={styles.boxModalContent}>
-          <LinearGradient colors={["#F5F3FF", "#EEF2FF", "#F0FDF4"]} style={StyleSheet.absoluteFillObject} />
+          <LinearGradient colors={["#1A1040", "#0D1B2A", "#142233"]} style={StyleSheet.absoluteFillObject} />
 
           {/* Floating particles inside modal */}
           <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
@@ -550,7 +550,7 @@ export default function ShopScreen() {
   const renderDaily = () => (
     <>
       {/* Timer banner */}
-      <LinearGradient colors={["#ECFDF5", "#D1FAE5"]} style={styles.dailyBanner}>
+      <LinearGradient colors={["#0A2918", "#0D3320"]} style={styles.dailyBanner}>
         <View>
           <Text style={styles.dailyBannerTitle}>عروض اليوم 🏷️</Text>
           <Text style={styles.dailyBannerSub}>خصم 30% على المنتجات المختارة</Text>
@@ -592,12 +592,12 @@ export default function ShopScreen() {
               </View>
             </View>
             {owned || bought ? (
-              <View style={[styles.dailyActionBtn, { backgroundColor: "#D1FAE5" }]}>
+              <View style={[styles.dailyActionBtn, { backgroundColor: "#0A2918" }]}>
                 <Text style={[styles.dailyActionText, { color: L.green }]}>✓ {owned ? "تملكه" : "مشترى"}</Text>
               </View>
             ) : (
               <TouchableOpacity
-                style={[styles.dailyActionBtn, { backgroundColor: canAfford ? L.purple : "#E2E8F0" }]}
+                style={[styles.dailyActionBtn, { backgroundColor: canAfford ? L.purple : "#2A4560" }]}
                 onPress={() => handleDailyBuy(item)}
                 activeOpacity={0.85}
               >
@@ -720,15 +720,15 @@ export default function ShopScreen() {
 
                   {/* Action button */}
                   {owned ? (
-                    <View style={[styles.cardActionBtn, equipped ? { backgroundColor: "#DCFCE7" } : { backgroundColor: "#EEF2FF" }]}>
+                    <View style={[styles.cardActionBtn, equipped ? { backgroundColor: "#0A2918" } : { backgroundColor: "#1A1040" }]}>
                       <Text style={[styles.cardActionText, equipped ? { color: L.green } : { color: L.purple }]}>{equipped ? "✓ مُجهَّز" : "تجهيز"}</Text>
                     </View>
                   ) : unlockCond ? (
-                    <View style={[styles.cardActionBtn, { backgroundColor: "#F3E8FF" }]}>
-                      <Text style={[styles.cardActionText, { color: "#8B5CF6" }]} numberOfLines={1}>{unlockCurrent}/{unlockCond.value}</Text>
+                    <View style={[styles.cardActionBtn, { backgroundColor: "#2D1B69" }]}>
+                      <Text style={[styles.cardActionText, { color: "#A78BFA" }]} numberOfLines={1}>{unlockCurrent}/{unlockCond.value}</Text>
                     </View>
                   ) : (
-                    <View style={[styles.cardActionBtn, canAfford ? { backgroundColor: L.goldLight } : { backgroundColor: "#F1F5F9" }]}>
+                    <View style={[styles.cardActionBtn, canAfford ? { backgroundColor: L.goldLight } : { backgroundColor: "#2A4560" }]}>
                       <Ionicons name="star" size={11} color={canAfford ? L.gold : L.textSub} />
                       <Text style={[styles.cardActionText, { color: canAfford ? L.gold : L.textSub }]}>{skin.price}</Text>
                     </View>
@@ -774,15 +774,15 @@ export default function ShopScreen() {
                 {effect.descAr && <Text style={styles.avatarCardDesc} numberOfLines={2}>{effect.descAr}</Text>}
 
                 {owned ? (
-                  <View style={[styles.cardActionBtn, equipped ? { backgroundColor: "#DCFCE7" } : { backgroundColor: "#EEF2FF" }]}>
+                  <View style={[styles.cardActionBtn, equipped ? { backgroundColor: "#0A2918" } : { backgroundColor: "#1A1040" }]}>
                     <Text style={[styles.cardActionText, equipped ? { color: L.green } : { color: L.purple }]}>{equipped ? "✓ مُجهَّز" : "تجهيز"}</Text>
                   </View>
                 ) : effect.price === 0 ? (
-                  <View style={[styles.cardActionBtn, { backgroundColor: "#EEF2FF" }]}>
+                  <View style={[styles.cardActionBtn, { backgroundColor: "#1A1040" }]}>
                     <Text style={[styles.cardActionText, { color: L.purple }]}>تجهيز</Text>
                   </View>
                 ) : (
-                  <View style={[styles.cardActionBtn, canAfford ? { backgroundColor: L.goldLight } : { backgroundColor: "#F1F5F9" }]}>
+                  <View style={[styles.cardActionBtn, canAfford ? { backgroundColor: L.goldLight } : { backgroundColor: "#2A4560" }]}>
                     <Ionicons name="star" size={11} color={canAfford ? L.gold : L.textSub} />
                     <Text style={[styles.cardActionText, { color: canAfford ? L.gold : L.textSub }]}>{effect.price}</Text>
                   </View>
@@ -862,15 +862,15 @@ export default function ShopScreen() {
                   <Text style={styles.avatarCardDesc} numberOfLines={2}>{title.descAr}</Text>
 
                   {owned ? (
-                    <View style={[styles.cardActionBtn, equipped ? { backgroundColor: "#DCFCE7" } : { backgroundColor: "#EEF2FF" }]}>
+                    <View style={[styles.cardActionBtn, equipped ? { backgroundColor: "#0A2918" } : { backgroundColor: "#1A1040" }]}>
                       <Text style={[styles.cardActionText, equipped ? { color: L.green } : { color: L.purple }]}>{equipped ? "✓ مُفعَّل" : "تفعيل"}</Text>
                     </View>
                   ) : unlockCond ? (
-                    <View style={[styles.cardActionBtn, { backgroundColor: condMet ? "#D1FAE5" : "#F3E8FF" }]}>
-                      <Text style={[styles.cardActionText, { color: condMet ? L.green : "#8B5CF6" }]}>{condMet ? "افتح الآن" : `${unlockCur}/${unlockCond.value}`}</Text>
+                    <View style={[styles.cardActionBtn, { backgroundColor: condMet ? "#0A2918" : "#2D1B69" }]}>
+                      <Text style={[styles.cardActionText, { color: condMet ? L.green : "#A78BFA" }]}>{condMet ? "افتح الآن" : `${unlockCur}/${unlockCond.value}`}</Text>
                     </View>
                   ) : (
-                    <View style={[styles.cardActionBtn, canAfford ? { backgroundColor: L.goldLight } : { backgroundColor: "#F1F5F9" }]}>
+                    <View style={[styles.cardActionBtn, canAfford ? { backgroundColor: L.goldLight } : { backgroundColor: "#2A4560" }]}>
                       <Ionicons name="star" size={11} color={canAfford ? L.gold : L.textSub} />
                       <Text style={[styles.cardActionText, { color: canAfford ? L.gold : L.textSub }]}>{title.price}</Text>
                     </View>
@@ -916,7 +916,7 @@ export default function ShopScreen() {
             </View>
 
             <View style={styles.boxTierRight}>
-              <View style={[styles.priceBadge, { backgroundColor: canAfford ? L.goldLight : "#F1F5F9" }]}>
+              <View style={[styles.priceBadge, { backgroundColor: canAfford ? L.goldLight : "#2A4560" }]}>
                 <Ionicons name="star" size={12} color={canAfford ? L.gold : L.textSub} />
                 <Text style={[styles.priceText, { color: canAfford ? L.gold : L.textSub }]}>{tier.price}</Text>
               </View>
@@ -1037,8 +1037,8 @@ export default function ShopScreen() {
   // ── Main return ───────────────────────────────────────────────────────────
   return (
     <View style={[styles.container, { paddingTop: topInset }]}>
-      {/* Light gradient background */}
-      <LinearGradient colors={["#EEF2FF", "#F5F3FF", "#F0FDF4"]} style={StyleSheet.absoluteFillObject} />
+      {/* Dark gradient background */}
+      <LinearGradient colors={["#0D1B2A", "#142233", "#0D1B2A"]} style={StyleSheet.absoluteFillObject} />
       <ShopParticles />
 
       {/* Header */}
@@ -1111,7 +1111,7 @@ export default function ShopScreen() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#EEF2FF" },
+  container: { flex: 1, backgroundColor: "#0D1B2A" },
 
   header: {
     flexDirection: "row", alignItems: "center",
@@ -1149,13 +1149,13 @@ const styles = StyleSheet.create({
   dailyBanner: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     borderRadius: 16, padding: 16, marginBottom: 4,
-    borderWidth: 1, borderColor: "#A7F3D0",
+    borderWidth: 1, borderColor: "#1A5C3A",
   },
   dailyBannerTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: L.textMain },
   dailyBannerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: L.textSub },
   timerBadge: {
     flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: "#D1FAE5", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5,
+    backgroundColor: "#0A2918", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5,
   },
   timerText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: L.green },
   dailyCard: {
