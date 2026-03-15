@@ -246,6 +246,10 @@ export default function GameScreen() {
   const [chatBubbles, setChatBubbles] = useState<ChatBubble[]>([]);
   const [streakReward, setStreakReward] = useState<{ streakBonus: number; coinEntryReward: number } | null>(null);
 
+  const gameOverSlide = useRef(new Animated.Value(60)).current;
+  const gameOverOpacity = useRef(new Animated.Value(0)).current;
+  const winnerBounce = useRef(new Animated.Value(0)).current;
+
   // ── Power cards state ──────────────────────────────────────────────────────
   // usedCards: cards already used THIS round (cleared on new_round)
   const [usedCards, setUsedCards] = useState<Set<PowerCardId>>(new Set());
@@ -282,7 +286,25 @@ export default function GameScreen() {
 
   useEffect(() => { answersRef.current = answers; }, [answers]);
   useEffect(() => { submittedRef.current = submitted; }, [submitted]);
-  useEffect(() => { isGameOverRef.current = isGameOver; }, [isGameOver]);
+  useEffect(() => {
+    isGameOverRef.current = isGameOver;
+    if (isGameOver) {
+      gameOverSlide.setValue(60);
+      gameOverOpacity.setValue(0);
+      winnerBounce.setValue(0);
+      Animated.parallel([
+        Animated.spring(gameOverSlide, { toValue: 0, tension: 80, friction: 10, useNativeDriver: true }),
+        Animated.timing(gameOverOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+      ]).start(() => {
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(winnerBounce, { toValue: -8, duration: 500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+            Animated.timing(winnerBounce, { toValue: 0, duration: 500, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          ])
+        ).start();
+      });
+    }
+  }, [isGameOver]);
   useEffect(() => { gamePlayersRef.current = gamePlayers; }, [gamePlayers]);
 
   useEffect(() => {
@@ -660,14 +682,25 @@ export default function GameScreen() {
     const podiumOrder = [1, 0, 2];
     const podiumHeights = [90, 130, 70];
 
+    const podiumBaseColors = ["#C49B00", "#7A8FA0", "#8B5E3C"];
+    const podiumBorderColors = [Colors.gold + "80", "#9EB3C4" + "80", "#CD8042" + "80"];
+
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+        <Animated.View style={{ flex: 1, opacity: gameOverOpacity, transform: [{ translateY: gameOverSlide }] }}>
         <ScrollView contentContainerStyle={styles.gameOverContent} showsVerticalScrollIndicator={false}>
-          <Text style={[styles.gameOverTitle, { color: theme.textPrimary }]}>{t.gameOver}</Text>
-          {amWinner ? <Text style={[styles.gameOverSub, { color: theme.textSecondary }]}>🏆 أنت الفائز!</Text>
+          {/* Title with winner bounce */}
+          {amWinner ? (
+            <Animated.Text style={[styles.gameOverTitle, { color: Colors.gold, transform: [{ translateY: winnerBounce }] }]}>
+              🏆 أنت الفائز!
+            </Animated.Text>
+          ) : (
+            <Text style={[styles.gameOverTitle, { color: theme.textPrimary }]}>{t.gameOver}</Text>
+          )}
+          {amWinner ? <Text style={[styles.gameOverSub, { color: Colors.gold + "CC" }]}>أداء رائع — استمر!</Text>
             : myIdx === 1 ? <Text style={[styles.gameOverSub, { color: theme.textSecondary }]}>🥈 المركز الثاني — أحسنت!</Text>
             : myIdx === 2 ? <Text style={[styles.gameOverSub, { color: theme.textSecondary }]}>🥉 المركز الثالث — لا بأس!</Text>
-            : <Text style={[styles.gameOverSub, { color: theme.textSecondary }]}>حاول مرة أخرى!</Text>}
+            : <Text style={[styles.gameOverSub, { color: theme.textSecondary }]}>حاول مرة أخرى! 💪</Text>}
 
           {podiumPlayers.length >= 2 && (
             <View style={styles.podiumRow}>
@@ -680,14 +713,19 @@ export default function GameScreen() {
                 const isFirst = pIdx === 0;
                 return (
                   <View key={p.id} style={styles.podiumSlot}>
-                    <Text style={styles.podiumMedal}>{medals[pIdx] || "🎖️"}</Text>
-                    <View style={[styles.podiumAvatar, isFirst && styles.podiumAvatarFirst, { backgroundColor: skin.color + "33" }]}>
+                    <Text style={[styles.podiumMedal, isFirst && { fontSize: 32 }]}>{medals[pIdx] || "🎖️"}</Text>
+                    <View style={[
+                      styles.podiumAvatar,
+                      isFirst && styles.podiumAvatarFirst,
+                      { backgroundColor: skin.color + "33", borderWidth: 2.5, borderColor: podiumBorderColors[pIdx] || "#2A4560" },
+                      isFirst && { shadowColor: Colors.gold, shadowOpacity: 0.5, shadowRadius: 12, elevation: 8 },
+                    ]}>
                       <Text style={[styles.podiumEmoji, isFirst && styles.podiumEmojiFirst]}>{skin.emoji}</Text>
                     </View>
-                    <Text style={[styles.podiumName, { color: isMe ? Colors.gold : theme.textPrimary }]} numberOfLines={1}>{p.name}</Text>
-                    <Text style={[styles.podiumScore, { color: theme.textSecondary }]}>{p.score}</Text>
-                    <View style={[styles.podiumBase, { height: h, backgroundColor: theme.cardBorder }, isFirst && styles.podiumBaseFirst]}>
-                      <Text style={[styles.podiumRank, { color: theme.textPrimary }]}>{pIdx + 1}</Text>
+                    <Text style={[styles.podiumName, { color: isMe ? Colors.gold : theme.textPrimary }, isFirst && { fontFamily: "Cairo_700Bold" }]} numberOfLines={1}>{p.name}</Text>
+                    <Text style={[styles.podiumScore, { color: isFirst ? Colors.gold : theme.textSecondary }]}>{p.score} نقطة</Text>
+                    <View style={[styles.podiumBase, { height: h, backgroundColor: podiumBaseColors[pIdx] || "#2A4560" }, isFirst && styles.podiumBaseFirst]}>
+                      <Text style={[styles.podiumRank, { color: isFirst ? "#0D1B2A" : "#F0E6D3" }]}>{pIdx + 1}</Text>
                     </View>
                   </View>
                 );
@@ -745,14 +783,16 @@ export default function GameScreen() {
             </View>
           )}
 
-          <TouchableOpacity style={styles.playAgainBtn} onPress={handlePlayAgain}>
+          <TouchableOpacity style={styles.playAgainBtn} onPress={handlePlayAgain} activeOpacity={0.85}>
             <Ionicons name="refresh" size={18} color={"#0D1B2A"} style={{ marginRight: 8 }} />
             <Text style={styles.playAgainBtnText}>{t.playAgain}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.homeBtn, { backgroundColor: theme.card, borderColor: theme.cardBorder }]} onPress={() => router.replace("/")}>
+          <TouchableOpacity style={[styles.homeBtn, { backgroundColor: theme.card, borderColor: theme.cardBorder }]} onPress={() => router.replace("/")} activeOpacity={0.8}>
+            <Ionicons name="home-outline" size={16} color={theme.textSecondary} style={{ marginRight: 6 }} />
             <Text style={[styles.homeBtnText, { color: theme.textSecondary }]}>{t.backToHome}</Text>
           </TouchableOpacity>
         </ScrollView>
+        </Animated.View>
       </View>
     );
   }
@@ -1291,7 +1331,7 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "center",
   },
   playAgainBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#000000" },
-  homeBtn: { backgroundColor: "#1E3448", borderRadius: 16, paddingVertical: 14, paddingHorizontal: 40, borderWidth: 1, borderColor: "#2A4560" },
+  homeBtn: { backgroundColor: "#1E3448", borderRadius: 16, paddingVertical: 14, paddingHorizontal: 40, borderWidth: 1, borderColor: "#2A4560", flexDirection: "row", alignItems: "center", justifyContent: "center" },
   homeBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 16, color: "#A8B8CC" },
 
   // Exit game button (top-left of gameTopBar)

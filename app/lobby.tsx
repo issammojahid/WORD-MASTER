@@ -759,26 +759,50 @@ export default function LobbyScreen() {
         <Text style={styles.playersTitle}>{t.players}: {room.players.length}/8</Text>
 
         <ScrollView style={styles.playersList} showsVerticalScrollIndicator={false}>
-          {room.players.map((player) => {
+          {room.players.map((player, idx) => {
             const skin = SKINS.find((s) => s.id === player.skin) || SKINS[0];
             const isMe = player.id === socketId;
             const isSpeaking = speakingPlayers.has(player.id);
+            const rarityRingColors: Record<string, string> = { common: "#00D4E8", rare: "#A855F7", epic: "#FF3D9A", legendary: "#F5C842" };
+            const ringColor = rarityRingColors[skin.rarity] || "#00D4E8";
+            const isSpecialRarity = skin.rarity !== "common";
             return (
-              <View key={player.id} style={[styles.playerRow, isMe && styles.playerRowMe]}>
-                <View style={[styles.playerAvatarSmall, { backgroundColor: skin.color + "33" }]}>
+              <View key={player.id} style={[
+                styles.playerRow,
+                isMe && styles.playerRowMe,
+                isMe && { borderColor: Colors.gold + "70", shadowColor: Colors.gold, shadowOpacity: 0.18, shadowRadius: 8, elevation: 4 },
+              ]}>
+                <View style={[
+                  styles.playerAvatarSmall,
+                  { backgroundColor: skin.color + "33" },
+                  { borderWidth: isSpecialRarity ? 2 : 1.5, borderColor: ringColor + (isSpecialRarity ? "90" : "50") },
+                  isSpecialRarity && { shadowColor: ringColor, shadowOpacity: 0.3, shadowRadius: 6, elevation: 4 },
+                ]}>
                   <Text style={styles.playerAvatarEmoji}>{skin.emoji}</Text>
+                  {isSpeaking && voiceEnabled && (
+                    <View style={styles.speakingRing} />
+                  )}
                 </View>
-                <Text style={styles.playerRowName}>{player.name}{isMe ? " (أنت)" : ""}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.playerRowName, isMe && { color: Colors.gold }]}>{player.name}{isMe ? " (أنت)" : ""}</Text>
+                  {player.isHost && (
+                    <Text style={styles.playerRoleText}>مضيف الغرفة</Text>
+                  )}
+                </View>
                 <View style={styles.playerRowRight}>
                   {isSpeaking && voiceEnabled && (
-                    <Ionicons name="volume-high" size={14} color={Colors.emerald} />
+                    <View style={styles.speakingActiveBadge}>
+                      <Ionicons name="volume-high" size={12} color={Colors.emerald} />
+                    </View>
                   )}
                   {player.isHost && (
                     <View style={styles.hostBadge}>
                       <Ionicons name="star" size={10} color={Colors.gold} />
-                      <Text style={styles.hostBadgeText}>مضيف</Text>
                     </View>
                   )}
+                  <View style={[styles.playerIndexBadge, { backgroundColor: "#2A4560" }]}>
+                    <Text style={styles.playerIndexText}>{idx + 1}</Text>
+                  </View>
                 </View>
               </View>
             );
@@ -1027,12 +1051,17 @@ const styles = StyleSheet.create({
   playersTitle: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#A8B8CC", paddingHorizontal: 16, marginBottom: 8 },
   playersList: { flex: 1, paddingHorizontal: 16 },
   playerRow: { flexDirection: "row", alignItems: "center", backgroundColor: "#1E3448", borderRadius: 14, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: "#2A4560" },
-  playerRowMe: { borderColor: Colors.gold + "60" },
-  playerAvatarSmall: { width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center", marginRight: 12 },
-  playerAvatarEmoji: { fontSize: 20 },
-  playerRowName: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#F0E6D3" },
-  playerRowRight: { flexDirection: "row", alignItems: "center", gap: 8 },
-  hostBadge: { flexDirection: "row", alignItems: "center", backgroundColor: Colors.gold + "20", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, gap: 3 },
+  playerRowMe: { borderColor: Colors.gold + "60", backgroundColor: Colors.gold + "06" },
+  playerAvatarSmall: { width: 46, height: 46, borderRadius: 23, justifyContent: "center", alignItems: "center", marginRight: 12, position: "relative" },
+  speakingRing: { position: "absolute", top: -3, left: -3, right: -3, bottom: -3, borderRadius: 26, borderWidth: 2, borderColor: Colors.emerald + "CC" },
+  speakingActiveBadge: { width: 24, height: 24, borderRadius: 12, backgroundColor: Colors.emerald + "22", justifyContent: "center", alignItems: "center" },
+  playerRoleText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: Colors.gold + "AA", marginTop: 1 },
+  playerIndexBadge: { width: 22, height: 22, borderRadius: 11, justifyContent: "center", alignItems: "center" },
+  playerIndexText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#A8B8CC" },
+  playerAvatarEmoji: { fontSize: 22 },
+  playerRowName: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#F0E6D3" },
+  playerRowRight: { flexDirection: "row", alignItems: "center", gap: 6 },
+  hostBadge: { width: 26, height: 26, borderRadius: 13, backgroundColor: Colors.gold + "22", justifyContent: "center", alignItems: "center" },
   hostBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.gold },
   minPlayersHint: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 16, paddingVertical: 8 },
   minPlayersText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#6B7E91" },

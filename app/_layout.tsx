@@ -120,22 +120,22 @@ function RootLayoutNav() {
       <InvitePoller />
       <DailyResetChecker />
       <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="lobby" />
-        <Stack.Screen name="game" />
-        <Stack.Screen name="ai-game" />
-        <Stack.Screen name="leaderboard" />
-        <Stack.Screen name="shop" />
-        <Stack.Screen name="settings" />
-        <Stack.Screen name="offline" />
-        <Stack.Screen name="friends" />
-        <Stack.Screen name="tasks" />
-        <Stack.Screen name="achievements" />
-        <Stack.Screen name="spin" />
-        <Stack.Screen name="league" />
-        <Stack.Screen name="tournament" />
-        <Stack.Screen name="rapid" />
-        <Stack.Screen name="+not-found" />
+        <Stack.Screen name="index" options={{ animation: "fade" }} />
+        <Stack.Screen name="lobby" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="game" options={{ animation: "fade" }} />
+        <Stack.Screen name="ai-game" options={{ animation: "fade" }} />
+        <Stack.Screen name="leaderboard" options={{ animation: "slide_from_bottom" }} />
+        <Stack.Screen name="shop" options={{ animation: "slide_from_bottom" }} />
+        <Stack.Screen name="settings" options={{ animation: "slide_from_bottom" }} />
+        <Stack.Screen name="offline" options={{ animation: "fade" }} />
+        <Stack.Screen name="friends" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="tasks" options={{ animation: "slide_from_bottom" }} />
+        <Stack.Screen name="achievements" options={{ animation: "slide_from_bottom" }} />
+        <Stack.Screen name="spin" options={{ animation: "slide_from_bottom" }} />
+        <Stack.Screen name="league" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="tournament" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="rapid" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="+not-found" options={{ animation: "fade" }} />
       </Stack>
     </>
   );
