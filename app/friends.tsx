@@ -34,6 +34,22 @@ type FriendEntry = {
 
 type TabType = "friends" | "search" | "requests" | "gifts";
 
+type GiftHistoryEntry = {
+  id: string;
+  type: "sent" | "received";
+  playerName: string;
+  amount: number;
+  sentAt: string;
+};
+
+type PendingGift = {
+  id: string;
+  fromPlayerId: string;
+  fromName: string;
+  amount: number;
+  sentAt: string;
+};
+
 type ApiFetchOptions = { method?: string; body?: BodyInit; headers?: HeadersInit };
 async function apiFetch(url: string, options?: ApiFetchOptions) {
   try {
@@ -110,7 +126,7 @@ function FriendsScreenInner() {
     enabled: !!playerId && tab === "gifts",
     initialData: [],
   });
-  const giftHistory: any[] = Array.isArray(giftHistoryRaw) ? giftHistoryRaw : [];
+  const giftHistory: GiftHistoryEntry[] = Array.isArray(giftHistoryRaw) ? giftHistoryRaw : [];
 
   const allFriendRows: FriendEntry[] = Array.isArray(friendRowsRaw) ? friendRowsRaw : [];
 
@@ -465,7 +481,7 @@ function FriendsScreenInner() {
               <Text style={[styles.emptySubText, { color: theme.textMuted }]}>أرسل هدية لأصدقائك من تبويب الأصدقاء</Text>
             </View>
           ) : (
-            giftHistory.map((gift: any, idx: number) => (
+            giftHistory.map((gift: GiftHistoryEntry, idx: number) => (
               <View key={gift.id || idx} style={[styles.giftHistoryRow, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
                 <View style={[styles.giftHistoryIcon, { backgroundColor: gift.type === "sent" ? Colors.ruby + "18" : Colors.emerald + "18" }]}>
                   <Ionicons name={gift.type === "sent" ? "arrow-up" : "arrow-down"} size={16} color={gift.type === "sent" ? Colors.ruby : Colors.emerald} />

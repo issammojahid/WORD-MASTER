@@ -28,6 +28,9 @@ import { type Language } from "@/constants/i18n";
 import { getDisplayCode } from "@/lib/player-code";
 import { getApiUrl } from "@/lib/query-client";
 import { fetch } from "expo/fetch";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+const REFERRAL_PROMPTED_KEY = "referral_prompted_v1";
 
 const LOGO = {
   cyan:   "#00F5FF",
@@ -49,6 +52,7 @@ export default function SettingsScreen() {
   const [refInput, setRefInput] = useState("");
   const [refClaiming, setRefClaiming] = useState(false);
   const [refAlreadyClaimed, setRefAlreadyClaimed] = useState(false);
+  const [refPromptDismissed, setRefPromptDismissed] = useState(false);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
@@ -75,6 +79,9 @@ export default function SettingsScreen() {
     if (!playerId) return;
     (async () => {
       try {
+        const prompted = await AsyncStorage.getItem(REFERRAL_PROMPTED_KEY);
+        if (prompted === "true") setRefPromptDismissed(true);
+
         const url = new URL(`/api/referral/${playerId}`, getApiUrl());
         const res = await fetch(url.toString());
         if (res.ok) {
@@ -116,10 +123,12 @@ export default function SettingsScreen() {
       if (data.success) {
         addCoins(data.reward);
         setRefAlreadyClaimed(true);
+        await AsyncStorage.setItem(REFERRAL_PROMPTED_KEY, "true");
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         Alert.alert("مبروك! 🎉", `حصلت على ${data.reward} عملة مجاناً!`);
       } else if (data.error === "already_claimed") {
         setRefAlreadyClaimed(true);
+        await AsyncStorage.setItem(REFERRAL_PROMPTED_KEY, "true");
         Alert.alert("", "لقد استخدمت كود إحالة من قبل");
       } else if (data.error === "invalid_code") {
         Alert.alert("", "كود الإحالة غير صالح");
@@ -199,7 +208,7 @@ export default function SettingsScreen() {
             </Text>
           </View>
 
-          {!refAlreadyClaimed && (
+          {!refAlreadyClaimed && !refPromptDismissed && (
             <View style={[styles.refInputCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
               <Text style={[styles.refLabel, { color: theme.textMuted }]}>هل لديك كود إحالة؟</Text>
               <View style={styles.refInputRow}>

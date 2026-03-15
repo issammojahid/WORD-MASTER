@@ -823,10 +823,10 @@ export default function GameScreen() {
 
           <View style={styles.emoteRow}>
             {[
-              { emote: "🤝", label: "أحسنت" },
-              { emote: "🔥", label: "نار" },
-              { emote: "😢", label: "حظ" },
-              { emote: "👏", label: "برافو" },
+              { emote: "🤝", label: "ألعب مجدداً" },
+              { emote: "🔥", label: "رائع" },
+              { emote: "😢", label: "محظوظ" },
+              { emote: "👏", label: "أحسنت" },
             ].map((e) => (
               <TouchableOpacity
                 key={e.emote}
