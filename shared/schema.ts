@@ -122,7 +122,37 @@ export const friends = pgTable("friends", {
 
 export type Friend = typeof friends.$inferSelect;
 
-// ── DAILY TASKS ────────────────────────────────────────────────────────────
+// ── DAILY TASK DEFINITIONS ─────────────────────────────────────────────────
+export const dailyTaskDefs = pgTable("daily_tasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(),
+  titleAr: text("title_ar").notNull(),
+  descAr: text("desc_ar").notNull(),
+  icon: text("icon").notNull().default("📋"),
+  target: integer("target").notNull(),
+  type: text("type").notNull(),
+  rewardCoins: integer("reward_coins").notNull().default(0),
+  rewardXp: integer("reward_xp").notNull().default(0),
+});
+
+export type DailyTaskDef = typeof dailyTaskDefs.$inferSelect;
+
+// ── ACHIEVEMENT DEFINITIONS ─────────────────────────────────────────────────
+export const achievementDefs = pgTable("achievements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(),
+  titleAr: text("title_ar").notNull(),
+  descAr: text("desc_ar").notNull(),
+  icon: text("icon").notNull().default("🏆"),
+  target: integer("target").notNull(),
+  type: text("type").notNull(),
+  rewardCoins: integer("reward_coins").notNull().default(0),
+  rewardXp: integer("reward_xp").notNull().default(0),
+});
+
+export type AchievementDef = typeof achievementDefs.$inferSelect;
+
+// ── DAILY TASKS (player progress) ──────────────────────────────────────────
 export const playerDailyTasks = pgTable("player_daily_tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   playerId: varchar("player_id").notNull(),

@@ -17,7 +17,7 @@ import {
 import { validateWord, CATEGORY_MAP, getWordsForLetter, type WordCategory } from "./wordDatabase";
 import { ARABIC_LETTERS } from "./gameLogic";
 import { db } from "./db";
-import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, playerDailyTasks, playerAchievements, roomInvites } from "@shared/schema";
+import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, playerDailyTasks, playerAchievements, roomInvites, dailyTaskDefs, achievementDefs } from "@shared/schema";
 import { eq, and, desc, asc, or, ilike, ne } from "drizzle-orm";
 
 // ── DAILY TASK DEFINITIONS ──────────────────────────────────────────────────
@@ -68,6 +68,38 @@ async function ensurePlayerCode(playerId: string): Promise<string> {
     attempts++;
   }
   return code;
+}
+
+// ── SEED TASK & ACHIEVEMENT DEFINITIONS ─────────────────────────────────────
+async function seedTaskAndAchievementDefs() {
+  try {
+    const existingTasks = await db.select().from(dailyTaskDefs);
+    if (existingTasks.length === 0) {
+      await db.insert(dailyTaskDefs).values([
+        { key: "win_3",     titleAr: "اربح 3 مباريات",  descAr: "فُز بـ 3 مباريات اليوم",              icon: "🏆", target: 3,   type: "wins",  rewardCoins: 50, rewardXp: 0  },
+        { key: "play_5",    titleAr: "العب 5 مباريات",   descAr: "شارك في 5 مباريات اليوم",              icon: "🎮", target: 5,   type: "games", rewardCoins: 30, rewardXp: 20 },
+        { key: "score_200", titleAr: "اكسب 200 نقطة",   descAr: "حصّل 200 نقطة في مبارياتك",           icon: "⭐", target: 200, type: "score", rewardCoins: 40, rewardXp: 30 },
+      ]);
+      console.log("[seed] Inserted default daily task definitions");
+    }
+
+    const existingAch = await db.select().from(achievementDefs);
+    if (existingAch.length === 0) {
+      await db.insert(achievementDefs).values([
+        { key: "first_win", titleAr: "أول انتصار",            descAr: "فُز بأول مباراة لك",         icon: "🥇", target: 1,   type: "wins",   rewardCoins: 50,  rewardXp: 50  },
+        { key: "win_10",    titleAr: "10 انتصارات",           descAr: "اربح 10 مباريات",             icon: "🏆", target: 10,  type: "wins",   rewardCoins: 200, rewardXp: 100 },
+        { key: "win_50",    titleAr: "50 انتصاراً",           descAr: "اربح 50 مباراة",              icon: "👑", target: 50,  type: "wins",   rewardCoins: 500, rewardXp: 300 },
+        { key: "play_10",   titleAr: "10 مباريات",            descAr: "شارك في 10 مباريات",          icon: "🎮", target: 10,  type: "games",  rewardCoins: 100, rewardXp: 50  },
+        { key: "play_100",  titleAr: "100 مباراة",            descAr: "شارك في 100 مباراة",          icon: "💯", target: 100, type: "games",  rewardCoins: 300, rewardXp: 200 },
+        { key: "level_5",   titleAr: "المستوى 5",             descAr: "ابلغ المستوى الخامس",         icon: "⚡", target: 5,   type: "level",  rewardCoins: 150, rewardXp: 0   },
+        { key: "level_10",  titleAr: "المستوى 10",            descAr: "ابلغ المستوى العاشر",         icon: "🌟", target: 10,  type: "level",  rewardCoins: 500, rewardXp: 0   },
+        { key: "streak_3",  titleAr: "3 انتصارات متتالية",   descAr: "اربح 3 مباريات على التوالي", icon: "🔥", target: 3,   type: "streak", rewardCoins: 100, rewardXp: 75  },
+      ]);
+      console.log("[seed] Inserted default achievement definitions");
+    }
+  } catch (e) {
+    console.error("[seed] Failed to seed task/achievement definitions:", e);
+  }
 }
 
 // Track which room each socket is currently in
@@ -464,6 +496,9 @@ const roomPendingDeductions = new Map<string, string[]>();
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
+
+  // Seed static definition tables (daily_tasks, achievements) on startup
+  seedTaskAndAchievementDefs();
 
   // REST endpoint: validate all answers for one round (used by offline mode)
   // POST /api/validate-round
@@ -1291,6 +1326,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  // ── TASK & ACHIEVEMENT DEFINITION ENDPOINTS (non-player-specific) ──────────
+  app.get("/api/daily-tasks", async (_req, res) => {
+    try {
+      const tasks = await db.select().from(dailyTaskDefs);
+      if (tasks.length === 0) {
+        await seedTaskAndAchievementDefs();
+        const seeded = await db.select().from(dailyTaskDefs);
+        return res.json(seeded);
+      }
+      res.json(tasks);
+    } catch (e) {
+      console.error("GET /api/daily-tasks error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.get("/api/achievements", async (_req, res) => {
+    try {
+      const achievements = await db.select().from(achievementDefs);
+      if (achievements.length === 0) {
+        await seedTaskAndAchievementDefs();
+        const seeded = await db.select().from(achievementDefs);
+        return res.json(seeded);
+      }
+      res.json(achievements);
+    } catch (e) {
+      console.error("GET /api/achievements error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
   app.get("/api/player/:id", async (req, res) => {
     try {
       let [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, req.params.id));
@@ -1974,8 +2040,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { playerId } = req.params;
       const today = getTodayDate();
-      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
-      if (!profile) return res.status(404).json({ error: "player_not_found" });
+      let [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      if (!profile) {
+        const playerCode = await ensurePlayerCode(playerId);
+        const randomName = generateRandomPlayerName();
+        [profile] = await db.insert(playerProfiles).values({ id: playerId, playerCode, name: randomName }).returning();
+      }
 
       const existingRows = await db.select().from(playerDailyTasks)
         .where(and(eq(playerDailyTasks.playerId, playerId), eq(playerDailyTasks.assignedDate, today)));
@@ -2061,8 +2131,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/achievements/:playerId", async (req, res) => {
     try {
       const { playerId } = req.params;
-      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
-      if (!profile) return res.status(404).json({ error: "player_not_found" });
+      let [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      if (!profile) {
+        const playerCode = await ensurePlayerCode(playerId);
+        const randomName = generateRandomPlayerName();
+        [profile] = await db.insert(playerProfiles).values({ id: playerId, playerCode, name: randomName }).returning();
+      }
 
       const rows = await db.select().from(playerAchievements).where(eq(playerAchievements.playerId, playerId));
 
