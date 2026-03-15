@@ -20,12 +20,22 @@ import { db } from "./db";
 import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, playerDailyTasks, playerAchievements, roomInvites, dailyTaskDefs, achievementDefs } from "@shared/schema";
 import { eq, and, desc, asc, or, ilike, ne } from "drizzle-orm";
 
-// ── DAILY TASK DEFINITIONS ──────────────────────────────────────────────────
-const DAILY_TASK_DEFS = [
-  { key: "win_3", titleAr: "اربح 3 مباريات", descAr: "فُز بـ 3 مباريات اليوم", target: 3, type: "wins", rewardCoins: 50, rewardXp: 0, icon: "🏆" },
-  { key: "play_5", titleAr: "العب 5 مباريات", descAr: "شارك في 5 مباريات اليوم", target: 5, type: "games", rewardCoins: 30, rewardXp: 20, icon: "🎮" },
-  { key: "score_200", titleAr: "اكسب 200 نقطة", descAr: "حصّل 200 نقطة في مبارياتك", target: 200, type: "score", rewardCoins: 40, rewardXp: 30, icon: "⭐" },
-] as const;
+// ── TASK POOL — larger random pool, 3 are picked per player per day ──────────
+const TASK_POOL = [
+  { key: "win_2",     titleAr: "اربح مباريتين",    descAr: "فُز بـ 2 مباريات اليوم",       icon: "🏆", target: 2,   type: "wins",   rewardCoins: 30,  rewardXp: 15 },
+  { key: "win_3",     titleAr: "اربح 3 مباريات",   descAr: "فُز بـ 3 مباريات اليوم",       icon: "🏆", target: 3,   type: "wins",   rewardCoins: 50,  rewardXp: 0  },
+  { key: "win_5",     titleAr: "اربح 5 مباريات",   descAr: "فُز بـ 5 مباريات اليوم",       icon: "🏆", target: 5,   type: "wins",   rewardCoins: 80,  rewardXp: 40 },
+  { key: "play_3",    titleAr: "العب 3 مباريات",   descAr: "شارك في 3 مباريات اليوم",      icon: "🎮", target: 3,   type: "games",  rewardCoins: 20,  rewardXp: 10 },
+  { key: "play_5",    titleAr: "العب 5 مباريات",   descAr: "شارك في 5 مباريات اليوم",      icon: "🎮", target: 5,   type: "games",  rewardCoins: 30,  rewardXp: 20 },
+  { key: "play_10",   titleAr: "العب 10 مباريات",  descAr: "شارك في 10 مباريات اليوم",     icon: "🎮", target: 10,  type: "games",  rewardCoins: 60,  rewardXp: 40 },
+  { key: "score_100", titleAr: "اكسب 100 نقطة",   descAr: "حصّل 100 نقطة في مبارياتك",   icon: "⭐", target: 100, type: "score",  rewardCoins: 25,  rewardXp: 15 },
+  { key: "score_200", titleAr: "اكسب 200 نقطة",   descAr: "حصّل 200 نقطة في مبارياتك",   icon: "⭐", target: 200, type: "score",  rewardCoins: 40,  rewardXp: 30 },
+  { key: "score_500", titleAr: "اكسب 500 نقطة",   descAr: "حصّل 500 نقطة في مبارياتك",   icon: "⭐", target: 500, type: "score",  rewardCoins: 80,  rewardXp: 60 },
+  { key: "emoji_5",   titleAr: "أرسل 5 رموز",     descAr: "أرسل 5 رسائل سريعة اليوم",    icon: "😊", target: 5,   type: "emojis", rewardCoins: 20,  rewardXp: 10 },
+  { key: "emoji_10",  titleAr: "أرسل 10 رموز",    descAr: "أرسل 10 رسائل سريعة اليوم",   icon: "😊", target: 10,  type: "emojis", rewardCoins: 35,  rewardXp: 20 },
+];
+const TASKS_PER_PLAYER = 3;
+const DAILY_TASK_DEFS = TASK_POOL; // backward-compat alias
 
 // ── ACHIEVEMENT DEFINITIONS ─────────────────────────────────────────────────
 const ACHIEVEMENT_DEFS = [
@@ -72,6 +82,21 @@ async function ensurePlayerCode(playerId: string): Promise<string> {
 
 function generatePlayerTag(): number {
   return Math.floor(1000 + Math.random() * 9000);
+}
+
+function pickDailyTasks(): typeof TASK_POOL {
+  const shuffled = [...TASK_POOL].sort(() => Math.random() - 0.5);
+  const picked: typeof TASK_POOL = [];
+  const usedTypes = new Set<string>();
+  for (const t of shuffled) {
+    if (picked.length >= TASKS_PER_PLAYER) break;
+    if (!usedTypes.has(t.type)) { picked.push(t); usedTypes.add(t.type); }
+  }
+  for (const t of shuffled) {
+    if (picked.length >= TASKS_PER_PLAYER) break;
+    if (!picked.includes(t)) picked.push(t);
+  }
+  return picked;
 }
 
 // ── SEED TASK & ACHIEVEMENT DEFINITIONS ─────────────────────────────────────
@@ -1552,6 +1577,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updatedAt: new Date(),
       }).where(eq(playerProfiles.id, id)).returning();
       res.json({ profile: updated, streakBonus, coinEntryReward });
+
+      // Fire-and-forget: sync stored task progress with updated profile stats
+      Promise.all([
+        syncTaskProgress(id, updated).catch(() => {}),
+        syncAchievementProgress(id, updated).catch(() => {}),
+      ]).catch(() => {});
     } catch (e) {
       console.error("POST /api/player/:id/game-result error:", e);
       res.status(500).json({ error: "server_error" });
@@ -2070,6 +2101,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return new Date().toISOString().slice(0, 10);
   }
 
+  async function syncTaskProgress(playerId: string, profile: { wins: number; gamesPlayed: number; totalScore: number }) {
+    const today = getTodayDate();
+    const rows = await db.select().from(playerDailyTasks)
+      .where(and(eq(playerDailyTasks.playerId, playerId), eq(playerDailyTasks.assignedDate, today)));
+    for (const row of rows) {
+      if (row.claimed === 1) continue;
+      const def = TASK_POOL.find(d => d.key === row.taskKey);
+      if (!def) continue;
+      let newProgress = row.progress ?? 0;
+      if (def.type === "wins")  newProgress = Math.max(newProgress, Math.min(Math.max(0, profile.wins - (row.baselineWins ?? 0)), def.target));
+      if (def.type === "games") newProgress = Math.max(newProgress, Math.min(Math.max(0, profile.gamesPlayed - (row.baselineGames ?? 0)), def.target));
+      if (def.type === "score") newProgress = Math.max(newProgress, Math.min(Math.max(0, profile.totalScore - (row.baselineScore ?? 0)), def.target));
+      if (newProgress !== (row.progress ?? 0)) {
+        await db.update(playerDailyTasks).set({ progress: newProgress }).where(eq(playerDailyTasks.id, row.id));
+      }
+    }
+  }
+
+  async function syncAchievementProgress(playerId: string, profile: { wins: number; gamesPlayed: number; level: number; bestStreak: number }) {
+    for (const def of ACHIEVEMENT_DEFS) {
+      let progress = 0;
+      if (def.type === "wins")   progress = Math.min(profile.wins, def.target);
+      if (def.type === "games")  progress = Math.min(profile.gamesPlayed, def.target);
+      if (def.type === "level")  progress = Math.min(profile.level, def.target);
+      if (def.type === "streak") progress = Math.min(profile.bestStreak, def.target);
+      const unlocked = progress >= def.target;
+      const [existing] = await db.select().from(playerAchievements)
+        .where(and(eq(playerAchievements.playerId, playerId), eq(playerAchievements.achievementKey, def.key)));
+      if (existing) {
+        if (existing.progress !== progress || existing.unlocked !== (unlocked ? 1 : 0)) {
+          await db.update(playerAchievements).set({
+            progress, unlocked: unlocked ? 1 : 0,
+            unlockedAt: unlocked && !existing.unlockedAt ? new Date() : existing.unlockedAt,
+          }).where(eq(playerAchievements.id, existing.id));
+        }
+      } else {
+        await db.insert(playerAchievements).values({
+          playerId, achievementKey: def.key, progress, unlocked: unlocked ? 1 : 0,
+          unlockedAt: unlocked ? new Date() : undefined,
+        });
+      }
+    }
+  }
+
   app.get("/api/tasks/:playerId", async (req, res) => {
     try {
       const { playerId } = req.params;
@@ -2081,45 +2156,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         [profile] = await db.insert(playerProfiles).values({ id: playerId, playerCode, playerTag: generatePlayerTag(), name: randomName }).returning();
       }
 
-      const existingRows = await db.select().from(playerDailyTasks)
+      let todayRows = await db.select().from(playerDailyTasks)
         .where(and(eq(playerDailyTasks.playerId, playerId), eq(playerDailyTasks.assignedDate, today)));
 
-      if (existingRows.length < DAILY_TASK_DEFS.length) {
-        for (const def of DAILY_TASK_DEFS) {
-          const exists = existingRows.find(r => r.taskKey === def.key);
-          if (!exists) {
-            await db.insert(playerDailyTasks).values({
-              playerId,
-              taskKey: def.key,
-              assignedDate: today,
-              baselineWins: profile.wins,
-              baselineGames: profile.gamesPlayed,
-              baselineScore: profile.totalScore,
-            });
-          }
+      if (todayRows.length === 0) {
+        const chosen = pickDailyTasks();
+        for (const def of chosen) {
+          await db.insert(playerDailyTasks).values({
+            playerId,
+            taskKey: def.key,
+            assignedDate: today,
+            progress: 0,
+            baselineWins: profile.wins,
+            baselineGames: profile.gamesPlayed,
+            baselineScore: profile.totalScore,
+          });
         }
+        todayRows = await db.select().from(playerDailyTasks)
+          .where(and(eq(playerDailyTasks.playerId, playerId), eq(playerDailyTasks.assignedDate, today)));
       }
 
-      const rows = await db.select().from(playerDailyTasks)
-        .where(and(eq(playerDailyTasks.playerId, playerId), eq(playerDailyTasks.assignedDate, today)));
-
-      const result = DAILY_TASK_DEFS.map(def => {
-        const row = rows.find(r => r.taskKey === def.key);
-        const baseWins = row?.baselineWins ?? 0;
-        const baseGames = row?.baselineGames ?? 0;
-        const baseScore = row?.baselineScore ?? 0;
-        let progress = 0;
-        if (def.type === "wins") progress = Math.min(Math.max(0, profile.wins - baseWins), def.target);
-        if (def.type === "games") progress = Math.min(Math.max(0, profile.gamesPlayed - baseGames), def.target);
-        if (def.type === "score") progress = Math.min(Math.max(0, profile.totalScore - baseScore), def.target);
+      const result = todayRows.map(row => {
+        const def = TASK_POOL.find(d => d.key === row.taskKey);
+        if (!def) return null;
+        let progress = row.progress ?? 0;
+        if (def.type === "wins")   progress = Math.max(progress, Math.min(Math.max(0, profile.wins - (row.baselineWins ?? 0)), def.target));
+        if (def.type === "games")  progress = Math.max(progress, Math.min(Math.max(0, profile.gamesPlayed - (row.baselineGames ?? 0)), def.target));
+        if (def.type === "score")  progress = Math.max(progress, Math.min(Math.max(0, profile.totalScore - (row.baselineScore ?? 0)), def.target));
         return {
           ...def,
-          rowId: row?.id,
+          rowId: row.id,
           progress,
           completed: progress >= def.target,
-          claimed: row?.claimed === 1,
+          claimed: row.claimed === 1,
         };
-      });
+      }).filter(Boolean);
+
       res.json(result);
     } catch (e) {
       console.error("GET /api/tasks error:", e);
@@ -2232,6 +2304,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true, coinsEarned: def.rewardCoins, xpEarned: def.rewardXp });
     } catch (e) {
       console.error("POST /api/achievements/claim error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // ── TASK PROGRESS (direct update) ─────────────────────────────────────────
+  app.post("/api/task-progress", async (req, res) => {
+    try {
+      const { playerId, taskType, increment = 1 } = req.body;
+      if (!playerId || !taskType) return res.status(400).json({ error: "missing_fields" });
+      const today = getTodayDate();
+
+      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      if (!profile) return res.status(404).json({ error: "player_not_found" });
+
+      const todayRows = await db.select().from(playerDailyTasks)
+        .where(and(eq(playerDailyTasks.playerId, playerId), eq(playerDailyTasks.assignedDate, today)));
+
+      const updated: { taskKey: string; progress: number; completed: boolean }[] = [];
+
+      for (const row of todayRows) {
+        const def = TASK_POOL.find(d => d.key === row.taskKey && d.type === taskType);
+        if (!def || row.claimed === 1) continue;
+
+        let newProgress = row.progress ?? 0;
+        if (def.type === "wins")   newProgress = Math.max(newProgress, Math.min(Math.max(0, profile.wins - (row.baselineWins ?? 0)), def.target));
+        if (def.type === "games")  newProgress = Math.max(newProgress, Math.min(Math.max(0, profile.gamesPlayed - (row.baselineGames ?? 0)), def.target));
+        if (def.type === "score")  newProgress = Math.max(newProgress, Math.min(Math.max(0, profile.totalScore - (row.baselineScore ?? 0)), def.target));
+        if (def.type === "emojis") newProgress = Math.min(newProgress + increment, def.target);
+
+        await db.update(playerDailyTasks).set({ progress: newProgress }).where(eq(playerDailyTasks.id, row.id));
+        updated.push({ taskKey: row.taskKey, progress: newProgress, completed: newProgress >= def.target });
+      }
+
+      res.json({ updated });
+    } catch (e) {
+      console.error("POST /api/task-progress error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // ── ACHIEVEMENT PROGRESS (direct update) ───────────────────────────────────
+  app.post("/api/achievement-progress", async (req, res) => {
+    try {
+      const { playerId, achievementType } = req.body;
+      if (!playerId || !achievementType) return res.status(400).json({ error: "missing_fields" });
+
+      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      if (!profile) return res.status(404).json({ error: "player_not_found" });
+
+      const relevantDefs = ACHIEVEMENT_DEFS.filter(d => d.type === achievementType);
+      const updated: { achievementKey: string; progress: number; unlocked: boolean }[] = [];
+
+      for (const def of relevantDefs) {
+        let progress = 0;
+        if (def.type === "wins")   progress = Math.min(profile.wins, def.target);
+        if (def.type === "games")  progress = Math.min(profile.gamesPlayed, def.target);
+        if (def.type === "level")  progress = Math.min(profile.level, def.target);
+        if (def.type === "streak") progress = Math.min(profile.bestStreak, def.target);
+        const unlocked = progress >= def.target;
+
+        const [existing] = await db.select().from(playerAchievements)
+          .where(and(eq(playerAchievements.playerId, playerId), eq(playerAchievements.achievementKey, def.key)));
+
+        if (existing) {
+          if (existing.progress !== progress || existing.unlocked !== (unlocked ? 1 : 0)) {
+            await db.update(playerAchievements).set({
+              progress,
+              unlocked: unlocked ? 1 : 0,
+              unlockedAt: unlocked && !existing.unlockedAt ? new Date() : existing.unlockedAt,
+            }).where(eq(playerAchievements.id, existing.id));
+          }
+        } else {
+          await db.insert(playerAchievements).values({
+            playerId, achievementKey: def.key, progress, unlocked: unlocked ? 1 : 0,
+            unlockedAt: unlocked ? new Date() : undefined,
+          });
+        }
+        updated.push({ achievementKey: def.key, progress, unlocked });
+      }
+
+      res.json({ updated });
+    } catch (e) {
+      console.error("POST /api/achievement-progress error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });

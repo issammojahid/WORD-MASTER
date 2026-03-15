@@ -1,0 +1,135 @@
+Improve the Daily Tasks and Achievements system in the game.
+
+IMPORTANT:
+Do not modify gameplay logic, multiplayer connection, or server architecture.
+Only improve the tasks and achievements system.
+
+1. Player-specific Tasks
+
+Currently all players share the same tasks.
+Implement a player-specific tasks system.
+
+Create a database table:
+
+player_tasks
+
+Columns:
+id
+player_id
+task_type
+target_value
+progress
+completed
+reward_coins
+created_at
+
+Each player must have their own tasks.
+
+2. Generate Random Tasks for Each Player
+
+When a player logs in or opens the game:
+
+Check if the player already has tasks created today.
+
+If not:
+Generate 3 random daily tasks for that player.
+
+Possible task types:
+
+win_matches
+play_matches
+score_points
+send_emojis
+
+Example tasks:
+
+Win 3 matches
+Play 5 matches
+Score 200 points
+Send 5 emojis
+
+Insert them into player_tasks.
+
+3. Daily Reset
+
+Tasks must reset automatically every day at 00:00.
+
+Logic:
+
+If tasks were created before today,
+delete them and generate new tasks.
+
+4. Task Progress Update
+
+When the player plays a match or performs an action:
+
+Update progress.
+
+Example:
+
+POST /task-progress
+
+Update player_tasks.progress.
+
+If progress >= target_value:
+
+completed = true
+Give reward_coins to the player.
+
+5. Achievements System
+
+Create another table:
+
+player_achievements
+
+Columns:
+
+id
+player_id
+achievement_type
+progress
+unlocked
+reward_coins
+created_at
+
+Achievements examples:
+
+first_win
+win_10_matches
+play_50_matches
+send_100_emojis
+
+Achievements should never reset.
+
+When progress reaches target:
+
+unlocked = true
+Give reward.
+
+6. API Endpoints
+
+Create endpoints:
+
+GET /daily-tasks
+Return tasks for the current player.
+
+GET /achievements
+Return achievements for the current player.
+
+POST /task-progress
+Update task progress.
+
+POST /achievement-progress
+Update achievement progress.
+
+7. Stability
+
+Ensure the system never crashes if tasks or achievements do not exist.
+
+If no tasks exist:
+Generate new tasks automatically.
+
+Ensure everything works correctly with the existing Railway PostgreSQL database.
+
+Do not modify the game UI.
+Only improve the backend logic.
