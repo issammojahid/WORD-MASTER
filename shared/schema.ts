@@ -29,6 +29,8 @@ export const playerProfiles = pgTable("player_profiles", {
   level: integer("level").notNull().default(1),
   equippedSkin: text("equipped_skin").notNull().default("student"),
   ownedSkins: jsonb("owned_skins").$type<string[]>().notNull().default(sql`'["student"]'::jsonb`),
+  equippedTitle: text("equipped_title").default("beginner"),
+  ownedTitles: jsonb("owned_titles").$type<string[]>().notNull().default(sql`'["beginner"]'::jsonb`),
   totalScore: integer("total_score").notNull().default(0),
   gamesPlayed: integer("games_played").notNull().default(0),
   wins: integer("wins").notNull().default(0),

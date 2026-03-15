@@ -22,7 +22,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { usePlayer, SKINS } from "@/contexts/PlayerContext";
+import { usePlayer, SKINS, TITLES } from "@/contexts/PlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
 
 // ── Daily login reward coin animation ─────────────────────────────────────────
@@ -1214,6 +1214,17 @@ export default function HomeScreen() {
                 <Text style={[styles.playerName, { color: theme.textPrimary }]} numberOfLines={1}>{profile.name}</Text>
                 <Ionicons name="pencil" size={11} color={theme.textMuted} style={{ marginLeft: 4 }} />
               </View>
+              {(() => {
+                const titleData = TITLES.find((t) => t.id === profile.equippedTitle);
+                if (!titleData || titleData.id === "beginner") return null;
+                const tColors: Record<string, string> = { common: "#00D4E8", rare: "#A855F7", epic: "#FF3D9A", legendary: "#F5C842" };
+                const tColor = tColors[titleData.rarity] || "#00D4E8";
+                return (
+                  <View style={[styles.equippedTitleBadge, { backgroundColor: tColor + "18", borderColor: tColor + "50" }]}>
+                    <Text style={[styles.equippedTitleText, { color: tColor }]}>{titleData.nameAr}</Text>
+                  </View>
+                );
+              })()}
               <View style={styles.levelRow}>
                 <View style={styles.levelBadge}>
                   <Text style={styles.levelText}>Lv.{profile.level}</Text>
@@ -1465,6 +1476,8 @@ const styles = StyleSheet.create({
   profileMeta: { flex: 1 },
   nameEditRow: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
   playerName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#F0E6D3", flex: 1 },
+  equippedTitleBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, alignSelf: "flex-start", marginTop: 1 },
+  equippedTitleText: { fontFamily: "Cairo_700Bold", fontSize: 9 },
   levelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   levelBadge: {
     backgroundColor: LOGO.yellow + "28", paddingHorizontal: 7,

@@ -12,6 +12,7 @@ import {
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -126,16 +127,20 @@ export default function LeagueScreen() {
     return (
       <View style={[styles.card, { borderColor: league.color + "50", shadowColor: league.color }]}>
         {/* Card header */}
-        <View style={[styles.cardHeader, { backgroundColor: league.color + "18" }]}>
+        <LinearGradient
+          colors={[league.color + "30", league.color + "10", "transparent"]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={styles.cardHeader}
+        >
           <Text style={styles.cardEmoji}>{league.emoji}</Text>
           <Text style={[styles.cardTitle, { color: league.color }]}>{league.name}</Text>
           {!canPlay && (
-            <View style={styles.lockedBadge}>
+            <View style={[styles.lockedBadge, { backgroundColor: "rgba(0,0,0,0.3)" }]}>
               <Ionicons name="lock-closed" size={12} color={theme.textMuted} />
               <Text style={styles.lockedText}>يلزم {formatCoins(league.minCoins)} 🪙</Text>
             </View>
           )}
-        </View>
+        </LinearGradient>
 
         {/* Column headers */}
         <View style={styles.tableHeader}>
@@ -198,22 +203,39 @@ export default function LeagueScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+      <LinearGradient
+        colors={["#0A0E1A", "#0D1526", "#0A0E1A"]}
+        style={StyleSheet.absoluteFillObject}
+      />
+
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <LinearGradient
+            colors={["#00D4E820", "#A855F718"]}
+            style={StyleSheet.absoluteFillObject}
+          />
           <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>اختر الدوري</Text>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerEmoji}>⚔️</Text>
+          <Text style={styles.headerTitle}>اختر الدوري</Text>
+        </View>
         <View style={{ width: 40 }} />
       </View>
 
       {/* Coin balance */}
       <View style={styles.balanceRow}>
-        <View style={styles.balanceBadge}>
+        <LinearGradient
+          colors={[Colors.gold + "22", Colors.gold + "10"]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          style={styles.balanceBadge}
+        >
+          <Ionicons name="star" size={16} color={Colors.gold} />
           <Text style={styles.balanceLabel}>رصيدك</Text>
-          <Text style={styles.balanceValue}>🪙 {formatCoins(profile.coins)}</Text>
-        </View>
+          <Text style={styles.balanceValue}>{formatCoins(profile.coins)}</Text>
+        </LinearGradient>
       </View>
 
       {/* League cards */}
@@ -271,21 +293,23 @@ export default function LeagueScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0D1B2A" },
+  container: { flex: 1 },
   header: {
     flexDirection: "row", alignItems: "center",
     paddingHorizontal: 16, paddingVertical: 12, justifyContent: "space-between",
   },
   backBtn: {
-    width: 40, height: 40, borderRadius: 12,
-    backgroundColor: "#1E3448", justifyContent: "center", alignItems: "center",
+    width: 40, height: 40, borderRadius: 12, overflow: "hidden",
+    justifyContent: "center", alignItems: "center",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
   },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#F0E6D3" },
+  headerCenter: { flexDirection: "row", alignItems: "center", gap: 8 },
+  headerEmoji: { fontSize: 20 },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F0E6D3" },
   balanceRow: { alignItems: "center", marginBottom: 16 },
   balanceBadge: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: "#1E3448", borderRadius: 20,
-    paddingHorizontal: 20, paddingVertical: 10,
+    flexDirection: "row", alignItems: "center", gap: 8,
+    borderRadius: 20, paddingHorizontal: 20, paddingVertical: 10,
     borderWidth: 1, borderColor: Colors.gold + "40",
   },
   balanceLabel: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#A8B8CC" },

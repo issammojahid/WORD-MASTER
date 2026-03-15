@@ -14,6 +14,7 @@ import {
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -60,13 +61,24 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+      <LinearGradient
+        colors={["#0A0E1A", "#0D1526", "#0A0E1A"]}
+        style={StyleSheet.absoluteFillObject}
+      />
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <LinearGradient
+            colors={[LOGO.pink + "20", LOGO.purple + "18"]}
+            style={StyleSheet.absoluteFillObject}
+          />
           <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>{t.settings}</Text>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerEmoji}>⚙️</Text>
+          <Text style={styles.headerTitle}>{t.settings}</Text>
+        </View>
         <View style={{ width: 40 }} />
       </View>
 
@@ -290,16 +302,19 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0C0A1E" },
+  container: { flex: 1 },
   header: {
     flexDirection: "row", alignItems: "center",
     paddingHorizontal: 16, paddingVertical: 12, justifyContent: "space-between",
   },
   backBtn: {
-    width: 40, height: 40, borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.08)", justifyContent: "center", alignItems: "center",
+    width: 40, height: 40, borderRadius: 12, overflow: "hidden",
+    justifyContent: "center", alignItems: "center",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
   },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#F0E6D3" },
+  headerCenter: { flexDirection: "row", alignItems: "center", gap: 8 },
+  headerEmoji: { fontSize: 20 },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F0E6D3" },
   content: { padding: 16, gap: 20, paddingBottom: 40 },
 
   section: { gap: 12 },
