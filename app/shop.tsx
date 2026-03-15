@@ -1111,7 +1111,7 @@ export default function ShopScreen() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: "#EEF2FF" },
 
   header: {
     flexDirection: "row", alignItems: "center",
