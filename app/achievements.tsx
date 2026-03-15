@@ -11,7 +11,6 @@ import {
   Easing,
   Alert,
 } from "react-native";
-import { fetch } from "expo/fetch";
 import { router, useFocusEffect } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -39,11 +38,24 @@ type Achievement = {
 type ApiFetchOptions = { method?: string; body?: BodyInit; headers?: HeadersInit };
 async function apiFetch(url: string, options?: ApiFetchOptions) {
   try {
-    const res = await fetch(url, { headers: { "Content-Type": "application/json" }, ...options });
-    if (!res.ok) return null;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    const res = await fetch(url, {
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      ...options,
+    });
+    clearTimeout(timer);
+    if (!res.ok) {
+      console.error("[apiFetch] non-OK status:", res.status, url);
+      return null;
+    }
     const text = await res.text();
     return text ? JSON.parse(text) : null;
-  } catch { return null; }
+  } catch (e: unknown) {
+    console.error("[apiFetch] error:", e instanceof Error ? e.message : String(e), url);
+    return null;
+  }
 }
 
 function AnimatedProgressBar({ pct, color }: { pct: number; color: string }) {
