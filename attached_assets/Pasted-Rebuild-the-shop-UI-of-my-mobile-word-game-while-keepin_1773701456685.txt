@@ -1,0 +1,194 @@
+Rebuild the shop UI of my mobile word game while keeping all existing logic and data intact.
+
+IMPORTANT RULES:
+
+- Do NOT change backend logic.
+- Do NOT change database structure.
+- Do NOT change item IDs or rewards.
+- Do NOT break purchase logic.
+- Only improve UI layout, animations, and structure.
+
+GOAL:
+Create a modern mobile-game style shop similar to top games like Clash Royale, Stumble Guys, or Brawl Stars.
+
+SHOP STRUCTURE:
+
+1️⃣ Top Bar
+
+- Show player currency (stars) in a rounded glowing badge.
+- Add smooth glow animation on currency icon.
+- Keep settings/back button.
+
+2️⃣ Horizontal Category Tabs (Swipeable)
+
+Categories:
+
+- Daily Offers
+- Spin Wheel
+- Mystery Boxes
+- Avatars
+- Effects
+- Titles
+- Coin Packs
+
+Tabs must:
+
+- be scrollable horizontally
+- have icon + label
+- show active tab highlight
+- animate when switching
+
+3️⃣ Daily Offers Section
+
+Large green gradient card.
+
+Content:
+
+- Title: "عروض اليوم"
+- Subtitle: "خصم على المنتجات المختارة"
+- Countdown timer (48h)
+
+Each item card should contain:
+
+- item icon
+- rarity tag (عادي / نادر / ملحمي)
+- discount badge (-30%)
+- original price (strikethrough)
+- new price
+- owned badge (تمتلكه)
+
+Add:
+
+- soft glow
+- hover animation
+- press animation
+
+4️⃣ Spin Wheel Section
+
+Add a large featured card.
+
+Design:
+
+- purple / blue gradient
+- spinning wheel icon
+- title: "عجلة الحظ"
+- subtitle: "اربح جوائز عشوائية"
+
+Button:
+"إدارة العجلة"
+
+When clicked:
+open the existing spin popup.
+
+Add light glow and floating animation.
+
+5️⃣ Mystery Boxes Section
+
+3D style boxes.
+
+Boxes:
+
+- Basic Box
+- Rare Box
+- Epic Box
+- Legendary Box
+
+Each box card should have:
+
+- 3D icon
+- glow based on rarity
+- price
+- preview rewards
+
+When player clicks box:
+open animated box opening screen.
+
+Box opening animation:
+
+- shake
+- glow
+- explosion particles
+- reward reveal
+
+6️⃣ Avatars Section
+
+Replace emoji avatars with proper avatar cards.
+
+Each avatar card should include:
+
+- circular frame
+- avatar image
+- rarity color border
+- unlock condition
+- purchase button
+
+Grid layout:
+2 columns.
+
+7️⃣ Effects Section
+
+Cards for visual effects.
+
+Each effect card shows:
+
+- preview animation
+- rarity
+- price
+- equip button
+
+8️⃣ Titles Section
+
+Small badge cards.
+
+Examples:
+
+- البطل
+- المحترف
+- الأسطورة
+
+Show title preview under player name.
+
+9️⃣ Coin Packs
+
+Large premium cards:
+
+- Small Pack
+- Medium Pack
+- Large Pack
+- Mega Pack
+
+Use glowing coins and spark animations.
+
+10️⃣ Animations
+
+Add micro animations:
+
+- button press scale
+- hover glow
+- soft background particles
+- card floating animation
+
+11️⃣ Background
+
+Replace flat dark background with:
+
+dark gradient +
+floating stars particles.
+
+12️⃣ UX Improvements
+
+- Smooth vertical scrolling
+- Smooth tab transitions
+- Lazy loading for shop items
+
+FINAL RESULT:
+
+The shop should look like a premium mobile game store with:
+
+- animated cards
+- glowing elements
+- modern layout
+- clear sections
+- smooth interactions
+
+But all purchases, rewards, and items must continue working exactly the same as before.
