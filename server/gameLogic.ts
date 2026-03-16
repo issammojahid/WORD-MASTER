@@ -282,7 +282,7 @@ export function calculateRoundScores(roomId: string): RoundResult[] {
       {} as Record<GameCategory, "correct" | "duplicate" | "empty" | "invalid">;
     let roundTotal = 0;
 
-    const useStrict = room.wordCategory !== "general";
+    const useStrict = !!room.wordCategory && room.wordCategory !== "general";
 
     for (const cat of activeCategories) {
       const ans = answers[cat]?.trim() || "";
