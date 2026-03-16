@@ -13,7 +13,7 @@ import {
   SKINS, EMOTES, EFFECTS, TITLES,
   RARITY_COLORS, RARITY_LABELS,
   type MysteryBoxPrize, type Rarity,
-  type SkinId, type EmoteId, type EffectId, type TitleId,
+  type SkinId, type EmoteId, type EffectId, type TitleId, type BackgroundId,
 } from "@/contexts/PlayerContext";
 import Colors from "@/constants/colors";
 
@@ -46,7 +46,8 @@ const L = {
 function playShopSound(type: "open" | "click" | "unlock" | "error" | "sparkle" | "select") {
   if (Platform.OS === "web" && typeof window !== "undefined") {
     try {
-      const ACtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      const w = window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext };
+      const ACtx = w.AudioContext || w.webkitAudioContext;
       if (ACtx) {
         const ctx = new ACtx();
         const osc = ctx.createOscillator(); const gain = ctx.createGain();
@@ -288,7 +289,7 @@ function BoxOpeningModal({
 
       if (rolled.type === "coins" && rolled.coins) addCoins(rolled.coins);
       else if (rolled.type === "skin" && rolled.id) purchaseSkin(rolled.id as SkinId);
-      else if (rolled.type === "background" && rolled.id) purchaseBackground(rolled.id as any);
+      else if (rolled.type === "background" && rolled.id) purchaseBackground(rolled.id as BackgroundId);
       else if (rolled.type === "emote" && rolled.id) purchaseEmote(rolled.id as EmoteId);
       else if (rolled.type === "effect" && rolled.id) purchaseEffect(rolled.id as EffectId);
 
@@ -653,7 +654,7 @@ export default function ShopScreen() {
             <TouchableOpacity
               key={f}
               style={[styles.filterChip, skinFilter === f && styles.filterChipActive]}
-              onPress={() => { setSkinFilter(f as any); playShopSound("click"); }}
+              onPress={() => { setSkinFilter(f as typeof skinFilter); playShopSound("click"); }}
             >
               <Text style={[styles.filterChipText, skinFilter === f && { color: "#FFF" }]}>{f}</Text>
             </TouchableOpacity>
