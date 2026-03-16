@@ -40,6 +40,7 @@ type LeaderboardEntry = {
   score: number;
   xp: number;
   gamesPlayed: number;
+  isVip?: boolean;
 };
 
 const RANK_COLORS = [Colors.rank1, Colors.rank2, Colors.rank3];
@@ -99,6 +100,7 @@ function AnimatedRow({ entry, index, isMe, getValue }: {
         </View>
         <View style={styles.rankRowInfo}>
           <View style={styles.rankRowNameRow}>
+            {entry.isVip && <Text style={{ fontSize: 12, marginRight: 3 }}>👑</Text>}
             <Text style={[styles.rankRowName, { color: theme.textPrimary }]} numberOfLines={1}>
               {entry.name}
               {isMe ? " (أنت)" : ""}
@@ -273,9 +275,12 @@ export default function LeaderboardScreen() {
                       </View>
                     )}
 
-                    <Text style={[styles.podiumName, { color: theme.textPrimary }]} numberOfLines={1}>
-                      {entry.name}
-                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
+                      {entry.isVip && <Text style={{ fontSize: 11, marginRight: 2 }}>👑</Text>}
+                      <Text style={[styles.podiumName, { color: theme.textPrimary }]} numberOfLines={1}>
+                        {entry.name}
+                      </Text>
+                    </View>
 
                     {titleInfo && (
                       <View style={[styles.titlePill, { backgroundColor: titleInfo.color + "20", borderColor: titleInfo.color + "50", marginBottom: 2 }]}>

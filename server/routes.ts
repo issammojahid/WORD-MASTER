@@ -2174,6 +2174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         score: p.totalScore,
         xp: p.xp,
         gamesPlayed: p.gamesPlayed,
+        isVip: p.isVip && (!p.vipExpiresAt || new Date(p.vipExpiresAt) > new Date()),
       }));
       res.json(result);
     } catch (e) {

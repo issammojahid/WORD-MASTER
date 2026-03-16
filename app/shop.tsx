@@ -488,6 +488,16 @@ export default function ShopScreen() {
     const skin = SKINS.find(s => s.id === id);
     if (!skin) return;
     if (profile.ownedSkins.includes(id)) { equipSkin(id); playShopSound("select"); return; }
+    const isVipSkin = id.startsWith("vip_");
+    const playerIsVip = profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > new Date());
+    if (isVipSkin && !playerIsVip) {
+      playShopSound("error");
+      Alert.alert("👑 حصري لأعضاء VIP", "اشترك في VIP لفتح هذا الزي والمزايا الحصرية!", [
+        { text: "إلغاء", style: "cancel" },
+        { text: "اشترك الآن", onPress: () => router.push("/vip") },
+      ]);
+      return;
+    }
     const unlockCond = skin.unlockCondition;
     if (unlockCond) {
       const cur = unlockCond.type === "wins" ? profile.wins : unlockCond.type === "level" ? profile.level : profile.bestStreak;
@@ -676,10 +686,13 @@ export default function ShopScreen() {
         {/* Cards grid */}
         <View style={styles.avatarGrid}>
           {filtered.map(skin => {
+            const isVipSkin = skin.id.startsWith("vip_");
+            const playerIsVip = profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > new Date());
             const owned = profile.ownedSkins.includes(skin.id);
             const equipped = profile.equippedSkin === skin.id;
             const canAfford = profile.coins >= skin.price;
-            const locked = !owned && !canAfford && !skin.unlockCondition && skin.price > 0;
+            const vipLocked = isVipSkin && !playerIsVip;
+            const locked = vipLocked || (!owned && !canAfford && !skin.unlockCondition && skin.price > 0);
             const unlockCond = skin.unlockCondition;
             const unlockCurrent = !unlockCond ? 0 :
               unlockCond.type === "wins" ? profile.wins :
@@ -726,7 +739,11 @@ export default function ShopScreen() {
                   <Text style={[styles.avatarCardName, locked && { color: L.textSub }]}>{skin.nameAr}</Text>
 
                   {/* Action button */}
-                  {owned ? (
+                  {vipLocked ? (
+                    <View style={[styles.cardActionBtn, { backgroundColor: L.goldLight }]}>
+                      <Text style={[styles.cardActionText, { color: L.gold }]}>👑 VIP</Text>
+                    </View>
+                  ) : owned ? (
                     <View style={[styles.cardActionBtn, equipped ? { backgroundColor: "#0A2918" } : { backgroundColor: "#1A1040" }]}>
                       <Text style={[styles.cardActionText, equipped ? { color: L.green } : { color: L.purple }]}>{equipped ? "✓ مُجهَّز" : "تجهيز"}</Text>
                     </View>
@@ -836,8 +853,20 @@ export default function ShopScreen() {
             const condMet = !unlockCond || unlockCur >= unlockCond.value;
             const rarityColor = RARITY_COLORS[title.rarity];
 
+            const isVipTitle = title.id === "vip_gold";
+            const playerIsVip = profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > new Date());
+            const vipLocked = isVipTitle && !playerIsVip;
+
             const handleTitleAction = () => {
               if (owned) { equipTitle(title.id); playShopSound("select"); return; }
+              if (vipLocked) {
+                playShopSound("error");
+                Alert.alert("👑 حصري لأعضاء VIP", "اشترك في VIP لفتح هذا اللقب!", [
+                  { text: "إلغاء", style: "cancel" },
+                  { text: "اشترك الآن", onPress: () => router.push("/vip") },
+                ]);
+                return;
+              }
               if (unlockCond) {
                 if (!condMet) { playShopSound("error"); Alert.alert("غير مفتوح بعد", `${unlockCond.label} (${unlockCur}/${unlockCond.value})`); return; }
                 const ok = purchaseTitle(title.id); if (ok) setBurstEmoji(title.emoji); return;
@@ -868,7 +897,11 @@ export default function ShopScreen() {
                   <Text style={styles.avatarCardName}>{title.nameAr}</Text>
                   <Text style={styles.avatarCardDesc} numberOfLines={2}>{title.descAr}</Text>
 
-                  {owned ? (
+                  {vipLocked ? (
+                    <View style={[styles.cardActionBtn, { backgroundColor: L.goldLight }]}>
+                      <Text style={[styles.cardActionText, { color: L.gold }]}>👑 VIP</Text>
+                    </View>
+                  ) : owned ? (
                     <View style={[styles.cardActionBtn, equipped ? { backgroundColor: "#0A2918" } : { backgroundColor: "#1A1040" }]}>
                       <Text style={[styles.cardActionText, equipped ? { color: L.green } : { color: L.purple }]}>{equipped ? "✓ مُفعَّل" : "تفعيل"}</Text>
                     </View>
@@ -1056,9 +1089,18 @@ export default function ShopScreen() {
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>المتجر</Text>
         </View>
-        <View style={styles.coinsBadge}>
-          <Ionicons name="star" size={14} color={L.gold} />
-          <Text style={styles.coinsText}>{profile.coins}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <TouchableOpacity
+            onPress={() => router.push("/vip")}
+            style={{ backgroundColor: L.gold + "20", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: L.gold + "40" }}
+            activeOpacity={0.7}
+          >
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: L.gold }}>👑 VIP</Text>
+          </TouchableOpacity>
+          <View style={styles.coinsBadge}>
+            <Ionicons name="star" size={14} color={L.gold} />
+            <Text style={styles.coinsText}>{profile.coins}</Text>
+          </View>
         </View>
       </View>
 

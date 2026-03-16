@@ -13,6 +13,16 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
 
 ## Recent Features Added
 
+- **VIP / Premium Subscription (Task #7)**:
+  - **Schema**: `player_profiles.is_vip`, `player_profiles.vip_expires_at`, `player_profiles.vip_subscription_id` columns
+  - **Backend**: `POST /api/player/:id/activate-vip` (activate VIP, default 30 days), `GET /api/player/:id/vip-status` (check status), 2x coin multiplier in `POST /api/player/:id/spin` and `POST /api/player/:id/game-result` for VIP players, `isVip` field in leaderboard API response
+  - **Frontend**: `app/vip.tsx` — VIP benefits screen with crown animation, benefits list, pricing, subscribe button. VIP entry points in shop header and settings page
+  - **VIP Skins**: 3 exclusive VIP skins (`vip_phoenix`, `vip_sultan`, `vip_cyber`) — locked for non-VIP, shown with "👑 VIP" badge in shop
+  - **VIP Title**: "عضو VIP" golden title (`vip_gold`) — locked for non-VIP
+  - **VIP Crown**: 👑 badge next to VIP players' names in home screen profile area, leaderboard (podium + list rows)
+  - **PlayerContext**: `isVip` and `vipExpiresAt` fields added to `PlayerProfile` type, merged from server on sync
+  - Files: `shared/schema.ts`, `server/routes.ts`, `contexts/PlayerContext.tsx`, `app/vip.tsx`, `app/shop.tsx`, `app/settings.tsx`, `app/index.tsx`, `app/leaderboard.tsx`
+
 - **Push Notifications (Task #6)**:
   - **Backend**: `server/notifications.ts` — Expo Push API utility (`sendPushNotification`, `sendBulkPushNotifications`), cron job functions for daily task reminders (9am), streak reset warnings (8pm), season ending alerts (noon)
   - **Schema**: `player_profiles.expo_push_token` and `player_profiles.notifications_enabled` columns

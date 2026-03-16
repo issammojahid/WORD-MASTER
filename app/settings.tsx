@@ -340,6 +340,37 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* ── VIP Status ────────────────────────────── */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={{ fontSize: 20 }}>👑</Text>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>الاشتراك المميز</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.toggleCard, { backgroundColor: theme.card, borderColor: profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > new Date()) ? "#F5C84260" : theme.cardBorder }]}
+            onPress={() => router.push("/vip")}
+            activeOpacity={0.7}
+          >
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <Text style={{ fontSize: 20 }}>👑</Text>
+                <View style={styles.toggleTexts}>
+                  <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>
+                    {profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > new Date()) ? "VIP مفعّل" : "اشترك الآن"}
+                  </Text>
+                  <Text style={[styles.toggleSub, { color: theme.textMuted }]}>
+                    {profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > new Date())
+                      ? `ينتهي: ${profile.vipExpiresAt ? new Date(profile.vipExpiresAt).toLocaleDateString("ar-MA") : "—"}`
+                      : "عملات مضاعفة · أزياء حصرية · لقب ذهبي"
+                    }
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#F5C842" />
+            </View>
+          </TouchableOpacity>
+        </View>
+
         {/* ── Game Rules ─────────────────────────────── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>

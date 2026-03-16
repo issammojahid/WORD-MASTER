@@ -174,6 +174,7 @@ export const TITLES: Title[] = [
     unlockCondition: { type: "wins", value: 20, label: "فز بـ 20 مباراة" } },
   { id: "champion_title", price: 0,   emoji: "🏅", color: "#F5C842", rarity: "legendary", nameAr: "البطل الأبدي",      descAr: "ابلغ المستوى 10 لتحمل هذا اللقب",
     unlockCondition: { type: "level", value: 10, label: "ابلغ المستوى 10" } },
+  { id: "vip_gold",       price: 0,   emoji: "👑", color: "#F5C842", rarity: "legendary", nameAr: "عضو VIP",           descAr: "لقب حصري لأعضاء الاشتراك المميز" },
 ];
 
 // ── Mystery Box ───────────────────────────────────────────────────────────────
@@ -553,6 +554,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const equipSkin = (skinId: SkinId) => {
     if (!profile.ownedSkins.includes(skinId)) return;
+    if (skinId.startsWith("vip_")) {
+      const vipActive = profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > new Date());
+      if (!vipActive) return;
+    }
     updateProfile({ equippedSkin: skinId });
   };
 
@@ -671,6 +676,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const equipTitle = (id: TitleId) => {
     if (!profile.ownedTitles.includes(id)) return;
+    if (id === "vip_gold") {
+      const vipActive = profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > new Date());
+      if (!vipActive) return;
+    }
     updateProfile({ equippedTitle: id });
   };
 

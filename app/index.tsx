@@ -1243,6 +1243,9 @@ export default function HomeScreen() {
             })()}
             <View style={styles.profileMeta}>
               <View style={styles.nameEditRow}>
+                {profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > new Date()) && (
+                  <Text style={{ fontSize: 14, marginRight: 4 }}>👑</Text>
+                )}
                 <Text style={[styles.playerName, { color: theme.textPrimary }]} numberOfLines={1}>{profile.name}</Text>
                 <Ionicons name="pencil" size={11} color={theme.textMuted} style={{ marginLeft: 4 }} />
               </View>
