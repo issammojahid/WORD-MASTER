@@ -450,7 +450,7 @@ export default function GameScreen() {
       const res = await fetch(`${getApiUrl()}/api/game/hint`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomId, playerId }),
+        body: JSON.stringify({ roomId, playerId, socketId: socket.id }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));

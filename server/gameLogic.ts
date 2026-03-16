@@ -25,12 +25,12 @@ export type WordCategoryId = "general" | "animals" | "countries" | "food" | "spo
 
 const WORD_CATEGORY_MAP: Record<WordCategoryId, GameCategory[]> = {
   general:   [...GAME_CATEGORIES],
-  animals:   ["animal", "boyName", "girlName", "country"],
-  countries: ["country", "city", "boyName", "girlName"],
-  food:      ["fruit", "vegetable", "animal", "object"],
-  sports:    ["boyName", "girlName", "country", "city"],
-  movies:    ["girlName", "boyName", "city", "country"],
-  cities:    ["city", "country", "object", "girlName"],
+  animals:   ["animal", "country", "object"],
+  countries: ["country", "city", "boyName"],
+  food:      ["fruit", "vegetable", "object"],
+  sports:    ["boyName", "country", "city"],
+  movies:    ["boyName", "girlName", "city"],
+  cities:    ["city", "country", "object"],
 };
 
 export function getActiveCategories(wordCategory: WordCategoryId): GameCategory[] {

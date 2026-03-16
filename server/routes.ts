@@ -620,11 +620,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/game/hint", async (req, res) => {
     try {
-      const { roomId, playerId } = req.body as { roomId: string; playerId: string };
+      const { roomId, playerId, socketId: reqSocketId } = req.body as { roomId: string; playerId: string; socketId?: string };
       if (!roomId || !playerId) return res.status(400).json({ error: "missing_params" });
 
       const room = getRoom(roomId);
       if (!room || room.state !== "playing") return res.status(400).json({ error: "no_active_game" });
+
+      if (reqSocketId) {
+        const isPlayerInRoom = room.players.some(p => p.id === reqSocketId);
+        if (!isPlayerInRoom) return res.status(403).json({ error: "not_in_room" });
+      }
 
       const globalKey = `${roomId}:${playerId}`;
       const globalUsed = hintUsage.get(globalKey) || 0;

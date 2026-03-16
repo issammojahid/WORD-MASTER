@@ -358,12 +358,12 @@ export const WORD_CATEGORIES: {
   gameCategories: GameCategory[];
 }[] = [
   { id: "general",   emoji: "🔤", labelAr: "عام",     labelEn: "General",   gameCategories: [...GAME_CATEGORIES] },
-  { id: "animals",   emoji: "🦁", labelAr: "حيوانات", labelEn: "Animals",   gameCategories: ["animal", "boyName", "girlName", "country"] },
-  { id: "countries", emoji: "🌍", labelAr: "دول",     labelEn: "Countries", gameCategories: ["country", "city", "boyName", "girlName"] },
-  { id: "food",      emoji: "🍕", labelAr: "طعام",    labelEn: "Food",      gameCategories: ["fruit", "vegetable", "animal", "object"] },
-  { id: "sports",    emoji: "⚽", labelAr: "رياضة",   labelEn: "Sports",    gameCategories: ["boyName", "girlName", "country", "city"] },
-  { id: "movies",    emoji: "🎬", labelAr: "أفلام",   labelEn: "Movies",    gameCategories: ["girlName", "boyName", "city", "country"] },
-  { id: "cities",    emoji: "🏙️", labelAr: "مدن",     labelEn: "Cities",    gameCategories: ["city", "country", "object", "girlName"] },
+  { id: "animals",   emoji: "🦁", labelAr: "حيوانات", labelEn: "Animals",   gameCategories: ["animal", "country", "object"] },
+  { id: "countries", emoji: "🌍", labelAr: "دول",     labelEn: "Countries", gameCategories: ["country", "city", "boyName"] },
+  { id: "food",      emoji: "🍕", labelAr: "طعام",    labelEn: "Food",      gameCategories: ["fruit", "vegetable", "object"] },
+  { id: "sports",    emoji: "⚽", labelAr: "رياضة",   labelEn: "Sports",    gameCategories: ["boyName", "country", "city"] },
+  { id: "movies",    emoji: "🎬", labelAr: "أفلام",   labelEn: "Movies",    gameCategories: ["boyName", "girlName", "city"] },
+  { id: "cities",    emoji: "🏙️", labelAr: "مدن",     labelEn: "Cities",    gameCategories: ["city", "country", "object"] },
 ];
 
 export const MAPS = [
