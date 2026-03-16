@@ -230,6 +230,9 @@ export default function GameScreen() {
   const { profile, playerId, updateProfile, addCoins, addXp, reportGameResult, useCard } = usePlayer();
   const gameCoinEntry = coinEntryParam ? parseInt(coinEntryParam, 10) : 0;
   const socket = getSocket();
+  useEffect(() => {
+    if (playerId) socket.emit("register_player_id", { playerId });
+  }, [playerId]);
 
   const [answers, setAnswers] = useState<Record<GameCategory, string>>({} as Record<GameCategory, string>);
   const [timeLeft, setTimeLeft] = useState(ROUND_TIME);
@@ -443,13 +446,22 @@ export default function GameScreen() {
     doSubmit(answersRef.current);
   };
 
+  type HintResponse = {
+    error?: string;
+    category?: string;
+    word?: string;
+    hintsUsed?: number;
+    hintsRemaining?: number;
+    newCoinBalance?: number;
+  };
+
   const handleUseHint = async () => {
     if (hintLoading || hintsUsed >= MAX_HINTS || submitted || profile.coins < HINT_COST) return;
     setHintLoading(true);
     try {
-      const data: any = await new Promise((resolve, reject) => {
+      const data = await new Promise<HintResponse>((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error("timeout")), 8000);
-        socket.emit("request_hint", { roomId, playerId }, (resp: any) => {
+        socket.emit("request_hint", { roomId }, (resp: HintResponse) => {
           clearTimeout(timeout);
           resolve(resp);
         });
@@ -461,9 +473,9 @@ export default function GameScreen() {
         setHintLoading(false);
         return;
       }
-      setHintsUsed(data.hintsUsed);
+      setHintsUsed(data.hintsUsed ?? 0);
       addCoins(-HINT_COST);
-      const label = (t as Record<string, string>)[data.category] || data.category;
+      const label = (t as Record<string, string>)[data.category ?? ""] || data.category;
       showPowerToast(`💡 ${label}: ${data.word}`, Colors.gold);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch {

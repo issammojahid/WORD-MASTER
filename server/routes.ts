@@ -193,6 +193,7 @@ async function seedTaskAndAchievementDefs() {
 
 // Track which room each socket is currently in
 const socketRoomMap = new Map<string, string>();
+  const socketPlayerIdMap = new Map<string, string>();
 
 const MIN_PLAYERS = 2;
 
@@ -683,7 +684,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   io.on("connection", (socket) => {
     console.log("Socket connected:", socket.id);
 
-    // Create a new room
+    socket.on("register_player_id", (data: { playerId: string }) => {
+      if (data.playerId) socketPlayerIdMap.set(socket.id, data.playerId);
+    });
+
     socket.on(
       "create_room",
       (
@@ -945,10 +949,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     );
 
-    socket.on("request_hint", async (data: { roomId: string; playerId: string }, callback?: (resp: any) => void) => {
-      const respond = (resp: any) => { if (callback) callback(resp); };
+    socket.on("request_hint", async (data: { roomId: string }, callback?: (resp: { error?: string; category?: string; word?: string; hintsUsed?: number; hintsRemaining?: number; newCoinBalance?: number }) => void) => {
+      const respond = (resp: { error?: string; category?: string; word?: string; hintsUsed?: number; hintsRemaining?: number; newCoinBalance?: number }) => { if (callback) callback(resp); };
       try {
-        const { roomId, playerId } = data;
+        const { roomId } = data;
+        const playerId = socketPlayerIdMap.get(socket.id);
         if (!roomId || !playerId) return respond({ error: "missing_params" });
 
         const room = getRoom(roomId);
@@ -1340,8 +1345,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Disconnect
     socket.on("disconnect", () => {
       console.log("Socket disconnected:", socket.id);
+      socketPlayerIdMap.delete(socket.id);
 
-      // Remove from matchmaking queue
       matchmakingQueue = matchmakingQueue.filter((p) => p.id !== socket.id);
 
       // Remove from rapid matchmaking queue

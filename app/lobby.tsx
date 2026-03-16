@@ -230,8 +230,8 @@ export default function LobbyScreen() {
 
     const handleConnect = () => {
       setSocketId(socket.id || null);
-      // If we were in the matchmaking queue, re-register with the new socket ID
-      // (server removes the player from the queue on socket disconnect)
+      if (playerId) socket.emit("register_player_id", { playerId });
+
       if (isInMatchmakingRef.current) {
         socket.emit("findMatch", { playerName: profile.name, playerSkin: profile.equippedSkin, coinEntry, playerId });
         return;

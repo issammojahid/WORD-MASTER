@@ -124,6 +124,7 @@ export default function RapidScreen() {
 
     const handleConnect = () => {
       socketIdRef.current = socket.id || null;
+      if (playerId) socket.emit("register_player_id", { playerId });
     };
 
     const handleRapidStart = (data: {
