@@ -24,7 +24,8 @@ export type SkinId =
   | "student" | "djellaba" | "sport" | "champion"
   | "kaftan" | "fassi" | "sahrawi" | "amazigh"
   | "ninja" | "astronaut" | "king" | "hacker" | "superhero"
-  | "legend" | "elite" | "tourChamp";
+  | "legend" | "elite" | "tourChamp"
+  | "vip_phoenix" | "vip_sultan" | "vip_cyber";
 
 export type UnlockCondition = {
   type: "wins" | "level" | "streak";
@@ -77,6 +78,10 @@ export const SKINS: Skin[] = [
     nameAr: "بطل البطولات", descAr: "حقق سلسلة 5 انتصارات لتفتح هذا الزي",
     unlockCondition: { type: "streak", value: 5, label: "سلسلة 5 انتصارات" },
   },
+  // ── VIP Exclusive ───────────────────────────────────────────────────────────
+  { id: "vip_phoenix", price: 0, emoji: "🔥", color: "#FF6B00", rarity: "legendary", category: "exclusive", nameAr: "العنقاء", descAr: "حصري لأعضاء VIP" },
+  { id: "vip_sultan",  price: 0, emoji: "👑", color: "#F5C842", rarity: "legendary", category: "exclusive", nameAr: "السلطان", descAr: "حصري لأعضاء VIP" },
+  { id: "vip_cyber",   price: 0, emoji: "🤖", color: "#00F5FF", rarity: "legendary", category: "exclusive", nameAr: "السايبر", descAr: "حصري لأعضاء VIP" },
 ];
 
 // ── Backgrounds ───────────────────────────────────────────────────────────────
@@ -142,7 +147,8 @@ export const EFFECTS: Effect[] = [
 // ── Titles ────────────────────────────────────────────────────────────────────
 export type TitleId =
   | "beginner" | "eloquent" | "word_master" | "letter_king"
-  | "morocco_legend" | "lightning" | "genius" | "streak_lord" | "champion_title";
+  | "morocco_legend" | "lightning" | "genius" | "streak_lord" | "champion_title"
+  | "vip_gold";
 
 export type Title = {
   id: TitleId;
@@ -227,6 +233,9 @@ export type PlayerProfile = {
   // Titles
   ownedTitles: TitleId[];
   equippedTitle: TitleId | null;
+  // VIP
+  isVip: boolean;
+  vipExpiresAt: string | null;
 };
 
 type PlayerContextType = {
@@ -288,6 +297,8 @@ const defaultProfile: PlayerProfile = {
   powerCards: { time: 3, freeze: 3, hint: 3 },
   ownedTitles: ["beginner"],
   equippedTitle: "beginner",
+  isVip: false,
+  vipExpiresAt: null,
 };
 
 function calculateLevel(xp: number): number {
@@ -314,6 +325,8 @@ function mergeProfile(base: Partial<PlayerProfile>): PlayerProfile {
       : defaultProfile.powerCards,
     ownedTitles: [...new Set([...defaultProfile.ownedTitles, ...(base.ownedTitles || [])])] as TitleId[],
     equippedTitle: (base.equippedTitle as TitleId | null) ?? defaultProfile.equippedTitle,
+    isVip: base.isVip ?? false,
+    vipExpiresAt: base.vipExpiresAt ?? null,
   };
 }
 
@@ -401,6 +414,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               ownedTitles: [...new Set([...(sp.ownedTitles || []), ...(parsed?.ownedTitles || []), "beginner"])] as TitleId[],
               equippedTitle: sp.equippedTitle || parsed?.equippedTitle || "beginner",
               playerTag: sp.playerTag ?? parsed?.playerTag ?? null,
+              isVip: sp.isVip ?? false,
+              vipExpiresAt: sp.vipExpiresAt ?? null,
             };
 
             setProfile(merged);
@@ -750,6 +765,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             ownedTitles: [...new Set([...(sp.ownedTitles || []), ...profile.ownedTitles, "beginner"])] as TitleId[],
             equippedTitle: sp.equippedTitle || profile.equippedTitle || "beginner",
             playerTag: sp.playerTag ?? profile.playerTag,
+            isVip: sp.isVip ?? profile.isVip ?? false,
+            vipExpiresAt: sp.vipExpiresAt ?? profile.vipExpiresAt ?? null,
           };
           setProfile(merged);
           saveProfile(merged);

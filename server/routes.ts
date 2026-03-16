@@ -1701,9 +1701,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       const reward = pickSpinReward();
+      const isVip = profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > new Date());
+      const coinMultiplier = isVip ? 2 : 1;
       const updates: Record<string, unknown> = { lastSpinAt: new Date(), updatedAt: new Date() };
       if (reward.type === "coins") {
-        updates.coins = profile.coins + reward.amount;
+        updates.coins = profile.coins + reward.amount * coinMultiplier;
       } else if (reward.type === "xp") {
         updates.xp = profile.xp + reward.amount;
         updates.level = Math.floor((profile.xp + reward.amount) / 100) + 1;
@@ -1778,7 +1780,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }).catch(() => {});
       }
       const coinEntryReward = won && coinEntry ? (COIN_ENTRY_OPTIONS.find(o => o.entry === coinEntry)?.reward || 0) : 0;
-      const totalCoins = coinsEarned + streakBonus + coinEntryReward;
+      const isVip = profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > new Date());
+      const vipMultiplier = isVip ? 2 : 1;
+      const totalCoins = (coinsEarned + streakBonus + coinEntryReward) * vipMultiplier;
       const [updated] = await db.update(playerProfiles).set({
         coins: profile.coins + totalCoins,
         xp: profile.xp + xpEarned,
@@ -1800,6 +1804,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ]).catch(() => {});
     } catch (e) {
       console.error("POST /api/player/:id/game-result error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.post("/api/player/:id/activate-vip", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const { duration, subscriptionId } = req.body as { duration?: number; subscriptionId?: string };
+      const durationDays = duration || 30;
+      const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+      const [updated] = await db.update(playerProfiles).set({
+        isVip: true,
+        vipExpiresAt: expiresAt,
+        vipSubscriptionId: subscriptionId || null,
+        updatedAt: new Date(),
+      }).where(eq(playerProfiles.id, id)).returning();
+      if (!updated) return res.status(404).json({ error: "player_not_found" });
+      res.json({ success: true, profile: updated });
+    } catch (e) {
+      console.error("POST /api/player/:id/activate-vip error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.get("/api/player/:id/vip-status", async (req, res) => {
+    try {
+      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, req.params.id));
+      if (!profile) return res.status(404).json({ error: "player_not_found" });
+      const isActive = profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > new Date());
+      res.json({
+        isVip: isActive,
+        vipExpiresAt: profile.vipExpiresAt,
+        vipSubscriptionId: profile.vipSubscriptionId,
+      });
+    } catch (e) {
+      console.error("GET /api/player/:id/vip-status error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });

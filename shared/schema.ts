@@ -47,6 +47,9 @@ export const playerProfiles = pgTable("player_profiles", {
   referralCount: integer("referral_count").notNull().default(0),
   expoPushToken: text("expo_push_token"),
   notificationsEnabled: boolean("notifications_enabled").notNull().default(true),
+  isVip: boolean("is_vip").notNull().default(false),
+  vipExpiresAt: timestamp("vip_expires_at"),
+  vipSubscriptionId: text("vip_subscription_id"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
