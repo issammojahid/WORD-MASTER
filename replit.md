@@ -13,6 +13,11 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
 
 ## Recent Features Added
 
+- **Word Categories & Hint System (Task #5)**:
+  - **Word Categories**: Room host picks a category (عام/حيوانات/دول/طعام/رياضة/أفلام/مدن) when creating a room. Each category filters which answer fields (game categories) appear during gameplay. Category picker in lobby, badge in waiting room and game header.
+  - **In-game Hint Button**: Costs 5 coins per use, max 3 per game. Server-side tracking (cleared on game start). Returns a random valid word from the current letter + active categories. Hint usage shown in game-over stats.
+  - Files: `constants/i18n.ts` (WORD_CATEGORIES), `server/gameLogic.ts` (Room.wordCategory, getActiveCategories), `server/routes.ts` (POST /api/game/hint, clearHintsForRoom), `app/lobby.tsx` (category picker), `app/game.tsx` (hint button, filtered inputs, category badge)
+
 - **Sound System APK Fix**: Ensured game sounds work in both Expo preview and production APK builds:
   - Added `assetBundlePatterns: ["**/*"]` to `app.json` — primary fix so sound files are bundled in APK
   - Added `expo-av` to the plugins list in `app.json` for proper native audio initialization

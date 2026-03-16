@@ -348,6 +348,24 @@ export const GAME_CATEGORIES = [
 
 export type GameCategory = typeof GAME_CATEGORIES[number];
 
+export type WordCategoryId = "general" | "animals" | "countries" | "food" | "sports" | "movies" | "cities";
+
+export const WORD_CATEGORIES: {
+  id: WordCategoryId;
+  emoji: string;
+  labelAr: string;
+  labelEn: string;
+  gameCategories: GameCategory[];
+}[] = [
+  { id: "general",   emoji: "🔤", labelAr: "عام",     labelEn: "General",   gameCategories: [...GAME_CATEGORIES] },
+  { id: "animals",   emoji: "🦁", labelAr: "حيوانات", labelEn: "Animals",   gameCategories: ["animal", "boyName", "girlName", "country"] },
+  { id: "countries", emoji: "🌍", labelAr: "دول",     labelEn: "Countries", gameCategories: ["country", "city", "boyName", "girlName"] },
+  { id: "food",      emoji: "🍕", labelAr: "طعام",    labelEn: "Food",      gameCategories: ["fruit", "vegetable", "animal", "object"] },
+  { id: "sports",    emoji: "⚽", labelAr: "رياضة",   labelEn: "Sports",    gameCategories: ["boyName", "girlName", "country", "city"] },
+  { id: "movies",    emoji: "🎬", labelAr: "أفلام",   labelEn: "Movies",    gameCategories: ["girlName", "boyName", "city", "country"] },
+  { id: "cities",    emoji: "🏙️", labelAr: "مدن",     labelEn: "Cities",    gameCategories: ["city", "country", "object", "girlName"] },
+];
+
 export const MAPS = [
   { id: "casablanca", color: "#1A3A5C" },
   { id: "marrakech", color: "#8B2500" },

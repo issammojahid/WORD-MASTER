@@ -26,7 +26,7 @@ import { usePlayer, SKINS } from "@/contexts/PlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { getSocket } from "@/services/socket";
-import { GAME_CATEGORIES, GameCategory } from "@/constants/i18n";
+import { GAME_CATEGORIES, GameCategory, WORD_CATEGORIES, type WordCategoryId } from "@/constants/i18n";
 import { getApiUrl } from "@/lib/query-client";
 import { playSound } from "@/lib/sound-manager";
 import ViewShot, { captureRef } from "react-native-view-shot";
@@ -216,12 +216,13 @@ type ChatBubble = {
 
 export default function GameScreen() {
   const { isDark, theme } = useTheme();
-  const { roomId, letter, round, totalRounds, coinEntry: coinEntryParam } = useLocalSearchParams<{
+  const { roomId, letter, round, totalRounds, coinEntry: coinEntryParam, wordCategory: wcParam } = useLocalSearchParams<{
     roomId: string;
     letter: string;
     round: string;
     totalRounds: string;
     coinEntry?: string;
+    wordCategory?: string;
   }>();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
@@ -267,6 +268,17 @@ export default function GameScreen() {
   const [frozenCountdown, setFrozenCountdown] = useState(0);
   const [showCrack, setShowCrack] = useState(false);
   const freezeCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const [wordCategory, setWordCategory] = useState<WordCategoryId>((wcParam as WordCategoryId) || "general");
+  const [hintsUsed, setHintsUsed] = useState(0);
+  const [hintLoading, setHintLoading] = useState(false);
+  const MAX_HINTS = 3;
+  const HINT_COST = 5;
+
+  const activeCategories = React.useMemo(() => {
+    const wc = WORD_CATEGORIES.find(c => c.id === wordCategory);
+    return wc ? wc.gameCategories : [...GAME_CATEGORIES];
+  }, [wordCategory]);
   // opponentFrozen: caster can see their freeze is active on opponent
   const [opponentFrozenCountdown, setOpponentFrozenCountdown] = useState(0);
   const opponentFreezeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -399,11 +411,10 @@ export default function GameScreen() {
         break;
 
       case "hint": {
-        // Pick the first empty category and reveal a random valid word from the pool
-        const emptyCats = GAME_CATEGORIES.filter((cat) => !(answers[cat] || "").trim());
+        const emptyCats = activeCategories.filter((cat) => !(answers[cat] || "").trim());
         const targetCat = emptyCats.length > 0
           ? emptyCats[Math.floor(Math.random() * emptyCats.length)]
-          : GAME_CATEGORIES[Math.floor(Math.random() * GAME_CATEGORIES.length)];
+          : activeCategories[Math.floor(Math.random() * activeCategories.length)];
         const pool = hintWordPool[targetCat] || [];
         if (pool.length > 0) {
           const word = pool[Math.floor(Math.random() * Math.min(pool.length, 20))];
@@ -430,6 +441,35 @@ export default function GameScreen() {
     if (submittedRef.current) return;
     stopTimer();
     doSubmit(answersRef.current);
+  };
+
+  const handleUseHint = async () => {
+    if (hintLoading || hintsUsed >= MAX_HINTS || submitted || profile.coins < HINT_COST) return;
+    setHintLoading(true);
+    try {
+      const res = await fetch(`${getApiUrl()}/api/game/hint`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomId, playerId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        if (err.error === "not_enough_coins") showPowerToast("💰 عملات غير كافية!", Colors.ruby);
+        else if (err.error === "max_hints_reached") showPowerToast("💡 انتهت التلميحات!", Colors.ruby);
+        else showPowerToast("❌ خطأ", Colors.ruby);
+        setHintLoading(false);
+        return;
+      }
+      const data = await res.json();
+      setHintsUsed(data.hintsUsed);
+      addCoins(-HINT_COST);
+      const label = (t as Record<string, string>)[data.category] || data.category;
+      showPowerToast(`💡 ${label}: ${data.word}`, Colors.gold);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      showPowerToast("❌ خطأ في الشبكة", Colors.ruby);
+    }
+    setHintLoading(false);
   };
 
   const playEmojiSound = (message: string) => {
@@ -800,6 +840,13 @@ export default function GameScreen() {
             </View>
           )}
 
+          {hintsUsed > 0 && (
+            <View style={styles.coinEntryInfo}>
+              <Text style={{ fontSize: 14 }}>💡</Text>
+              <Text style={styles.coinEntryInfoText}>تلميحات مستخدمة: {hintsUsed} ({hintsUsed * HINT_COST} عملة)</Text>
+            </View>
+          )}
+
           <ViewShot ref={shareCardRef} options={{ format: "png", quality: 1 }} style={styles.shareCardContainer}>
             <LinearGradient colors={["#0A0A1A", "#12122A", "#0E0E24"]} style={styles.shareCard}>
               <Text style={styles.shareCardTitle}>حروف المغرب 🇲🇦</Text>
@@ -938,7 +985,7 @@ export default function GameScreen() {
                     <Text style={styles.resultTotalText}>+{result.roundTotal}</Text>
                   </View>
                 </View>
-                {GAME_CATEGORIES.map((cat) => {
+                {activeCategories.map((cat) => {
                   const ans = result.answers[cat] || "";
                   const sc = result.scores[cat] || 0;
                   const st = result.status[cat] || "empty";
@@ -1037,6 +1084,32 @@ export default function GameScreen() {
         </View>
       )}
 
+      <View style={styles.gameMidBar}>
+        {wordCategory !== "general" && (() => {
+          const wc = WORD_CATEGORIES.find(c => c.id === wordCategory);
+          return wc ? (
+            <View style={styles.gameCategoryBadge}>
+              <Text style={styles.gameCategoryBadgeText}>{wc.emoji} {wc.labelAr}</Text>
+            </View>
+          ) : null;
+        })()}
+        {!submitted && (
+          <TouchableOpacity
+            style={[
+              styles.hintBtn,
+              (hintsUsed >= MAX_HINTS || profile.coins < HINT_COST || hintLoading) && styles.hintBtnDisabled,
+            ]}
+            onPress={handleUseHint}
+            disabled={hintsUsed >= MAX_HINTS || profile.coins < HINT_COST || hintLoading || submitted}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.hintBtnIcon}>💡</Text>
+            <Text style={styles.hintBtnText}>{HINT_COST}🪙</Text>
+            <Text style={styles.hintBtnCount}>({MAX_HINTS - hintsUsed})</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       <KeyboardAwareScrollView
         style={{ flex: 1 }}
         contentContainerStyle={[styles.inputsContent, { paddingBottom: bottomInset + 150 }]}
@@ -1044,7 +1117,7 @@ export default function GameScreen() {
         bottomOffset={150}
         keyboardShouldPersistTaps="handled"
       >
-        {GAME_CATEGORIES.map((cat, idx) => (
+        {activeCategories.map((cat, idx) => (
           <View key={cat} style={styles.categoryInputRow}>
             <Text style={[styles.categoryLabel, { color: theme.textSecondary }]}>{t[cat as keyof typeof t] as string}</Text>
             <TextInput
@@ -1060,7 +1133,7 @@ export default function GameScreen() {
               placeholderTextColor={theme.inputPlaceholder}
               editable={!submitted && !isFrozen}
               textAlign="right"
-              returnKeyType={idx < GAME_CATEGORIES.length - 1 ? "next" : "done"}
+              returnKeyType={idx < activeCategories.length - 1 ? "next" : "done"}
               autoCorrect={false}
             />
           </View>
@@ -1278,6 +1351,29 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", gap: 6,
     backgroundColor: Colors.emerald + "15", paddingHorizontal: 16, paddingVertical: 8,
   },
+  gameMidBar: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 14, paddingVertical: 6, gap: 8,
+  },
+  gameCategoryBadge: {
+    backgroundColor: Colors.gold + "18", borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 4,
+    borderWidth: 1, borderColor: Colors.gold + "40",
+  },
+  gameCategoryBadgeText: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.gold,
+  },
+  hintBtn: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    backgroundColor: "#12122A", borderRadius: 14,
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: 1.5, borderColor: Colors.gold + "50",
+    marginLeft: "auto" as any,
+  },
+  hintBtnDisabled: { opacity: 0.4 },
+  hintBtnIcon: { fontSize: 16 },
+  hintBtnText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.gold },
+  hintBtnCount: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#9898CC" },
   submittedText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.emerald },
   inputsContent: { padding: 12, gap: 8 },
   categoryInputRow: { flexDirection: "row", alignItems: "center", gap: 10 },

@@ -22,6 +22,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { usePlayer, SKINS } from "@/contexts/PlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
+import { WORD_CATEGORIES, type WordCategoryId } from "@/constants/i18n";
 import { getSocket } from "@/services/socket";
 
 type Player = {
@@ -40,6 +41,7 @@ type RoomData = {
   currentLetter: string;
   currentRound: number;
   totalRounds: number;
+  wordCategory?: WordCategoryId;
 };
 
 type TabMode = "select" | "create" | "join" | "waiting" | "matchmaking";
@@ -69,6 +71,7 @@ export default function LobbyScreen() {
   const [matchmakingStatus, setMatchmakingStatus] = useState("جاري البحث عن لاعبين...");
   const [countdown, setCountdown] = useState<number | null>(null);
   const [countdownPlayers, setCountdownPlayers] = useState<{ id: string; name: string; skin: string }[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<WordCategoryId>("general");
 
   // Voice chat state
   const [voiceEnabled, setVoiceEnabled] = useState(false);
@@ -250,25 +253,24 @@ export default function LobbyScreen() {
       setRoom(roomData);
     };
 
-    const handleGameStarted = (data: { letter: string; round: number; totalRounds: number }) => {
+    const handleGameStarted = (data: { letter: string; round: number; totalRounds: number; wordCategory?: string }) => {
       const currentRoomId = roomIdRef.current;
       if (!currentRoomId) return;
       stopRecordingLoop();
       router.replace({
         pathname: "/game",
-        params: { roomId: currentRoomId, letter: data.letter, round: String(data.round), totalRounds: String(data.totalRounds) },
+        params: { roomId: currentRoomId, letter: data.letter, round: String(data.round), totalRounds: String(data.totalRounds), wordCategory: data.wordCategory || "general" },
       });
     };
 
-    const handleMatchFound = (data: { roomId: string; letter: string; round: number; totalRounds: number; coinEntry?: number }) => {
+    const handleMatchFound = (data: { roomId: string; letter: string; round: number; totalRounds: number; coinEntry?: number; wordCategory?: string }) => {
       actionInProgressRef.current = false;
       isInMatchmakingRef.current = false;
-      // Match has started — lock out any coin refund
       matchStartedRef.current = true;
       roomIdRef.current = data.roomId;
       router.replace({
         pathname: "/game",
-        params: { roomId: data.roomId, letter: data.letter, round: String(data.round), totalRounds: String(data.totalRounds), coinEntry: String(data.coinEntry || coinEntry || 0) },
+        params: { roomId: data.roomId, letter: data.letter, round: String(data.round), totalRounds: String(data.totalRounds), coinEntry: String(data.coinEntry || coinEntry || 0), wordCategory: data.wordCategory || "general" },
       });
     };
 
@@ -374,7 +376,7 @@ export default function LobbyScreen() {
     const socket = getSocket();
     socket.emit(
       "create_room",
-      { playerName: profile.name, playerSkin: profile.equippedSkin },
+      { playerName: profile.name, playerSkin: profile.equippedSkin, wordCategory: selectedCategory },
       (res: { success: boolean; roomId?: string; room?: RoomData; error?: string }) => {
         actionInProgressRef.current = false;
         setLoading(false);
@@ -649,6 +651,14 @@ export default function LobbyScreen() {
         <View style={[styles.roomCodeCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
           <Text style={[styles.roomCodeLabel, { color: theme.textSecondary }]}>رمز الغرفة</Text>
           <Text style={[styles.roomCodeBig, { color: theme.textPrimary }]}>{room.id}</Text>
+          {(() => {
+            const wc = WORD_CATEGORIES.find(c => c.id === (room.wordCategory || "general"));
+            return wc ? (
+              <View style={styles.roomCategoryBadge}>
+                <Text style={styles.roomCategoryBadgeText}>{wc.emoji} {isRTL ? wc.labelAr : wc.labelEn}</Text>
+              </View>
+            ) : null;
+          })()}
           <TouchableOpacity style={styles.copyCodeBtn} onPress={copyRoomCode}>
             <Ionicons name="copy-outline" size={16} color={Colors.gold} />
             <Text style={styles.copyCodeText}>نسخ الرمز</Text>
@@ -890,6 +900,31 @@ export default function LobbyScreen() {
           <View style={styles.selectButtons}>
             <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>اختر طريقة اللعب</Text>
 
+            <View style={[styles.categoryPickerSection, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+              <Text style={[styles.categoryPickerLabel, { color: theme.textSecondary }]}>📂 اختر التصنيف</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
+                {WORD_CATEGORIES.map((cat) => {
+                  const isActive = selectedCategory === cat.id;
+                  return (
+                    <TouchableOpacity
+                      key={cat.id}
+                      style={[
+                        styles.categoryChip,
+                        isActive && styles.categoryChipActive,
+                      ]}
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedCategory(cat.id); }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.categoryChipEmoji}>{cat.emoji}</Text>
+                      <Text style={[styles.categoryChipText, isActive && styles.categoryChipTextActive]}>
+                        {isRTL ? cat.labelAr : cat.labelEn}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
             <TouchableOpacity
               style={styles.lobbyOptionCard}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setTab("create"); handleCreateRoom(); }}
@@ -989,6 +1024,26 @@ const styles = StyleSheet.create({
   miniPlayerLevel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#5A5A88" },
   sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#E8E8FF", textAlign: "right", marginBottom: 4 },
   selectButtons: { gap: 12 },
+  categoryPickerSection: {
+    borderRadius: 16, padding: 14, borderWidth: 1, marginBottom: 4,
+  },
+  categoryPickerLabel: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 13, marginBottom: 10, textAlign: "right",
+  },
+  categoryRow: { flexDirection: "row", gap: 8, paddingHorizontal: 2 },
+  categoryChip: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: "#0E0E24", borderWidth: 1.5, borderColor: "#1E1E3A",
+  },
+  categoryChipActive: {
+    borderColor: Colors.gold, backgroundColor: Colors.gold + "18",
+  },
+  categoryChipEmoji: { fontSize: 16 },
+  categoryChipText: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#9898CC",
+  },
+  categoryChipTextActive: { color: Colors.gold },
   lobbyOptionCard: {
     flexDirection: "row", alignItems: "center", backgroundColor: "#12122A",
     borderRadius: 16, padding: 16, borderWidth: 1, borderColor: "#1E1E3A", gap: 14,
@@ -1017,6 +1072,14 @@ const styles = StyleSheet.create({
   roomCodeLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#5A5A88", marginBottom: 8 },
   roomCodeBig: { fontFamily: "Cairo_700Bold", fontSize: 48, color: Colors.gold, letterSpacing: 12, marginBottom: 4 },
   roomCodeHint: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "#5A5A88" },
+  roomCategoryBadge: {
+    backgroundColor: Colors.gold + "18", borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 4, marginBottom: 8,
+    borderWidth: 1, borderColor: Colors.gold + "40",
+  },
+  roomCategoryBadgeText: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.gold,
+  },
 
   // Voice chat
   voiceChatCard: {

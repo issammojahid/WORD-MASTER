@@ -21,6 +21,22 @@ export const GAME_CATEGORIES: GameCategory[] = [
   "country",
 ];
 
+export type WordCategoryId = "general" | "animals" | "countries" | "food" | "sports" | "movies" | "cities";
+
+const WORD_CATEGORY_MAP: Record<WordCategoryId, GameCategory[]> = {
+  general:   [...GAME_CATEGORIES],
+  animals:   ["animal", "boyName", "girlName", "country"],
+  countries: ["country", "city", "boyName", "girlName"],
+  food:      ["fruit", "vegetable", "animal", "object"],
+  sports:    ["boyName", "girlName", "country", "city"],
+  movies:    ["girlName", "boyName", "city", "country"],
+  cities:    ["city", "country", "object", "girlName"],
+};
+
+export function getActiveCategories(wordCategory: WordCategoryId): GameCategory[] {
+  return WORD_CATEGORY_MAP[wordCategory] || GAME_CATEGORIES;
+}
+
 export const ARABIC_LETTERS = [
   "أ", "ب", "ت", "ث", "ج", "ح", "خ", "د", "ذ", "ر",
   "ز", "س", "ش", "ص", "ض", "ط", "ظ", "ع", "غ", "ف",
@@ -62,6 +78,7 @@ export type Room = {
   timer: ReturnType<typeof setTimeout> | null;
   letterQueue: string[];
   letterIndex: number;
+  wordCategory: WordCategoryId;
 };
 
 const rooms = new Map<string, Room>();
@@ -92,7 +109,7 @@ function getNextLetter(room: Room): string {
   return room.letterQueue[room.letterIndex++];
 }
 
-export function createRoom(hostId: string, hostName: string, hostSkin: string): Room {
+export function createRoom(hostId: string, hostName: string, hostSkin: string, wordCategory: WordCategoryId = "general"): Room {
   let code = generateRoomCode();
   while (rooms.has(code)) {
     code = generateRoomCode();
@@ -123,6 +140,7 @@ export function createRoom(hostId: string, hostName: string, hostSkin: string): 
     timer: null,
     letterQueue: initialQueue,
     letterIndex: 1,
+    wordCategory,
   };
 
   rooms.set(code, room);
@@ -232,15 +250,15 @@ export function calculateRoundScores(roomId: string): RoundResult[] {
 
   const letter = room.currentLetter;
   const results: RoundResult[] = [];
+  const activeCategories = getActiveCategories(room.wordCategory);
 
-  // Collect all answers per category for duplicate detection
   const answersByCategory: Partial<Record<GameCategory, string[]>> = {};
-  for (const cat of GAME_CATEGORIES) {
+  for (const cat of activeCategories) {
     answersByCategory[cat] = [];
   }
 
   for (const [, answers] of room.submittedAnswers) {
-    for (const cat of GAME_CATEGORIES) {
+    for (const cat of activeCategories) {
       const ans = answers[cat]?.trim().toLowerCase() || "";
       if (ans) {
         answersByCategory[cat]!.push(ans);
@@ -248,9 +266,8 @@ export function calculateRoundScores(roomId: string): RoundResult[] {
     }
   }
 
-  // Count duplicates
   const duplicateCounts: Partial<Record<GameCategory, Map<string, number>>> = {};
-  for (const cat of GAME_CATEGORIES) {
+  for (const cat of activeCategories) {
     const counts = new Map<string, number>();
     for (const ans of answersByCategory[cat]!) {
       counts.set(ans, (counts.get(ans) || 0) + 1);
@@ -265,7 +282,7 @@ export function calculateRoundScores(roomId: string): RoundResult[] {
       {} as Record<GameCategory, "correct" | "duplicate" | "empty" | "invalid">;
     let roundTotal = 0;
 
-    for (const cat of GAME_CATEGORIES) {
+    for (const cat of activeCategories) {
       const ans = answers[cat]?.trim() || "";
       if (!ans) {
         scores[cat] = 0;
@@ -301,7 +318,6 @@ export function calculateRoundScores(roomId: string): RoundResult[] {
       status,
     });
 
-    // Update player score
     player.score += roundTotal;
     player.roundScores.push(roundTotal);
   }

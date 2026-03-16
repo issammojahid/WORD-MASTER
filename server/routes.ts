@@ -12,7 +12,9 @@ import {
   getRoom,
   resetRoom,
   findAvailableRoom,
+  getActiveCategories,
   type PlayerAnswers,
+  type WordCategoryId,
 } from "./gameLogic";
 import { validateWord, CATEGORY_MAP, getWordsForLetter, type WordCategory } from "./wordDatabase";
 import { ARABIC_LETTERS } from "./gameLogic";
@@ -492,6 +494,7 @@ function startTournamentRoundMatches(
 
     const roomPlayers = room.players.map(p => ({ id: p.id, name: p.name, skin: p.skin }));
     emitCountdownThenStart(io, room.id, roomPlayers, () => {
+      clearHintsForRoom(room.id);
       const gameResult = startGame(room.id);
       if (!gameResult.success || !gameResult.room) return;
       const gameData = {
@@ -503,6 +506,7 @@ function startTournamentRoundMatches(
         coinEntry: 0,
         tournamentId: tournament.id,
         tournamentRound: match.roundName,
+        wordCategory: gameResult.room.wordCategory || "general",
       };
       io.to(room.id).emit("matchFound", gameData);
       gameResult.room.timer = setTimeout(() => {
@@ -604,6 +608,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.json(result);
   });
 
+  const HINT_COST = 5;
+  const MAX_HINTS_PER_GAME = 3;
+  const hintUsage = new Map<string, number>();
+
+  function clearHintsForRoom(roomId: string) {
+    for (const key of hintUsage.keys()) {
+      if (key.startsWith(`${roomId}:`)) hintUsage.delete(key);
+    }
+  }
+
+  app.post("/api/game/hint", async (req, res) => {
+    try {
+      const { roomId, playerId } = req.body as { roomId: string; playerId: string };
+      if (!roomId || !playerId) return res.status(400).json({ error: "missing_params" });
+
+      const room = getRoom(roomId);
+      if (!room || room.state !== "playing") return res.status(400).json({ error: "no_active_game" });
+
+      const globalKey = `${roomId}:${playerId}`;
+      const globalUsed = hintUsage.get(globalKey) || 0;
+      if (globalUsed >= MAX_HINTS_PER_GAME) return res.status(400).json({ error: "max_hints_reached" });
+
+      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId)).limit(1);
+      if (!profile || profile.coins < HINT_COST) return res.status(400).json({ error: "not_enough_coins" });
+
+      await db.update(playerProfiles).set({ coins: profile.coins - HINT_COST }).where(eq(playerProfiles.id, playerId));
+
+      const activeCategories = getActiveCategories(room.wordCategory);
+      const letter = room.currentLetter;
+      const candidates: { category: string; word: string }[] = [];
+      for (const cat of activeCategories) {
+        const dbCat = CATEGORY_MAP[cat] as WordCategory;
+        const words = getWordsForLetter(dbCat, letter);
+        for (const w of words.slice(0, 10)) {
+          candidates.push({ category: cat, word: w });
+        }
+      }
+
+      if (candidates.length === 0) {
+        await db.update(playerProfiles).set({ coins: profile.coins }).where(eq(playerProfiles.id, playerId));
+        return res.status(400).json({ error: "no_hints_available" });
+      }
+
+      const hint = candidates[Math.floor(Math.random() * candidates.length)];
+      hintUsage.set(globalKey, globalUsed + 1);
+
+      return res.json({
+        category: hint.category,
+        word: hint.word,
+        hintsUsed: globalUsed + 1,
+        hintsRemaining: MAX_HINTS_PER_GAME - (globalUsed + 1),
+        newCoinBalance: profile.coins - HINT_COST,
+      });
+    } catch (e) {
+      console.error("[hint] Error:", e);
+      return res.status(500).json({ error: "server_error" });
+    }
+  });
+
   app.post("/api/validate-round", (req, res) => {
     try {
       const { letter, participantsAnswers } = req.body as {
@@ -672,11 +735,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on(
       "create_room",
       (
-        data: { playerName: string; playerSkin: string },
+        data: { playerName: string; playerSkin: string; wordCategory?: WordCategoryId },
         cb: (res: { success: boolean; roomId?: string; error?: string }) => void
       ) => {
         try {
-          const room = createRoom(socket.id, data.playerName, data.playerSkin);
+          const room = createRoom(socket.id, data.playerName, data.playerSkin, data.wordCategory || "general");
           socket.join(room.id);
           socketRoomMap.set(socket.id, room.id);
           console.log(`[create_room] Socket ${socket.id} created room ${room.id}. Players: ${room.players.map(p => p.name).join(", ")}`);
@@ -729,6 +792,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cb: (res: { success: boolean; error?: string }) => void
       ) => {
         try {
+          clearHintsForRoom(data.roomId);
           const result = startGame(data.roomId);
           if (!result.success || !result.room) {
             cb({ success: false, error: result.error });
@@ -739,6 +803,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             letter: result.room.currentLetter,
             round: result.room.currentRound,
             totalRounds: result.room.totalRounds,
+            wordCategory: result.room.wordCategory || "general",
           });
 
           // Start 50-second timer
@@ -1049,6 +1114,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
               roomPendingDeductions.delete(room.id);
             }
+            clearHintsForRoom(room.id);
             const gameResult = startGame(room.id);
             if (!gameResult.success || !gameResult.room) {
               console.error(`[findMatch] startGame failed for room ${room.id}`);
@@ -1061,6 +1127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               totalRounds: gameResult.room.totalRounds,
               players: gameResult.room.players.map((p) => ({ id: p.id, name: p.name, skin: p.skin })),
               coinEntry: myCoinEntry,
+              wordCategory: gameResult.room.wordCategory || "general",
             };
             io.to(room.id).emit("matchFound", gameData);
             console.log(`[findMatch] Room ${room.id}: matchFound emitted, letter=${gameData.letter}, coinEntry=${myCoinEntry}`);
@@ -2989,6 +3056,7 @@ function sanitizeRoom(room: ReturnType<typeof getRoom>) {
     currentLetter: room.currentLetter,
     currentRound: room.currentRound,
     totalRounds: room.totalRounds,
+    wordCategory: room.wordCategory || "general",
     players: room.players.map((p) => ({
       id: p.id,
       name: p.name,
