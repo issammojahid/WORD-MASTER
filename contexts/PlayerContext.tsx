@@ -500,6 +500,48 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  // Calls the server purchase endpoint and reconciles the authoritative coin balance.
+  // If the server rejects (insufficient_coins), the local state is reverted.
+  const serverPurchase = useCallback(async (itemType: string, itemId: string, price: number) => {
+    if (!playerId || price === 0) return;
+    try {
+      const baseUrl = getApiUrl();
+      const res = await fetch(new URL(`/api/player/${playerId}/purchase`, baseUrl).toString(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemType, itemId, price }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.profile) {
+          setProfile((prev) => {
+            const updated: PlayerProfile = { ...prev, coins: data.profile.coins };
+            if (itemType === "skin" && Array.isArray(data.profile.ownedSkins)) {
+              updated.ownedSkins = [...new Set([...prev.ownedSkins, ...(data.profile.ownedSkins as SkinId[])])] as SkinId[];
+            }
+            if (itemType === "title" && Array.isArray(data.profile.ownedTitles)) {
+              updated.ownedTitles = [...new Set([...prev.ownedTitles, ...(data.profile.ownedTitles as TitleId[])])] as TitleId[];
+            }
+            saveProfile(updated);
+            return updated;
+          });
+        }
+      } else {
+        const data = await res.json().catch(() => ({}));
+        if (data.error === "insufficient_coins") {
+          setProfile((prev) => {
+            const reverted: PlayerProfile = { ...prev, coins: prev.coins + price };
+            if (itemType === "skin") reverted.ownedSkins = prev.ownedSkins.filter((s) => s !== itemId) as SkinId[];
+            if (itemType === "title") reverted.ownedTitles = prev.ownedTitles.filter((t) => t !== itemId) as TitleId[];
+            saveProfile(reverted);
+            debouncedSync(reverted);
+            return reverted;
+          });
+        }
+      }
+    } catch {}
+  }, [playerId]);
+
   const addXp = (amount: number) => {
     setProfile((prev) => {
       const newXp = prev.xp + amount;
@@ -549,6 +591,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const updated = { ...prev, coins: prev.coins - skin.price, ownedSkins: [...prev.ownedSkins, skinId], equippedSkin: skinId };
       saveProfile(updated); debouncedSync(updated); return updated;
     });
+    serverPurchase("skin", skinId, skin.price);
     return true;
   };
 
@@ -570,6 +613,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const updated = { ...prev, coins: prev.coins - bg.price, ownedBackgrounds: [...prev.ownedBackgrounds, id], equippedBackground: id };
       saveProfile(updated); debouncedSync(updated); return updated;
     });
+    serverPurchase("background", id, bg.price);
     return true;
   };
 
@@ -587,6 +631,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const updated = { ...prev, coins: prev.coins - emote.price, ownedEmotes: [...prev.ownedEmotes, id] };
       saveProfile(updated); debouncedSync(updated); return updated;
     });
+    serverPurchase("emote", id, emote.price);
     return true;
   };
 
@@ -599,6 +644,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const updated = { ...prev, coins: prev.coins - effect.price, ownedEffects: [...prev.ownedEffects, id], equippedEffect: id };
       saveProfile(updated); debouncedSync(updated); return updated;
     });
+    serverPurchase("effect", id, effect.price);
     return true;
   };
 
@@ -708,6 +754,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const updated = { ...prev, coins: prev.coins - title.price, ownedTitles: [...prev.ownedTitles, id], equippedTitle: id };
       saveProfile(updated); debouncedSync(updated); return updated;
     });
+    serverPurchase("title", id, title.price);
     return true;
   };
 

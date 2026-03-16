@@ -49,7 +49,7 @@ type TabMode = "select" | "create" | "join" | "waiting" | "matchmaking";
 export default function LobbyScreen() {
   const insets = useSafeAreaInsets();
   const { t, isRTL } = useLanguage();
-  const { profile, playerId, addCoins } = usePlayer();
+  const { profile, playerId, addCoins, updateProfile } = usePlayer();
   const { theme } = useTheme();
   const params = useLocalSearchParams<{ coinEntry?: string; action?: string; join?: string }>();
   const coinEntry = params.coinEntry ? parseInt(params.coinEntry, 10) : 0;
@@ -87,9 +87,8 @@ export default function LobbyScreen() {
   const actionInProgressRef = useRef(false);
   // Tracks active matchmaking so we can re-queue after a socket reconnect
   const isInMatchmakingRef = useRef(isQuickMatchMode);
-  // Coin-safety refs: prevent refund once match has started, and prevent double-refund
+  // Prevents UI refund message after a match has already started
   const matchStartedRef = useRef(false);
-  const refundProcessedRef = useRef(false);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
@@ -294,6 +293,15 @@ export default function LobbyScreen() {
       }
     };
 
+    const handleCoinRefunded = (data: { amount: number; newCoins?: number }) => {
+      if (data.newCoins !== undefined) {
+        // Use the server's authoritative coin value after refund
+        updateProfile({ coins: data.newCoins });
+      } else if (data.amount > 0) {
+        addCoins(data.amount);
+      }
+    };
+
     socket.on("connect", handleConnect);
     socket.on("room_updated", handleRoomUpdated);
     socket.on("game_started", handleGameStarted);
@@ -301,6 +309,7 @@ export default function LobbyScreen() {
     socket.on("countdown", handleCountdown);
     socket.on("voice_data", handleVoiceData);
     socket.on("matchError", handleMatchError);
+    socket.on("coinRefunded", handleCoinRefunded);
 
     return () => {
       socket.off("connect", handleConnect);
@@ -310,6 +319,7 @@ export default function LobbyScreen() {
       socket.off("countdown", handleCountdown);
       socket.off("voice_data", handleVoiceData);
       socket.off("matchError", handleMatchError);
+      socket.off("coinRefunded", handleCoinRefunded);
     };
   }, []);
 
@@ -438,15 +448,10 @@ export default function LobbyScreen() {
     isInMatchmakingRef.current = false;
     setLoading(false);
 
-    // Refund entry fee only if:
-    //  – there was an entry fee
-    //  – the match has NOT started yet (matchStartedRef guards post-countdown state)
-    //  – we haven't already processed a refund for this session
-    if (coinEntry > 0 && !matchStartedRef.current && !refundProcessedRef.current) {
-      refundProcessedRef.current = true;
-      addCoins(coinEntry);
-      setMatchmakingStatus("تم إلغاء البحث – تم إعادة العملات ✅");
-      // Brief pause so the player can read the confirmation, then navigate away
+    // Server handles the coin refund via cancelMatch → coinRefunded socket event.
+    // Show confirmation if there was an entry fee (coins will be updated by coinRefunded handler).
+    if (coinEntry > 0 && !matchStartedRef.current) {
+      setMatchmakingStatus("تم إلغاء البحث – جاري إعادة العملات ✅");
       setTimeout(() => {
         if (params.coinEntry !== undefined) {
           router.back();

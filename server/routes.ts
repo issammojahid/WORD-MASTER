@@ -1219,10 +1219,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     );
 
-    // cancelMatch: remove from queue (e.g. user pressed back)
-    socket.on("cancelMatch", () => {
+    // cancelMatch: remove from queue and refund coin entry server-side
+    socket.on("cancelMatch", async () => {
+      const queueEntry = matchmakingQueue.find((p) => p.id === socket.id);
       matchmakingQueue = matchmakingQueue.filter((p) => p.id !== socket.id);
       console.log(`[cancelMatch] Socket ${socket.id} removed from queue. Queue: ${matchmakingQueue.length}`);
+
+      if (queueEntry?.coinEntry && queueEntry.coinEntry > 0 && queueEntry.playerId) {
+        try {
+          const [updated] = await db.update(playerProfiles)
+            .set({ coins: sql`coins + ${queueEntry.coinEntry}`, updatedAt: new Date() })
+            .where(eq(playerProfiles.id, queueEntry.playerId))
+            .returning({ coins: playerProfiles.coins });
+          socket.emit("coinRefunded", { amount: queueEntry.coinEntry, newCoins: updated?.coins });
+          console.log(`[cancelMatch] Refunded ${queueEntry.coinEntry} coins to ${queueEntry.playerId}`);
+        } catch (e) {
+          console.error("[cancelMatch] Failed to refund coins:", e);
+        }
+      }
     });
     // ────────────────────────────────────────────────────────────────────
 
@@ -1410,6 +1424,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     socket.on("disconnect", () => {
       console.log("Socket disconnected:", socket.id);
       socketPlayerIdMap.delete(socket.id);
+
+      // Refund coin entry for players who disconnect while in matchmaking queue
+      const queueEntry = matchmakingQueue.find((p) => p.id === socket.id);
+      if (queueEntry?.coinEntry && queueEntry.coinEntry > 0 && queueEntry.playerId) {
+        db.update(playerProfiles)
+          .set({ coins: sql`coins + ${queueEntry.coinEntry}`, updatedAt: new Date() })
+          .where(eq(playerProfiles.id, queueEntry.playerId))
+          .catch((e) => console.error("[disconnect] Failed to refund coins:", e));
+        console.log(`[disconnect] Refunded ${queueEntry.coinEntry} coins to ${queueEntry.playerId}`);
+      }
 
       matchmakingQueue = matchmakingQueue.filter((p) => p.id !== socket.id);
 
@@ -1698,6 +1722,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updated);
     } catch (e) {
       console.error("PUT /api/player error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // Purchase endpoint: validates coins server-side and atomically deducts + grants item
+  app.post("/api/player/:id/purchase", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const { itemType, itemId, price } = req.body as { itemType: string; itemId: string; price: number };
+      if (!itemType || !itemId || typeof price !== "number" || price < 0) {
+        return res.status(400).json({ error: "invalid_params" });
+      }
+      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, id));
+      if (!profile) return res.status(404).json({ error: "player_not_found" });
+      if (profile.coins < price) return res.status(402).json({ error: "insufficient_coins" });
+
+      const ownedSkins: string[] = Array.isArray(profile.ownedSkins) ? (profile.ownedSkins as string[]) : [];
+      const ownedTitles: string[] = Array.isArray(profile.ownedTitles) ? (profile.ownedTitles as string[]) : [];
+
+      if (itemType === "skin" && ownedSkins.includes(itemId)) {
+        return res.json({ profile, alreadyOwned: true });
+      }
+      if (itemType === "title" && ownedTitles.includes(itemId)) {
+        return res.json({ profile, alreadyOwned: true });
+      }
+
+      const updates: Partial<typeof profile> = { coins: profile.coins - price, updatedAt: new Date() };
+      if (itemType === "skin") updates.ownedSkins = [...ownedSkins, itemId] as any;
+      if (itemType === "title") updates.ownedTitles = [...ownedTitles, itemId] as any;
+
+      const [updated] = await db.update(playerProfiles).set(updates).where(eq(playerProfiles.id, id)).returning();
+      return res.json({ profile: updated });
+    } catch (e) {
+      console.error("POST /api/player/:id/purchase error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });
