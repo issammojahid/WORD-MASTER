@@ -348,7 +348,7 @@ export const GAME_CATEGORIES = [
 
 export type GameCategory = typeof GAME_CATEGORIES[number];
 
-export type WordCategoryId = "general" | "animals" | "countries" | "food" | "sports" | "movies" | "cities";
+export type WordCategoryId = "general" | "animals" | "countries" | "food" | "names" | "objects" | "cities";
 
 export const WORD_CATEGORIES: {
   id: WordCategoryId;
@@ -361,8 +361,8 @@ export const WORD_CATEGORIES: {
   { id: "animals",   emoji: "🦁", labelAr: "حيوانات", labelEn: "Animals",   gameCategories: ["animal"] },
   { id: "countries", emoji: "🌍", labelAr: "دول",     labelEn: "Countries", gameCategories: ["country", "city"] },
   { id: "food",      emoji: "🍕", labelAr: "طعام",    labelEn: "Food",      gameCategories: ["fruit", "vegetable"] },
-  { id: "sports",    emoji: "⚽", labelAr: "رياضة",   labelEn: "Sports",    gameCategories: ["boyName", "girlName"] },
-  { id: "movies",    emoji: "🎬", labelAr: "أفلام",   labelEn: "Movies",    gameCategories: ["boyName", "girlName"] },
+  { id: "names",     emoji: "👤", labelAr: "أسماء",   labelEn: "Names",     gameCategories: ["boyName", "girlName"] },
+  { id: "objects",   emoji: "📦", labelAr: "جمادات",  labelEn: "Objects",   gameCategories: ["object"] },
   { id: "cities",    emoji: "🏙️", labelAr: "مدن",     labelEn: "Cities",    gameCategories: ["city"] },
 ];
 

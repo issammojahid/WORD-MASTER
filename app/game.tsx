@@ -637,7 +637,7 @@ export default function GameScreen() {
     });
 
     socket.on("game_over", (data: {
-      players: { id: string; name: string; score: number; coins: number; skin?: string }[];
+      players: { id: string; name: string; score: number; coins: number; skin?: string; hintsUsed?: number }[];
       tournamentId?: string | null;
       tournamentMatchId?: string | null;
     }) => {
@@ -647,6 +647,7 @@ export default function GameScreen() {
       setGameOverPlayers(safePlayers.map((p) => ({ ...p, skin: p.skin || "default" })));
       const me = safePlayers.find((p) => p.id === socketId);
       if (me) {
+        if (typeof me.hintsUsed === "number") setHintsUsed(me.hintsUsed);
         const sorted = [...safePlayers].sort((a, b) => b.score - a.score);
         const rank = sorted.findIndex((p) => p.id === socketId);
         const won = rank === 0;

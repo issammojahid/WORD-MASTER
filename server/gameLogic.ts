@@ -21,15 +21,15 @@ export const GAME_CATEGORIES: GameCategory[] = [
   "country",
 ];
 
-export type WordCategoryId = "general" | "animals" | "countries" | "food" | "sports" | "movies" | "cities";
+export type WordCategoryId = "general" | "animals" | "countries" | "food" | "names" | "objects" | "cities";
 
 const WORD_CATEGORY_MAP: Record<WordCategoryId, GameCategory[]> = {
   general:   [...GAME_CATEGORIES],
   animals:   ["animal"],
   countries: ["country", "city"],
   food:      ["fruit", "vegetable"],
-  sports:    ["boyName", "girlName"],
-  movies:    ["boyName", "girlName"],
+  names:     ["boyName", "girlName"],
+  objects:   ["object"],
   cities:    ["city"],
 };
 
