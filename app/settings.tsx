@@ -25,7 +25,7 @@ import { usePlayer } from "@/contexts/PlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { type Language } from "@/constants/i18n";
-import { getDisplayCode } from "@/lib/player-code";
+import { getPlayerDisplayId } from "@/lib/player-code";
 import { getApiUrl } from "@/lib/query-client";
 import { fetch } from "expo/fetch";
 import { updateNotificationSetting, getNotificationSettings } from "@/lib/notifications";
@@ -55,7 +55,7 @@ export default function SettingsScreen() {
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
-  const myDisplayCode = getDisplayCode(profile.name, playerId, profile.playerTag);
+  const myDisplayCode = getPlayerDisplayId(profile.playerTag);
 
   const handleCopyCode = async () => {
     await Clipboard.setStringAsync(myDisplayCode);
