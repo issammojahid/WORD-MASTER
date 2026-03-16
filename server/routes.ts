@@ -1639,7 +1639,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .returning();
         }
       }
-      res.json(profile);
+      const displayId = profile.playerTag
+        ? `WM-${profile.playerTag.toString().padStart(5, "0")}`
+        : null;
+      res.json({ ...profile, displayId });
     } catch (e) {
       console.error("GET /api/player error:", e);
       res.status(500).json({ error: "server_error" });
@@ -2302,7 +2305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ? and(eq(playerProfiles.playerTag, tagNum), ne(playerProfiles.id, myId))
           : eq(playerProfiles.playerTag, tagNum);
         const rows = await db.select(selectFields).from(playerProfiles).where(whereClause).limit(5);
-        return res.json(rows);
+        return res.json(rows.map(r => ({ ...r, displayId: r.playerTag ? `WM-${r.playerTag.toString().padStart(5, "0")}` : null })));
       }
 
       if (q.includes("#")) {
@@ -2330,7 +2333,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const rows = await db.select(selectFields).from(playerProfiles)
           .where(whereClause)
           .limit(10);
-        return res.json(rows);
+        return res.json(rows.map(r => ({ ...r, displayId: r.playerTag ? `WM-${r.playerTag.toString().padStart(5, "0")}` : null })));
       }
 
       // ── Normal search: partial name OR playerCode match ──────────────────
@@ -2356,7 +2359,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })).catch(() => {});
       }
 
-      res.json(rows);
+      const withDisplayId = rows.map(r => ({
+        ...r,
+        displayId: r.playerTag ? `WM-${r.playerTag.toString().padStart(5, "0")}` : null,
+      }));
+      res.json(withDisplayId);
     } catch (e) {
       console.error("GET /api/players/search error:", e);
       res.status(500).json({ error: "server_error" });
@@ -2470,11 +2477,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await db.transaction(async (tx) => {
         await tx.update(friendRequests).set({ status: "accepted" }).where(eq(friendRequests.id, requestId));
-        // Insert two rows for bidirectional lookup
-        await tx.insert(friends).values([
-          { playerId: req_.senderId, friendId: req_.receiverId },
-          { playerId: req_.receiverId, friendId: req_.senderId },
-        ]);
+        // One canonical row per pair; list endpoint queries both directions via OR
+        await tx.insert(friends).values({ playerId: req_.senderId, friendId: req_.receiverId });
       });
       res.json({ success: true });
     } catch (e) {

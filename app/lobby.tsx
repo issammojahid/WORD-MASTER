@@ -504,13 +504,13 @@ export default function LobbyScreen() {
   const loadFriends = async () => {
     try {
       const { getApiUrl } = await import("@/lib/query-client");
-      const url = new URL(`/api/friends/${playerId}`, getApiUrl());
+      const url = new URL(`/api/friends/list/${playerId}`, getApiUrl());
       const res = await fetch(url.toString());
       const data = await res.json();
-      const accepted = (Array.isArray(data) ? data : [])
-        .filter((f: { status: string }) => f.status === "accepted")
-        .map((f: { player: { id: string; name: string; skin: string; level: number } }) => f.player);
-      setFriends(accepted);
+      const list = (Array.isArray(data) ? data : [])
+        .map((f: { friend: { id: string; name: string; skin: string; level: number } }) => f.friend)
+        .filter(Boolean);
+      setFriends(list);
     } catch {}
   };
 
