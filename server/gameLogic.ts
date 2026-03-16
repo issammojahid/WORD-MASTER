@@ -282,6 +282,8 @@ export function calculateRoundScores(roomId: string): RoundResult[] {
       {} as Record<GameCategory, "correct" | "duplicate" | "empty" | "invalid">;
     let roundTotal = 0;
 
+    const useStrict = room.wordCategory !== "general";
+
     for (const cat of activeCategories) {
       const ans = answers[cat]?.trim() || "";
       if (!ans) {
@@ -289,7 +291,7 @@ export function calculateRoundScores(roomId: string): RoundResult[] {
         status[cat] = "empty";
       } else {
         const dbCategory = CATEGORY_MAP[cat] as WordCategory;
-        const validation = validateWord(ans, dbCategory, letter);
+        const validation = validateWord(ans, dbCategory, letter, useStrict);
 
         if (!validation.valid) {
           scores[cat] = 0;

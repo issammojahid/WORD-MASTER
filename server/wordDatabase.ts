@@ -121,9 +121,9 @@ function stripArticle(normWord: string): string {
 export function validateWord(
   word: string,
   category: WordCategory,
-  letter: string
+  letter: string,
+  strict: boolean = false
 ): { valid: boolean; reason?: string } {
-  // Rule 1: word must have length > 1
   if (!word || word.trim().length < 2) {
     return { valid: false, reason: "too_short" };
   }
@@ -131,13 +131,11 @@ export function validateWord(
   const normWord = normalize(word);
   const normLetter = normalizeLetter(letter);
 
-  // Rule 2: word must start with the required letter (allow ال prefix)
   const wordRoot = stripArticle(normWord);
   if (!normWord.startsWith(normLetter) && !wordRoot.startsWith(normLetter)) {
     return { valid: false, reason: "wrong_letter" };
   }
 
-  // Rule 3: word must exist in database (category-specific check first)
   if (exactSets[category].has(word.trim())) {
     return { valid: true };
   }
@@ -157,11 +155,12 @@ export function validateWord(
     }
   }
 
-  // Fallback: check per-letter words.json (general Arabic word existence check)
-  const letterSet = letterNormalizedSets[normLetter];
-  if (letterSet) {
-    if (letterSet.has(normWord) || letterSet.has(stripped)) {
-      return { valid: true };
+  if (!strict) {
+    const letterSet = letterNormalizedSets[normLetter];
+    if (letterSet) {
+      if (letterSet.has(normWord) || letterSet.has(stripped)) {
+        return { valid: true };
+      }
     }
   }
 

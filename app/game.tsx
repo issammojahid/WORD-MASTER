@@ -447,20 +447,20 @@ export default function GameScreen() {
     if (hintLoading || hintsUsed >= MAX_HINTS || submitted || profile.coins < HINT_COST) return;
     setHintLoading(true);
     try {
-      const res = await fetch(`${getApiUrl()}/api/game/hint`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomId, playerId, socketId: socket.id }),
+      const data: any = await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error("timeout")), 8000);
+        socket.emit("request_hint", { roomId, playerId }, (resp: any) => {
+          clearTimeout(timeout);
+          resolve(resp);
+        });
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        if (err.error === "not_enough_coins") showPowerToast("💰 عملات غير كافية!", Colors.ruby);
-        else if (err.error === "max_hints_reached") showPowerToast("💡 انتهت التلميحات!", Colors.ruby);
+      if (data.error) {
+        if (data.error === "not_enough_coins") showPowerToast("💰 عملات غير كافية!", Colors.ruby);
+        else if (data.error === "max_hints_reached") showPowerToast("💡 انتهت التلميحات!", Colors.ruby);
         else showPowerToast("❌ خطأ", Colors.ruby);
         setHintLoading(false);
         return;
       }
-      const data = await res.json();
       setHintsUsed(data.hintsUsed);
       addCoins(-HINT_COST);
       const label = (t as Record<string, string>)[data.category] || data.category;

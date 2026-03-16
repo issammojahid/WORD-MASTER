@@ -618,59 +618,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }
 
-  app.post("/api/game/hint", async (req, res) => {
-    try {
-      const { roomId, playerId, socketId: reqSocketId } = req.body as { roomId: string; playerId: string; socketId?: string };
-      if (!roomId || !playerId) return res.status(400).json({ error: "missing_params" });
-
-      const room = getRoom(roomId);
-      if (!room || room.state !== "playing") return res.status(400).json({ error: "no_active_game" });
-
-      if (reqSocketId) {
-        const isPlayerInRoom = room.players.some(p => p.id === reqSocketId);
-        if (!isPlayerInRoom) return res.status(403).json({ error: "not_in_room" });
-      }
-
-      const globalKey = `${roomId}:${playerId}`;
-      const globalUsed = hintUsage.get(globalKey) || 0;
-      if (globalUsed >= MAX_HINTS_PER_GAME) return res.status(400).json({ error: "max_hints_reached" });
-
-      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId)).limit(1);
-      if (!profile || profile.coins < HINT_COST) return res.status(400).json({ error: "not_enough_coins" });
-
-      await db.update(playerProfiles).set({ coins: profile.coins - HINT_COST }).where(eq(playerProfiles.id, playerId));
-
-      const activeCategories = getActiveCategories(room.wordCategory);
-      const letter = room.currentLetter;
-      const candidates: { category: string; word: string }[] = [];
-      for (const cat of activeCategories) {
-        const dbCat = CATEGORY_MAP[cat] as WordCategory;
-        const words = getWordsForLetter(dbCat, letter);
-        for (const w of words.slice(0, 10)) {
-          candidates.push({ category: cat, word: w });
-        }
-      }
-
-      if (candidates.length === 0) {
-        await db.update(playerProfiles).set({ coins: profile.coins }).where(eq(playerProfiles.id, playerId));
-        return res.status(400).json({ error: "no_hints_available" });
-      }
-
-      const hint = candidates[Math.floor(Math.random() * candidates.length)];
-      hintUsage.set(globalKey, globalUsed + 1);
-
-      return res.json({
-        category: hint.category,
-        word: hint.word,
-        hintsUsed: globalUsed + 1,
-        hintsRemaining: MAX_HINTS_PER_GAME - (globalUsed + 1),
-        newCoinBalance: profile.coins - HINT_COST,
-      });
-    } catch (e) {
-      console.error("[hint] Error:", e);
-      return res.status(500).json({ error: "server_error" });
-    }
-  });
 
   app.post("/api/validate-round", (req, res) => {
     try {
@@ -998,8 +945,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     );
 
-    // Forfeit match — player intentionally exits an active game
-    // Declares remaining players as winners and ends the match immediately.
+    socket.on("request_hint", async (data: { roomId: string; playerId: string }, callback?: (resp: any) => void) => {
+      const respond = (resp: any) => { if (callback) callback(resp); };
+      try {
+        const { roomId, playerId } = data;
+        if (!roomId || !playerId) return respond({ error: "missing_params" });
+
+        const room = getRoom(roomId);
+        if (!room || room.state !== "playing") return respond({ error: "no_active_game" });
+
+        const isPlayerInRoom = room.players.some(p => p.id === socket.id);
+        if (!isPlayerInRoom) return respond({ error: "not_in_room" });
+
+        const globalKey = `${roomId}:${playerId}`;
+        const globalUsed = hintUsage.get(globalKey) || 0;
+        if (globalUsed >= MAX_HINTS_PER_GAME) return respond({ error: "max_hints_reached" });
+
+        const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId)).limit(1);
+        if (!profile || profile.coins < HINT_COST) return respond({ error: "not_enough_coins" });
+
+        await db.update(playerProfiles).set({ coins: profile.coins - HINT_COST }).where(eq(playerProfiles.id, playerId));
+
+        const activeCategories = getActiveCategories(room.wordCategory);
+        const letter = room.currentLetter;
+        const candidates: { category: string; word: string }[] = [];
+        for (const cat of activeCategories) {
+          const dbCat = CATEGORY_MAP[cat] as WordCategory;
+          const words = getWordsForLetter(dbCat, letter);
+          for (const w of words.slice(0, 10)) {
+            candidates.push({ category: cat, word: w });
+          }
+        }
+
+        if (candidates.length === 0) {
+          await db.update(playerProfiles).set({ coins: profile.coins }).where(eq(playerProfiles.id, playerId));
+          return respond({ error: "no_hints_available" });
+        }
+
+        const hint = candidates[Math.floor(Math.random() * candidates.length)];
+        hintUsage.set(globalKey, globalUsed + 1);
+
+        return respond({
+          category: hint.category,
+          word: hint.word,
+          hintsUsed: globalUsed + 1,
+          hintsRemaining: MAX_HINTS_PER_GAME - (globalUsed + 1),
+          newCoinBalance: profile.coins - HINT_COST,
+        });
+      } catch (e) {
+        console.error("[hint] Error:", e);
+        return respond({ error: "server_error" });
+      }
+    });
+
     socket.on("forfeit_match", (data: { roomId: string }) => {
       const room = getRoom(data.roomId);
       if (!room) return;
@@ -1288,7 +1286,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       room.lastAttempts[socket.id] = data.word;
 
-      const validation = validateWord(data.word, dbCategory, room.currentLetter);
+      const useStrict = room.wordCategory !== "general";
+      const validation = validateWord(data.word, dbCategory, room.currentLetter, useStrict);
       if (!validation.valid) {
         socket.emit("rapid_word_result", { valid: false, reason: validation.reason });
         return;
