@@ -1649,6 +1649,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
           bestStreak: data.bestStreak ?? 0,
           lastStreakReward: data.lastStreakReward ?? 0,
         }).returning();
+
+        // Seed daily tasks for the new player
+        try {
+          const today = new Date().toISOString().slice(0, 10);
+          const chosenTasks = pickDailyTasks();
+          for (const def of chosenTasks) {
+            await db.insert(playerDailyTasks).values({
+              playerId: id,
+              taskKey: def.key,
+              assignedDate: today,
+              progress: 0,
+              baselineWins: 0,
+              baselineGames: 0,
+              baselineScore: 0,
+            });
+          }
+        } catch (e) {
+          console.error("[init] Failed to seed daily tasks for new player:", e);
+        }
+
+        // Seed achievement entries for the new player
+        try {
+          for (const def of ACHIEVEMENT_DEFS) {
+            await db.insert(playerAchievements).values({
+              playerId: id,
+              achievementKey: def.key,
+              progress: 0,
+              unlocked: 0,
+              claimed: 0,
+            });
+          }
+        } catch (e) {
+          console.error("[init] Failed to seed achievements for new player:", e);
+        }
+
         return res.json(created);
       }
       const updateData: Record<string, unknown> = { updatedAt: new Date() };
