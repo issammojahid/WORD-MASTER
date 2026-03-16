@@ -28,6 +28,7 @@ import { type Language } from "@/constants/i18n";
 import { getDisplayCode } from "@/lib/player-code";
 import { getApiUrl } from "@/lib/query-client";
 import { fetch } from "expo/fetch";
+import { updateNotificationSetting, getNotificationSettings } from "@/lib/notifications";
 const LOGO = {
   cyan:   "#00F5FF",
   pink:   "#FF006E",
@@ -49,6 +50,7 @@ export default function SettingsScreen() {
   const [refClaiming, setRefClaiming] = useState(false);
   const [refAlreadyClaimed, setRefAlreadyClaimed] = useState(false);
   const [refEligible, setRefEligible] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
@@ -86,7 +88,19 @@ export default function SettingsScreen() {
         }
       } catch {}
     })();
+    getNotificationSettings(playerId).then((settings) => {
+      if (settings) setNotificationsEnabled(settings.enabled);
+    }).catch(() => {});
   }, [playerId]);
+
+  const handleToggleNotifications = async (value: boolean) => {
+    setNotificationsEnabled(value);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (playerId) {
+      const ok = await updateNotificationSetting(playerId, value);
+      if (!ok) setNotificationsEnabled(!value);
+    }
+  };
 
   const handleCopyReferral = async () => {
     if (!referralCode) return;
@@ -295,6 +309,32 @@ export default function SettingsScreen() {
                 onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMusicEnabled(v); }}
                 trackColor={{ false: theme.cardBorder, true: LOGO.purple + "80" }}
                 thumbColor={musicEnabled ? LOGO.purple : theme.textMuted}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* ── Notifications ─────────────────────────── */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="notifications" size={20} color="#FF006E" />
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>الإشعارات</Text>
+          </View>
+
+          <View style={[styles.toggleCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <Ionicons name="notifications-outline" size={20} color="#FF006E" />
+                <View style={styles.toggleTexts}>
+                  <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>إشعارات اللعبة</Text>
+                  <Text style={[styles.toggleSub, { color: theme.textMuted }]}>دعوات، هدايا، تذكيرات يومية</Text>
+                </View>
+              </View>
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={handleToggleNotifications}
+                trackColor={{ false: theme.cardBorder, true: "#FF006E80" }}
+                thumbColor={notificationsEnabled ? "#FF006E" : theme.textMuted}
               />
             </View>
           </View>

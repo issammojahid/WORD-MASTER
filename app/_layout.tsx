@@ -20,6 +20,7 @@ import { PlayerProvider, usePlayer } from "@/contexts/PlayerContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import SplashOverlay from "@/components/SplashOverlay";
 import { preloadAllSounds } from "@/lib/sound-manager";
+import { registerForPushNotifications } from "@/lib/notifications";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -130,6 +131,22 @@ function GiftPoller() {
     const interval = setInterval(poll, 15000);
     poll();
     return () => clearInterval(interval);
+  }, [playerId]);
+
+  return null;
+}
+
+function PushNotificationRegistrar() {
+  const { playerId } = usePlayer();
+  const registeredRef = useRef(false);
+
+  useEffect(() => {
+    if (!playerId || registeredRef.current) return;
+    registeredRef.current = true;
+    const timer = setTimeout(() => {
+      registerForPushNotifications(playerId).catch(() => {});
+    }, 3000);
+    return () => clearTimeout(timer);
   }, [playerId]);
 
   return null;
@@ -270,6 +287,7 @@ function RootLayoutNav() {
       <GiftPoller />
       <DailyResetChecker />
       <DailyLoginPopup />
+      <PushNotificationRegistrar />
       <Stack screenOptions={{ headerShown: false, animation: "slide_from_right" }}>
         <Stack.Screen name="index" options={{ animation: "fade" }} />
         <Stack.Screen name="lobby" options={{ animation: "slide_from_right" }} />

@@ -21,6 +21,8 @@ import { ARABIC_LETTERS } from "./gameLogic";
 import { db } from "./db";
 import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, playerDailyTasks, playerAchievements, roomInvites, dailyTaskDefs, achievementDefs, coinGifts } from "@shared/schema";
 import { eq, and, desc, asc, or, ilike, ne, isNotNull, sql } from "drizzle-orm";
+import cron from "node-cron";
+import { sendPushNotification, sendDailyTaskReminders, sendStreakResetWarnings, sendSeasonEndingNotifications } from "./notifications";
 
 // ── TASK POOL — larger random pool, 3 are picked per player per day ──────────
 const TASK_POOL = [
@@ -2888,6 +2890,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [invite] = await db.insert(roomInvites)
         .values({ fromPlayerId, toPlayerId, roomId, fromPlayerName, status: "pending" })
         .returning();
+      sendPushNotification(
+        toPlayerId,
+        `${fromPlayerName} دعاك للانضمام إلى غرفته 🎮`,
+        "دعوة للعب!",
+        { type: "room_invite", roomId }
+      ).catch(() => {});
       res.json({ success: true, inviteId: invite.id });
     } catch (e) {
       console.error("POST /api/room-invites error:", e);
@@ -2966,6 +2974,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await tx.update(playerProfiles).set({ coins: sql`coins + ${amount}` }).where(eq(playerProfiles.id, toPlayerId));
         await tx.insert(coinGifts).values({ fromPlayerId, toPlayerId, amount });
       });
+
+      const [senderProfile] = await db.select({ name: playerProfiles.name }).from(playerProfiles).where(eq(playerProfiles.id, fromPlayerId));
+      sendPushNotification(
+        toPlayerId,
+        `${senderProfile?.name || "لاعب"} أرسل لك ${amount} عملة 🎁`,
+        "هدية!",
+        { type: "gift", amount }
+      ).catch(() => {});
 
       res.json({ success: true });
     } catch (e) {
@@ -3115,6 +3131,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   cleanupAbandonedTournaments();
   setInterval(() => cleanupAbandonedTournaments(), 30_000);
+
+  // ── Push Notification Endpoints ──────────────────────────────────────────
+  app.post("/api/player/:id/push-token", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { token } = req.body;
+      if (!token) return res.status(400).json({ error: "missing_token" });
+      await db.update(playerProfiles)
+        .set({ expoPushToken: token, updatedAt: new Date() })
+        .where(eq(playerProfiles.id, id));
+      res.json({ success: true });
+    } catch (e) {
+      console.error("POST /api/player/:id/push-token error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.put("/api/player/:id/notifications", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { enabled } = req.body;
+      if (typeof enabled !== "boolean") return res.status(400).json({ error: "invalid_value" });
+      await db.update(playerProfiles)
+        .set({ notificationsEnabled: enabled, updatedAt: new Date() })
+        .where(eq(playerProfiles.id, id));
+      res.json({ success: true, enabled });
+    } catch (e) {
+      console.error("PUT /api/player/:id/notifications error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  app.get("/api/player/:id/notifications", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [profile] = await db.select({
+        notificationsEnabled: playerProfiles.notificationsEnabled,
+        expoPushToken: playerProfiles.expoPushToken,
+      }).from(playerProfiles).where(eq(playerProfiles.id, id));
+      if (!profile) return res.status(404).json({ error: "not_found" });
+      res.json({
+        enabled: profile.notificationsEnabled,
+        tokenRegistered: !!profile.expoPushToken,
+      });
+    } catch (e) {
+      console.error("GET /api/player/:id/notifications error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // ── Cron Jobs — Push Notification Schedules ──────────────────────────────
+  cron.schedule("0 9 * * *", () => {
+    console.log("[cron] Running daily task reminders (9:00 AM)");
+    sendDailyTaskReminders().catch(console.error);
+  });
+
+  cron.schedule("0 20 * * *", () => {
+    console.log("[cron] Running streak reset warnings (8:00 PM)");
+    sendStreakResetWarnings().catch(console.error);
+  });
+
+  cron.schedule("0 12 * * *", () => {
+    console.log("[cron] Running season ending notifications (12:00 PM)");
+    sendSeasonEndingNotifications().catch(console.error);
+  });
+
+  console.log("[cron] Push notification cron jobs scheduled");
 
   return httpServer;
 }

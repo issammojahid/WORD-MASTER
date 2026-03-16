@@ -45,6 +45,8 @@ export const playerProfiles = pgTable("player_profiles", {
   referralCode: text("referral_code").unique(),
   referredBy: text("referred_by"),
   referralCount: integer("referral_count").notNull().default(0),
+  expoPushToken: text("expo_push_token"),
+  notificationsEnabled: boolean("notifications_enabled").notNull().default(true),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });

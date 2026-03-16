@@ -13,6 +13,17 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
 
 ## Recent Features Added
 
+- **Push Notifications (Task #6)**:
+  - **Backend**: `server/notifications.ts` — Expo Push API utility (`sendPushNotification`, `sendBulkPushNotifications`), cron job functions for daily task reminders (9am), streak reset warnings (8pm), season ending alerts (noon)
+  - **Schema**: `player_profiles.expo_push_token` and `player_profiles.notifications_enabled` columns
+  - **API Endpoints**: `POST /api/player/:id/push-token` (register token), `GET/PUT /api/player/:id/notifications` (read/toggle notification setting)
+  - **Event-triggered**: Push on room invite creation, push on coin gift sent
+  - **Cron Jobs**: `node-cron` schedules in `server/routes.ts` — 9:00 AM daily task reminders (players who haven't logged in today), 8:00 PM streak reset warnings (players with 3+ streaks who haven't logged in), 12:00 PM season ending notifications (3 days and 1 day before month end)
+  - **Frontend**: `lib/notifications.ts` — `registerForPushNotifications()` (permission request, Android channel setup, token registration), `updateNotificationSetting()`, `getNotificationSettings()`
+  - **App Startup**: `PushNotificationRegistrar` component in `_layout.tsx` — registers push token 3s after playerId is available
+  - **Settings**: Notifications toggle in `app/settings.tsx` with real-time server sync
+  - Files: `server/notifications.ts`, `lib/notifications.ts`, `shared/schema.ts`, `server/routes.ts`, `app/_layout.tsx`, `app/settings.tsx`, `app.json`
+
 - **Word Categories & Hint System (Task #5)**:
   - **Word Categories**: Room host picks a category (عام/حيوانات/دول/طعام/رياضة/أفلام/مدن) when creating a room. Each category filters which answer fields (game categories) appear during gameplay. Category picker in lobby, badge in waiting room and game header.
   - **In-game Hint Button**: Costs 5 coins per use, max 3 per game. Server-side tracking (cleared on game start). Returns a random valid word from the current letter + active categories. Hint usage shown in game-over stats.
