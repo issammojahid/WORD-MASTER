@@ -13,6 +13,18 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
 
 ## Recent Features Added
 
+- **Shop UI Rebuild (Task #2)**:
+  - Rebuilt `app/shop.tsx` with premium mobile game styling while preserving all game logic exactly
+  - Enhanced design tokens (`L` object) with deeper dark theme colors, additional tokens (`cardInner`, `purpleDeep`, `goldGlow`, `headerGrad1/2`)
+  - Improved card designs with more pronounced rarity glow effects, deeper shadows, and refined border radius (18→20px cards, 14→18px daily cards)
+  - Better tab bar with refined active states and glow indicators
+  - Enhanced daily deals section with structured banner layout, improved timer badge styling
+  - Restructured header with dedicated `headerRight` container, cleaner VIP button styling
+  - Filter chips with active state style extraction (`filterChipActive`) instead of inline styles
+  - All 7 tabs preserved: daily/spin/mystery/avatars/effects/titles/coins
+  - All logic functions preserved exactly: getDailyItems, rollMysteryBox, BOX_TIERS, COIN_PACKS, AnimatedCard, BoxOpeningModal, BurstOverlay, ShopParticles
+  - Files: `app/shop.tsx`
+
 - **VIP / Premium Subscription (Task #7)**:
   - **Schema**: `player_profiles.is_vip`, `player_profiles.vip_expires_at`, `player_profiles.vip_subscription_id` columns
   - **Backend**: `POST /api/player/:id/activate-vip` (activate VIP, default 30 days), `GET /api/player/:id/vip-status` (check status), 2x coin multiplier in `POST /api/player/:id/spin` and `POST /api/player/:id/game-result` for VIP players, `isVip` field in leaderboard API response

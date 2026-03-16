@@ -20,26 +20,29 @@ import Colors from "@/constants/colors";
 const { width: SW, height: SH } = Dimensions.get("window");
 const CARD_W = (SW - 52) / 2;
 
-// ── Shop Design Tokens (Dark Theme) ──────────────────────────────────────────
 const L = {
   bg:         "#0A0A1A",
-  card:       "#12122A",
-  cardBorder: "#1E1E3A",
-  shadow:     "#00000080",
-  textMain:   "#E8E8FF",
-  textSub:    "#9898CC",
+  card:       "#111128",
+  cardBorder: "#1C1C3A",
+  cardInner:  "#16163A",
+  shadow:     "#00000090",
+  textMain:   "#EEEEFF",
+  textSub:    "#8888BB",
   purple:     "#BF00FF",
+  purpleDeep: "#7B2FBE",
   purpleLight:"#1A0033",
   gold:       "#F5C842",
   goldLight:  "#2A2000",
+  goldGlow:   "#F5C84240",
   cyan:       "#00F5FF",
   green:      "#00FF87",
   pink:       "#FF006E",
-  tabBg:      "#0E0E24",
+  tabBg:      "#0C0C22",
   tabActive:  "#BF00FF",
+  headerGrad1:"#12002A",
+  headerGrad2:"#0A0A1A",
 };
 
-// ── Sound helper ─────────────────────────────────────────────────────────────
 function playShopSound(type: "open" | "click" | "unlock" | "error" | "sparkle" | "select") {
   if (Platform.OS === "web" && typeof window !== "undefined") {
     try {
@@ -69,7 +72,6 @@ function playShopSound(type: "open" | "click" | "unlock" | "error" | "sparkle" |
   } catch (_) {}
 }
 
-// ── Daily Shop ────────────────────────────────────────────────────────────────
 interface DailyItem {
   id: string; type: "skin" | "background" | "emote" | "effect";
   emoji: string; nameAr: string;
@@ -123,7 +125,6 @@ function rollMysteryBox(tier: "basic" | "rare" | "legendary", profile: ReturnTyp
     if (r < 0.65) { const av = SKINS.filter(s => (s.rarity === "rare" || s.rarity === "epic") && s.price > 0 && !profile.ownedSkins.includes(s.id)); if (av.length) { const s = av[Math.floor(Math.random()*av.length)]; return { type: "skin", id: s.id, emoji: s.emoji, nameAr: s.nameAr }; } return { type: "coins", coins: 200, emoji: "🪙", nameAr: "200 عملة" }; }
     const av = EFFECTS.filter(e => e.price > 0 && !profile.ownedEffects.includes(e.id)); if (av.length) { const e = av[Math.floor(Math.random()*av.length)]; return { type: "effect", id: e.id, emoji: e.emoji, nameAr: e.nameAr }; } return { type: "coins", coins: 150, emoji: "🪙", nameAr: "150 عملة" };
   }
-  // legendary
   if (r < 0.2) { const amt = Math.floor(Math.random() * 401) + 300; return { type: "coins", coins: amt, emoji: "🪙", nameAr: `${amt} عملة` }; }
   const av = SKINS.filter(s => (s.rarity === "epic" || s.rarity === "legendary") && !profile.ownedSkins.includes(s.id)); if (av.length) { const s = av[Math.floor(Math.random()*av.length)]; return { type: "skin", id: s.id, emoji: s.emoji, nameAr: s.nameAr }; } return { type: "coins", coins: 500, emoji: "🪙", nameAr: "500 عملة" };
 }
@@ -136,7 +137,6 @@ function getTimeUntilMidnight(): string {
   return `${h}س ${m}د`;
 }
 
-// ── Box tiers ─────────────────────────────────────────────────────────────────
 const BOX_TIERS = [
   { id: "basic" as const,     nameAr: "صندوق أساسي",   emoji: "🎁", price: 100, glowColor: "#9CA3AF", lightGlow: "#9CA3AF40", gradient: ["#14142E", "#0E0E24"] as [string,string], accentColor: "#9898CC", poolLabel: "عادي · نادر",    coinMin: 50,  coinMax: 150 },
   { id: "rare" as const,      nameAr: "صندوق نادر",     emoji: "💜", price: 300, glowColor: "#8B5CF6", lightGlow: "#8B5CF630", gradient: ["#2D1B69", "#1A1040"] as [string,string], accentColor: "#A78BFA", poolLabel: "نادر · ملحمي",  coinMin: 150, coinMax: 350 },
@@ -144,14 +144,12 @@ const BOX_TIERS = [
 ] as const;
 type BoxTierId = typeof BOX_TIERS[number]["id"];
 
-// ── Coin packs ────────────────────────────────────────────────────────────────
 const COIN_PACKS = [
   { id: "starter",  coins: 500,   bonus: 0,   price: "مجاناً مع الإعلان", priceCoins: 0,   emoji: "🪙", gradient: ["#1A1040","#2D1B69"] as [string,string], accent: "#7C5CFC", badge: null },
   { id: "medium",   coins: 1200,  bonus: 200, price: "عرض خاص",           priceCoins: 0,   emoji: "💰", gradient: ["#0A2918","#0D3320"] as [string,string], accent: "#10B981", badge: "الأكثر شراءً" },
   { id: "premium",  coins: 3000,  bonus: 800, price: "قيمة مضاعفة",       priceCoins: 0,   emoji: "💎", gradient: ["#3A2800","#4A3200"] as [string,string], accent: "#F59E0B", badge: "الأفضل قيمة" },
 ] as const;
 
-// ── Tabs ──────────────────────────────────────────────────────────────────────
 const TABS = [
   { id: "daily",   label: "العروض",    emoji: "🛒",  color: "#10B981" },
   { id: "spin",    label: "العجلة",    emoji: "🎡",  color: "#06B6D4" },
@@ -163,7 +161,6 @@ const TABS = [
 ] as const;
 type TabId = typeof TABS[number]["id"];
 
-// ── AnimatedCard ──────────────────────────────────────────────────────────────
 const AnimatedCard = memo(({ children, style, onPress, disabled }: {
   children: React.ReactNode; style?: any; onPress: () => void; disabled?: boolean;
 }) => {
@@ -184,7 +181,6 @@ const AnimatedCard = memo(({ children, style, onPress, disabled }: {
   );
 });
 
-// ── Sparkle Particles (light) ─────────────────────────────────────────────────
 const PARTICLE_SYMS = ["⭐", "✨", "🪙", "💫", "⭐"];
 const ShopParticles = memo(() => {
   const particles = useRef(Array.from({ length: 10 }, (_, i) => ({
@@ -211,7 +207,6 @@ const ShopParticles = memo(() => {
   );
 });
 
-// ── Burst reward popup ────────────────────────────────────────────────────────
 function BurstOverlay({ emoji, onDone }: { emoji: string; onDone: () => void }) {
   const scale = useRef(new Animated.Value(0)).current;
   const op = useRef(new Animated.Value(0)).current;
@@ -236,7 +231,6 @@ function BurstOverlay({ emoji, onDone }: { emoji: string; onDone: () => void }) 
   );
 }
 
-// ── Mystery Box Opening Modal ─────────────────────────────────────────────────
 type BoxPhase = "idle" | "shake" | "burst" | "reward";
 
 function BoxOpeningModal({
@@ -279,7 +273,6 @@ function BoxOpeningModal({
     setPhase("shake");
     playShopSound("open");
 
-    // Shake sequence
     Animated.sequence([
       Animated.timing(shakeAnim, { toValue: 14, duration: 80, useNativeDriver: true }),
       Animated.timing(shakeAnim, { toValue: -14, duration: 80, useNativeDriver: true }),
@@ -293,7 +286,6 @@ function BoxOpeningModal({
       const rolled = rollMysteryBox(tier.id, profile);
       setPrize(rolled);
 
-      // Apply reward
       if (rolled.type === "coins" && rolled.coins) addCoins(rolled.coins);
       else if (rolled.type === "skin" && rolled.id) purchaseSkin(rolled.id as SkinId);
       else if (rolled.type === "background" && rolled.id) purchaseBackground(rolled.id as any);
@@ -302,7 +294,6 @@ function BoxOpeningModal({
 
       playShopSound("unlock");
 
-      // Box burst + fade out
       Animated.parallel([
         Animated.timing(boxScale, { toValue: 0.1, duration: 250, useNativeDriver: true }),
         Animated.timing(boxOpacity, { toValue: 0, duration: 250, useNativeDriver: true }),
@@ -329,7 +320,6 @@ function BoxOpeningModal({
         <View style={styles.boxModalContent}>
           <LinearGradient colors={["#1A1040", "#0A0A1A", "#0E0E24"]} style={StyleSheet.absoluteFillObject} />
 
-          {/* Floating particles inside modal */}
           <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
             {PARTICLES.map((sym, i) => (
               <Text key={i} style={[styles.boxParticle, {
@@ -341,7 +331,6 @@ function BoxOpeningModal({
             ))}
           </View>
 
-          {/* Phase: Box (idle / shake) */}
           {(phase === "idle" || phase === "shake") && (
             <View style={styles.boxPhaseContainer}>
               <Text style={styles.boxModalTitle}>{tier.nameAr}</Text>
@@ -376,7 +365,6 @@ function BoxOpeningModal({
             </View>
           )}
 
-          {/* Phase: Light burst */}
           {phase === "burst" && (
             <Animated.View style={[styles.burstCircle, {
               backgroundColor: tier.glowColor + "30",
@@ -385,7 +373,6 @@ function BoxOpeningModal({
             }]} />
           )}
 
-          {/* Phase: Reward */}
           {phase === "reward" && prize && (
             <Animated.View style={[styles.rewardPhase, { transform: [{ scale: rewardScale }], opacity: rewardOp }]}>
               <Text style={styles.rewardCongrats}>🎉 مبروك!</Text>
@@ -402,7 +389,6 @@ function BoxOpeningModal({
                 </Text>
               </LinearGradient>
 
-              {/* Spark particles */}
               {Array.from({ length: 8 }, (_, i) => (
                 <Text key={i} style={[styles.sparkParticle, {
                   top: SH * 0.25 + Math.sin(i * Math.PI / 4) * 100,
@@ -421,7 +407,6 @@ function BoxOpeningModal({
             </Animated.View>
           )}
 
-          {/* Close X button */}
           {phase !== "shake" && (
             <TouchableOpacity style={styles.boxCloseX} onPress={onClose}>
               <Ionicons name="close-circle" size={32} color={L.textSub} />
@@ -433,9 +418,6 @@ function BoxOpeningModal({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ── Main Shop Screen ──────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────────────────────
 export default function ShopScreen() {
   const insets = useSafeAreaInsets();
   const {
@@ -470,7 +452,6 @@ export default function ShopScreen() {
 
   const activeTier = BOX_TIERS.find(t => t.id === selectedBoxTier) || BOX_TIERS[0];
 
-  // ── Coin Pack handler ─────────────────────────────────────────────────────
   const handleCoinPack = (pack: typeof COIN_PACKS[number]) => {
     if (coinPackLoading) return;
     setCoinPackLoading(pack.id);
@@ -483,7 +464,6 @@ export default function ShopScreen() {
     }, 1200);
   };
 
-  // ── Avatar (skin) handlers ────────────────────────────────────────────────
   const handleSkinAction = (id: SkinId) => {
     const skin = SKINS.find(s => s.id === id);
     if (!skin) return;
@@ -549,48 +529,48 @@ export default function ShopScreen() {
     setBoxModalVisible(true);
   };
 
-  // ── Tab scroll helper ─────────────────────────────────────────────────────
   const changeTab = (id: TabId) => {
     setActiveTab(id);
     playShopSound("click");
     contentScrollRef.current?.scrollTo({ y: 0, animated: true });
   };
 
-  // ─────────────────── RENDERS ─────────────────────────────────────────────
-
-  // ── Render: Daily ─────────────────────────────────────────────────────────
   const renderDaily = () => (
     <>
-      {/* Timer banner */}
-      <LinearGradient colors={["#0A2918", "#0D3320"]} style={styles.dailyBanner}>
-        <View>
-          <Text style={styles.dailyBannerTitle}>عروض اليوم 🏷️</Text>
+      <View style={styles.dailyBanner}>
+        <LinearGradient colors={["#0B2E1A", "#0D3320", "#091F12"]} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+        <View style={styles.dailyBannerLeft}>
+          <View style={styles.dailyBannerTitleRow}>
+            <Text style={styles.dailyBannerEmoji}>🏷️</Text>
+            <Text style={styles.dailyBannerTitle}>عروض اليوم</Text>
+          </View>
           <Text style={styles.dailyBannerSub}>خصم 30% على المنتجات المختارة</Text>
         </View>
         <View style={styles.timerBadge}>
-          <Ionicons name="time-outline" size={13} color={L.green} />
+          <Ionicons name="time-outline" size={14} color={L.green} />
           <Text style={styles.timerText}>{timeLeft}</Text>
         </View>
-      </LinearGradient>
+      </View>
 
       {dailyItems.map((item, idx) => {
         const owned = isItemOwned(item);
         const bought = todayBought.includes(item.id);
         const canAfford = profile.coins >= item.discountedPrice;
         const discount = Math.round((1 - item.discountedPrice / item.originalPrice) * 100);
+        const rarityColor = RARITY_COLORS[item.rarity];
         return (
-          <View key={idx} style={styles.dailyCard}>
-            <LinearGradient colors={[item.color + "12", "transparent"]} style={StyleSheet.absoluteFillObject} />
-            <View style={[styles.discountBubble, { backgroundColor: L.green }]}>
+          <View key={idx} style={[styles.dailyCard, { borderColor: rarityColor + "18" }]}>
+            <LinearGradient colors={[item.color + "08", "transparent"]} style={StyleSheet.absoluteFillObject} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} />
+            <View style={[styles.discountBubble, { backgroundColor: L.green + "DD" }]}>
               <Text style={styles.discountText}>-{discount}%</Text>
             </View>
-            <View style={[styles.dailyAvatarCircle, { backgroundColor: item.color + "25", borderColor: RARITY_COLORS[item.rarity] + "50" }]}>
+            <View style={[styles.dailyAvatarCircle, { backgroundColor: item.color + "18", borderColor: rarityColor + "40" }]}>
               <Text style={styles.dailyAvatarEmoji}>{item.emoji}</Text>
             </View>
             <View style={styles.dailyItemMeta}>
               <View style={styles.dailyItemTopRow}>
-                <View style={[styles.rarityPill, { backgroundColor: RARITY_COLORS[item.rarity] + "20" }]}>
-                  <Text style={[styles.rarityPillText, { color: RARITY_COLORS[item.rarity] }]}>{RARITY_LABELS[item.rarity]}</Text>
+                <View style={[styles.rarityPill, { backgroundColor: rarityColor + "18" }]}>
+                  <Text style={[styles.rarityPillText, { color: rarityColor }]}>{RARITY_LABELS[item.rarity]}</Text>
                 </View>
                 <Text style={styles.dailyItemCat}>{item.type === "skin" ? "أفاتار" : item.type === "emote" ? "تفاعل" : "تأثير"}</Text>
               </View>
@@ -604,7 +584,7 @@ export default function ShopScreen() {
               </View>
             </View>
             {owned || bought ? (
-              <View style={[styles.dailyActionBtn, { backgroundColor: "#0A2918" }]}>
+              <View style={[styles.dailyActionBtn, { backgroundColor: "#0A291820" }]}>
                 <Text style={[styles.dailyActionText, { color: L.green }]}>✓ {owned ? "تملكه" : "مشترى"}</Text>
               </View>
             ) : (
@@ -620,8 +600,8 @@ export default function ShopScreen() {
         );
       })}
 
-      {/* Earn guide */}
       <View style={styles.earnCard}>
+        <LinearGradient colors={[L.card, "#0E0E28"]} style={StyleSheet.absoluteFillObject} />
         <Text style={styles.earnTitle}>💡 كيف تكسب عملات؟</Text>
         {[
           { rank: "🥇", color: Colors.rank1, text: "المركز الأول = 20 عملة" },
@@ -639,7 +619,6 @@ export default function ShopScreen() {
     </>
   );
 
-  // ── Render: Avatars ───────────────────────────────────────────────────────
   const renderAvatars = () => {
     const cur = SKINS.find(s => s.id === profile.equippedSkin) || SKINS[0];
     const FILTERS = ["الكل", "مغربية", "عالمية", "حصرية"] as const;
@@ -652,30 +631,28 @@ export default function ShopScreen() {
 
     return (
       <>
-        {/* Active avatar banner */}
         <TouchableOpacity style={styles.activeAvatarBanner} onPress={() => handleSkinAction(cur.id)} activeOpacity={0.85}>
-          <LinearGradient colors={[RARITY_COLORS[cur.rarity] + "20", RARITY_COLORS[cur.rarity] + "06"]} style={StyleSheet.absoluteFillObject} />
-          <View style={[styles.activeAvatarRing, { borderColor: RARITY_COLORS[cur.rarity] + "80", shadowColor: RARITY_COLORS[cur.rarity] }]}>
-            <View style={[styles.activeAvatarInner, { backgroundColor: cur.color + "30" }]}>
+          <LinearGradient colors={[RARITY_COLORS[cur.rarity] + "14", RARITY_COLORS[cur.rarity] + "04"]} style={StyleSheet.absoluteFillObject} />
+          <View style={[styles.activeAvatarRing, { borderColor: RARITY_COLORS[cur.rarity] + "70", shadowColor: RARITY_COLORS[cur.rarity] }]}>
+            <View style={[styles.activeAvatarInner, { backgroundColor: cur.color + "25" }]}>
               <Text style={styles.activeAvatarEmoji}>{cur.emoji}</Text>
             </View>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.activeBannerLabel, { color: L.textSub }]}>أفاتارك الحالي</Text>
             <Text style={[styles.activeBannerName, { color: RARITY_COLORS[cur.rarity] }]}>{cur.nameAr}</Text>
-            <View style={[styles.rarityPill, { backgroundColor: RARITY_COLORS[cur.rarity] + "20", alignSelf: "flex-start", marginTop: 4 }]}>
+            <View style={[styles.rarityPill, { backgroundColor: RARITY_COLORS[cur.rarity] + "18", alignSelf: "flex-start", marginTop: 4 }]}>
               <Text style={[styles.rarityPillText, { color: RARITY_COLORS[cur.rarity] }]}>{RARITY_LABELS[cur.rarity]}</Text>
             </View>
           </View>
           <Ionicons name="pencil" size={18} color={L.textSub} />
         </TouchableOpacity>
 
-        {/* Filter row */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterContent}>
           {FILTERS.map(f => (
             <TouchableOpacity
               key={f}
-              style={[styles.filterChip, skinFilter === f && { backgroundColor: L.purple }]}
+              style={[styles.filterChip, skinFilter === f && styles.filterChipActive]}
               onPress={() => { setSkinFilter(f as any); playShopSound("click"); }}
             >
               <Text style={[styles.filterChipText, skinFilter === f && { color: "#FFF" }]}>{f}</Text>
@@ -683,7 +660,6 @@ export default function ShopScreen() {
           ))}
         </ScrollView>
 
-        {/* Cards grid */}
         <View style={styles.avatarGrid}>
           {filtered.map(skin => {
             const isVipSkin = skin.id.startsWith("vip_");
@@ -703,31 +679,27 @@ export default function ShopScreen() {
               <AnimatedCard key={skin.id} style={{ width: CARD_W }} onPress={() => handleSkinAction(skin.id)}>
                 <View style={[
                   styles.avatarCard,
-                  { borderColor: equipped ? rarityColor + "90" : rarityColor + (skin.rarity === "common" ? "20" : skin.rarity === "rare" ? "38" : skin.rarity === "epic" ? "50" : "70") },
-                  skin.rarity === "legendary" && { shadowColor: rarityColor, shadowOpacity: 0.30, shadowRadius: 14 },
-                  skin.rarity === "epic" && { shadowColor: rarityColor, shadowOpacity: 0.18, shadowRadius: 10 },
+                  { borderColor: equipped ? rarityColor + "80" : rarityColor + (skin.rarity === "common" ? "15" : skin.rarity === "rare" ? "28" : skin.rarity === "epic" ? "40" : "60") },
+                  (skin.rarity === "legendary") && { shadowColor: rarityColor, shadowOpacity: 0.35, shadowRadius: 16 },
+                  (skin.rarity === "epic") && { shadowColor: rarityColor, shadowOpacity: 0.20, shadowRadius: 12 },
                 ]}>
-                  {/* Soft rarity glow top strip */}
-                  <LinearGradient colors={[rarityColor + "25", "transparent"]} style={styles.cardGlowTop} />
+                  <LinearGradient colors={[rarityColor + "18", "transparent"]} style={styles.cardGlowTop} />
 
-                  {/* Rarity label */}
-                  <View style={[styles.rarityPill, { backgroundColor: rarityColor + "18", alignSelf: "center", marginBottom: 4 }]}>
+                  <View style={[styles.rarityPill, { backgroundColor: rarityColor + "15", alignSelf: "center", marginBottom: 4 }]}>
                     <Text style={[styles.rarityPillText, { color: rarityColor }]}>{RARITY_LABELS[skin.rarity]}</Text>
                   </View>
 
-                  {/* Status icon */}
                   {equipped && <View style={styles.statusBadge}><Ionicons name="checkmark-circle" size={18} color={L.green} /></View>}
                   {!owned && unlockCond && !equipped && <View style={styles.statusBadge}><Ionicons name="trophy" size={15} color="#8B5CF6" /></View>}
 
-                  {/* Avatar circular icon with glow ring */}
                   <View style={[styles.avatarCircleOuter, {
-                    borderColor: rarityColor + (skin.rarity === "legendary" ? "CC" : skin.rarity === "epic" ? "99" : "55"),
+                    borderColor: rarityColor + (skin.rarity === "legendary" ? "BB" : skin.rarity === "epic" ? "88" : "44"),
                     shadowColor: rarityColor,
-                    shadowOpacity: skin.rarity === "legendary" ? 0.6 : skin.rarity === "epic" ? 0.4 : skin.rarity === "rare" ? 0.25 : 0,
-                    shadowRadius: skin.rarity === "legendary" ? 16 : skin.rarity === "epic" ? 10 : 6,
+                    shadowOpacity: skin.rarity === "legendary" ? 0.55 : skin.rarity === "epic" ? 0.35 : skin.rarity === "rare" ? 0.2 : 0,
+                    shadowRadius: skin.rarity === "legendary" ? 18 : skin.rarity === "epic" ? 12 : 6,
                   }]}>
-                    <LinearGradient colors={[skin.color + "35", skin.color + "12"]} style={styles.avatarCircleInner}>
-                      <Text style={[styles.avatarEmoji, locked && { opacity: 0.5 }]}>{skin.emoji}</Text>
+                    <LinearGradient colors={[skin.color + "30", skin.color + "0A"]} style={styles.avatarCircleInner}>
+                      <Text style={[styles.avatarEmoji, locked && { opacity: 0.45 }]}>{skin.emoji}</Text>
                       {locked && (
                         <View style={styles.lockOverlay}>
                           <Ionicons name="lock-closed" size={18} color="#FFF" />
@@ -738,17 +710,16 @@ export default function ShopScreen() {
 
                   <Text style={[styles.avatarCardName, locked && { color: L.textSub }]}>{skin.nameAr}</Text>
 
-                  {/* Action button */}
                   {vipLocked ? (
                     <View style={[styles.cardActionBtn, { backgroundColor: L.goldLight }]}>
                       <Text style={[styles.cardActionText, { color: L.gold }]}>👑 VIP</Text>
                     </View>
                   ) : owned ? (
-                    <View style={[styles.cardActionBtn, equipped ? { backgroundColor: "#0A2918" } : { backgroundColor: "#1A1040" }]}>
+                    <View style={[styles.cardActionBtn, equipped ? { backgroundColor: "#0A291830" } : { backgroundColor: "#1A104030" }]}>
                       <Text style={[styles.cardActionText, equipped ? { color: L.green } : { color: L.purple }]}>{equipped ? "✓ مُجهَّز" : "تجهيز"}</Text>
                     </View>
                   ) : unlockCond ? (
-                    <View style={[styles.cardActionBtn, { backgroundColor: "#2D1B69" }]}>
+                    <View style={[styles.cardActionBtn, { backgroundColor: "#2D1B6930" }]}>
                       <Text style={[styles.cardActionText, { color: "#A78BFA" }]} numberOfLines={1}>{unlockCurrent}/{unlockCond.value}</Text>
                     </View>
                   ) : (
@@ -766,7 +737,6 @@ export default function ShopScreen() {
     );
   };
 
-  // ── Render: Effects ───────────────────────────────────────────────────────
   const renderEffects = () => (
     <>
       <Text style={styles.sectionHint}>تأثيرات بصرية رائعة تظهر عند الفوز بمباراة ✨</Text>
@@ -779,17 +749,17 @@ export default function ShopScreen() {
 
           return (
             <AnimatedCard key={effect.id} style={{ width: CARD_W }} onPress={() => handleEffectAction(effect.id)}>
-              <View style={[styles.avatarCard, equipped && { borderColor: rarityColor + "80" }]}>
-                <LinearGradient colors={[rarityColor + "20", "transparent"]} style={styles.cardGlowTop} />
+              <View style={[styles.avatarCard, equipped && { borderColor: rarityColor + "70" }]}>
+                <LinearGradient colors={[rarityColor + "14", "transparent"]} style={styles.cardGlowTop} />
                 {effect.price > 0 && (
-                  <View style={[styles.rarityPill, { backgroundColor: rarityColor + "18", alignSelf: "center", marginBottom: 4 }]}>
+                  <View style={[styles.rarityPill, { backgroundColor: rarityColor + "15", alignSelf: "center", marginBottom: 4 }]}>
                     <Text style={[styles.rarityPillText, { color: rarityColor }]}>{RARITY_LABELS[effect.rarity]}</Text>
                   </View>
                 )}
                 {equipped && <View style={styles.statusBadge}><Ionicons name="checkmark-circle" size={18} color={L.green} /></View>}
 
-                <View style={[styles.avatarCircleOuter, { borderColor: rarityColor + "50", shadowColor: rarityColor, shadowOpacity: 0.3, shadowRadius: 8 }]}>
-                  <LinearGradient colors={[effect.color + "30", effect.color + "10"]} style={styles.avatarCircleInner}>
+                <View style={[styles.avatarCircleOuter, { borderColor: rarityColor + "44", shadowColor: rarityColor, shadowOpacity: 0.25, shadowRadius: 10 }]}>
+                  <LinearGradient colors={[effect.color + "28", effect.color + "08"]} style={styles.avatarCircleInner}>
                     <Text style={styles.avatarEmoji}>{effect.emoji}</Text>
                   </LinearGradient>
                 </View>
@@ -798,11 +768,11 @@ export default function ShopScreen() {
                 {effect.descAr && <Text style={styles.avatarCardDesc} numberOfLines={2}>{effect.descAr}</Text>}
 
                 {owned ? (
-                  <View style={[styles.cardActionBtn, equipped ? { backgroundColor: "#0A2918" } : { backgroundColor: "#1A1040" }]}>
+                  <View style={[styles.cardActionBtn, equipped ? { backgroundColor: "#0A291830" } : { backgroundColor: "#1A104030" }]}>
                     <Text style={[styles.cardActionText, equipped ? { color: L.green } : { color: L.purple }]}>{equipped ? "✓ مُجهَّز" : "تجهيز"}</Text>
                   </View>
                 ) : effect.price === 0 ? (
-                  <View style={[styles.cardActionBtn, { backgroundColor: "#1A1040" }]}>
+                  <View style={[styles.cardActionBtn, { backgroundColor: "#1A104030" }]}>
                     <Text style={[styles.cardActionText, { color: L.purple }]}>تجهيز</Text>
                   </View>
                 ) : (
@@ -819,7 +789,6 @@ export default function ShopScreen() {
     </>
   );
 
-  // ── Render: Titles ────────────────────────────────────────────────────────
   const renderTitles = () => {
     const eqId = profile.equippedTitle as TitleId | null;
     const activeTitleData = TITLES.find(t => t.id === eqId);
@@ -828,14 +797,14 @@ export default function ShopScreen() {
         <Text style={styles.sectionHint}>الألقاب تظهر تحت اسمك في المتصدرين والمباريات 🎖️</Text>
 
         {activeTitleData && (
-          <View style={[styles.activeTitleBanner, { borderColor: RARITY_COLORS[activeTitleData.rarity] + "50" }]}>
-            <LinearGradient colors={[RARITY_COLORS[activeTitleData.rarity] + "15", "transparent"]} style={StyleSheet.absoluteFillObject} />
+          <View style={[styles.activeTitleBanner, { borderColor: RARITY_COLORS[activeTitleData.rarity] + "40" }]}>
+            <LinearGradient colors={[RARITY_COLORS[activeTitleData.rarity] + "10", "transparent"]} style={StyleSheet.absoluteFillObject} />
             <Text style={{ fontSize: 28 }}>{activeTitleData.emoji}</Text>
             <View style={{ flex: 1 }}>
               <Text style={styles.activeBannerLabel}>لقبك الحالي</Text>
               <Text style={[styles.activeBannerName, { color: RARITY_COLORS[activeTitleData.rarity] }]}>{activeTitleData.nameAr}</Text>
             </View>
-            <View style={[styles.rarityPill, { backgroundColor: RARITY_COLORS[activeTitleData.rarity] + "20" }]}>
+            <View style={[styles.rarityPill, { backgroundColor: RARITY_COLORS[activeTitleData.rarity] + "18" }]}>
               <Text style={[styles.rarityPillText, { color: RARITY_COLORS[activeTitleData.rarity] }]}>{RARITY_LABELS[activeTitleData.rarity]}</Text>
             </View>
           </View>
@@ -880,16 +849,16 @@ export default function ShopScreen() {
 
             return (
               <AnimatedCard key={title.id} style={{ width: CARD_W }} onPress={handleTitleAction}>
-                <View style={[styles.avatarCard, equipped && { borderColor: rarityColor + "80" }]}>
-                  <LinearGradient colors={[rarityColor + "20", "transparent"]} style={styles.cardGlowTop} />
-                  <View style={[styles.rarityPill, { backgroundColor: rarityColor + "18", alignSelf: "center", marginBottom: 4 }]}>
+                <View style={[styles.avatarCard, equipped && { borderColor: rarityColor + "70" }]}>
+                  <LinearGradient colors={[rarityColor + "14", "transparent"]} style={styles.cardGlowTop} />
+                  <View style={[styles.rarityPill, { backgroundColor: rarityColor + "15", alignSelf: "center", marginBottom: 4 }]}>
                     <Text style={[styles.rarityPillText, { color: rarityColor }]}>{RARITY_LABELS[title.rarity]}</Text>
                   </View>
                   {equipped && <View style={styles.statusBadge}><Ionicons name="checkmark-circle" size={18} color={L.green} /></View>}
                   {!owned && unlockCond && <View style={styles.statusBadge}><Ionicons name="trophy" size={15} color="#8B5CF6" /></View>}
 
-                  <View style={[styles.avatarCircleOuter, { borderColor: rarityColor + "60", shadowColor: rarityColor, shadowOpacity: 0.3, shadowRadius: 8 }]}>
-                    <LinearGradient colors={[title.color + "30", title.color + "10"]} style={styles.avatarCircleInner}>
+                  <View style={[styles.avatarCircleOuter, { borderColor: rarityColor + "50", shadowColor: rarityColor, shadowOpacity: 0.25, shadowRadius: 10 }]}>
+                    <LinearGradient colors={[title.color + "28", title.color + "08"]} style={styles.avatarCircleInner}>
                       <Text style={styles.avatarEmoji}>{title.emoji}</Text>
                     </LinearGradient>
                   </View>
@@ -902,11 +871,11 @@ export default function ShopScreen() {
                       <Text style={[styles.cardActionText, { color: L.gold }]}>👑 VIP</Text>
                     </View>
                   ) : owned ? (
-                    <View style={[styles.cardActionBtn, equipped ? { backgroundColor: "#0A2918" } : { backgroundColor: "#1A1040" }]}>
+                    <View style={[styles.cardActionBtn, equipped ? { backgroundColor: "#0A291830" } : { backgroundColor: "#1A104030" }]}>
                       <Text style={[styles.cardActionText, equipped ? { color: L.green } : { color: L.purple }]}>{equipped ? "✓ مُفعَّل" : "تفعيل"}</Text>
                     </View>
                   ) : unlockCond ? (
-                    <View style={[styles.cardActionBtn, { backgroundColor: condMet ? "#0A2918" : "#2D1B69" }]}>
+                    <View style={[styles.cardActionBtn, { backgroundColor: condMet ? "#0A291830" : "#2D1B6930" }]}>
                       <Text style={[styles.cardActionText, { color: condMet ? L.green : "#A78BFA" }]}>{condMet ? "افتح الآن" : `${unlockCur}/${unlockCond.value}`}</Text>
                     </View>
                   ) : (
@@ -924,10 +893,12 @@ export default function ShopScreen() {
     );
   };
 
-  // ── Render: Mystery Boxes ─────────────────────────────────────────────────
   const renderMystery = () => (
     <View style={styles.mysteryContainer}>
-      <Text style={styles.mysteryTitle}>صناديق الغموض 📦</Text>
+      <View style={styles.mysteryHeader}>
+        <Text style={styles.mysteryEmoji}>📦</Text>
+        <Text style={styles.mysteryTitle}>صناديق الغموض</Text>
+      </View>
       <Text style={styles.mysterySub}>اختر صندوقاً وافتحه للحصول على جوائز مفاجئة!</Text>
 
       {BOX_TIERS.map(tier => {
@@ -936,16 +907,16 @@ export default function ShopScreen() {
         return (
           <TouchableOpacity
             key={tier.id}
-            style={[styles.boxTierCard, active && { borderColor: tier.glowColor + "70", borderWidth: 2 }]}
+            style={[styles.boxTierCard, active && { borderColor: tier.glowColor + "60", borderWidth: 2 }]}
             onPress={() => { setSelectedBoxTier(tier.id); playShopSound("click"); }}
             activeOpacity={0.88}
           >
             <LinearGradient colors={tier.gradient} style={StyleSheet.absoluteFillObject} />
             {active && (
-              <LinearGradient colors={[tier.glowColor + "20", "transparent"]} style={StyleSheet.absoluteFillObject} />
+              <LinearGradient colors={[tier.glowColor + "15", "transparent"]} style={StyleSheet.absoluteFillObject} />
             )}
 
-            <View style={[styles.boxTierIcon, { borderColor: tier.glowColor + "70", shadowColor: tier.glowColor, backgroundColor: tier.gradient[0] }]}>
+            <View style={[styles.boxTierIcon, { borderColor: tier.glowColor + "60", shadowColor: tier.glowColor, backgroundColor: tier.gradient[0] }]}>
               <Text style={styles.boxTierEmoji}>{tier.emoji}</Text>
             </View>
 
@@ -966,7 +937,6 @@ export default function ShopScreen() {
         );
       })}
 
-      {/* Possible rewards */}
       <Text style={styles.possibleTitle}>الجوائز الممكنة</Text>
       <View style={styles.possibleRow}>
         {[{ e:"🦁",l:"أفاتار"}, {e:"✨",l:"تأثير"}, {e:"😂",l:"تفاعل"}, {e:"🪙",l:"عملات"}].map((r,i) => (
@@ -977,15 +947,15 @@ export default function ShopScreen() {
         ))}
       </View>
 
-      {/* Open button */}
       <TouchableOpacity
         style={[styles.openBoxBtn, !BOX_TIERS.find(t=>t.id===selectedBoxTier) && { opacity: 0.5 }]}
         onPress={() => handleBoxOpen(selectedBoxTier)}
         activeOpacity={0.85}
       >
         <LinearGradient
-          colors={profile.coins >= (BOX_TIERS.find(t=>t.id===selectedBoxTier)?.price || 999) ? [L.purple, "#4F46E5"] : ["#CBD5E1","#94A3B8"]}
+          colors={profile.coins >= (BOX_TIERS.find(t=>t.id===selectedBoxTier)?.price || 999) ? [L.purple, "#4F46E5"] : ["#383850","#282840"]}
           style={styles.openBoxBtnGrad}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
         >
           <Text style={styles.openBoxBtnText}>
             {profile.coins >= (BOX_TIERS.find(t=>t.id===selectedBoxTier)?.price || 999)
@@ -997,14 +967,13 @@ export default function ShopScreen() {
     </View>
   );
 
-  // ── Render: Spin Wheel ────────────────────────────────────────────────────
   const renderSpin = () => (
     <TouchableOpacity
       style={styles.spinHeroBtn}
       onPress={() => { playShopSound("select"); router.push("/spin"); }}
       activeOpacity={0.88}
     >
-      <LinearGradient colors={["#4F46E5", "#7C3AED", "#9333EA"]} style={styles.spinHeroGrad}>
+      <LinearGradient colors={["#4F46E5", "#7C3AED", "#9333EA"]} style={styles.spinHeroGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
         {["✨","⭐","💫","🌟","✦","⭐","✨","💫"].map((sym, i) => (
           <Text key={i} style={[styles.spinParticle, { top: 8 + (i * 22) % 80, left: (i * 53) % (SW - 80), opacity: 0.3 + (i % 3) * 0.12 }]}>{sym}</Text>
         ))}
@@ -1018,7 +987,6 @@ export default function ShopScreen() {
     </TouchableOpacity>
   );
 
-  // ── Render: Coin Packs ────────────────────────────────────────────────────
   const renderCoinPacks = () => (
     <>
       <Text style={styles.sectionHint}>اشحن رصيدك واحصل على عملات إضافية مجانية! 💰</Text>
@@ -1041,7 +1009,7 @@ export default function ShopScreen() {
           <View style={{ flex: 1 }}>
             <Text style={[styles.coinPackAmount, { color: pack.accent }]}>{pack.coins.toLocaleString()} عملة</Text>
             {pack.bonus > 0 && (
-              <View style={[styles.bonusBadge, { backgroundColor: pack.accent + "20" }]}>
+              <View style={[styles.bonusBadge, { backgroundColor: pack.accent + "18" }]}>
                 <Text style={[styles.bonusText, { color: pack.accent }]}>+ {pack.bonus} مكافأة!</Text>
               </View>
             )}
@@ -1053,7 +1021,6 @@ export default function ShopScreen() {
         </TouchableOpacity>
       ))}
 
-      {/* Info */}
       <View style={styles.infoCard}>
         <Ionicons name="information-circle" size={20} color={L.purple} />
         <Text style={styles.infoText}>الحزم الحالية تُضاف مباشرة لرصيدك. في المستقبل ستكون متاحة بالدفع الإلكتروني.</Text>
@@ -1061,7 +1028,6 @@ export default function ShopScreen() {
     </>
   );
 
-  // ── Tab content router ────────────────────────────────────────────────────
   const renderContent = () => {
     switch (activeTab) {
       case "daily":   return renderDaily();
@@ -1074,14 +1040,11 @@ export default function ShopScreen() {
     }
   };
 
-  // ── Main return ───────────────────────────────────────────────────────────
   return (
     <View style={[styles.container, { paddingTop: topInset }]}>
-      {/* Dark gradient background */}
-      <LinearGradient colors={["#0A0A1A", "#0E0E24", "#0A0A1A"]} style={StyleSheet.absoluteFillObject} />
+      <LinearGradient colors={["#0A0A1A", "#0D0D26", "#0A0A1A"]} style={StyleSheet.absoluteFillObject} />
       <ShopParticles />
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={20} color={L.textMain} />
@@ -1089,13 +1052,13 @@ export default function ShopScreen() {
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>المتجر</Text>
         </View>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <View style={styles.headerRight}>
           <TouchableOpacity
             onPress={() => router.push("/vip")}
-            style={{ backgroundColor: L.gold + "20", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: L.gold + "40" }}
+            style={styles.vipBtn}
             activeOpacity={0.7}
           >
-            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: L.gold }}>👑 VIP</Text>
+            <Text style={styles.vipBtnText}>👑 VIP</Text>
           </TouchableOpacity>
           <View style={styles.coinsBadge}>
             <Ionicons name="star" size={14} color={L.gold} />
@@ -1104,7 +1067,6 @@ export default function ShopScreen() {
         </View>
       </View>
 
-      {/* Tabs */}
       <ScrollView
         ref={tabScrollRef}
         horizontal
@@ -1122,30 +1084,29 @@ export default function ShopScreen() {
                 active && {
                   backgroundColor: L.card,
                   borderWidth: 1,
-                  borderColor: tab.color + "50",
+                  borderColor: tab.color + "45",
                   shadowColor: tab.color,
-                  shadowOpacity: 0.22,
-                  shadowRadius: 8,
-                  elevation: 4,
+                  shadowOpacity: 0.20,
+                  shadowRadius: 10,
+                  elevation: 5,
                 },
               ]}
               onPress={() => changeTab(tab.id)}
               activeOpacity={0.75}
             >
               {active && (
-                <LinearGradient colors={[tab.color + "22", tab.color + "08"]} style={StyleSheet.absoluteFillObject} />
+                <LinearGradient colors={[tab.color + "1A", tab.color + "06"]} style={[StyleSheet.absoluteFillObject, { borderRadius: 14 }]} />
               )}
-              <Text style={[styles.tabEmoji, active && { fontSize: 20 }]}>{tab.emoji}</Text>
+              <Text style={[styles.tabEmoji, active && { fontSize: 21 }]}>{tab.emoji}</Text>
               <Text style={[styles.tabLabel, { color: active ? tab.color : L.textSub }, active && { fontFamily: "Cairo_700Bold" }]}>
                 {tab.label}
               </Text>
-              {active && <View style={[styles.tabDot, { backgroundColor: tab.color, width: 20, borderRadius: 2 }]} />}
+              {active && <View style={[styles.tabDot, { backgroundColor: tab.color }]} />}
             </TouchableOpacity>
           );
         })}
       </ScrollView>
 
-      {/* Content */}
       <ScrollView
         ref={contentScrollRef}
         style={{ flex: 1 }}
@@ -1155,10 +1116,8 @@ export default function ShopScreen() {
         {renderContent()}
       </ScrollView>
 
-      {/* Burst overlay */}
       {burstEmoji && <BurstOverlay emoji={burstEmoji} onDone={() => setBurstEmoji(null)} />}
 
-      {/* Mystery box modal */}
       <BoxOpeningModal
         visible={boxModalVisible}
         tier={activeTier}
@@ -1169,224 +1128,274 @@ export default function ShopScreen() {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0A0A1A" },
+  container: { flex: 1, backgroundColor: L.bg },
 
   header: {
     flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 16, paddingVertical: 10, justifyContent: "space-between",
+    paddingHorizontal: 16, paddingVertical: 12, justifyContent: "space-between",
   },
   backBtn: {
-    width: 38, height: 38, borderRadius: 12, backgroundColor: L.card,
+    width: 40, height: 40, borderRadius: 14, backgroundColor: L.card,
     justifyContent: "center", alignItems: "center",
-    shadowColor: "#000", shadowOpacity: 0.07, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+    borderWidth: 1, borderColor: L.cardBorder,
+    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 4,
   },
   headerCenter: { flex: 1, alignItems: "center" },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: L.textMain },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 21, color: L.textMain, letterSpacing: 0.5 },
+  headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  vipBtn: {
+    backgroundColor: L.gold + "18", borderRadius: 12, paddingHorizontal: 11, paddingVertical: 6,
+    borderWidth: 1, borderColor: L.gold + "35",
+  },
+  vipBtnText: { fontFamily: "Cairo_700Bold", fontSize: 11, color: L.gold },
   coinsBadge: {
-    flexDirection: "row", alignItems: "center", gap: 4,
+    flexDirection: "row", alignItems: "center", gap: 5,
     backgroundColor: L.goldLight, borderRadius: 20,
-    paddingHorizontal: 12, paddingVertical: 5,
-    borderWidth: 1, borderColor: L.gold + "40",
+    paddingHorizontal: 13, paddingVertical: 6,
+    borderWidth: 1, borderColor: L.gold + "30",
   },
   coinsText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: L.gold },
 
-  tabsBar: { maxHeight: 72, flexGrow: 0 },
+  tabsBar: { maxHeight: 76, flexGrow: 0 },
   tabsContent: { paddingHorizontal: 12, paddingVertical: 8, gap: 8 },
   tabItem: {
-    alignItems: "center", paddingHorizontal: 14, paddingVertical: 8,
+    alignItems: "center", paddingHorizontal: 14, paddingVertical: 9,
     borderRadius: 14, gap: 2, overflow: "hidden", position: "relative",
-    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1,
   },
   tabEmoji: { fontSize: 18 },
   tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: L.textSub },
-  tabDot: { width: 4, height: 4, borderRadius: 2, marginTop: 1 },
+  tabDot: { width: 22, height: 3, borderRadius: 2, marginTop: 2 },
 
-  scrollContent: { padding: 16, gap: 12 },
+  scrollContent: { padding: 16, gap: 14 },
 
-  // ── Daily ────────────────────────────────────────────────────────────────
   dailyBanner: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    borderRadius: 16, padding: 16, marginBottom: 4,
-    borderWidth: 1, borderColor: "#1A5C3A",
+    borderRadius: 18, padding: 18, marginBottom: 4,
+    borderWidth: 1, borderColor: "#1A5C3A50",
+    overflow: "hidden",
+    shadowColor: "#00FF87", shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3,
   },
-  dailyBannerTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: L.textMain },
-  dailyBannerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: L.textSub },
+  dailyBannerLeft: { flex: 1 },
+  dailyBannerTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  dailyBannerEmoji: { fontSize: 18 },
+  dailyBannerTitle: { fontFamily: "Cairo_700Bold", fontSize: 17, color: L.textMain },
+  dailyBannerSub: { fontFamily: "Cairo_400Regular", fontSize: 12, color: L.textSub, marginTop: 2 },
   timerBadge: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: "#0A2918", borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5,
+    flexDirection: "row", alignItems: "center", gap: 5,
+    backgroundColor: "#0A291880", borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: 1, borderColor: "#1A5C3A40",
   },
   timerText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: L.green },
+
   dailyCard: {
     flexDirection: "row", alignItems: "center", gap: 12,
-    backgroundColor: L.card, borderRadius: 16, padding: 12,
-    shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
-    overflow: "hidden",
+    backgroundColor: L.card, borderRadius: 18, padding: 14,
+    shadowColor: "#000", shadowOpacity: 0.10, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 3,
+    overflow: "hidden", borderWidth: 1,
   },
-  discountBubble: { position: "absolute", top: 8, left: 8, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 },
+  discountBubble: {
+    position: "absolute", top: 8, left: 8, borderRadius: 10,
+    paddingHorizontal: 8, paddingVertical: 3,
+    shadowColor: "#00FF87", shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
+  },
   discountText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#FFF" },
   dailyAvatarCircle: {
-    width: 56, height: 56, borderRadius: 28,
+    width: 58, height: 58, borderRadius: 29,
     justifyContent: "center", alignItems: "center",
     borderWidth: 2,
   },
-  dailyAvatarEmoji: { fontSize: 26 },
-  dailyItemMeta: { flex: 1, gap: 2 },
+  dailyAvatarEmoji: { fontSize: 27 },
+  dailyItemMeta: { flex: 1, gap: 3 },
   dailyItemTopRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   dailyItemCat: { fontFamily: "Cairo_400Regular", fontSize: 10, color: L.textSub },
   dailyItemName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: L.textMain },
-  dailyPriceRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  dailyPriceRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   originalPrice: { fontFamily: "Cairo_400Regular", fontSize: 11, color: L.textSub, textDecorationLine: "line-through" },
   discountedPriceRow: { flexDirection: "row", alignItems: "center", gap: 3 },
-  discountedPrice: { fontFamily: "Cairo_700Bold", fontSize: 14, color: L.gold },
-  dailyActionBtn: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 9, justifyContent: "center", alignItems: "center", minWidth: 70 },
-  dailyActionText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
-  earnCard: {
-    backgroundColor: L.card, borderRadius: 16, padding: 16,
-    shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2,
-    gap: 10, marginTop: 8,
+  discountedPrice: { fontFamily: "Cairo_700Bold", fontSize: 15, color: L.gold },
+  dailyActionBtn: {
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10,
+    justifyContent: "center", alignItems: "center", minWidth: 72,
+    shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
   },
-  earnTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: L.textMain },
+  dailyActionText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
+
+  earnCard: {
+    backgroundColor: L.card, borderRadius: 18, padding: 18,
+    shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 3,
+    gap: 12, marginTop: 8, overflow: "hidden",
+    borderWidth: 1, borderColor: L.cardBorder,
+  },
+  earnTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: L.textMain },
   earnRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   earnRankEmoji: { fontSize: 20, width: 28, textAlign: "center" },
   earnText: { fontFamily: "Cairo_400Regular", fontSize: 13 },
 
-  // ── Avatars / Effects / Titles shared ────────────────────────────────────
-  sectionHint: { fontFamily: "Cairo_400Regular", fontSize: 13, color: L.textSub, textAlign: "center", marginBottom: 4 },
+  sectionHint: { fontFamily: "Cairo_400Regular", fontSize: 13, color: L.textSub, textAlign: "center", marginBottom: 6 },
+
   activeAvatarBanner: {
-    flexDirection: "row", alignItems: "center", gap: 12,
-    backgroundColor: L.card, borderRadius: 16, padding: 14,
+    flexDirection: "row", alignItems: "center", gap: 14,
+    backgroundColor: L.card, borderRadius: 18, padding: 16,
     overflow: "hidden", borderWidth: 1, borderColor: L.cardBorder,
-    shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+    shadowColor: "#000", shadowOpacity: 0.10, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
   activeAvatarRing: {
-    width: 56, height: 56, borderRadius: 28,
+    width: 58, height: 58, borderRadius: 29,
     borderWidth: 2.5, justifyContent: "center", alignItems: "center",
-    shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 0 }, elevation: 6,
+    shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 6,
   },
   activeAvatarInner: { width: 48, height: 48, borderRadius: 24, justifyContent: "center", alignItems: "center" },
   activeAvatarEmoji: { fontSize: 26 },
   activeBannerLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: L.textSub },
-  activeBannerName: { fontFamily: "Cairo_700Bold", fontSize: 16 },
+  activeBannerName: { fontFamily: "Cairo_700Bold", fontSize: 17 },
+
   activeTitleBanner: {
-    flexDirection: "row", alignItems: "center", gap: 12,
-    backgroundColor: L.card, borderRadius: 16, padding: 14,
+    flexDirection: "row", alignItems: "center", gap: 14,
+    backgroundColor: L.card, borderRadius: 18, padding: 16,
     overflow: "hidden", borderWidth: 1,
-    shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+    shadowColor: "#000", shadowOpacity: 0.10, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 3,
   },
+
   filterScroll: { marginBottom: 8 },
   filterContent: { gap: 8 },
   filterChip: {
-    paddingHorizontal: 14, paddingVertical: 7,
-    backgroundColor: L.card, borderRadius: 20,
+    paddingHorizontal: 16, paddingVertical: 8,
+    backgroundColor: L.card, borderRadius: 22,
     borderWidth: 1, borderColor: L.cardBorder,
-    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1,
+  },
+  filterChipActive: {
+    backgroundColor: L.purple, borderColor: L.purple + "60",
+    shadowColor: L.purple, shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 4,
   },
   filterChipText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: L.textSub },
+
   avatarGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, justifyContent: "space-between" },
   avatarCard: {
-    width: CARD_W, backgroundColor: L.card, borderRadius: 18,
-    padding: 12, alignItems: "center", gap: 6,
-    shadowColor: "#6C63FF", shadowOpacity: 0.10, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 3,
+    width: CARD_W, backgroundColor: L.card, borderRadius: 20,
+    padding: 14, alignItems: "center", gap: 7,
+    shadowColor: "#4040AA", shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4,
     borderWidth: 1, borderColor: L.cardBorder, overflow: "hidden", position: "relative",
   },
-  cardGlowTop: { position: "absolute", top: 0, left: 0, right: 0, height: 50 },
-  rarityPill: { borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 },
+  cardGlowTop: { position: "absolute", top: 0, left: 0, right: 0, height: 55, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
+
+  rarityPill: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
   rarityPillText: { fontFamily: "Cairo_700Bold", fontSize: 9 },
-  statusBadge: { position: "absolute", top: 8, right: 8 },
+
+  statusBadge: { position: "absolute", top: 10, right: 10 },
+
   avatarCircleOuter: {
-    width: 68, height: 68, borderRadius: 34,
+    width: 70, height: 70, borderRadius: 35,
     borderWidth: 2.5, justifyContent: "center", alignItems: "center",
     shadowOffset: { width: 0, height: 0 }, elevation: 6,
   },
-  avatarCircleInner: { width: 58, height: 58, borderRadius: 29, justifyContent: "center", alignItems: "center" },
-  avatarEmoji: { fontSize: 30 },
+  avatarCircleInner: { width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center" },
+  avatarEmoji: { fontSize: 32 },
   lockOverlay: {
     position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-    borderRadius: 29, backgroundColor: "rgba(0,0,0,0.45)",
+    borderRadius: 30, backgroundColor: "rgba(0,0,0,0.50)",
     justifyContent: "center", alignItems: "center",
   },
   avatarCardName: { fontFamily: "Cairo_700Bold", fontSize: 13, color: L.textMain, textAlign: "center" },
-  avatarCardDesc: { fontFamily: "Cairo_400Regular", fontSize: 10, color: L.textSub, textAlign: "center" },
+  avatarCardDesc: { fontFamily: "Cairo_400Regular", fontSize: 10, color: L.textSub, textAlign: "center", lineHeight: 15 },
+
   cardActionBtn: {
-    flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 10,
-    paddingHorizontal: 10, paddingVertical: 5, width: "100%", justifyContent: "center",
+    flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 12,
+    paddingHorizontal: 10, paddingVertical: 6, width: "100%", justifyContent: "center",
   },
   cardActionText: { fontFamily: "Cairo_700Bold", fontSize: 12 },
 
-  // ── Mystery Box ───────────────────────────────────────────────────────────
-  mysteryContainer: { gap: 12 },
-  mysteryTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: L.textMain, textAlign: "center" },
+  mysteryContainer: { gap: 14 },
+  mysteryHeader: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  mysteryEmoji: { fontSize: 26 },
+  mysteryTitle: { fontFamily: "Cairo_700Bold", fontSize: 22, color: L.textMain, textAlign: "center" },
   mysterySub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: L.textSub, textAlign: "center" },
+
   boxTierCard: {
     flexDirection: "row", alignItems: "center", gap: 14,
-    borderRadius: 18, padding: 14, overflow: "hidden",
-    borderWidth: 1, borderColor: L.cardBorder,
-    shadowColor: "#6C63FF", shadowOpacity: 0.08, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+    borderRadius: 18, padding: 16, overflow: "hidden",
+    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 4,
+    borderWidth: 1, borderColor: "transparent",
   },
   boxTierIcon: {
-    width: 52, height: 52, borderRadius: 26, justifyContent: "center", alignItems: "center",
-    borderWidth: 2, shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 0 }, elevation: 5,
+    width: 56, height: 56, borderRadius: 28,
+    borderWidth: 2, justifyContent: "center", alignItems: "center",
+    shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 0 }, elevation: 6,
   },
-  boxTierEmoji: { fontSize: 24 },
+  boxTierEmoji: { fontSize: 26 },
   boxTierName: { fontFamily: "Cairo_700Bold", fontSize: 16 },
-  boxTierPool: { fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 1 },
-  boxTierCoins: { fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 2 },
+  boxTierPool: { fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 1 },
+  boxTierCoins: { fontFamily: "Cairo_400Regular", fontSize: 10, marginTop: 1 },
   boxTierRight: { alignItems: "center" },
+
   priceBadge: {
-    flexDirection: "row", alignItems: "center", gap: 3,
-    borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5,
+    flexDirection: "row", alignItems: "center", gap: 4,
+    borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5,
+    borderWidth: 1, borderColor: L.gold + "20",
   },
-  priceText: { fontFamily: "Cairo_700Bold", fontSize: 14 },
-  possibleTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: L.textMain, textAlign: "center", marginTop: 4 },
-  possibleRow: { flexDirection: "row", justifyContent: "space-around", backgroundColor: L.card, borderRadius: 16, padding: 14, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  priceText: { fontFamily: "Cairo_700Bold", fontSize: 13 },
+
+  possibleTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, color: L.textMain, textAlign: "center", marginTop: 8 },
+  possibleRow: {
+    flexDirection: "row", justifyContent: "center", gap: 20,
+    backgroundColor: L.card, borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: L.cardBorder,
+  },
   possibleItem: { alignItems: "center", gap: 4 },
-  possibleEmoji: { fontSize: 26 },
+  possibleEmoji: { fontSize: 24 },
   possibleLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: L.textSub },
-  openBoxBtn: { overflow: "hidden", borderRadius: 18 },
-  openBoxBtnGrad: { paddingVertical: 16, alignItems: "center", borderRadius: 18 },
+
+  openBoxBtn: { borderRadius: 18, overflow: "hidden", marginTop: 4 },
+  openBoxBtnGrad: { paddingVertical: 16, alignItems: "center" },
   openBoxBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#FFF" },
 
-  // ── Spin ─────────────────────────────────────────────────────────────────
-  spinHeroBtn: { borderRadius: 24, overflow: "hidden", shadowColor: "#6C63FF", shadowOpacity: 0.3, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 8 },
-  spinHeroGrad: { padding: 32, alignItems: "center", gap: 12, position: "relative", borderRadius: 24, minHeight: 280 },
+  spinHeroBtn: { borderRadius: 22, overflow: "hidden" },
+  spinHeroGrad: {
+    padding: 30, alignItems: "center", gap: 12,
+    minHeight: 260, justifyContent: "center",
+  },
   spinParticle: { position: "absolute", fontSize: 14 },
-  spinHeroEmoji: { fontSize: 72 },
+  spinHeroEmoji: { fontSize: 64 },
   spinHeroTitle: { fontFamily: "Cairo_700Bold", fontSize: 28, color: "#FFF", textAlign: "center" },
   spinHeroSub: { fontFamily: "Cairo_400Regular", fontSize: 14, color: "rgba(255,255,255,0.85)", textAlign: "center" },
-  spinHeroBtn2: { backgroundColor: "rgba(255,255,255,0.22)", borderRadius: 16, paddingHorizontal: 28, paddingVertical: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.35)" },
+  spinHeroBtn2: {
+    backgroundColor: "rgba(255,255,255,0.20)", borderRadius: 18, paddingHorizontal: 28, paddingVertical: 13,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.30)",
+  },
   spinHeroBtn2Text: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#FFF" },
 
-  // ── Coin Packs ────────────────────────────────────────────────────────────
   coinPackCard: {
     flexDirection: "row", alignItems: "center", gap: 14,
-    borderRadius: 18, padding: 16, overflow: "hidden",
-    shadowColor: "#000", shadowOpacity: 0.07, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 3,
-    position: "relative",
+    borderRadius: 20, padding: 18, overflow: "hidden",
+    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 4,
+    position: "relative", borderWidth: 1, borderColor: L.cardBorder,
   },
   packBadge: {
     position: "absolute", top: 8, right: 8,
-    borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 10, paddingHorizontal: 9, paddingVertical: 3,
   },
   packBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 9, color: "#FFF" },
-  coinPackEmoji: { fontSize: 38 },
-  coinPackAmount: { fontFamily: "Cairo_700Bold", fontSize: 18 },
-  bonusBadge: { alignSelf: "flex-start", borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2, marginTop: 2 },
+  coinPackEmoji: { fontSize: 40 },
+  coinPackAmount: { fontFamily: "Cairo_700Bold", fontSize: 19 },
+  bonusBadge: { alignSelf: "flex-start", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginTop: 3 },
   bonusText: { fontFamily: "Cairo_700Bold", fontSize: 11 },
   coinPackPrice: { fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 2 },
-  claimBtn: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, justifyContent: "center", alignItems: "center" },
+  claimBtn: {
+    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 11,
+    justifyContent: "center", alignItems: "center",
+    shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
+  },
   claimBtnText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#FFF" },
+
   infoCard: {
     flexDirection: "row", alignItems: "flex-start", gap: 10,
-    backgroundColor: L.purpleLight, borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: L.purple + "30",
+    backgroundColor: L.purpleLight, borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: L.purple + "25",
   },
   infoText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: L.purple, flex: 1 },
 
-  // ── Box Opening Modal ─────────────────────────────────────────────────────
   boxModalOverlay: {
-    flex: 1, backgroundColor: "rgba(15,10,40,0.65)",
+    flex: 1, backgroundColor: "rgba(10,6,30,0.70)",
     justifyContent: "center", alignItems: "center", padding: 20,
   },
   boxModalContent: {
@@ -1421,19 +1430,19 @@ const styles = StyleSheet.create({
   rewardPhase: { alignItems: "center", gap: 16, width: "100%" },
   rewardCongrats: { fontFamily: "Cairo_700Bold", fontSize: 26, color: L.textMain },
   rewardCard: {
-    width: "90%", borderRadius: 20, padding: 24, alignItems: "center", gap: 12,
-    shadowColor: "#000", shadowOpacity: 0.10, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 8,
+    width: "90%", borderRadius: 22, padding: 26, alignItems: "center", gap: 14,
+    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 6 }, elevation: 10,
   },
   rewardGlow: {
-    width: 90, height: 90, borderRadius: 45, borderWidth: 2,
+    width: 92, height: 92, borderRadius: 46, borderWidth: 2,
     justifyContent: "center", alignItems: "center",
   },
-  rewardEmoji: { fontSize: 46 },
-  rewardName: { fontFamily: "Cairo_700Bold", fontSize: 20 },
+  rewardEmoji: { fontSize: 48 },
+  rewardName: { fontFamily: "Cairo_700Bold", fontSize: 21 },
   rewardType: { fontFamily: "Cairo_400Regular", fontSize: 13 },
   sparkParticle: { position: "absolute", zIndex: 10 },
   rewardCloseBtn: {
-    borderRadius: 16, paddingHorizontal: 36, paddingVertical: 14,
+    borderRadius: 18, paddingHorizontal: 38, paddingVertical: 15,
     shadowColor: "#6C63FF", shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
   },
   rewardCloseBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#FFF" },
