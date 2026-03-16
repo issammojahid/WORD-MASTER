@@ -1,0 +1,33 @@
+#1 - Rebuild Friend System from Scratch
+What & Why
+The existing friend system uses a single friends table that mixes friendships and requests (requester/receiver + status), has inconsistent endpoints, and a fragile UI. The goal is to replace it with a clean, modern two-table design (separate friends and friend_requests tables), rebuild all API endpoints with proper validation, and rebuild the Friends screen UI to match modern mobile game standards (like 8 Ball Pool / Clash Royale).
+
+Done looks like
+Old friends table is dropped and replaced by two clean tables: friends (confirmed) and friend_requests (pending/declined)
+Every player has a unique display ID in the format WM-XXXXX (using the existing playerTag field, displayed as WM-{5-digit tag}), shown in their profile and the friends screen with a "Copy" button
+Player search by WM-XXXXX ID or by username works in the friends screen
+Players can send friend requests, accept or decline incoming requests, and remove friends
+Duplicate requests, self-requests, and double-friendships are blocked server-side
+Friend list returns each friend's username, avatar/skin, and level
+Coin gift system endpoints are updated to use the new friends table
+No stale references to old friend endpoints remain in any frontend file
+Out of scope
+Real-time online status (no websocket presence tracking)
+Push notifications for friend requests
+The coin gift feature UI (keep existing gift logic working via updated endpoints, but don't redesign the gift UI)
+Tasks
+Remove old schema & add new tables — Delete the existing friends table definition from shared/schema.ts, add the new friends table (id, player_id, friend_id, created_at) and friend_requests table (id, sender_id, receiver_id, status, created_at). Run npm run db:push to apply the migration.
+
+Rebuild backend friend endpoints — Remove all old friend-related routes from server/routes.ts. Add the new clean endpoints: GET /api/players/search?q= (keep existing, update to return WM-XXXXX displayId), POST /api/friends/request, POST /api/friends/accept, POST /api/friends/decline, GET /api/friends/list/:playerId, GET /api/friends/requests/:playerId, DELETE /api/friends/:playerId/:friendId. Update the coin gift endpoints to reference the new friends table. Add uniqueness/self-request/duplicate guards.
+
+Add WM-XXXXX display ID — Add a getPlayerDisplayId(playerTag) helper (in lib/player-code.ts or similar) that formats the existing playerTag integer as WM-XXXXX (zero-padded to 5 digits). Expose the display ID in the GET /api/player/:id response. Update player search to support WM-XXXXX format lookup (match against playerTag).
+
+Rebuild Friends screen UI — Rewrite app/friends.tsx with three tabs: Friends (list of accepted friends), Requests (incoming + outgoing with accept/decline actions), and Search (search by WM-XXXXX or name). Show the current player's own WM-XXXXX ID at the top with a Copy button. Keep gift modal if it exists but connect it to the new endpoints.
+
+Relevant files
+shared/schema.ts:127-137
+server/routes.ts:2279-2550
+server/routes.ts:3073-3180
+app/friends.tsx
+lib/player-code.ts
+app/index.tsx:1034

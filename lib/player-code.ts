@@ -12,3 +12,10 @@ export function getDisplayCode(
   const suffix = num.toString().padStart(4, "0");
   return `${playerName}#${suffix}`;
 }
+
+export function getPlayerDisplayId(playerTag: number | null | undefined): string {
+  if (playerTag != null && playerTag > 0) {
+    return `WM-${playerTag.toString().padStart(5, "0")}`;
+  }
+  return "";
+}

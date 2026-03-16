@@ -19,7 +19,7 @@ import {
 import { validateWord, CATEGORY_MAP, getWordsForLetter, type WordCategory } from "./wordDatabase";
 import { ARABIC_LETTERS } from "./gameLogic";
 import { db } from "./db";
-import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, playerDailyTasks, playerAchievements, roomInvites, dailyTaskDefs, achievementDefs, coinGifts } from "@shared/schema";
+import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, friendRequests, playerDailyTasks, playerAchievements, roomInvites, dailyTaskDefs, achievementDefs, coinGifts } from "@shared/schema";
 import { eq, and, desc, asc, or, ilike, ne, isNotNull, sql } from "drizzle-orm";
 import cron from "node-cron";
 import { sendPushNotification, sendDailyTaskReminders, sendStreakResetWarnings, sendSeasonEndingNotifications } from "./notifications";
@@ -2293,6 +2293,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         wins: playerProfiles.wins,
       };
 
+      // ── WM-XXXXX display ID search ───────────────────────────────────────
+      const wmMatch = q.match(/^WM-?(\d+)$/i);
+      if (wmMatch) {
+        const tagNum = parseInt(wmMatch[1], 10);
+        if (isNaN(tagNum)) return res.json([]);
+        const whereClause = myId
+          ? and(eq(playerProfiles.playerTag, tagNum), ne(playerProfiles.id, myId))
+          : eq(playerProfiles.playerTag, tagNum);
+        const rows = await db.select(selectFields).from(playerProfiles).where(whereClause).limit(5);
+        return res.json(rows);
+      }
+
       if (q.includes("#")) {
         const hashIdx = q.lastIndexOf("#");
         const namePart = q.slice(0, hashIdx).trim();
@@ -2351,63 +2363,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/friends/:playerId", async (req, res) => {
+  // ── FRIEND LIST ───────────────────────────────────────────────────────────
+  app.get("/api/friends/list/:playerId", async (req, res) => {
     try {
-      const playerId = req.params.playerId;
+      const { playerId } = req.params;
       const rows = await db.select().from(friends).where(
-        or(eq(friends.requesterId, playerId), eq(friends.receiverId, playerId))
+        or(eq(friends.playerId, playerId), eq(friends.friendId, playerId))
       );
+      const profileFields = {
+        id: playerProfiles.id,
+        playerTag: playerProfiles.playerTag,
+        name: playerProfiles.name,
+        skin: playerProfiles.equippedSkin,
+        level: playerProfiles.level,
+        wins: playerProfiles.wins,
+      };
       const result = [];
       for (const row of rows) {
-        const otherId = row.requesterId === playerId ? row.receiverId : row.requesterId;
-        const [profile] = await db.select({
-          id: playerProfiles.id,
-          playerCode: playerProfiles.playerCode,
-          playerTag: playerProfiles.playerTag,
-          name: playerProfiles.name,
-          skin: playerProfiles.equippedSkin,
-          level: playerProfiles.level,
-          wins: playerProfiles.wins,
-        }).from(playerProfiles).where(eq(playerProfiles.id, otherId));
-        if (profile) {
-          result.push({
-            requestId: row.id,
-            status: row.status,
-            isSender: row.requesterId === playerId,
-            player: profile,
-          });
-        }
+        const otherId = row.playerId === playerId ? row.friendId : row.playerId;
+        const [p] = await db.select(profileFields).from(playerProfiles).where(eq(playerProfiles.id, otherId));
+        if (p) result.push({ friendshipId: row.id, friend: p, since: row.createdAt });
       }
       res.json(result);
     } catch (e) {
-      console.error("GET /api/friends error:", e);
+      console.error("GET /api/friends/list error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });
 
-  app.post("/api/friends/:playerId/request/:targetId", async (req, res) => {
+  // ── FRIEND REQUESTS ───────────────────────────────────────────────────────
+  app.get("/api/friends/requests/:playerId", async (req, res) => {
     try {
-      const { playerId, targetId } = req.params;
-      if (playerId === targetId) return res.status(400).json({ error: "cannot_add_self" });
-      const existing = await db.select().from(friends).where(
-        or(
-          and(eq(friends.requesterId, playerId), eq(friends.receiverId, targetId)),
-          and(eq(friends.requesterId, targetId), eq(friends.receiverId, playerId))
+      const { playerId } = req.params;
+      const rows = await db.select().from(friendRequests).where(
+        and(
+          or(eq(friendRequests.senderId, playerId), eq(friendRequests.receiverId, playerId)),
+          eq(friendRequests.status, "pending")
         )
-      );
-      if (existing.length > 0) {
-        const ex = existing[0];
-        if (ex.status === "rejected" && ex.requesterId === playerId) {
-          // Allow re-send after rejection — reset to pending
-          await db.update(friends)
-            .set({ status: "pending", updatedAt: new Date() })
-            .where(eq(friends.id, ex.id));
-          return res.json({ success: true, resent: true });
-        }
-        // Already pending or accepted
-        return res.json({ error: "already_exists", status: ex.status });
+      ).orderBy(desc(friendRequests.createdAt));
+      const profileFields = {
+        id: playerProfiles.id,
+        playerTag: playerProfiles.playerTag,
+        name: playerProfiles.name,
+        skin: playerProfiles.equippedSkin,
+        level: playerProfiles.level,
+        wins: playerProfiles.wins,
+      };
+      const result = [];
+      for (const row of rows) {
+        const otherId = row.senderId === playerId ? row.receiverId : row.senderId;
+        const [p] = await db.select(profileFields).from(playerProfiles).where(eq(playerProfiles.id, otherId));
+        if (p) result.push({ requestId: row.id, isSender: row.senderId === playerId, player: p, createdAt: row.createdAt });
       }
-      const [row] = await db.insert(friends).values({ requesterId: playerId, receiverId: targetId, status: "pending" }).returning();
+      res.json(result);
+    } catch (e) {
+      console.error("GET /api/friends/requests error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // ── SEND FRIEND REQUEST ───────────────────────────────────────────────────
+  app.post("/api/friends/request", async (req, res) => {
+    try {
+      const { senderId, receiverId } = req.body as { senderId: string; receiverId: string };
+      if (!senderId || !receiverId) return res.status(400).json({ error: "missing_fields" });
+      if (senderId === receiverId) return res.status(400).json({ error: "cannot_add_self" });
+
+      // Check not already friends
+      const alreadyFriends = await db.select({ id: friends.id }).from(friends).where(
+        or(
+          and(eq(friends.playerId, senderId), eq(friends.friendId, receiverId)),
+          and(eq(friends.playerId, receiverId), eq(friends.friendId, senderId))
+        )
+      ).limit(1);
+      if (alreadyFriends.length > 0) return res.status(400).json({ error: "already_friends" });
+
+      // Check no pending request already exists
+      const existing = await db.select().from(friendRequests).where(
+        and(
+          or(
+            and(eq(friendRequests.senderId, senderId), eq(friendRequests.receiverId, receiverId)),
+            and(eq(friendRequests.senderId, receiverId), eq(friendRequests.receiverId, senderId))
+          ),
+          eq(friendRequests.status, "pending")
+        )
+      ).limit(1);
+      if (existing.length > 0) return res.status(400).json({ error: "request_exists", status: existing[0].status });
+
+      const [row] = await db.insert(friendRequests).values({ senderId, receiverId, status: "pending" }).returning();
       res.json({ success: true, requestId: row.id });
     } catch (e) {
       console.error("POST /api/friends/request error:", e);
@@ -2415,35 +2458,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/friends/request", async (req, res) => {
-    try {
-      const { requesterId, receiverId } = req.body as { requesterId: string; receiverId: string };
-      if (!requesterId || !receiverId) return res.status(400).json({ error: "missing_fields" });
-      if (requesterId === receiverId) return res.status(400).json({ error: "cannot_add_self" });
-      const existing = await db.select().from(friends).where(
-        or(
-          and(eq(friends.requesterId, requesterId), eq(friends.receiverId, receiverId)),
-          and(eq(friends.requesterId, receiverId), eq(friends.receiverId, requesterId))
-        )
-      );
-      if (existing.length > 0) return res.status(400).json({ error: "already_exists", status: existing[0].status });
-      const [row] = await db.insert(friends).values({ requesterId, receiverId, status: "pending" }).returning();
-      res.json({ success: true, requestId: row.id });
-    } catch (e) {
-      console.error("POST /api/friends/request (body) error:", e);
-      res.status(500).json({ error: "server_error" });
-    }
-  });
-
+  // ── ACCEPT FRIEND REQUEST ─────────────────────────────────────────────────
   app.post("/api/friends/accept", async (req, res) => {
     try {
-      const { requester_id, receiver_id } = req.body as { requester_id: string; receiver_id: string };
-      if (!requester_id || !receiver_id) return res.status(400).json({ error: "missing_fields" });
-      const [updated] = await db.update(friends)
-        .set({ status: "accepted", updatedAt: new Date() })
-        .where(and(eq(friends.requesterId, requester_id), eq(friends.receiverId, receiver_id)))
-        .returning();
-      if (!updated) return res.status(404).json({ error: "request_not_found" });
+      const { requestId, playerId } = req.body as { requestId: string; playerId: string };
+      if (!requestId || !playerId) return res.status(400).json({ error: "missing_fields" });
+
+      const [req_] = await db.select().from(friendRequests)
+        .where(and(eq(friendRequests.id, requestId), eq(friendRequests.receiverId, playerId), eq(friendRequests.status, "pending")));
+      if (!req_) return res.status(404).json({ error: "request_not_found" });
+
+      await db.transaction(async (tx) => {
+        await tx.update(friendRequests).set({ status: "accepted" }).where(eq(friendRequests.id, requestId));
+        // Insert two rows for bidirectional lookup
+        await tx.insert(friends).values([
+          { playerId: req_.senderId, friendId: req_.receiverId },
+          { playerId: req_.receiverId, friendId: req_.senderId },
+        ]);
+      });
       res.json({ success: true });
     } catch (e) {
       console.error("POST /api/friends/accept error:", e);
@@ -2451,26 +2483,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/friends/request/:requestId/:action", async (req, res) => {
+  // ── DECLINE FRIEND REQUEST ────────────────────────────────────────────────
+  app.post("/api/friends/decline", async (req, res) => {
     try {
-      const { requestId, action } = req.params;
-      if (action !== "accept" && action !== "reject") return res.status(400).json({ error: "invalid_action" });
-      const newStatus = action === "accept" ? "accepted" : "rejected";
-      await db.update(friends).set({ status: newStatus, updatedAt: new Date() }).where(eq(friends.id, requestId));
+      const { requestId, playerId } = req.body as { requestId: string; playerId: string };
+      if (!requestId || !playerId) return res.status(400).json({ error: "missing_fields" });
+
+      await db.update(friendRequests)
+        .set({ status: "declined" })
+        .where(and(eq(friendRequests.id, requestId), eq(friendRequests.receiverId, playerId)));
       res.json({ success: true });
     } catch (e) {
-      console.error("PUT /api/friends/request error:", e);
+      console.error("POST /api/friends/decline error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });
 
+  // ── REMOVE FRIEND ─────────────────────────────────────────────────────────
   app.delete("/api/friends/:playerId/:friendId", async (req, res) => {
     try {
       const { playerId, friendId } = req.params;
       await db.delete(friends).where(
         or(
-          and(eq(friends.requesterId, playerId), eq(friends.receiverId, friendId)),
-          and(eq(friends.requesterId, friendId), eq(friends.receiverId, playerId))
+          and(eq(friends.playerId, playerId), eq(friends.friendId, friendId)),
+          and(eq(friends.playerId, friendId), eq(friends.friendId, playerId))
         )
       );
       res.json({ success: true });
@@ -3079,15 +3115,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validAmounts = [50, 100, 200];
       if (!validAmounts.includes(amount)) return res.status(400).json({ error: "invalid_amount" });
 
-      const friendship = await db.select().from(friends).where(
-        and(
-          or(
-            and(eq(friends.requesterId, fromPlayerId), eq(friends.receiverId, toPlayerId)),
-            and(eq(friends.requesterId, toPlayerId), eq(friends.receiverId, fromPlayerId))
-          ),
-          eq(friends.status, "accepted")
+      const friendship = await db.select({ id: friends.id }).from(friends).where(
+        or(
+          and(eq(friends.playerId, fromPlayerId), eq(friends.friendId, toPlayerId)),
+          and(eq(friends.playerId, toPlayerId), eq(friends.friendId, fromPlayerId))
         )
-      );
+      ).limit(1);
       if (friendship.length === 0) return res.json({ error: "not_friends" });
 
       const today = new Date().toISOString().slice(0, 10);

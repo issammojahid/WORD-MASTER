@@ -125,16 +125,26 @@ export const tournamentMatches = pgTable("tournament_matches", {
 });
 
 // ── FRIENDS SYSTEM ─────────────────────────────────────────────────────────
+// Confirmed friendships only (bidirectional — one row per pair)
 export const friends = pgTable("friends", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  requesterId: varchar("requester_id").notNull(),
-  receiverId: varchar("receiver_id").notNull(),
-  status: text("status").notNull().default("pending"), // pending | accepted | rejected
+  playerId: varchar("player_id").notNull(),
+  friendId: varchar("friend_id").notNull(),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
-  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
 
 export type Friend = typeof friends.$inferSelect;
+
+// Friend requests (pending / accepted / declined)
+export const friendRequests = pgTable("friend_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  senderId: varchar("sender_id").notNull(),
+  receiverId: varchar("receiver_id").notNull(),
+  status: text("status").notNull().default("pending"), // pending | accepted | declined
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type FriendRequest = typeof friendRequests.$inferSelect;
 
 // ── DAILY TASK DEFINITIONS ─────────────────────────────────────────────────
 export const dailyTaskDefs = pgTable("daily_tasks", {

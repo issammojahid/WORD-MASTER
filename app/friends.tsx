@@ -22,14 +22,28 @@ import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { ScreenErrorBoundary } from "@/components/ScreenErrorBoundary";
-import { getDisplayCode } from "@/lib/player-code";
+import { getPlayerDisplayId } from "@/lib/player-code";
 
-type PlayerResult = { id: string; name: string; playerCode?: string | null; playerTag?: number | null; skin: string; level: number; wins: number };
+type PlayerResult = {
+  id: string;
+  name: string;
+  playerTag?: number | null;
+  skin: string;
+  level: number;
+  wins: number;
+};
+
 type FriendEntry = {
+  friendshipId: string;
+  friend: PlayerResult;
+  since: string;
+};
+
+type RequestEntry = {
   requestId: string;
-  status: "pending" | "accepted" | "rejected";
   isSender: boolean;
   player: PlayerResult;
+  createdAt: string;
 };
 
 type TabType = "friends" | "search" | "requests" | "gifts";
@@ -42,13 +56,7 @@ type GiftHistoryEntry = {
   sentAt: string;
 };
 
-type PendingGift = {
-  id: string;
-  fromPlayerId: string;
-  fromName: string;
-  amount: number;
-  sentAt: string;
-};
+type GiftModalState = { visible: boolean; targetId: string; targetName: string };
 
 type ApiFetchOptions = { method?: string; body?: BodyInit; headers?: HeadersInit };
 async function apiFetch(url: string, options?: ApiFetchOptions) {
@@ -61,8 +69,6 @@ async function apiFetch(url: string, options?: ApiFetchOptions) {
     return null;
   }
 }
-
-type GiftModalState = { visible: boolean; targetId: string; targetName: string };
 
 function FriendsScreenInner() {
   const insets = useSafeAreaInsets();
@@ -78,28 +84,40 @@ function FriendsScreenInner() {
   const searchTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const myDisplayCode = getDisplayCode(profile.name, playerId, profile.playerTag);
+  const myDisplayId = getPlayerDisplayId(profile.playerTag);
+
+  const topInset = Platform.OS === "web" ? 67 : insets.top;
+  const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
   const copyToClipboard = useCallback(async (text: string) => {
     await Clipboard.setStringAsync(text);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCopiedToast(true);
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setCopiedToast(false), 2000);
+    toastTimer.current = setTimeout(() => setCopiedToast(false), 2200);
   }, []);
 
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
-
-  const { data: friendRowsRaw, isLoading: loadingFriends } = useQuery<FriendEntry[]>({
-    queryKey: ["/api/friends", playerId],
+  const { data: friendsRaw, isLoading: loadingFriends } = useQuery<FriendEntry[]>({
+    queryKey: ["/api/friends/list", playerId],
     queryFn: async () => {
-      const url = new URL(`/api/friends/${playerId}`, getApiUrl());
+      const url = new URL(`/api/friends/list/${playerId}`, getApiUrl());
       const result = await apiFetch(url.toString());
       return Array.isArray(result) ? result : [];
     },
     enabled: !!playerId,
-    refetchInterval: 10_000,
+    refetchInterval: 15_000,
+    initialData: [],
+  });
+
+  const { data: requestsRaw, isLoading: loadingRequests } = useQuery<RequestEntry[]>({
+    queryKey: ["/api/friends/requests", playerId],
+    queryFn: async () => {
+      const url = new URL(`/api/friends/requests/${playerId}`, getApiUrl());
+      const result = await apiFetch(url.toString());
+      return Array.isArray(result) ? result : [];
+    },
+    enabled: !!playerId,
+    refetchInterval: 15_000,
     initialData: [],
   });
 
@@ -128,11 +146,13 @@ function FriendsScreenInner() {
   });
   const giftHistory: GiftHistoryEntry[] = Array.isArray(giftHistoryRaw) ? giftHistoryRaw : [];
 
-  const allFriendRows: FriendEntry[] = Array.isArray(friendRowsRaw) ? friendRowsRaw : [];
+  const friendList: FriendEntry[] = Array.isArray(friendsRaw) ? friendsRaw : [];
+  const requests: RequestEntry[] = Array.isArray(requestsRaw) ? requestsRaw : [];
+  const incomingRequests = requests.filter((r) => !r.isSender);
+  const outgoingRequests = requests.filter((r) => r.isSender);
 
-  const acceptedFriends = allFriendRows.filter((r) => r.status === "accepted");
-  const pendingReceived = allFriendRows.filter((r) => r.status === "pending" && !r.isSender);
-  const pendingSent = allFriendRows.filter((r) => r.status === "pending" && r.isSender);
+  const friendIds = new Set(friendList.map((f) => f.friend.id));
+  const sentToIds = new Set(outgoingRequests.map((r) => r.player.id));
 
   const { data: searchResultsRaw, isLoading: loadingSearch } = useQuery<PlayerResult[]>({
     queryKey: ["/api/players/search", debouncedQ],
@@ -145,7 +165,6 @@ function FriendsScreenInner() {
     enabled: debouncedQ.length >= 2,
     initialData: [],
   });
-
   const searchResults: PlayerResult[] = Array.isArray(searchResultsRaw) ? searchResultsRaw : [];
 
   const handleSearchChange = useCallback((text: string) => {
@@ -155,35 +174,50 @@ function FriendsScreenInner() {
   }, []);
 
   const sendRequest = useMutation({
-    mutationFn: async (targetId: string) => {
-      const url = new URL(`/api/friends/${playerId}/request/${targetId}`, getApiUrl());
-      return apiFetch(url.toString(), { method: "POST" });
+    mutationFn: async (receiverId: string) => {
+      const url = new URL("/api/friends/request", getApiUrl());
+      return apiFetch(url.toString(), {
+        method: "POST",
+        body: JSON.stringify({ senderId: playerId, receiverId }),
+      });
     },
     onSuccess: (data) => {
-      if (!data) {
-        Alert.alert("", "حدث خطأ، حاول مرة أخرى");
-        return;
-      }
-      if (data.error === "already_exists") {
-        const msg = data.status === "accepted" ? "أنتم أصدقاء بالفعل ✓" : "طلب الصداقة تم إرساله مسبقاً";
-        Alert.alert("", msg);
+      if (!data) { Alert.alert("", "حدث خطأ، حاول مرة أخرى"); return; }
+      if (data.error === "already_friends") {
+        Alert.alert("", "أنتم أصدقاء بالفعل ✓");
+      } else if (data.error === "request_exists") {
+        Alert.alert("", "طلب الصداقة تم إرساله مسبقاً");
       } else if (data.success) {
-        const msg = data.resent ? "تمت إعادة إرسال طلب الصداقة ✓" : "تم إرسال طلب الصداقة ✓";
-        Alert.alert("", msg);
+        Alert.alert("", "تم إرسال طلب الصداقة ✓");
       }
-      qc.invalidateQueries({ queryKey: ["/api/friends", playerId] });
+      qc.invalidateQueries({ queryKey: ["/api/friends/requests", playerId] });
     },
-    onError: () => {
-      Alert.alert("", "حدث خطأ، حاول مرة أخرى");
+    onError: () => Alert.alert("", "حدث خطأ، حاول مرة أخرى"),
+  });
+
+  const acceptRequest = useMutation({
+    mutationFn: async (requestId: string) => {
+      const url = new URL("/api/friends/accept", getApiUrl());
+      return apiFetch(url.toString(), {
+        method: "POST",
+        body: JSON.stringify({ requestId, playerId }),
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/friends/list", playerId] });
+      qc.invalidateQueries({ queryKey: ["/api/friends/requests", playerId] });
     },
   });
 
-  const respondRequest = useMutation({
-    mutationFn: async ({ requestId, action }: { requestId: string; action: "accept" | "reject" }) => {
-      const url = new URL(`/api/friends/request/${requestId}/${action}`, getApiUrl());
-      return apiFetch(url.toString(), { method: "PUT" });
+  const declineRequest = useMutation({
+    mutationFn: async (requestId: string) => {
+      const url = new URL("/api/friends/decline", getApiUrl());
+      return apiFetch(url.toString(), {
+        method: "POST",
+        body: JSON.stringify({ requestId, playerId }),
+      });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/friends", playerId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/friends/requests", playerId] }),
   });
 
   const removeFriend = useMutation({
@@ -191,7 +225,7 @@ function FriendsScreenInner() {
       const url = new URL(`/api/friends/${playerId}/${friendId}`, getApiUrl());
       return apiFetch(url.toString(), { method: "DELETE" });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/friends", playerId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/friends/list", playerId] }),
   });
 
   const sendGift = async (amount: number) => {
@@ -221,13 +255,9 @@ function FriendsScreenInner() {
     setGiftModal({ visible: false, targetId: "", targetName: "" });
   };
 
-  const getRelationship = (playerId2: string) => {
-    return allFriendRows.find((r) => r.player.id === playerId2);
-  };
-
   const renderPlayerCard = (player: PlayerResult, extra?: React.ReactNode) => {
     const skin = SKINS.find((s) => s.id === player.skin) || SKINS[0];
-    const codeLabel = player.playerCode || (player.playerTag ? `#${player.playerTag.toString().padStart(4, "0")}` : "");
+    const wmId = getPlayerDisplayId(player.playerTag);
     return (
       <View key={player.id} style={[styles.playerCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
         <View style={[styles.avatar, { backgroundColor: skin.color + "33" }]}>
@@ -236,7 +266,7 @@ function FriendsScreenInner() {
         <View style={styles.playerInfo}>
           <Text style={[styles.playerName, { color: theme.textPrimary }]}>{player.name}</Text>
           <Text style={[styles.playerSub, { color: theme.textMuted }]}>
-            {codeLabel ? `${codeLabel} · ` : ""}المستوى {player.level} · {player.wins} انتصار
+            {wmId ? `${wmId} · ` : ""}المستوى {player.level} · {player.wins} انتصار
           </Text>
         </View>
         {extra}
@@ -254,16 +284,16 @@ function FriendsScreenInner() {
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Player Code Banner */}
+      {/* WM-XXXXX Identity Banner */}
       <TouchableOpacity
-        style={[styles.codeBanner, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
-        onPress={() => copyToClipboard(myDisplayCode)}
-        activeOpacity={0.7}
+        style={[styles.codeBanner, { backgroundColor: theme.card, borderColor: Colors.gold + "30" }]}
+        onPress={() => myDisplayId && copyToClipboard(myDisplayId)}
+        activeOpacity={0.75}
       >
         <View style={styles.codeBannerLeft}>
           <Ionicons name="id-card" size={18} color={Colors.gold} />
-          <Text style={[styles.codeBannerLabel, { color: theme.textMuted }]}>كودك:</Text>
-          <Text style={styles.codeBannerValue}>{myDisplayCode}</Text>
+          <Text style={[styles.codeBannerLabel, { color: theme.textMuted }]}>معرفك:</Text>
+          <Text style={styles.codeBannerValue}>{myDisplayId || "..."}</Text>
         </View>
         <Ionicons name="copy-outline" size={18} color={theme.textMuted} />
       </TouchableOpacity>
@@ -275,7 +305,7 @@ function FriendsScreenInner() {
         </View>
       )}
 
-      {/* Play Section */}
+      {/* Quick Play */}
       <View style={[styles.playSection, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
         <TouchableOpacity
           style={styles.playBtn}
@@ -296,16 +326,19 @@ function FriendsScreenInner() {
         </TouchableOpacity>
       </View>
 
+      {/* Tabs */}
       <View style={[styles.tabs, { backgroundColor: theme.card }]}>
         {(["friends", "search", "requests", "gifts"] as TabType[]).map((t) => (
-          <TouchableOpacity
-            key={t}
-            style={[styles.tab, tab === t && styles.tabActive]}
-            onPress={() => setTab(t)}
-          >
+          <TouchableOpacity key={t} style={[styles.tab, tab === t && styles.tabActive]} onPress={() => setTab(t)}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
               <Text style={[styles.tabText, { color: theme.textMuted }, tab === t && styles.tabTextActive]}>
-                {t === "friends" ? `الأصدقاء (${acceptedFriends.length})` : t === "search" ? "بحث" : t === "requests" ? `الطلبات (${pendingReceived.length})` : "🎁"}
+                {t === "friends"
+                  ? `الأصدقاء (${friendList.length})`
+                  : t === "search"
+                  ? "بحث"
+                  : t === "requests"
+                  ? `الطلبات (${incomingRequests.length})`
+                  : "🎁"}
               </Text>
               {t === "gifts" && pendingGiftsCount > 0 && (
                 <View style={styles.giftBadge}>
@@ -317,26 +350,27 @@ function FriendsScreenInner() {
         ))}
       </View>
 
+      {/* ── Friends Tab ── */}
       {tab === "friends" && (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {loadingFriends ? (
             <ActivityIndicator color={Colors.gold} style={{ marginTop: 40 }} />
-          ) : acceptedFriends.length === 0 ? (
+          ) : friendList.length === 0 ? (
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>👥</Text>
               <Text style={[styles.emptyText, { color: theme.textSecondary }]}>ليس لديك أصدقاء بعد</Text>
               <Text style={[styles.emptySubText, { color: theme.textMuted }]}>ابحث عن لاعبين وأضفهم كأصدقاء</Text>
             </View>
           ) : (
-            acceptedFriends.map((row) =>
+            friendList.map((row) =>
               renderPlayerCard(
-                row.player,
+                row.friend,
                 <View style={styles.friendActions}>
                   <TouchableOpacity
                     style={styles.giftBtn}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setGiftModal({ visible: true, targetId: row.player.id, targetName: row.player.name });
+                      setGiftModal({ visible: true, targetId: row.friend.id, targetName: row.friend.name });
                     }}
                   >
                     <Text style={{ fontSize: 12, fontFamily: "Cairo_600SemiBold", color: Colors.gold }}>🎁 أهدِ</Text>
@@ -353,10 +387,12 @@ function FriendsScreenInner() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.removeBtn}
-                    onPress={() => Alert.alert("إزالة صديق", `هل تريد إزالة ${row.player.name}؟`, [
-                      { text: "إلغاء", style: "cancel" },
-                      { text: "إزالة", style: "destructive", onPress: () => removeFriend.mutate(row.player.id) },
-                    ])}
+                    onPress={() =>
+                      Alert.alert("إزالة صديق", `هل تريد إزالة ${row.friend.name}؟`, [
+                        { text: "إلغاء", style: "cancel" },
+                        { text: "إزالة", style: "destructive", onPress: () => removeFriend.mutate(row.friend.id) },
+                      ])
+                    }
                   >
                     <Ionicons name="person-remove" size={18} color={Colors.ruby} />
                   </TouchableOpacity>
@@ -364,29 +400,17 @@ function FriendsScreenInner() {
               )
             )
           )}
-          {pendingSent.length > 0 && (
-            <>
-              <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>طلبات أرسلتها</Text>
-              {pendingSent.map((row) =>
-                renderPlayerCard(
-                  row.player,
-                  <View style={styles.sentBadge}>
-                    <Text style={styles.sentBadgeText}>بانتظار القبول</Text>
-                  </View>
-                )
-              )}
-            </>
-          )}
         </ScrollView>
       )}
 
+      {/* ── Search Tab ── */}
       {tab === "search" && (
         <View style={{ flex: 1 }}>
           <View style={[styles.searchBox, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
             <Ionicons name="search" size={18} color={theme.textMuted} style={{ marginRight: 8 }} />
             <TextInput
               style={[styles.searchInput, { color: theme.inputText }]}
-              placeholder="ابحث بالاسم أو الكود (WM-XXXXXX)..."
+              placeholder="ابحث بالاسم أو المعرف (WM-XXXXX)..."
               placeholderTextColor={theme.inputPlaceholder}
               value={searchQuery}
               onChangeText={handleSearchChange}
@@ -406,9 +430,22 @@ function FriendsScreenInner() {
               </View>
             ) : (
               searchResults.map((player) => {
-                const rel = getRelationship(player.id);
+                const isFriend = friendIds.has(player.id);
+                const sentRequest = sentToIds.has(player.id);
                 let actionBtn: React.ReactNode;
-                if (!rel) {
+                if (isFriend) {
+                  actionBtn = (
+                    <View style={styles.friendBadge}>
+                      <Text style={styles.friendBadgeText}>صديق</Text>
+                    </View>
+                  );
+                } else if (sentRequest) {
+                  actionBtn = (
+                    <View style={styles.sentBadge}>
+                      <Text style={styles.sentBadgeText}>تم الإرسال</Text>
+                    </View>
+                  );
+                } else {
                   actionBtn = (
                     <TouchableOpacity
                       style={styles.addBtn}
@@ -418,18 +455,6 @@ function FriendsScreenInner() {
                       <Ionicons name="person-add" size={18} color={Colors.emerald} />
                     </TouchableOpacity>
                   );
-                } else if (rel.status === "accepted") {
-                  actionBtn = (
-                    <View style={styles.friendBadge}>
-                      <Text style={styles.friendBadgeText}>صديق</Text>
-                    </View>
-                  );
-                } else {
-                  actionBtn = (
-                    <View style={styles.sentBadge}>
-                      <Text style={styles.sentBadgeText}>تم الإرسال</Text>
-                    </View>
-                  );
                 }
                 return renderPlayerCard(player, actionBtn);
               })
@@ -438,38 +463,62 @@ function FriendsScreenInner() {
         </View>
       )}
 
+      {/* ── Requests Tab ── */}
       {tab === "requests" && (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-          {loadingFriends ? (
+          {loadingRequests ? (
             <ActivityIndicator color={Colors.gold} style={{ marginTop: 40 }} />
-          ) : pendingReceived.length === 0 ? (
+          ) : requests.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>لا توجد طلبات جديدة</Text>
+              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>لا توجد طلبات</Text>
             </View>
           ) : (
-            pendingReceived.map((row) =>
-              renderPlayerCard(
-                row.player,
-                <View style={styles.requestBtns}>
-                  <TouchableOpacity
-                    style={styles.acceptBtn}
-                    onPress={() => respondRequest.mutate({ requestId: row.requestId, action: "accept" })}
-                  >
-                    <Ionicons name="checkmark" size={20} color="#fff" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.rejectBtn}
-                    onPress={() => respondRequest.mutate({ requestId: row.requestId, action: "reject" })}
-                  >
-                    <Ionicons name="close" size={20} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              )
-            )
+            <>
+              {incomingRequests.length > 0 && (
+                <>
+                  <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>طلبات واردة</Text>
+                  {incomingRequests.map((row) =>
+                    renderPlayerCard(
+                      row.player,
+                      <View style={styles.requestBtns}>
+                        <TouchableOpacity
+                          style={styles.acceptBtn}
+                          onPress={() => acceptRequest.mutate(row.requestId)}
+                          disabled={acceptRequest.isPending}
+                        >
+                          <Ionicons name="checkmark" size={20} color="#fff" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.rejectBtn}
+                          onPress={() => declineRequest.mutate(row.requestId)}
+                          disabled={declineRequest.isPending}
+                        >
+                          <Ionicons name="close" size={20} color="#fff" />
+                        </TouchableOpacity>
+                      </View>
+                    )
+                  )}
+                </>
+              )}
+              {outgoingRequests.length > 0 && (
+                <>
+                  <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>طلبات أرسلتها</Text>
+                  {outgoingRequests.map((row) =>
+                    renderPlayerCard(
+                      row.player,
+                      <View style={styles.sentBadge}>
+                        <Text style={styles.sentBadgeText}>بانتظار القبول</Text>
+                      </View>
+                    )
+                  )}
+                </>
+              )}
+            </>
           )}
         </ScrollView>
       )}
 
+      {/* ── Gifts Tab ── */}
       {tab === "gifts" && (
         <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {loadingGifts ? (
