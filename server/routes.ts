@@ -2892,7 +2892,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .returning();
       sendPushNotification(
         toPlayerId,
-        `${fromPlayerName} دعاك للانضمام إلى غرفته 🎮`,
+        `صديقك ${fromPlayerName} يتحداك! 🎮`,
         "دعوة للعب!",
         { type: "room_invite", roomId }
       ).catch(() => {});

@@ -16,7 +16,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.huroofalmaghrib"
+      "bundleIdentifier": "com.huroofalmaghrib",
+      "infoPlist": {
+        "NSUserNotificationsUsageDescription": "نحتاج إذنك لإرسال إشعارات حول دعوات الأصدقاء والمهام اليومية والمكافآت"
+      }
     },
     "android": {
       "package": "com.huroofalmaghrib",

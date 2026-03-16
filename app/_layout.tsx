@@ -21,6 +21,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import SplashOverlay from "@/components/SplashOverlay";
 import { preloadAllSounds } from "@/lib/sound-manager";
 import { registerForPushNotifications } from "@/lib/notifications";
+import * as Notifications from "expo-notifications";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -136,21 +137,81 @@ function GiftPoller() {
   return null;
 }
 
+const NOTIF_PROMPT_KEY = "notif_prompt_shown_v1";
+
 function PushNotificationRegistrar() {
   const { playerId } = usePlayer();
-  const registeredRef = useRef(false);
+  const [showModal, setShowModal] = useState(false);
+  const checkedRef = useRef(false);
 
   useEffect(() => {
-    if (!playerId || registeredRef.current) return;
-    registeredRef.current = true;
-    const timer = setTimeout(() => {
-      registerForPushNotifications(playerId).catch(() => {});
-    }, 3000);
+    if (!playerId || checkedRef.current) return;
+    checkedRef.current = true;
+
+    const timer = setTimeout(async () => {
+      try {
+        if (Platform.OS === "web") return;
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status === "granted") {
+          registerForPushNotifications(playerId).catch(() => {});
+          return;
+        }
+        const alreadyShown = await AsyncStorage.getItem(NOTIF_PROMPT_KEY);
+        if (!alreadyShown) setShowModal(true);
+      } catch {}
+    }, 4000);
+
     return () => clearTimeout(timer);
   }, [playerId]);
 
-  return null;
+  const handleAllow = async () => {
+    setShowModal(false);
+    await AsyncStorage.setItem(NOTIF_PROMPT_KEY, "1");
+    if (playerId) registerForPushNotifications(playerId).catch(() => {});
+  };
+
+  const handleDecline = async () => {
+    setShowModal(false);
+    await AsyncStorage.setItem(NOTIF_PROMPT_KEY, "1");
+  };
+
+  if (!showModal) return null;
+
+  return (
+    <Modal transparent visible animationType="fade" onRequestClose={handleDecline}>
+      <View style={np.overlay}>
+        <View style={np.card}>
+          <Text style={np.icon}>🔔</Text>
+          <Text style={np.title}>تفعيل الإشعارات</Text>
+          <Text style={np.body}>
+            {"ابق على اطلاع بدعوات الأصدقاء والمهام اليومية ومكافآت التحدي!\n\nيمكنك إيقاف الإشعارات في أي وقت من الإعدادات."}
+          </Text>
+          <TouchableOpacity style={np.allowBtn} onPress={handleAllow} activeOpacity={0.85}>
+            <LinearGradient colors={["#00F5FF", "#0099CC"]} style={np.allowGrad}>
+              <Text style={np.allowText}>السماح بالإشعارات</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+          <TouchableOpacity style={np.declineBtn} onPress={handleDecline} activeOpacity={0.7}>
+            <Text style={np.declineText}>لاحقاً</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
 }
+
+const np = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.75)", justifyContent: "center", alignItems: "center", paddingHorizontal: 24 },
+  card: { width: "100%", maxWidth: 360, backgroundColor: "#12122A", borderRadius: 24, padding: 28, alignItems: "center", gap: 14, borderWidth: 1.5, borderColor: "#00F5FF30" },
+  icon: { fontSize: 48 },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#E8E8FF", textAlign: "center" },
+  body: { fontFamily: "Cairo_400Regular", fontSize: 14, color: "#9898CC", textAlign: "center", lineHeight: 22 },
+  allowBtn: { width: "100%", borderRadius: 16, overflow: "hidden", marginTop: 4 },
+  allowGrad: { paddingVertical: 14, alignItems: "center", borderRadius: 16 },
+  allowText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#000" },
+  declineBtn: { paddingVertical: 8 },
+  declineText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#5A5A88" },
+});
 
 const LAST_RESET_DATE_KEY = "daily_reset_date_v1";
 
