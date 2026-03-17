@@ -9,7 +9,7 @@ import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, Animated, StyleSheet, View, Text, TouchableOpacity, Modal, Dimensions, Easing } from "react-native";
+import { Alert, Animated, Platform, StyleSheet, View, Text, TouchableOpacity, Modal, Dimensions, Easing } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { LinearGradient } from "expo-linear-gradient";
@@ -20,8 +20,7 @@ import { PlayerProvider, usePlayer } from "@/contexts/PlayerContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import SplashOverlay from "@/components/SplashOverlay";
 import { preloadAllSounds } from "@/lib/sound-manager";
-import { registerForPushNotifications } from "@/lib/notifications";
-import * as Notifications from "expo-notifications";
+import { registerForPushNotifications, getPermissionsStatus } from "@/lib/notifications";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -151,11 +150,12 @@ function PushNotificationRegistrar() {
     const timer = setTimeout(async () => {
       try {
         if (Platform.OS === "web") return;
-        const { status } = await Notifications.getPermissionsAsync();
+        const status = await getPermissionsStatus();
         if (status === "granted") {
           registerForPushNotifications(playerId).catch(() => {});
           return;
         }
+        if (status === null) return;
         const alreadyShown = await AsyncStorage.getItem(NOTIF_PROMPT_KEY);
         if (!alreadyShown) setShowModal(true);
       } catch {}

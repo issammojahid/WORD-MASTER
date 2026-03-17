@@ -1,24 +1,33 @@
 import { Platform } from "react-native";
-import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApiUrl } from "@/lib/query-client";
 
 const PUSH_TOKEN_KEY_PREFIX = "expo_push_token_v1:";
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+let Notifications: typeof import("expo-notifications") | null = null;
+
+try {
+  Notifications = require("expo-notifications");
+  if (Notifications) {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  }
+} catch {
+  // expo-notifications push functionality not available in Expo Go SDK 53+
+}
 
 export async function registerForPushNotifications(
   playerId: string
 ): Promise<string | null> {
   if (Platform.OS === "web") return null;
+  if (!Notifications) return null;
 
   try {
     const { status: existingStatus } =
@@ -67,7 +76,17 @@ export async function registerForPushNotifications(
 
     return token;
   } catch (e) {
-    console.error("[push] Registration error:", e);
+    console.log("[push] Not available in this environment:", e);
+    return null;
+  }
+}
+
+export async function getPermissionsStatus(): Promise<string | null> {
+  if (!Notifications || Platform.OS === "web") return null;
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    return status;
+  } catch {
     return null;
   }
 }
