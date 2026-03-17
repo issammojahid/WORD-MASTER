@@ -427,6 +427,58 @@ function BoxOpeningModal({
   );
 }
 
+function SpinModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const { profile } = usePlayer();
+  const scale = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (visible) {
+      Animated.spring(scale, { toValue: 1, tension: 200, friction: 14, useNativeDriver: true }).start();
+    } else {
+      scale.setValue(0);
+    }
+  }, [visible]);
+  const lastSpin = profile.lastSpinAt ?? "";
+  const today = new Date().toDateString();
+  const hasFree = !lastSpin || new Date(lastSpin).toDateString() !== today;
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity style={{ flex: 1, backgroundColor: "#000000AA", justifyContent: "center", alignItems: "center" }} activeOpacity={1} onPress={onClose}>
+        <Animated.View style={{ transform: [{ scale }], width: SW * 0.88, borderRadius: 24, overflow: "hidden" }}>
+          <LinearGradient colors={["#1E0050", "#0D0025", "#070014"]} style={{ padding: 28, alignItems: "center" }}>
+            <Text style={{ fontSize: 60, marginBottom: 8 }}>🎡</Text>
+            <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 22, color: "#FFF", marginBottom: 6, textAlign: "center" }}>عجلة الحظ</Text>
+            <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: "#B0B0D0", textAlign: "center", marginBottom: 18, lineHeight: 22 }}>
+              {hasFree ? "لديك دوران مجاني اليوم! 🎉\nدوّر وفرصتك للفوز بجوائز رائعة" : "عدت غداً للدوران المجاني، أو استخدم مسرّعاً"}
+            </Text>
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 4, flexWrap: "wrap", justifyContent: "center" }}>
+              {[{ icon: "🪙", label: "عملات" }, { icon: "⭐", label: "XP" }, { icon: "🎨", label: "سكن" }, { icon: "✨", label: "تأثير" }].map((r, i) => (
+                <View key={i} style={{ backgroundColor: "#FFFFFF12", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8, alignItems: "center" }}>
+                  <Text style={{ fontSize: 20 }}>{r.icon}</Text>
+                  <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: "#B0B0D0", marginTop: 2 }}>{r.label}</Text>
+                </View>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={{ marginTop: 22, borderRadius: 16, overflow: "hidden", width: "100%" }}
+              onPress={() => { onClose(); playShopSound("select"); router.push("/spin"); }}
+              activeOpacity={0.85}
+            >
+              <LinearGradient colors={["#4F46E5", "#7C3AED", "#9333EA"]} style={{ paddingVertical: 14, alignItems: "center", borderRadius: 16 }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#FFF" }}>
+                  {hasFree ? "🎰 دوّر الآن مجاناً" : "🎰 دوّر الآن"}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onClose} style={{ marginTop: 14 }} activeOpacity={0.7}>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#8888AA" }}>إغلاق</Text>
+            </TouchableOpacity>
+          </LinearGradient>
+        </Animated.View>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
 function SpinSection({ onPress }: { onPress: () => void }) {
   return (
     <TouchableOpacity style={styles.spinHeroBtn} onPress={onPress} activeOpacity={0.88}>
@@ -463,6 +515,7 @@ export default function ShopScreen() {
   const [activeTab, setActiveTab] = useState<TabId>("daily");
   const [selectedBoxTier, setSelectedBoxTier] = useState<BoxTierId>("basic");
   const [boxModalVisible, setBoxModalVisible] = useState(false);
+  const [spinModalVisible, setSpinModalVisible] = useState(false);
   const [skinFilter, setSkinFilter] = useState<"الكل" | "مغربية" | "عالمية" | "حصرية">("الكل");
   const [burstEmoji, setBurstEmoji] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(getTimeUntilMidnight());
@@ -994,7 +1047,7 @@ export default function ShopScreen() {
   );
 
   const renderSpin = () => (
-    <SpinSection onPress={() => { playShopSound("select"); router.push("/spin"); }} />
+    <SpinSection onPress={() => { playShopSound("select"); setSpinModalVisible(true); }} />
   );
 
   const renderCoinPacks = () => (
@@ -1140,6 +1193,11 @@ export default function ShopScreen() {
         tier={activeTier}
         onClose={() => setBoxModalVisible(false)}
         onReward={(prize) => { setBurstEmoji(prize.emoji); }}
+      />
+
+      <SpinModal
+        visible={spinModalVisible}
+        onClose={() => setSpinModalVisible(false)}
       />
     </View>
   );
