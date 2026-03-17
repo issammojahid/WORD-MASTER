@@ -168,9 +168,9 @@ const TABS = [
 ] as const;
 type TabId = typeof TABS[number]["id"];
 
-const AnimatedCard = memo(({ children, style, onPress, disabled }: {
+function AnimatedCardInner({ children, style, onPress, disabled }: {
   children: React.ReactNode; style?: any; onPress: () => void; disabled?: boolean;
-}) => {
+}) {
   const scale = useRef(new Animated.Value(1)).current;
   const pressIn  = () => { Animated.spring(scale, { toValue: 0.94, tension: 260, friction: 9, useNativeDriver: true }).start(); playShopSound("click"); };
   const pressOut = () => { Animated.spring(scale, { toValue: 1,    tension: 200, friction: 7, useNativeDriver: true }).start(); };
@@ -186,10 +186,11 @@ const AnimatedCard = memo(({ children, style, onPress, disabled }: {
       >{children}</TouchableOpacity>
     </Animated.View>
   );
-});
+}
+const AnimatedCard = memo(AnimatedCardInner);
 
 const PARTICLE_SYMS = ["⭐", "✨", "🪙", "💫", "⭐"];
-const ShopParticles = memo(() => {
+function ShopParticlesInner() {
   const particles = useRef(Array.from({ length: 10 }, (_, i) => ({
     x: Math.random() * (SW - 30),
     sym: PARTICLE_SYMS[i % PARTICLE_SYMS.length],
@@ -212,7 +213,8 @@ const ShopParticles = memo(() => {
       ))}
     </View>
   );
-});
+}
+const ShopParticles = memo(ShopParticlesInner);
 
 function BurstOverlay({ emoji, onDone }: { emoji: string; onDone: () => void }) {
   const scale = useRef(new Animated.Value(0)).current;
@@ -1062,7 +1064,7 @@ export default function ShopScreen() {
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity
-            onPress={() => router.push("/settings" as any)}
+            onPress={() => router.push("/settings")}
             style={styles.settingsBtn}
             activeOpacity={0.7}
           >
