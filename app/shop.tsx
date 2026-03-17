@@ -114,7 +114,7 @@ function getDailyItems(): DailyItem[] {
   return pool.slice(0, 4);
 }
 
-function rollMysteryBox(tier: "basic" | "rare" | "legendary", profile: ReturnType<typeof usePlayer>["profile"]): MysteryBoxPrize {
+function rollMysteryBox(tier: "basic" | "rare" | "epic" | "legendary", profile: ReturnType<typeof usePlayer>["profile"]): MysteryBoxPrize {
   const r = Math.random();
   if (tier === "basic") {
     if (r < 0.5) { const amt = Math.floor(Math.random() * 101) + 50; return { type: "coins", coins: amt, emoji: "🪙", nameAr: `${amt} عملة` }; }
@@ -125,6 +125,11 @@ function rollMysteryBox(tier: "basic" | "rare" | "legendary", profile: ReturnTyp
     if (r < 0.3) { const amt = Math.floor(Math.random() * 201) + 150; return { type: "coins", coins: amt, emoji: "🪙", nameAr: `${amt} عملة` }; }
     if (r < 0.65) { const av = SKINS.filter(s => (s.rarity === "rare" || s.rarity === "epic") && s.price > 0 && !profile.ownedSkins.includes(s.id)); if (av.length) { const s = av[Math.floor(Math.random()*av.length)]; return { type: "skin", id: s.id, emoji: s.emoji, nameAr: s.nameAr }; } return { type: "coins", coins: 200, emoji: "🪙", nameAr: "200 عملة" }; }
     const av = EFFECTS.filter(e => e.price > 0 && !profile.ownedEffects.includes(e.id)); if (av.length) { const e = av[Math.floor(Math.random()*av.length)]; return { type: "effect", id: e.id, emoji: e.emoji, nameAr: e.nameAr }; } return { type: "coins", coins: 150, emoji: "🪙", nameAr: "150 عملة" };
+  }
+  if (tier === "epic") {
+    if (r < 0.2) { const amt = Math.floor(Math.random() * 301) + 250; return { type: "coins", coins: amt, emoji: "🪙", nameAr: `${amt} عملة` }; }
+    if (r < 0.7) { const av = SKINS.filter(s => s.rarity === "epic" && s.price > 0 && !profile.ownedSkins.includes(s.id)); if (av.length) { const s = av[Math.floor(Math.random()*av.length)]; return { type: "skin", id: s.id, emoji: s.emoji, nameAr: s.nameAr }; } return { type: "coins", coins: 350, emoji: "🪙", nameAr: "350 عملة" }; }
+    const av = EFFECTS.filter(e => e.price > 0 && !profile.ownedEffects.includes(e.id)); if (av.length) { const e = av[Math.floor(Math.random()*av.length)]; return { type: "effect", id: e.id, emoji: e.emoji, nameAr: e.nameAr }; } return { type: "coins", coins: 280, emoji: "🪙", nameAr: "280 عملة" };
   }
   if (r < 0.2) { const amt = Math.floor(Math.random() * 401) + 300; return { type: "coins", coins: amt, emoji: "🪙", nameAr: `${amt} عملة` }; }
   const av = SKINS.filter(s => (s.rarity === "epic" || s.rarity === "legendary") && !profile.ownedSkins.includes(s.id)); if (av.length) { const s = av[Math.floor(Math.random()*av.length)]; return { type: "skin", id: s.id, emoji: s.emoji, nameAr: s.nameAr }; } return { type: "coins", coins: 500, emoji: "🪙", nameAr: "500 عملة" };
@@ -141,6 +146,7 @@ function getTimeUntilMidnight(): string {
 const BOX_TIERS = [
   { id: "basic" as const,     nameAr: "صندوق أساسي",   emoji: "🎁", price: 100, glowColor: "#9CA3AF", lightGlow: "#9CA3AF40", gradient: ["#14142E", "#0E0E24"] as [string,string], accentColor: "#9898CC", poolLabel: "عادي · نادر",    coinMin: 50,  coinMax: 150 },
   { id: "rare" as const,      nameAr: "صندوق نادر",     emoji: "💜", price: 300, glowColor: "#8B5CF6", lightGlow: "#8B5CF630", gradient: ["#2D1B69", "#1A1040"] as [string,string], accentColor: "#A78BFA", poolLabel: "نادر · ملحمي",  coinMin: 150, coinMax: 350 },
+  { id: "epic" as const,      nameAr: "صندوق ملحمي",   emoji: "🔥", price: 500, glowColor: "#FF006E", lightGlow: "#FF006E30", gradient: ["#3A0020", "#5A0030"] as [string,string], accentColor: "#FF4D94", poolLabel: "ملحمي · أسطوري", coinMin: 250, coinMax: 550 },
   { id: "legendary" as const, nameAr: "صندوق أسطوري",  emoji: "⭐", price: 600, glowColor: "#F59E0B", lightGlow: "#F59E0B30", gradient: ["#3A2800", "#4A3200"] as [string,string], accentColor: "#F59E0B", poolLabel: "ملحمي · أسطوري", coinMin: 300, coinMax: 700 },
 ] as const;
 type BoxTierId = typeof BOX_TIERS[number]["id"];
@@ -242,7 +248,7 @@ function BoxOpeningModal({
   onClose: () => void;
   onReward: (prize: MysteryBoxPrize) => void;
 }) {
-  const { profile, addCoins, purchaseSkin, purchaseBackground, purchaseEmote, purchaseEffect } = usePlayer();
+  const { profile, addCoins, grantItem } = usePlayer();
   const [phase, setPhase] = useState<BoxPhase>("idle");
   const [prize, setPrize] = useState<MysteryBoxPrize | null>(null);
 
@@ -288,10 +294,10 @@ function BoxOpeningModal({
       setPrize(rolled);
 
       if (rolled.type === "coins" && rolled.coins) addCoins(rolled.coins);
-      else if (rolled.type === "skin" && rolled.id) purchaseSkin(rolled.id as SkinId);
-      else if (rolled.type === "background" && rolled.id) purchaseBackground(rolled.id as BackgroundId);
-      else if (rolled.type === "emote" && rolled.id) purchaseEmote(rolled.id as EmoteId);
-      else if (rolled.type === "effect" && rolled.id) purchaseEffect(rolled.id as EffectId);
+      else if (rolled.type === "skin" && rolled.id) grantItem("skin", rolled.id);
+      else if (rolled.type === "background" && rolled.id) grantItem("background", rolled.id);
+      else if (rolled.type === "emote" && rolled.id) grantItem("emote", rolled.id);
+      else if (rolled.type === "effect" && rolled.id) grantItem("effect", rolled.id);
 
       playShopSound("unlock");
 
@@ -419,6 +425,24 @@ function BoxOpeningModal({
   );
 }
 
+function SpinSection({ onPress }: { onPress: () => void }) {
+  return (
+    <TouchableOpacity style={styles.spinHeroBtn} onPress={onPress} activeOpacity={0.88}>
+      <LinearGradient colors={["#4F46E5", "#7C3AED", "#9333EA"]} style={styles.spinHeroGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+        {["✨","⭐","💫","🌟","✦","⭐","✨","💫"].map((sym, i) => (
+          <Text key={i} style={[styles.spinParticle, { top: 8 + (i * 22) % 80, left: (i * 53) % (SW - 80), opacity: 0.3 + (i % 3) * 0.12 }]}>{sym}</Text>
+        ))}
+        <Text style={styles.spinHeroEmoji}>🎡</Text>
+        <Text style={styles.spinHeroTitle}>عجلة الحظ</Text>
+        <Text style={styles.spinHeroSub}>دوّر مجاناً مرة كل 24 ساعة · فرصتك للفوز بجوائز رائعة</Text>
+        <View style={styles.spinHeroBtn2}>
+          <Text style={styles.spinHeroBtn2Text}>الدوران الآن 🎰</Text>
+        </View>
+      </LinearGradient>
+    </TouchableOpacity>
+  );
+}
+
 export default function ShopScreen() {
   const insets = useSafeAreaInsets();
   const {
@@ -428,6 +452,7 @@ export default function ShopScreen() {
     purchaseEffect, equipEffect,
     purchaseTitle, equipTitle,
     addCoins,
+    buyDailyItem,
   } = usePlayer();
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
@@ -507,10 +532,8 @@ export default function ShopScreen() {
   const handleDailyBuy = (item: DailyItem) => {
     if (todayBought.includes(item.id)) return;
     if (profile.coins < item.discountedPrice) { playShopSound("error"); Alert.alert("رصيد غير كافٍ", `تحتاج ${item.discountedPrice} عملة`); return; }
-    addCoins(-item.discountedPrice);
-    if (item.type === "skin")   purchaseSkin(item.id as SkinId);
-    else if (item.type === "emote")  purchaseEmote(item.id as EmoteId);
-    else if (item.type === "effect") purchaseEffect(item.id as EffectId);
+    const success = buyDailyItem(item.id, item.type as "skin" | "emote" | "effect", item.discountedPrice);
+    if (!success) { playShopSound("error"); return; }
     setTodayBought(prev => [...prev, item.id]);
     setBurstEmoji(item.emoji);
   };
@@ -969,23 +992,7 @@ export default function ShopScreen() {
   );
 
   const renderSpin = () => (
-    <TouchableOpacity
-      style={styles.spinHeroBtn}
-      onPress={() => { playShopSound("select"); router.push("/spin"); }}
-      activeOpacity={0.88}
-    >
-      <LinearGradient colors={["#4F46E5", "#7C3AED", "#9333EA"]} style={styles.spinHeroGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-        {["✨","⭐","💫","🌟","✦","⭐","✨","💫"].map((sym, i) => (
-          <Text key={i} style={[styles.spinParticle, { top: 8 + (i * 22) % 80, left: (i * 53) % (SW - 80), opacity: 0.3 + (i % 3) * 0.12 }]}>{sym}</Text>
-        ))}
-        <Text style={styles.spinHeroEmoji}>🎡</Text>
-        <Text style={styles.spinHeroTitle}>عجلة الحظ</Text>
-        <Text style={styles.spinHeroSub}>دوّر مجاناً مرة كل 24 ساعة · فرصتك للفوز بجوائز رائعة</Text>
-        <View style={styles.spinHeroBtn2}>
-          <Text style={styles.spinHeroBtn2Text}>الدوران الآن 🎰</Text>
-        </View>
-      </LinearGradient>
-    </TouchableOpacity>
+    <SpinSection onPress={() => { playShopSound("select"); router.push("/spin"); }} />
   );
 
   const renderCoinPacks = () => (
@@ -1054,6 +1061,13 @@ export default function ShopScreen() {
           <Text style={styles.headerTitle}>المتجر</Text>
         </View>
         <View style={styles.headerRight}>
+          <TouchableOpacity
+            onPress={() => router.push("/settings" as any)}
+            style={styles.settingsBtn}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="settings-outline" size={20} color={L.textSub} />
+          </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.push("/vip")}
             style={styles.vipBtn}
@@ -1145,6 +1159,11 @@ const styles = StyleSheet.create({
   headerCenter: { flex: 1, alignItems: "center" },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 21, color: L.textMain, letterSpacing: 0.5 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  settingsBtn: {
+    width: 36, height: 36, borderRadius: 12, backgroundColor: L.card,
+    justifyContent: "center", alignItems: "center",
+    borderWidth: 1, borderColor: L.cardBorder,
+  },
   vipBtn: {
     backgroundColor: L.gold + "18", borderRadius: 12, paddingHorizontal: 11, paddingVertical: 6,
     borderWidth: 1, borderColor: L.gold + "35",
