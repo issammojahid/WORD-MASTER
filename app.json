@@ -1,6 +1,5 @@
 {
   "expo": {
-    "owner": "aissam09s-organization",
     "name": "حروف المغرب",
     "slug": "huroof-al-maghrib",
     "version": "2.0.0",
@@ -31,8 +30,6 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
@@ -72,12 +69,6 @@
       "eas": {
         "projectId": "f1e0f4f2-8408-4fe9-b300-c8d8fb573b4d"
       }
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/f1e0f4f2-8408-4fe9-b300-c8d8fb573b4d"
     }
   }
 }
