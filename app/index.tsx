@@ -1017,6 +1017,7 @@ export default function HomeScreen() {
   const [tournamentWins, setTournamentWins] = useState(0);
   const [currentPopupIdx, setCurrentPopupIdx] = useState<number | null>(null);
   const [pendingGiftsCount, setPendingGiftsCount] = useState(0);
+  const [dailyCountdown, setDailyCountdown] = useState("");
   const hasShownPopup = useRef(false);
   const popupOpacity = useRef(new Animated.Value(0)).current;
   const popupScale = useRef(new Animated.Value(0.85)).current;
@@ -1116,7 +1117,24 @@ export default function HomeScreen() {
       } catch {}
     })();
 
-    return () => clearTimeout(timer);
+    const updateDailyCountdown = () => {
+      const now = new Date();
+      const tomorrow = new Date();
+      tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+      tomorrow.setUTCHours(0, 0, 0, 0);
+      const diff = tomorrow.getTime() - now.getTime();
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setDailyCountdown(`${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);
+    };
+    updateDailyCountdown();
+    const countdownInterval = setInterval(updateDailyCountdown, 1000);
+
+    return () => {
+      clearTimeout(timer);
+      clearInterval(countdownInterval);
+    };
   }, []);
 
   const handleQuickMatchPress = () => {
@@ -1439,11 +1457,40 @@ export default function HomeScreen() {
           )}
         </LinearGradient>
 
+        {/* ── DAILY CHALLENGE BANNER ──────────────────── */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/daily-challenge"); }}
+          style={{ marginHorizontal: 16, marginTop: 14, marginBottom: 6 }}
+        >
+          <LinearGradient
+            colors={["#001A10", "#003A20", "#001A10"]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={{
+              flexDirection: "row", alignItems: "center", paddingVertical: 12, paddingHorizontal: 16,
+              borderRadius: 18, borderWidth: 1.5, borderColor: "#10B98140",
+              gap: 10,
+            }}
+          >
+            <Text style={{ fontSize: 26 }}>🌍</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>تحدي اليوم</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                6 محاولات لتخمين الكلمة العربية
+              </Text>
+            </View>
+            <View style={{ alignItems: "flex-end", gap: 2 }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#10B981" }}>{dailyCountdown}</Text>
+              <Ionicons name="chevron-forward" size={16} color="#10B981" />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+
         {/* ── BATTLE PASS BANNER ──────────────────────── */}
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/battle-pass"); }}
-          style={{ marginHorizontal: 16, marginTop: 14, marginBottom: 6 }}
+          style={{ marginHorizontal: 16, marginTop: 6, marginBottom: 6 }}
         >
           <LinearGradient
             colors={["#00192D", "#003060", "#00192D"]}
