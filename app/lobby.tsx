@@ -888,6 +888,7 @@ export default function LobbyScreen() {
   // Main select screen
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+      <LinearGradient colors={LOBBY_BG} style={StyleSheet.absoluteFillObject} />
       <View style={[styles.header, { borderBottomColor: theme.cardBorder }]}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
