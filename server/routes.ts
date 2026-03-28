@@ -1759,18 +1759,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!ALLOWED_REACTION_EMOJIS.has(data.emoji)) return;
 
       // Verify socket is a member of the claimed room (main game OR rapid mode)
+      // Also derive authoritative playerName from server state (do not trust client)
       const trackedRoomId = socketRoomMap.get(socket.id);
       const inMainRoom = trackedRoomId === data.roomId;
       const rapidRoom = rapidRooms.get(data.roomId);
-      const inRapidRoom = rapidRoom != null && rapidRoom.players.some(p => p.socketId === socket.id);
+      const rapidPlayer = rapidRoom?.players.find(p => p.socketId === socket.id);
+      const inRapidRoom = rapidPlayer != null;
       if (!inMainRoom && !inRapidRoom) return;
+
+      // Resolve authoritative player name from server-side room state
+      let authoritativeName = data.playerName;
+      if (inMainRoom) {
+        const mainRoom = getRoom(data.roomId);
+        const roomPlayer = mainRoom?.players.find(p => p.id === socket.id);
+        if (roomPlayer) authoritativeName = roomPlayer.name;
+      } else if (rapidPlayer) {
+        authoritativeName = rapidPlayer.name;
+      }
 
       const now = Date.now();
       const rateLimitKey = `${pid}:${data.roomId}`;
       const lastSent = reactionLastSentMap.get(rateLimitKey) || 0;
       if (now - lastSent < 5000) return;
       reactionLastSentMap.set(rateLimitKey, now);
-      socket.to(data.roomId).emit("game_reaction", { emoji: data.emoji, playerName: data.playerName });
+      socket.to(data.roomId).emit("game_reaction", { emoji: data.emoji, playerName: authoritativeName });
       incrementEmojiTaskProgress(pid).catch((err) => {
         console.error(`[emoji-task] Failed to update progress for player=${pid}:`, err);
       });
