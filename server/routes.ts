@@ -1937,8 +1937,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       cb?.({ success: true, state: sanitized, spectatorCount: specs.size });
       // Push full state sync event to the joining spectator
       socket.emit("spectate_state_sync", { state: sanitized, spectatorCount: specs.size });
-      // Notify players how many spectators are watching
-      io.to(data.roomId).emit("spectator_count", { count: specs.size });
+      // Notify players and all spectators about updated count
+      const currentCount = specs.size;
+      io.to(data.roomId).emit("spectator_count", { count: currentCount });
+      io.to(`spectate:${data.roomId}`).emit("spectator_count", { count: currentCount });
     });
 
     socket.on("spectate_leave", (data: { roomId: string }) => {
@@ -1946,9 +1948,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (specs) {
         specs.delete(socket.id);
         if (specs.size === 0) roomSpectators.delete(data.roomId);
-        io.to(data.roomId).emit("spectator_count", { count: specs?.size ?? 0 });
+        const count = specs?.size ?? 0;
+        io.to(data.roomId).emit("spectator_count", { count });
+        io.to(`spectate:${data.roomId}`).emit("spectator_count", { count });
       }
       socket.leave(`spectate:${data.roomId}`);
+    });
+
+    // ── SPECTATE PLACE BET (socket event — authoritative identity via socket.id) ──
+    socket.on("spectate_place_bet", async (
+      data: { roomId: string; betOnSocketId: string; amount: number },
+      callback: (res: { success: boolean; error?: string; newCoins?: number }) => void
+    ) => {
+      try {
+        const spectatorId = socketPlayerIdMap.get(socket.id);
+        if (!spectatorId) return callback({ success: false, error: "unauthorized" });
+        const validAmounts = [50, 100, 200];
+        if (!validAmounts.includes(data.amount)) return callback({ success: false, error: "invalid_amount" });
+        const room = getRoom(data.roomId);
+        if (!room || room.state !== "playing") return callback({ success: false, error: "room_not_active" });
+        const isValidTarget = room.players.some(p => p.id === data.betOnSocketId);
+        if (!isValidTarget) return callback({ success: false, error: "invalid_target" });
+        const isPlayerInRoom = room.players.some(p => socketPlayerIdMap.get(p.id) === spectatorId);
+        if (isPlayerInRoom) return callback({ success: false, error: "players_cannot_bet" });
+        const spectateRoomSet = roomSpectators.get(data.roomId);
+        if (!spectateRoomSet || !spectateRoomSet.has(socket.id)) return callback({ success: false, error: "not_spectating" });
+        const existingBet = await db.select({ id: spectatorBets.id }).from(spectatorBets)
+          .where(and(eq(spectatorBets.roomId, data.roomId), eq(spectatorBets.spectatorId, spectatorId))).limit(1);
+        if (existingBet.length > 0) return callback({ success: false, error: "already_bet" });
+        const updated = await db.update(playerProfiles).set({
+          coins: sql`GREATEST(0, coins - ${data.amount})`,
+          updatedAt: new Date(),
+        }).where(and(eq(playerProfiles.id, spectatorId), sql`coins >= ${data.amount}`))
+          .returning({ coins: playerProfiles.coins, name: playerProfiles.name });
+        if (updated.length === 0) return callback({ success: false, error: "insufficient_coins" });
+        await db.insert(spectatorBets).values({ roomId: data.roomId, spectatorId, betOnSocketId: data.betOnSocketId, amount: data.amount });
+        // Broadcast updated bet totals + named bettor list
+        const allBets = await db.select({
+          betOnSocketId: spectatorBets.betOnSocketId,
+          amount: spectatorBets.amount,
+          spectatorId: spectatorBets.spectatorId,
+          spectatorName: playerProfiles.name,
+        }).from(spectatorBets)
+          .leftJoin(playerProfiles, eq(spectatorBets.spectatorId, playerProfiles.id))
+          .where(and(eq(spectatorBets.roomId, data.roomId), eq(spectatorBets.settled, false)));
+        const betTotals: Record<string, number> = {};
+        const bettors: Record<string, { id: string; name: string }[]> = {};
+        for (const b of allBets) {
+          betTotals[b.betOnSocketId] = (betTotals[b.betOnSocketId] || 0) + b.amount;
+          if (!bettors[b.betOnSocketId]) bettors[b.betOnSocketId] = [];
+          bettors[b.betOnSocketId].push({ id: b.spectatorId, name: b.spectatorName || b.spectatorId });
+        }
+        io.to(`spectate:${data.roomId}`).emit("bet_update", { betTotals, bettors, totalBets: allBets.length });
+        callback({ success: true, newCoins: updated[0].coins });
+      } catch (e) {
+        console.error("[spectate_place_bet]", e);
+        callback({ success: false, error: "server_error" });
+      }
     });
     // ────────────────────────────────────────────────────────────────────────
 
@@ -2295,95 +2351,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(result);
   });
 
-  // POST /api/spectate/:roomId/bet — place a bet on a player
-  app.post("/api/spectate/:roomId/bet", async (req, res) => {
-    try {
-      const { roomId } = req.params;
-      const { spectatorSocketId, betOnSocketId, amount } = req.body as {
-        spectatorSocketId: string;
-        betOnSocketId: string;
-        amount: number;
-      };
-      if (!spectatorSocketId || !betOnSocketId || !amount) {
-        return res.status(400).json({ error: "missing_params" });
-      }
-      const validAmounts = [50, 100, 200];
-      if (!validAmounts.includes(amount)) {
-        return res.status(400).json({ error: "invalid_amount" });
-      }
-      // Derive spectatorId from server-side socket→player mapping (prevents IDOR)
-      const spectatorId = socketPlayerIdMap.get(spectatorSocketId);
-      if (!spectatorId) {
-        return res.status(403).json({ error: "unauthorized" });
-      }
-      // Verify the socket is still connected
-      const spectatorSocket = io.sockets.sockets.get(spectatorSocketId);
-      if (!spectatorSocket) {
-        return res.status(403).json({ error: "socket_not_connected" });
-      }
-      const room = getRoom(roomId);
-      if (!room || room.state !== "playing") {
-        return res.status(400).json({ error: "room_not_active" });
-      }
-      const isValidTarget = room.players.some(p => p.id === betOnSocketId);
-      if (!isValidTarget) {
-        return res.status(400).json({ error: "invalid_target" });
-      }
-      // Spectator must not be a player in this room
-      const isPlayerInRoom = room.players.some(p => socketPlayerIdMap.get(p.id) === spectatorId);
-      if (isPlayerInRoom) {
-        return res.status(403).json({ error: "players_cannot_bet" });
-      }
-      // Spectator must be joined to this spectate room
-      const spectateRoom = roomSpectators.get(roomId);
-      if (!spectateRoom || !spectateRoom.has(spectatorSocketId)) {
-        return res.status(403).json({ error: "not_spectating" });
-      }
-      // Check existing bet for this spectator in this room
-      const existingBet = await db.select({ id: spectatorBets.id }).from(spectatorBets)
-        .where(and(eq(spectatorBets.roomId, roomId), eq(spectatorBets.spectatorId, spectatorId))).limit(1);
-      if (existingBet.length > 0) {
-        return res.status(400).json({ error: "already_bet" });
-      }
-      // Deduct coins atomically
-      const updated = await db.update(playerProfiles).set({
-        coins: sql`GREATEST(0, coins - ${amount})`,
-        updatedAt: new Date(),
-      }).where(and(eq(playerProfiles.id, spectatorId), sql`coins >= ${amount}`))
-        .returning({ coins: playerProfiles.coins });
-      if (updated.length === 0) {
-        return res.status(400).json({ error: "insufficient_coins" });
-      }
-      await db.insert(spectatorBets).values({ roomId, spectatorId, betOnSocketId, amount });
-      // Broadcast updated bet totals + bettor list to all spectators
-      const allBets = await db.select().from(spectatorBets)
-        .where(and(eq(spectatorBets.roomId, roomId), eq(spectatorBets.settled, false)));
-      const betTotals: Record<string, number> = {};
-      const bettors: Record<string, string[]> = {};
-      for (const b of allBets) {
-        betTotals[b.betOnSocketId] = (betTotals[b.betOnSocketId] || 0) + b.amount;
-        if (!bettors[b.betOnSocketId]) bettors[b.betOnSocketId] = [];
-        bettors[b.betOnSocketId].push(b.spectatorId);
-      }
-      io.to(`spectate:${roomId}`).emit("bet_update", { betTotals, bettors, totalBets: allBets.length });
-      return res.json({ success: true, newCoins: updated[0].coins });
-    } catch (e) {
-      console.error("[spectate-bet] error:", e);
-      return res.status(500).json({ error: "server_error" });
-    }
-  });
+  // Bet placement is handled via socket event (see spectate_place_bet socket handler in socket section)
 
   // GET /api/spectate/:roomId/bets — get current bet totals
   app.get("/api/spectate/:roomId/bets", async (req, res) => {
     try {
       const { roomId } = req.params;
-      const allBets = await db.select().from(spectatorBets)
+      const allBets = await db.select({
+        betOnSocketId: spectatorBets.betOnSocketId,
+        amount: spectatorBets.amount,
+        spectatorId: spectatorBets.spectatorId,
+        spectatorName: playerProfiles.name,
+      }).from(spectatorBets)
+        .leftJoin(playerProfiles, eq(spectatorBets.spectatorId, playerProfiles.id))
         .where(and(eq(spectatorBets.roomId, roomId), eq(spectatorBets.settled, false)));
       const betTotals: Record<string, number> = {};
+      const bettors: Record<string, { id: string; name: string }[]> = {};
       for (const b of allBets) {
         betTotals[b.betOnSocketId] = (betTotals[b.betOnSocketId] || 0) + b.amount;
+        if (!bettors[b.betOnSocketId]) bettors[b.betOnSocketId] = [];
+        bettors[b.betOnSocketId].push({ id: b.spectatorId, name: b.spectatorName || b.spectatorId });
       }
-      return res.json({ betTotals, totalBets: allBets.length });
+      return res.json({ betTotals, bettors, totalBets: allBets.length });
     } catch (e) {
       console.error("[spectate-bets] error:", e);
       return res.status(500).json({ error: "server_error" });

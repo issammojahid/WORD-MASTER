@@ -66,7 +66,7 @@ export default function SpectateScreen() {
   const [lastResults, setLastResults] = useState<RoundResultEntry[]>([]);
 
   const [betTotals, setBetTotals] = useState<Record<string, number>>({});
-  const [bettorIds, setBettorIds] = useState<Record<string, string[]>>({});
+  const [bettorNames, setBettorNames] = useState<Record<string, { id: string; name: string }[]>>({});
   const [myBetSocketId, setMyBetSocketId] = useState<string | null>(null);
   const [betSettled, setBetSettled] = useState<BetSettledEvent | null>(null);
   const [betLoading, setBetLoading] = useState(false);
@@ -115,7 +115,7 @@ export default function SpectateScreen() {
       setSpectatorCount(res.spectatorCount || 0);
     });
 
-    // Load current bet totals
+    // Load current bet totals + bettor identities
     (async () => {
       try {
         const url = new URL(`/api/spectate/${targetRoomId}/bets`, getApiUrl());
@@ -123,6 +123,7 @@ export default function SpectateScreen() {
         if (r.ok) {
           const data = await r.json();
           setBetTotals(data.betTotals || {});
+          if (data.bettors) setBettorNames(data.bettors);
         }
       } catch {}
     })();
@@ -176,9 +177,9 @@ export default function SpectateScreen() {
       setSpectatorCount(data.count);
     };
 
-    const handleBetUpdate = (data: { betTotals: Record<string, number>; bettors?: Record<string, string[]>; totalBets: number }) => {
+    const handleBetUpdate = (data: { betTotals: Record<string, number>; bettors?: Record<string, { id: string; name: string }[]>; totalBets: number }) => {
       setBetTotals(data.betTotals || {});
-      if (data.bettors) setBettorIds(data.bettors);
+      if (data.bettors) setBettorNames(data.bettors);
     };
 
     const handleBetSettled = (data: BetSettledEvent) => {
@@ -242,32 +243,26 @@ export default function SpectateScreen() {
       return;
     }
     setBetLoading(true);
-    try {
-      const url = new URL(`/api/spectate/${targetRoomId}/bet`, getApiUrl());
-      const res = await fetch(url.toString(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ spectatorSocketId: socket.id, betOnSocketId, amount }),
+    socket.emit("spectate_place_bet", { roomId: targetRoomId, betOnSocketId, amount },
+      (res: { success: boolean; error?: string; newCoins?: number }) => {
+        setBetLoading(false);
+        if (res.success) {
+          setMyBetSocketId(betOnSocketId);
+          addCoins(-amount);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } else if (res.error === "already_bet") {
+          Alert.alert("", "لقد راهنت مسبقاً في هذه المباراة");
+        } else if (res.error === "insufficient_coins") {
+          Alert.alert("", "رصيدك غير كافٍ");
+        } else if (res.error === "room_not_active") {
+          Alert.alert("", "انتهت المباراة");
+        } else if (res.error === "unauthorized") {
+          Alert.alert("", "يجب تسجيل الدخول أولاً");
+        } else {
+          Alert.alert("", "حدث خطأ، حاول مرة أخرى");
+        }
       });
-      const data = await res.json();
-      if (data.success) {
-        setMyBetSocketId(betOnSocketId);
-        addCoins(-amount);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } else if (data.error === "already_bet") {
-        Alert.alert("", "لقد راهنت مسبقاً في هذه المباراة");
-      } else if (data.error === "insufficient_coins") {
-        Alert.alert("", "رصيدك غير كافٍ");
-      } else if (data.error === "room_not_active") {
-        Alert.alert("", "انتهت المباراة");
-      } else {
-        Alert.alert("", "حدث خطأ، حاول مرة أخرى");
-      }
-    } catch {
-      Alert.alert("", "خطأ في الاتصال");
-    }
-    setBetLoading(false);
-  }, [myBetSocketId, betLoading, gameOver, profile.coins, playerId, targetRoomId, addCoins]);
+  }, [myBetSocketId, betLoading, gameOver, profile.coins, targetRoomId, addCoins, socket]);
 
   const letterScale = letterAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] });
 
@@ -380,12 +375,17 @@ export default function SpectateScreen() {
                     <Text style={styles.betPoolText}>{betPool} 🪙</Text>
                   </View>
                 )}
-                {(bettorIds[player.id] || []).length > 0 && (
-                  <View style={[styles.betPoolBadge, { backgroundColor: "#8B5CF618", marginTop: 2 }]}>
-                    <Ionicons name="people" size={10} color="#8B5CF6" />
-                    <Text style={[styles.betPoolText, { color: "#8B5CF6" }]}>
-                      {(bettorIds[player.id] || []).length} مراهن
-                    </Text>
+                {(bettorNames[player.id] || []).length > 0 && (
+                  <View style={[styles.betPoolBadge, { backgroundColor: "#8B5CF618", marginTop: 2, flexDirection: "column", alignItems: "flex-start", paddingVertical: 4 }]}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                      <Ionicons name="people" size={10} color="#8B5CF6" />
+                      <Text style={[styles.betPoolText, { color: "#8B5CF6" }]}>
+                        {(bettorNames[player.id] || []).length} مراهن
+                      </Text>
+                    </View>
+                    {(bettorNames[player.id] || []).slice(0, 3).map((b, i) => (
+                      <Text key={i} style={styles.bettorNameText} numberOfLines={1}>{b.name}</Text>
+                    ))}
                   </View>
                 )}
                 {betOnThis && (
@@ -568,4 +568,5 @@ const styles = StyleSheet.create({
   liveWordRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   liveWordPlayer: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#9898CC", maxWidth: "40%" },
   liveWordText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#C4B5FD" },
+  bettorNameText: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#C4B5FD", marginTop: 1 },
 });
