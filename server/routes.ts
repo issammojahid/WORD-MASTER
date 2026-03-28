@@ -3022,10 +3022,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         await tx.update(playerProfiles).set(profileUpdates as Parameters<typeof tx.update>[1]).where(eq(playerProfiles.id, playerId));
-        await tx.update(playerBattlePass).set({
-          claimedTiers: [...claimedArr, claimedKey],
+        // Atomic claim: append claimedKey only if NOT already present in the JSONB array
+        // Uses PostgreSQL jsonb_array_elements to prevent duplicate claims from concurrent requests
+        const updateResult = await tx.update(playerBattlePass).set({
+          claimedTiers: sql`claimed_tiers || ${JSON.stringify([claimedKey])}::jsonb`,
           updatedAt: new Date(),
-        }).where(and(eq(playerBattlePass.playerId, playerId), eq(playerBattlePass.seasonId, activeSeason.id)));
+        }).where(and(
+          eq(playerBattlePass.playerId, playerId),
+          eq(playerBattlePass.seasonId, activeSeason.id),
+          sql`NOT (claimed_tiers @> ${JSON.stringify([claimedKey])}::jsonb)`,
+        )).returning({ id: playerBattlePass.id });
+        if (updateResult.length === 0) throw Object.assign(new Error("already_claimed"), { statusCode: 400 });
       });
 
       res.json({

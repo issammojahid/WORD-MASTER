@@ -151,6 +151,14 @@ export default function BattlePassScreen() {
         if (typeof data.newCoins === "number") {
           setProfile((p) => p ? { ...p, coins: data.newCoins } : p);
         }
+        // Refresh full battle pass state AND profile for non-coin rewards (skins/titles/powerCards)
+        if (data.rewardType !== "coins" && data.rewardId) {
+          const refreshRes = await fetch(`${getApiUrl()}/api/player/${profile.id}`).catch(() => null);
+          if (refreshRes?.ok) {
+            const refreshed = await refreshRes.json();
+            if (refreshed?.id) setProfile(refreshed);
+          }
+        }
         await load();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
@@ -224,8 +232,17 @@ export default function BattlePassScreen() {
             <Animated.View style={[styles.xpBarFill, { width: `${xpProgressPct * 100}%` }]} />
           </View>
           <View style={styles.xpRow}>
-            <Text style={[styles.xpSmall, { color: theme.textMuted }]}>{xpInCurrentTier} / {xpForNextTier} XP</Text>
-            <Text style={[styles.xpSmall, { color: theme.textMuted }]}>متبقي: {xpForNextTier - xpInCurrentTier} XP</Text>
+            {currentTier >= 30 ? (
+              <>
+                <Text style={[styles.xpSmall, { color: "#00CFFF" }]}>MAX ✓</Text>
+                <Text style={[styles.xpSmall, { color: "#00CFFF" }]}>الحد الأقصى مكتمل!</Text>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.xpSmall, { color: theme.textMuted }]}>{xpInCurrentTier} / {xpForNextTier} XP</Text>
+                <Text style={[styles.xpSmall, { color: theme.textMuted }]}>متبقي: {xpForNextTier - xpInCurrentTier} XP</Text>
+              </>
+            )}
           </View>
           <Text style={[styles.xpTotal, { color: theme.textMuted }]}>إجمالي XP: {passXp} | فوز: +20 XP • لعبة: +10 XP</Text>
         </View>
