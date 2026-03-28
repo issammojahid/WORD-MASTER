@@ -1024,6 +1024,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     transports: ["websocket", "polling"],
   });
 
+  // ── CENTRALIZED BET SETTLEMENT HELPER ────────────────────────────────────
+  // Settles all unsettled bets for a room.
+  // winnerPlayerId: playerId of the winner (null = draw → refund all)
+  async function settleBets(roomId: string, winnerPlayerId: string | null) {
+    try {
+      const unsettled = await db.select().from(spectatorBets)
+        .where(and(eq(spectatorBets.roomId, roomId), eq(spectatorBets.settled, false)));
+      if (unsettled.length === 0) return;
+      const emitToPlayer = (pid: string, event: string, payload: unknown) => {
+        for (const [sid, mpid] of socketPlayerIdMap.entries()) {
+          if (mpid === pid) { const s = io.sockets.sockets.get(sid); if (s) s.emit(event, payload); }
+        }
+      };
+      if (!winnerPlayerId) {
+        for (const bet of unsettled) {
+          await db.update(playerProfiles).set({ coins: sql`coins + ${bet.amount}` }).where(eq(playerProfiles.id, bet.spectatorId));
+          emitToPlayer(bet.spectatorId, "bet_settled", { result: "draw", refund: bet.amount });
+        }
+      } else {
+        const winners = unsettled.filter(b => b.betOnPlayerId === winnerPlayerId);
+        const losers = unsettled.filter(b => b.betOnPlayerId !== winnerPlayerId);
+        const loserPool = losers.reduce((acc, b) => acc + b.amount, 0);
+        const evenShare = winners.length > 0 ? Math.floor(loserPool / winners.length) : 0;
+        for (const bet of winners) {
+          const payout = bet.amount + evenShare;
+          await db.update(playerProfiles).set({ coins: sql`coins + ${payout}` }).where(eq(playerProfiles.id, bet.spectatorId));
+          emitToPlayer(bet.spectatorId, "bet_settled", { result: "win", payout });
+        }
+        for (const bet of losers) {
+          emitToPlayer(bet.spectatorId, "bet_settled", { result: "lose", payout: 0 });
+        }
+      }
+      await db.update(spectatorBets).set({ settled: true }).where(eq(spectatorBets.roomId, roomId));
+      roomSpectators.delete(roomId);
+    } catch (err) {
+      console.error("[settleBets] error:", err);
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   io.on("connection", (socket) => {
     console.log("Socket connected:", socket.id);
 
@@ -1225,49 +1265,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Forward game_over to spectators
             io.to(`spectate:${data.roomId}`).emit("spectate_update", { type: "game_over", payload: gameOverPayload });
 
-            // ── Settle spectator bets ────────────────────────────────────────
-            (async () => {
-              try {
-                const unsettled = await db.select().from(spectatorBets)
-                  .where(and(eq(spectatorBets.roomId, data.roomId), eq(spectatorBets.settled, false)));
-                if (unsettled.length === 0) return;
-                // Helper: emit to a player by playerId via reverse-lookup of socketPlayerIdMap
-                const emitToPlayer = (playerId: string, event: string, payload: unknown) => {
-                  for (const [sid, pid] of socketPlayerIdMap.entries()) {
-                    if (pid === playerId) {
-                      const s = io.sockets.sockets.get(sid);
-                      if (s) s.emit(event, payload);
-                    }
-                  }
-                };
-                if (!winnerPlayerIdForBets) {
-                  // Draw: refund all bets
-                  for (const bet of unsettled) {
-                    await db.update(playerProfiles).set({ coins: sql`coins + ${bet.amount}` }).where(eq(playerProfiles.id, bet.spectatorId));
-                    emitToPlayer(bet.spectatorId, "bet_settled", { result: "draw", refund: bet.amount });
-                  }
-                } else {
-                  const winners = unsettled.filter(b => b.betOnPlayerId === winnerPlayerIdForBets);
-                  const losers = unsettled.filter(b => b.betOnPlayerId !== winnerPlayerIdForBets);
-                  const loserPool = losers.reduce((acc, b) => acc + b.amount, 0);
-                  // Even split: each winner gets their stake back + equal share of loser pool
-                  const evenShare = winners.length > 0 ? Math.floor(loserPool / winners.length) : 0;
-                  for (const bet of winners) {
-                    const payout = bet.amount + evenShare;
-                    await db.update(playerProfiles).set({ coins: sql`coins + ${payout}` }).where(eq(playerProfiles.id, bet.spectatorId));
-                    emitToPlayer(bet.spectatorId, "bet_settled", { result: "win", payout });
-                  }
-                  for (const bet of losers) {
-                    emitToPlayer(bet.spectatorId, "bet_settled", { result: "lose", payout: 0 });
-                  }
-                }
-                await db.update(spectatorBets).set({ settled: true }).where(eq(spectatorBets.roomId, data.roomId));
-                // Cleanup spectators from room
-                roomSpectators.delete(data.roomId);
-              } catch (err) {
-                console.error("[spectator-bets] settlement error:", err);
-              }
-            })();
+            // ── Settle spectator bets via centralized helper ──────────────────
+            settleBets(data.roomId, winnerPlayerIdForBets);
 
             cb?.({ isGameOver: true });
 
@@ -1549,7 +1548,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         skin: p.skin || "student",
         forfeited: p.id === socket.id,
       }));
+      // Determine winner for bet settlement: the non-forfeiting player
+      const winnerPlayer = room.players.find(p => p.id !== socket.id);
+      const winnerPlayerId = winnerPlayer ? (socketPlayerIdMap.get(winnerPlayer.id) || null) : null;
       io.to(data.roomId).emit("game_over", { players: gameOverPlayers, forfeitedBy: socket.id });
+      io.to(`spectate:${data.roomId}`).emit("spectate_update", { type: "game_over", payload: { players: gameOverPlayers, forfeitedBy: socket.id } });
+      settleBets(data.roomId, winnerPlayerId);
       removePlayer(data.roomId, socket.id);
       socket.leave(data.roomId);
       socketRoomMap.delete(socket.id);
@@ -2101,6 +2105,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Disconnect
     socket.on("disconnect", () => {
       console.log("Socket disconnected:", socket.id);
+      // Capture before deletion so settleBets can still reverse-lookup remaining players
       socketPlayerIdMap.delete(socket.id);
 
       // Refund coin entry for players who disconnect while in matchmaking queue
@@ -2166,11 +2171,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       for (const roomId of roomsToUpdate) {
+        const roomBeforeRemove = getRoom(roomId);
+        const wasPlaying = roomBeforeRemove?.state === "playing";
+        const remainingPlayer = wasPlaying ? roomBeforeRemove?.players.find(p => p.id !== socket.id) : undefined;
         const room = removePlayer(roomId, socket.id);
         console.log(`[disconnect] Removed socket ${socket.id} from room ${roomId}. Remaining: ${room ? room.players.map(p => p.name).join(", ") : "room deleted"}`);
         if (room) {
           io.to(roomId).emit("room_updated", sanitizeRoom(room));
           io.to(roomId).emit("player_left", { playerId: socket.id });
+        }
+        // Settle bets if a game was interrupted by disconnect
+        if (wasPlaying && remainingPlayer) {
+          const winnerPlayerId = socketPlayerIdMap.get(remainingPlayer.id) || null;
+          settleBets(roomId, winnerPlayerId);
+        } else if (wasPlaying && !remainingPlayer) {
+          // Both players gone — refund all bets
+          settleBets(roomId, null);
         }
       }
 
@@ -2179,7 +2195,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (specs.has(socket.id)) {
           specs.delete(socket.id);
           if (specs.size === 0) roomSpectators.delete(roomId);
-          io.to(roomId).emit("spectator_count", { count: specs.size });
+          const cnt = specs.size;
+          io.to(roomId).emit("spectator_count", { count: cnt });
+          io.to(`spectate:${roomId}`).emit("spectator_count", { count: cnt });
         }
       }
     });
