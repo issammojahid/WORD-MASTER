@@ -251,6 +251,37 @@ export const coinGifts = pgTable("coin_gifts", {
 
 export type CoinGift = typeof coinGifts.$inferSelect;
 
+// ── BATTLE PASS ────────────────────────────────────────────────────────────
+
+export const battlePassTiers = pgTable("battle_pass_tiers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  seasonId: varchar("season_id").notNull(),
+  tier: integer("tier").notNull(),
+  freeRewardType: text("free_reward_type").notNull(), // "coins" | "skin" | "title" | "powerCard"
+  freeRewardId: text("free_reward_id"),               // skin/title id, null for coins/powerCard
+  freeRewardAmount: integer("free_reward_amount").notNull().default(0),
+  premiumRewardType: text("premium_reward_type").notNull(),
+  premiumRewardId: text("premium_reward_id"),
+  premiumRewardAmount: integer("premium_reward_amount").notNull().default(0),
+});
+
+export type BattlePassTier = typeof battlePassTiers.$inferSelect;
+
+export const playerBattlePass = pgTable("player_battle_pass", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: varchar("player_id").notNull(),
+  seasonId: varchar("season_id").notNull(),
+  passXp: integer("pass_xp").notNull().default(0),
+  currentTier: integer("current_tier").notNull().default(0),
+  premiumUnlocked: boolean("premium_unlocked").notNull().default(false),
+  claimedTiers: jsonb("claimed_tiers").$type<number[]>().notNull().default(sql`'[]'::jsonb`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+}, (t) => ({
+  uniqPlayerSeason: uniqueIndex("player_battle_pass_player_season_unique").on(t.playerId, t.seasonId),
+}));
+
+export type PlayerBattlePass = typeof playerBattlePass.$inferSelect;
+
 // ── CLAN WARS ──────────────────────────────────────────────────────────────
 export const clans = pgTable("clans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

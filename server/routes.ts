@@ -19,7 +19,7 @@ import {
 import { validateWord, CATEGORY_MAP, getWordsForLetter, type WordCategory } from "./wordDatabase";
 import { ARABIC_LETTERS } from "./gameLogic";
 import { db } from "./db";
-import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, friendRequests, playerDailyTasks, playerAchievements, roomInvites, dailyTaskDefs, achievementDefs, coinGifts, seasons, clans, clanMembers } from "@shared/schema";
+import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, friendRequests, playerDailyTasks, playerAchievements, roomInvites, dailyTaskDefs, achievementDefs, coinGifts, seasons, clans, clanMembers, battlePassTiers, playerBattlePass } from "@shared/schema";
 import { eq, and, desc, asc, or, ilike, ne, isNotNull, sql } from "drizzle-orm";
 import cron from "node-cron";
 import { sendPushNotification, sendDailyTaskReminders, sendStreakResetWarnings, sendSeasonEndingNotifications } from "./notifications";
@@ -685,6 +685,93 @@ async function handleSeasonEnd() {
   }
 }
 
+// ── BATTLE PASS: 30-tier seed per season ─────────────────────────────────────
+
+const BP_XP_PER_TIER = 500; // XP needed per tier
+const BP_PREMIUM_COST = 1000;
+const BP_XP_WIN = 20;
+const BP_XP_GAME = 10;
+
+// 30 tiers definition
+const BP_TIER_DEFS: Array<{
+  freeRewardType: string; freeRewardId: string | null; freeRewardAmount: number;
+  premiumRewardType: string; premiumRewardId: string | null; premiumRewardAmount: number;
+}> = [
+  { freeRewardType: "coins",     freeRewardId: null,          freeRewardAmount: 50,   premiumRewardType: "coins",     premiumRewardId: null,         premiumRewardAmount: 100  },
+  { freeRewardType: "powerCard", freeRewardId: "hint",        freeRewardAmount: 1,    premiumRewardType: "coins",     premiumRewardId: null,         premiumRewardAmount: 150  },
+  { freeRewardType: "coins",     freeRewardId: null,          freeRewardAmount: 75,   premiumRewardType: "skin",      premiumRewardId: "djellaba",   premiumRewardAmount: 0    },
+  { freeRewardType: "coins",     freeRewardId: null,          freeRewardAmount: 100,  premiumRewardType: "coins",     premiumRewardId: null,         premiumRewardAmount: 200  },
+  { freeRewardType: "powerCard", freeRewardId: "freeze",      freeRewardAmount: 1,    premiumRewardType: "coins",     premiumRewardId: null,         premiumRewardAmount: 250  },
+  { freeRewardType: "coins",     freeRewardId: null,          freeRewardAmount: 100,  premiumRewardType: "powerCard", premiumRewardId: "time",       premiumRewardAmount: 2    },
+  { freeRewardType: "coins",     freeRewardId: null,          freeRewardAmount: 125,  premiumRewardType: "coins",     premiumRewardId: null,         premiumRewardAmount: 300  },
+  { freeRewardType: "powerCard", freeRewardId: "hint",        freeRewardAmount: 2,    premiumRewardType: "skin",      premiumRewardId: "sport",      premiumRewardAmount: 0    },
+  { freeRewardType: "coins",     freeRewardId: null,          freeRewardAmount: 150,  premiumRewardType: "coins",     premiumRewardId: null,         premiumRewardAmount: 350  },
+  { freeRewardType: "coins",     freeRewardId: null,          freeRewardAmount: 150,  premiumRewardType: "title",     premiumRewardId: "eloquent",   premiumRewardAmount: 0    },
+  { freeRewardType: "coins",     freeRewardId: null,          freeRewardAmount: 200,  premiumRewardType: "coins",     premiumRewardId: null,         premiumRewardAmount: 400  },
+  { freeRewardType: "powerCard", freeRewardId: "freeze",      freeRewardAmount: 2,    premiumRewardType: "powerCard", premiumRewardId: "hint",       premiumRewardAmount: 3    },
+  { freeRewardType: "coins",     freeRewardId: null,          freeRewardAmount: 200,  premiumRewardType: "coins",     premiumRewardId: null,         premiumRewardAmount: 450  },
+  { freeRewardType: "coins",     freeRewardId: null,          freeRewardAmount: 225,  premiumRewardType: "skin",      premiumRewardId: "kaftan",     premiumRewardAmount: 0    },
+  { freeRewardType: "powerCard", freeRewardId: "time",        freeRewardAmount: 2,    premiumRewardType: "coins",     premiumRewardId: null,         premiumRewardAmount: 500  },
+  { freeRewardType: "coins",     freeRewardId: null,          freeRewardAmount: 250,  premiumRewardType: "coins",     premiumRewardId: null,         premiumRewardAmount: 550  },
+  { freeRewardType: "coins",     freeRewardId: null,          freeRewardAmount: 250,  premiumRewardType: "powerCard", premiumRewardId: "freeze",     premiumRewardAmount: 3    },
+  { freeRewardType: "powerCard", freeRewardId: "hint",        freeRewardAmount: 3,    premiumRewardType: "coins",     premiumRewardId: null,         premiumRewardAmount: 600  },
+  { freeRewardType: "coins",     freeRewardId: null,          freeRewardAmount: 300,  premiumRewardType: "skin",      premiumRewardId: "ninja",      premiumRewardAmount: 0    },
+  { freeRewardType: "coins",     freeRewardId: null,          freeRewardAmount: 300,  premiumRewardType: "title",     premiumRewardId: "lightning",  premiumRewardAmount: 0    },
+  { freeRewardType: "coins",     freeRewardId: null,          freeRewardAmount: 350,  premiumRewardType: "coins",     premiumRewardId: null,         premiumRewardAmount: 700  },
+  { freeRewardType: "powerCard", freeRewardId: "time",        freeRewardAmount: 3,    premiumRewardType: "powerCard", premiumRewardId: "time",       premiumRewardAmount: 3    },
+  { freeRewardType: "coins",     freeRewardId: null,          freeRewardAmount: 400,  premiumRewardType: "coins",     premiumRewardId: null,         premiumRewardAmount: 750  },
+  { freeRewardType: "coins",     freeRewardId: null,          freeRewardAmount: 400,  premiumRewardType: "skin",      premiumRewardId: "sahrawi",    premiumRewardAmount: 0    },
+  { freeRewardType: "powerCard", freeRewardId: "freeze",      freeRewardAmount: 3,    premiumRewardType: "coins",     premiumRewardId: null,         premiumRewardAmount: 800  },
+  { freeRewardType: "coins",     freeRewardId: null,          freeRewardAmount: 450,  premiumRewardType: "title",     premiumRewardId: "word_master",premiumRewardAmount: 0    },
+  { freeRewardType: "coins",     freeRewardId: null,          freeRewardAmount: 500,  premiumRewardType: "coins",     premiumRewardId: null,         premiumRewardAmount: 900  },
+  { freeRewardType: "powerCard", freeRewardId: "hint",        freeRewardAmount: 3,    premiumRewardType: "skin",      premiumRewardId: "hacker",     premiumRewardAmount: 0    },
+  { freeRewardType: "coins",     freeRewardId: null,          freeRewardAmount: 500,  premiumRewardType: "coins",     premiumRewardId: null,         premiumRewardAmount: 1000 },
+  { freeRewardType: "skin",      freeRewardId: "champion",    freeRewardAmount: 0,    premiumRewardType: "title",     premiumRewardId: "letter_king",premiumRewardAmount: 0    },
+];
+
+async function seedBattlePassTiers(seasonId: string) {
+  try {
+    const existing = await db.select({ id: battlePassTiers.id }).from(battlePassTiers).where(eq(battlePassTiers.seasonId, seasonId)).limit(1);
+    if (existing.length > 0) return;
+    const rows = BP_TIER_DEFS.map((def, i) => ({
+      seasonId,
+      tier: i + 1,
+      ...def,
+    }));
+    await db.insert(battlePassTiers).values(rows);
+    console.log(`[battle-pass] Seeded 30 tiers for season ${seasonId}`);
+  } catch (e) {
+    console.error("[battle-pass] seedBattlePassTiers error:", e);
+  }
+}
+
+async function getOrCreatePlayerBattlePass(playerId: string, seasonId: string) {
+  const [existing] = await db.select().from(playerBattlePass)
+    .where(and(eq(playerBattlePass.playerId, playerId), eq(playerBattlePass.seasonId, seasonId))).limit(1);
+  if (existing) return existing;
+  const [created] = await db.insert(playerBattlePass).values({
+    playerId, seasonId, passXp: 0, currentTier: 0, premiumUnlocked: false, claimedTiers: [],
+  }).returning();
+  return created;
+}
+
+async function awardBattlePassXp(playerId: string, xpAmount: number) {
+  try {
+    const [activeSeason] = await db.select({ id: seasons.id }).from(seasons).where(eq(seasons.status, "active")).limit(1);
+    if (!activeSeason) return;
+    const pass = await getOrCreatePlayerBattlePass(playerId, activeSeason.id);
+    const newXp = pass.passXp + xpAmount;
+    const newTier = Math.min(30, Math.floor(newXp / BP_XP_PER_TIER));
+    await db.update(playerBattlePass).set({
+      passXp: newXp,
+      currentTier: Math.max(pass.currentTier, newTier),
+      updatedAt: new Date(),
+    }).where(and(eq(playerBattlePass.playerId, playerId), eq(playerBattlePass.seasonId, activeSeason.id)));
+  } catch (e) {
+    console.error("[battle-pass] awardBattlePassXp error:", e);
+  }
+}
+
 // ── CLAN WAR: weekly reward distribution & score reset ────────────────────────
 async function handleClanWarWeeklyEnd() {
   try {
@@ -727,7 +814,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // On startup: seed static definitions and fix any players missing playerCode
   seedTaskAndAchievementDefs();
   fixMissingPlayerCodes();
-  seedCurrentSeason().catch(console.error);
+  await seedCurrentSeason().catch(console.error);
+  // Seed battle pass tiers for the current active season
+  (async () => {
+    try {
+      const [activeSeason] = await db.select({ id: seasons.id }).from(seasons).where(eq(seasons.status, "active")).limit(1);
+      if (activeSeason) await seedBattlePassTiers(activeSeason.id);
+    } catch (e) { console.error("[battle-pass] startup seed error:", e); }
+  })();
 
   // REST endpoint: validate all answers for one round (used by offline mode)
   // POST /api/validate-round
@@ -1135,6 +1229,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   })();
                 }
               }
+
+              // ── Battle Pass XP: +20 per win, +10 per game played ───────
+              (async () => {
+                try {
+                  for (const player of room.players) {
+                    const pid = socketPlayerIdMap.get(player.id);
+                    if (!pid) continue;
+                    const isWinner = hasClearWinner && pid === socketPlayerIdMap.get(sortedByScore[0].id);
+                    await awardBattlePassXp(pid, isWinner ? BP_XP_WIN : BP_XP_GAME);
+                  }
+                } catch (err) {
+                  console.error("[battle-pass] game xp award error:", err);
+                }
+              })();
             }
           } else if (room) {
             io.to(data.roomId).emit("new_round", {
@@ -2770,6 +2878,141 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ ok: true });
     } catch (e) {
       console.error("POST /api/clans/:id/rename error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // ── BATTLE PASS ─────────────────────────────────────────────────────────────
+
+  // GET /api/battle-pass/:playerId — returns current season state + tier list
+  app.get("/api/battle-pass/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const [activeSeason] = await db.select().from(seasons).where(eq(seasons.status, "active")).limit(1);
+      if (!activeSeason) return res.status(404).json({ error: "no_active_season" });
+
+      const pass = await getOrCreatePlayerBattlePass(playerId, activeSeason.id);
+      const tiers = await db.select().from(battlePassTiers)
+        .where(eq(battlePassTiers.seasonId, activeSeason.id))
+        .orderBy(asc(battlePassTiers.tier));
+
+      res.json({
+        season: { id: activeSeason.id, name: activeSeason.name, endDate: activeSeason.endDate },
+        passXp: pass.passXp,
+        currentTier: pass.currentTier,
+        premiumUnlocked: pass.premiumUnlocked,
+        claimedTiers: Array.isArray(pass.claimedTiers) ? pass.claimedTiers : [],
+        xpPerTier: BP_XP_PER_TIER,
+        premiumCost: BP_PREMIUM_COST,
+        tiers,
+      });
+    } catch (e) {
+      console.error("GET /api/battle-pass/:playerId error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // POST /api/battle-pass/:playerId/buy-premium — deduct 1000 coins, unlock premium
+  app.post("/api/battle-pass/:playerId/buy-premium", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const [activeSeason] = await db.select({ id: seasons.id }).from(seasons).where(eq(seasons.status, "active")).limit(1);
+      if (!activeSeason) return res.status(404).json({ error: "no_active_season" });
+
+      const pass = await getOrCreatePlayerBattlePass(playerId, activeSeason.id);
+      if (pass.premiumUnlocked) return res.status(400).json({ error: "already_premium" });
+
+      const [profile] = await db.select({ coins: playerProfiles.coins }).from(playerProfiles).where(eq(playerProfiles.id, playerId)).limit(1);
+      if (!profile) return res.status(404).json({ error: "player_not_found" });
+      if (profile.coins < BP_PREMIUM_COST) return res.status(400).json({ error: "insufficient_coins" });
+
+      await db.transaction(async (tx) => {
+        await tx.update(playerProfiles).set({ coins: profile.coins - BP_PREMIUM_COST, updatedAt: new Date() }).where(eq(playerProfiles.id, playerId));
+        await tx.update(playerBattlePass).set({ premiumUnlocked: true, updatedAt: new Date() }).where(and(eq(playerBattlePass.playerId, playerId), eq(playerBattlePass.seasonId, activeSeason.id)));
+      });
+
+      res.json({ ok: true, coins: profile.coins - BP_PREMIUM_COST });
+    } catch (e) {
+      console.error("POST /api/battle-pass/:playerId/buy-premium error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // POST /api/battle-pass/:playerId/claim/:tier — validate & grant reward
+  app.post("/api/battle-pass/:playerId/claim/:tier", async (req, res) => {
+    try {
+      const { playerId, tier: tierStr } = req.params;
+      const { track } = req.body as { track: "free" | "premium" };
+      const tierNum = parseInt(tierStr, 10);
+      if (isNaN(tierNum) || tierNum < 1 || tierNum > 30) return res.status(400).json({ error: "invalid_tier" });
+      if (track !== "free" && track !== "premium") return res.status(400).json({ error: "invalid_track" });
+
+      const [activeSeason] = await db.select({ id: seasons.id }).from(seasons).where(eq(seasons.status, "active")).limit(1);
+      if (!activeSeason) return res.status(404).json({ error: "no_active_season" });
+
+      const pass = await getOrCreatePlayerBattlePass(playerId, activeSeason.id);
+      if (pass.currentTier < tierNum) return res.status(400).json({ error: "tier_not_reached" });
+      if (track === "premium" && !pass.premiumUnlocked) return res.status(403).json({ error: "premium_not_unlocked" });
+
+      const claimedKey = `${tierNum}_${track}`;
+      const claimedArr: string[] = Array.isArray(pass.claimedTiers) ? (pass.claimedTiers as unknown as string[]) : [];
+      if (claimedArr.includes(claimedKey)) return res.status(400).json({ error: "already_claimed" });
+
+      const [tierDef] = await db.select().from(battlePassTiers)
+        .where(and(eq(battlePassTiers.seasonId, activeSeason.id), eq(battlePassTiers.tier, tierNum))).limit(1);
+      if (!tierDef) return res.status(404).json({ error: "tier_not_found" });
+
+      const rewardType = track === "free" ? tierDef.freeRewardType : tierDef.premiumRewardType;
+      const rewardId   = track === "free" ? tierDef.freeRewardId   : tierDef.premiumRewardId;
+      const rewardAmt  = track === "free" ? tierDef.freeRewardAmount : tierDef.premiumRewardAmount;
+
+      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId)).limit(1);
+      if (!profile) return res.status(404).json({ error: "player_not_found" });
+
+      const updates: Partial<typeof playerProfiles.$inferInsert> = { updatedAt: new Date() };
+      const grantedLabel: string[] = [];
+
+      if (rewardType === "coins") {
+        updates.coins = profile.coins + rewardAmt;
+        grantedLabel.push(`🪙 +${rewardAmt}`);
+      } else if (rewardType === "powerCard" && rewardId) {
+        const pc = profile.powerCards ?? { time: 0, freeze: 0, hint: 0 };
+        updates.powerCards = { ...pc, [rewardId]: ((pc as Record<string, number>)[rewardId] ?? 0) + rewardAmt };
+        grantedLabel.push(`🃏 +${rewardAmt} ${rewardId}`);
+      } else if (rewardType === "skin" && rewardId) {
+        const owned = Array.isArray(profile.ownedSkins) ? (profile.ownedSkins as string[]) : [];
+        if (!owned.includes(rewardId)) {
+          updates.ownedSkins = [...owned, rewardId];
+          grantedLabel.push(`👗 ${rewardId}`);
+        }
+      } else if (rewardType === "title" && rewardId) {
+        const owned = Array.isArray(profile.ownedTitles) ? (profile.ownedTitles as string[]) : [];
+        if (!owned.includes(rewardId)) {
+          updates.ownedTitles = [...owned, rewardId];
+          grantedLabel.push(`👑 ${rewardId}`);
+        }
+      }
+
+      const newClaimed = [...claimedArr, claimedKey];
+
+      await db.transaction(async (tx) => {
+        await tx.update(playerProfiles).set(updates as Parameters<typeof tx.update>[1]).where(eq(playerProfiles.id, playerId));
+        await tx.update(playerBattlePass).set({
+          claimedTiers: newClaimed as unknown as number[],
+          updatedAt: new Date(),
+        }).where(and(eq(playerBattlePass.playerId, playerId), eq(playerBattlePass.seasonId, activeSeason.id)));
+      });
+
+      res.json({
+        ok: true,
+        granted: grantedLabel,
+        rewardType,
+        rewardId: rewardId ?? null,
+        rewardAmount: rewardAmt,
+        newCoins: rewardType === "coins" ? profile.coins + rewardAmt : profile.coins,
+      });
+    } catch (e) {
+      console.error("POST /api/battle-pass/:playerId/claim/:tier error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });

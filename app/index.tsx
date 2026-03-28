@@ -1421,11 +1421,35 @@ export default function HomeScreen() {
           )}
         </LinearGradient>
 
+        {/* ── BATTLE PASS BANNER ──────────────────────── */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/battle-pass"); }}
+          style={{ marginHorizontal: 16, marginTop: 14, marginBottom: 6 }}
+        >
+          <LinearGradient
+            colors={["#00192D", "#003060", "#00192D"]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={{
+              flexDirection: "row", alignItems: "center", paddingVertical: 12, paddingHorizontal: 16,
+              borderRadius: 18, borderWidth: 1.5, borderColor: "#00CFFF40",
+              gap: 10,
+            }}
+          >
+            <Text style={{ fontSize: 26 }}>🎫</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>باس الموسم</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.6)" }}>30 مكافأة • العب واكسب XP</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#00CFFF" />
+          </LinearGradient>
+        </TouchableOpacity>
+
         {/* ── CLAN WARS BANNER ────────────────────────── */}
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/clans"); }}
-          style={{ marginHorizontal: 16, marginTop: 14, marginBottom: 6 }}
+          style={{ marginHorizontal: 16, marginTop: 6, marginBottom: 6 }}
         >
           <LinearGradient
             colors={["#1A003D", "#2D006B", "#1A003D"]}
