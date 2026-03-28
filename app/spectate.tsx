@@ -70,9 +70,12 @@ export default function SpectateScreen() {
   const [betSettled, setBetSettled] = useState<BetSettledEvent | null>(null);
   const [betLoading, setBetLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [liveTimer, setLiveTimer] = useState<number | null>(null);
+  const [liveWords, setLiveWords] = useState<{ playerName: string; word: string; playerId: string }[]>([]);
 
   const letterAnim = useRef(new Animated.Value(0)).current;
   const joinedRef = useRef(false);
+  const liveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const animateLetter = useCallback(() => {
     letterAnim.setValue(0);
@@ -185,16 +188,48 @@ export default function SpectateScreen() {
       }
     };
 
+    // Authoritative full-state sync when joining mid-game
+    const handleStateSyncEvent = (data: {
+      state: { currentLetter: string; currentRound: number; totalRounds: number; players: PlayerState[] };
+      spectatorCount: number;
+    }) => {
+      if (data.state) {
+        setPlayers(data.state.players || []);
+        setCurrentLetter(data.state.currentLetter || "");
+        setCurrentRound(data.state.currentRound || 1);
+        setTotalRounds(data.state.totalRounds || 5);
+        animateLetter();
+      }
+      setSpectatorCount(data.spectatorCount || 0);
+    };
+
+    // Live word submission feed from players inside the room
+    const handleLiveWord = (data: { playerName: string; word: string; playerId: string }) => {
+      setLiveWords(prev => [...prev.slice(-19), data]);
+    };
+
+    // Round timer broadcast from server
+    const handleRoundTimer = (data: { secondsLeft: number }) => {
+      setLiveTimer(data.secondsLeft);
+    };
+
     socket.on("spectate_update", handleSpectateUpdate);
     socket.on("spectator_count", handleSpectatorCount);
     socket.on("bet_update", handleBetUpdate);
     socket.on("bet_settled", handleBetSettled);
+    socket.on("spectate_state_sync", handleStateSyncEvent);
+    socket.on("spectate_live_word", handleLiveWord);
+    socket.on("spectate_timer", handleRoundTimer);
 
     return () => {
       socket.off("spectate_update", handleSpectateUpdate);
       socket.off("spectator_count", handleSpectatorCount);
       socket.off("bet_update", handleBetUpdate);
       socket.off("bet_settled", handleBetSettled);
+      socket.off("spectate_state_sync", handleStateSyncEvent);
+      socket.off("spectate_live_word", handleLiveWord);
+      socket.off("spectate_timer", handleRoundTimer);
+      if (liveTimerRef.current) clearInterval(liveTimerRef.current);
     };
   }, [socket, addCoins, animateLetter]);
 
@@ -274,13 +309,20 @@ export default function SpectateScreen() {
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Letter Display */}
+        {/* Letter Display + Live Timer */}
         {!gameOver && (
           <View style={styles.letterBox}>
             <Text style={styles.letterLabel}>حرف الجولة</Text>
             <Animated.Text style={[styles.letterText, { transform: [{ scale: letterScale }] }]}>
               {currentLetter}
             </Animated.Text>
+            {liveTimer !== null && (
+              <View style={[styles.liveTimerBadge, { borderColor: liveTimer <= 5 ? "#EF4444" : "#22C55E" }]}>
+                <Text style={[styles.liveTimerText, { color: liveTimer <= 5 ? "#EF4444" : "#22C55E" }]}>
+                  {liveTimer}ث
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -363,6 +405,19 @@ export default function SpectateScreen() {
               <View key={r.playerId} style={styles.resultRow}>
                 <Text style={styles.resultName} numberOfLines={1}>{r.playerName}</Text>
                 <Text style={styles.resultScore}>+{r.roundTotal}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Live Words Feed */}
+        {!gameOver && liveWords.length > 0 && (
+          <View style={[styles.resultsBox, { backgroundColor: "#0A001A", borderColor: "#8B5CF630" }]}>
+            <Text style={[styles.resultsTitle, { color: "#8B5CF6" }]}>🟣 كلمات حية</Text>
+            {liveWords.slice(-5).reverse().map((w, i) => (
+              <View key={i} style={styles.liveWordRow}>
+                <Text style={styles.liveWordPlayer} numberOfLines={1}>{w.playerName}:</Text>
+                <Text style={styles.liveWordText}>{w.word}</Text>
               </View>
             ))}
           </View>
@@ -496,4 +551,11 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: "#1E1E3A",
   },
   backToFriendsBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#E8E8FF" },
+  liveTimerBadge: {
+    marginTop: 8, paddingHorizontal: 16, paddingVertical: 4, borderRadius: 20, borderWidth: 2,
+  },
+  liveTimerText: { fontFamily: "Cairo_700Bold", fontSize: 18 },
+  liveWordRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  liveWordPlayer: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#9898CC", maxWidth: "40%" },
+  liveWordText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#C4B5FD" },
 });
