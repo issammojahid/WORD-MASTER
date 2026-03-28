@@ -233,13 +233,20 @@ export default function ClansScreen() {
           text: "مغادرة", style: "destructive",
           onPress: async () => {
             try {
-              await fetch(new URL(`/api/clans/${myClan.id}/leave`, BASE).toString(), {
+              const res = await fetch(new URL(`/api/clans/${myClan.id}/leave`, BASE).toString(), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ playerId }),
               });
-              setMyClan(null);
-            } catch {}
+              if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                Alert.alert("خطأ", data.error === "not_a_member" ? "أنت لست عضواً في هذه العصابة" : "تعذرت المغادرة، حاول مرة أخرى");
+              } else {
+                setMyClan(null);
+              }
+            } catch {
+              Alert.alert("خطأ", "تعذر الاتصال بالخادم");
+            }
           },
         },
       ]
@@ -263,7 +270,10 @@ export default function ClansScreen() {
       });
       const data = await res.json();
       if (!res.ok) {
-        Alert.alert("خطأ", data.error === "not_leader" ? "أنت لست القائد" : "حدث خطأ");
+        const errMsg = data.error === "not_leader" ? "أنت لست القائد"
+          : data.error === "name_taken" ? "هذا الاسم مستخدم بالفعل"
+          : "حدث خطأ، حاول مرة أخرى";
+        Alert.alert("خطأ", errMsg);
       } else {
         setShowRename(false);
         setRenameInput("");
@@ -288,13 +298,23 @@ export default function ClansScreen() {
           text: "طرد", style: "destructive",
           onPress: async () => {
             try {
-              await fetch(new URL(`/api/clans/${myClan.id}/kick`, BASE).toString(), {
+              const res = await fetch(new URL(`/api/clans/${myClan.id}/kick`, BASE).toString(), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ leaderId: playerId, targetPlayerId: targetId }),
               });
-              await fetchMyClan();
-            } catch {}
+              if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                const msg = data.error === "not_leader" ? "أنت لست القائد"
+                  : data.error === "not_a_member" ? "هذا اللاعب ليس في عصابتك"
+                  : "تعذر الطرد، حاول مرة أخرى";
+                Alert.alert("خطأ", msg);
+              } else {
+                await fetchMyClan();
+              }
+            } catch {
+              Alert.alert("خطأ", "تعذر الاتصال بالخادم");
+            }
           },
         },
       ]

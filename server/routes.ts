@@ -2761,7 +2761,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!clan) return res.status(404).json({ error: "not_found" });
       if (clan.leaderId !== leaderId) return res.status(403).json({ error: "not_leader" });
 
-      await db.update(clans).set({ name: name.trim() }).where(eq(clans.id, id));
+      // Enforce unique clan name on rename (same as create)
+      const trimmed = name.trim();
+      const [existing] = await db.select({ id: clans.id }).from(clans).where(and(ilike(clans.name, trimmed), sql`${clans.id} != ${id}`)).limit(1);
+      if (existing) return res.status(400).json({ error: "name_taken" });
+
+      await db.update(clans).set({ name: trimmed }).where(eq(clans.id, id));
       res.json({ ok: true });
     } catch (e) {
       console.error("POST /api/clans/:id/rename error:", e);
