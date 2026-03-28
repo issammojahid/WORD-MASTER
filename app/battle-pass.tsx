@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
-  Dimensions,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -45,8 +44,6 @@ type BpState = {
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const SCREEN_W = Dimensions.get("window").width;
-
 function rewardLabel(type: string, id: string | null, amount: number): string {
   if (type === "coins") return `🪙 ${amount}`;
   if (type === "powerCard") {
@@ -68,7 +65,7 @@ function tierBgColor(tier: number): [string, string] {
 export default function BattlePassScreen() {
   const { theme, isDark } = useTheme();
   const insets = useSafeAreaInsets();
-  const { profile, setProfile } = usePlayer();
+  const { profile, playerId, updateProfile } = usePlayer();
 
   const [bpState, setBpState] = useState<BpState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,22 +75,26 @@ export default function BattlePassScreen() {
   const claimAnim = useRef(new Animated.Value(1)).current;
 
   const load = useCallback(async () => {
-    if (!profile?.id) return;
+    if (!playerId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     try {
-      const res = await fetch(`${getApiUrl()}/api/battle-pass/${profile.id}`);
+      const res = await fetch(`${getApiUrl()}/api/battle-pass/${playerId}`);
       const data = await res.json();
       if (res.ok) setBpState(data as BpState);
     } catch {
-      // silently fail, user sees loading state
+      // silently fail — user sees loading state cleared
     } finally {
       setLoading(false);
     }
-  }, [profile?.id]);
+  }, [playerId]);
 
   useEffect(() => { load(); }, [load]);
 
   const buyPremium = async () => {
-    if (!profile?.id || !bpState) return;
+    if (!playerId || !bpState) return;
     const cost = bpState.premiumCost;
     Alert.alert(
       "فتح الباس المميز",
@@ -105,7 +106,7 @@ export default function BattlePassScreen() {
           onPress: async () => {
             setBuying(true);
             try {
-              const res = await fetch(`${getApiUrl()}/api/battle-pass/${profile.id}/buy-premium`, {
+              const res = await fetch(`${getApiUrl()}/api/battle-pass/${playerId}/buy-premium`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
               });
@@ -113,7 +114,9 @@ export default function BattlePassScreen() {
               if (!res.ok) {
                 Alert.alert("خطأ", data.error === "insufficient_coins" ? "ليس لديك كافي عملات" : data.error);
               } else {
-                setProfile((p) => p ? { ...p, coins: data.coins } : p);
+                if (typeof data.coins === "number") {
+                  updateProfile({ coins: data.coins });
+                }
                 await load();
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               }
@@ -129,7 +132,7 @@ export default function BattlePassScreen() {
   };
 
   const claimReward = async (tierNum: number, track: "free" | "premium") => {
-    if (!profile?.id || !bpState) return;
+    if (!playerId || !bpState) return;
     const key = `${tierNum}_${track}`;
     if (claiming) return;
     setClaiming(key);
@@ -139,7 +142,7 @@ export default function BattlePassScreen() {
       Animated.timing(claimAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
     ]).start();
     try {
-      const res = await fetch(`${getApiUrl()}/api/battle-pass/${profile.id}/claim/${tierNum}`, {
+      const res = await fetch(`${getApiUrl()}/api/battle-pass/${playerId}/claim/${tierNum}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ track }),
@@ -148,16 +151,20 @@ export default function BattlePassScreen() {
       if (!res.ok) {
         Alert.alert("خطأ", data.error ?? "حدث خطأ");
       } else {
+        // Update local profile state with new coin balance (always returned)
         if (typeof data.newCoins === "number") {
-          setProfile((p) => p ? { ...p, coins: data.newCoins } : p);
+          updateProfile({ coins: data.newCoins });
         }
-        // Refresh full battle pass state AND profile for non-coin rewards (skins/titles/powerCards)
-        if (data.rewardType !== "coins" && data.rewardId) {
-          const refreshRes = await fetch(`${getApiUrl()}/api/player/${profile.id}`).catch(() => null);
-          if (refreshRes?.ok) {
-            const refreshed = await refreshRes.json();
-            if (refreshed?.id) setProfile(refreshed);
-          }
+        // For non-coin rewards, also update inventory in local state
+        if (data.rewardType === "skin" && data.rewardId) {
+          const ownedSkins = Array.isArray(profile.ownedSkins) ? (profile.ownedSkins as string[]) : [];
+          if (!ownedSkins.includes(data.rewardId)) updateProfile({ ownedSkins: [...ownedSkins, data.rewardId] });
+        } else if (data.rewardType === "title" && data.rewardId) {
+          const ownedTitles = Array.isArray(profile.ownedTitles) ? (profile.ownedTitles as string[]) : [];
+          if (!ownedTitles.includes(data.rewardId)) updateProfile({ ownedTitles: [...ownedTitles, data.rewardId] });
+        } else if (data.rewardType === "powerCard" && data.rewardId) {
+          const pc = (profile.powerCards ?? { time: 0, freeze: 0, hint: 0 }) as Record<string, number>;
+          updateProfile({ powerCards: { ...pc, [data.rewardId]: (pc[data.rewardId] ?? 0) + (data.rewardAmount ?? 1) } });
         }
         await load();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -193,9 +200,8 @@ export default function BattlePassScreen() {
   }
 
   const { passXp, currentTier, premiumUnlocked, claimedTiers, xpPerTier, tiers, season } = bpState;
-  const xpForNextTier = xpPerTier;
   const xpInCurrentTier = passXp % xpPerTier;
-  const xpProgressPct = Math.min(1, xpInCurrentTier / xpForNextTier);
+  const xpProgressPct = Math.min(1, xpInCurrentTier / xpPerTier);
 
   return (
     <LinearGradient
@@ -214,9 +220,8 @@ export default function BattlePassScreen() {
           <Text style={styles.headerTitle}>🎫 باس الموسم</Text>
           <Text style={styles.headerSub}>{season.name}</Text>
         </View>
-        {/* Coins */}
         <View style={styles.coinsChip}>
-          <Text style={styles.coinsText}>🪙 {profile?.coins ?? 0}</Text>
+          <Text style={styles.coinsText}>🪙 {profile.coins}</Text>
         </View>
       </LinearGradient>
 
@@ -229,7 +234,7 @@ export default function BattlePassScreen() {
             <Text style={[styles.xpTier, { color: "#00CFFF" }]}>المستوى {currentTier} / 30</Text>
           </View>
           <View style={[styles.xpBarBg, { backgroundColor: isDark ? "#00CFFF20" : "#a0d0e8" }]}>
-            <Animated.View style={[styles.xpBarFill, { width: `${xpProgressPct * 100}%` }]} />
+            <View style={[styles.xpBarFill, { width: `${xpProgressPct * 100}%` }]} />
           </View>
           <View style={styles.xpRow}>
             {currentTier >= 30 ? (
@@ -239,8 +244,8 @@ export default function BattlePassScreen() {
               </>
             ) : (
               <>
-                <Text style={[styles.xpSmall, { color: theme.textMuted }]}>{xpInCurrentTier} / {xpForNextTier} XP</Text>
-                <Text style={[styles.xpSmall, { color: theme.textMuted }]}>متبقي: {xpForNextTier - xpInCurrentTier} XP</Text>
+                <Text style={[styles.xpSmall, { color: theme.textMuted }]}>{xpInCurrentTier} / {xpPerTier} XP</Text>
+                <Text style={[styles.xpSmall, { color: theme.textMuted }]}>متبقي: {xpPerTier - xpInCurrentTier} XP</Text>
               </>
             )}
           </View>
@@ -292,7 +297,7 @@ export default function BattlePassScreen() {
           const premKey = `${tier.tier}_premium`;
           const freeClaimed = claimedTiers.includes(freeKey);
           const premClaimed = claimedTiers.includes(premKey);
-          const [bg1, bg2] = tierBgColor(tier.tier);
+          const [bg1] = tierBgColor(tier.tier);
 
           return (
             <View key={tier.id} style={[styles.tierRow, { backgroundColor: isDark ? bg1 : "#e8f4ff", borderColor: reached ? "#00CFFF40" : "#ffffff10" }]}>

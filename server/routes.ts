@@ -2999,8 +2999,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const [profile] = await tx.select().from(playerProfiles).where(eq(playerProfiles.id, playerId)).limit(1);
         if (!profile) throw Object.assign(new Error("player_not_found"), { statusCode: 404 });
 
-        const profileUpdates: Partial<typeof playerProfiles.$inferInsert> = { updatedAt: new Date() };
-
         resultNewCoins = profile.coins;
         if (rewardType === "coins") {
           // Atomic coin increment to avoid stale-write under concurrent coin mutations
@@ -3010,26 +3008,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .returning({ coins: playerProfiles.coins });
           resultNewCoins = updProf?.coins ?? profile.coins + rewardAmt;
           grantedLabel.push(`🪙 +${rewardAmt}`);
-        } else {
-          if (rewardType === "powerCard" && rewardId) {
-            const pc = profile.powerCards ?? { time: 0, freeze: 0, hint: 0 };
-            profileUpdates.powerCards = { ...pc, [rewardId]: ((pc as Record<string, number>)[rewardId] ?? 0) + rewardAmt };
-            grantedLabel.push(`🃏 +${rewardAmt} ${rewardId}`);
-          } else if (rewardType === "skin" && rewardId) {
-            const owned = Array.isArray(profile.ownedSkins) ? (profile.ownedSkins as string[]) : [];
-            if (!owned.includes(rewardId)) {
-              profileUpdates.ownedSkins = [...owned, rewardId];
-              grantedLabel.push(`👗 ${rewardId}`);
-            }
-          } else if (rewardType === "title" && rewardId) {
-            const owned = Array.isArray(profile.ownedTitles) ? (profile.ownedTitles as string[]) : [];
-            if (!owned.includes(rewardId)) {
-              profileUpdates.ownedTitles = [...owned, rewardId];
-              grantedLabel.push(`👑 ${rewardId}`);
-            }
+        } else if (rewardType === "powerCard" && rewardId) {
+          const pc = profile.powerCards ?? { time: 0, freeze: 0, hint: 0 };
+          const newPc = { ...pc, [rewardId]: ((pc as Record<string, number>)[rewardId] ?? 0) + rewardAmt };
+          await tx.update(playerProfiles).set({ powerCards: newPc, updatedAt: new Date() }).where(eq(playerProfiles.id, playerId));
+          grantedLabel.push(`🃏 +${rewardAmt} ${rewardId}`);
+        } else if (rewardType === "skin" && rewardId) {
+          const owned = Array.isArray(profile.ownedSkins) ? (profile.ownedSkins as string[]) : [];
+          if (!owned.includes(rewardId)) {
+            await tx.update(playerProfiles).set({ ownedSkins: [...owned, rewardId], updatedAt: new Date() }).where(eq(playerProfiles.id, playerId));
+            grantedLabel.push(`👗 ${rewardId}`);
           }
-          profileUpdates.updatedAt = new Date();
-          await tx.update(playerProfiles).set(profileUpdates as Parameters<typeof tx.update>[1]).where(eq(playerProfiles.id, playerId));
+        } else if (rewardType === "title" && rewardId) {
+          const owned = Array.isArray(profile.ownedTitles) ? (profile.ownedTitles as string[]) : [];
+          if (!owned.includes(rewardId)) {
+            await tx.update(playerProfiles).set({ ownedTitles: [...owned, rewardId], updatedAt: new Date() }).where(eq(playerProfiles.id, playerId));
+            grantedLabel.push(`👑 ${rewardId}`);
+          }
         }
         // Atomic claim: append claimedKey only if NOT already present in the JSONB array
         // Uses PostgreSQL jsonb_array_elements to prevent duplicate claims from concurrent requests
