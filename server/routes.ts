@@ -2136,12 +2136,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const disconnectPid = socketPlayerIdMap.get(socket.id);
       socketPlayerIdMap.delete(socket.id);
 
-      // Prune reactionLastSentMap entries for disconnecting player (memory leak prevention)
-      if (disconnectPid) {
-        for (const key of reactionLastSentMap.keys()) {
-          if (key.startsWith(`${disconnectPid}:`)) reactionLastSentMap.delete(key);
-        }
-      }
+      // Note: reactionLastSentMap entries for disconnecting player are intentionally
+      // kept until natural TTL expiry (5s) to prevent reconnect-based cooldown bypass.
 
       // Refund coin entry for players who disconnect while in matchmaking queue
       const queueEntry = matchmakingQueue.find((p) => p.id === socket.id);
@@ -5004,6 +5000,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("[cron] daily challenge pre-seed error:", e);
     }
   });
+
+  // Periodic cleanup of stale reactionLastSentMap entries (older than 10s)
+  setInterval(() => {
+    const cutoff = Date.now() - 10000;
+    for (const [key, ts] of reactionLastSentMap.entries()) {
+      if (ts < cutoff) reactionLastSentMap.delete(key);
+    }
+  }, 60000);
 
   console.log("[cron] Push notification cron jobs scheduled");
 
