@@ -197,6 +197,10 @@ async function seedTaskAndAchievementDefs() {
 const socketRoomMap = new Map<string, string>();
 const socketPlayerIdMap = new Map<string, string>();
 
+// ── Emoji reaction rate-limit map: keyed by "playerId:roomId", module-level ──
+// Module-scope ensures rate-limit persists across reconnects and socket closures.
+const reactionLastSentMap = new Map<string, number>();
+
 // ── Shared helper: increment emoji task progress for a player ────────────────
 // Mirrors the emojis-type logic in POST /api/task-progress (same code path).
 async function incrementEmojiTaskProgress(playerId: string): Promise<void> {
@@ -1749,16 +1753,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // game_reaction: rate-limited emoji with task progress tracking
     const ALLOWED_REACTION_EMOJIS = new Set(["😂", "🔥", "👏", "💀", "🤝", "😤", "❤️", "😎"]);
-    const reactionLastSent = new Map<string, number>();
     socket.on("game_reaction", async (data: { roomId: string; emoji: string; playerName: string }) => {
       const pid = socketPlayerIdMap.get(socket.id);
       if (!pid || !data.roomId || !data.emoji) return;
       if (!ALLOWED_REACTION_EMOJIS.has(data.emoji)) return;
       const now = Date.now();
       const rateLimitKey = `${pid}:${data.roomId}`;
-      const lastSent = reactionLastSent.get(rateLimitKey) || 0;
+      const lastSent = reactionLastSentMap.get(rateLimitKey) || 0;
       if (now - lastSent < 5000) return;
-      reactionLastSent.set(rateLimitKey, now);
+      reactionLastSentMap.set(rateLimitKey, now);
       socket.to(data.roomId).emit("game_reaction", { emoji: data.emoji, playerName: data.playerName });
       incrementEmojiTaskProgress(pid).catch((err) => {
         console.error(`[emoji-task] Failed to update progress for player=${pid}:`, err);
