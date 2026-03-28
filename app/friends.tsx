@@ -40,6 +40,7 @@ type FriendEntry = {
   friendshipId: string;
   friend: PlayerResult;
   since: string;
+  activeRoomId?: string | null;
 };
 
 type RequestEntry = {
@@ -370,25 +371,39 @@ function FriendsScreenInner() {
               renderPlayerCard(
                 row.friend,
                 <View style={styles.friendActions}>
-                  <TouchableOpacity
-                    style={styles.giftBtn}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setGiftModal({ visible: true, targetId: row.friend.id, targetName: row.friend.name });
-                    }}
-                  >
-                    <Text style={{ fontSize: 12, fontFamily: "Cairo_600SemiBold", color: Colors.gold }}>🎁 أهدِ</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.inviteBtn}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push({ pathname: "/lobby", params: { action: "create" } });
-                    }}
-                  >
-                    <Ionicons name="game-controller" size={14} color={Colors.sapphire} />
-                    <Text style={styles.inviteBtnText}>العب معه</Text>
-                  </TouchableOpacity>
+                  {row.activeRoomId ? (
+                    <TouchableOpacity
+                      style={styles.spectateBtn}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        router.push({ pathname: "/spectate", params: { roomId: row.activeRoomId! } });
+                      }}
+                    >
+                      <Text style={styles.spectateBtnText}>👁️ شاهد</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <>
+                      <TouchableOpacity
+                        style={styles.giftBtn}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setGiftModal({ visible: true, targetId: row.friend.id, targetName: row.friend.name });
+                        }}
+                      >
+                        <Text style={{ fontSize: 12, fontFamily: "Cairo_600SemiBold", color: Colors.gold }}>🎁 أهدِ</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.inviteBtn}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          router.push({ pathname: "/lobby", params: { action: "create" } });
+                        }}
+                      >
+                        <Ionicons name="game-controller" size={14} color={Colors.sapphire} />
+                        <Text style={styles.inviteBtnText}>العب معه</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
                   <TouchableOpacity
                     style={styles.removeBtn}
                     onPress={() =>
@@ -650,6 +665,8 @@ const styles = StyleSheet.create({
   friendActions: { flexDirection: "row", alignItems: "center", gap: 6 },
   inviteBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: Colors.sapphire + "20" },
   inviteBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.sapphire },
+  spectateBtn: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: "#4A2080" + "40", borderWidth: 1, borderColor: "#9B59B6" + "60" },
+  spectateBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#C39BD3" },
   sectionLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#9898CC", marginTop: 8, marginBottom: 4 },
   playSection: {
     flexDirection: "row", alignItems: "center",

@@ -19,7 +19,7 @@ import {
 import { validateWord, CATEGORY_MAP, getWordsForLetter, type WordCategory } from "./wordDatabase";
 import { ARABIC_LETTERS } from "./gameLogic";
 import { db } from "./db";
-import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, friendRequests, playerDailyTasks, playerAchievements, roomInvites, dailyTaskDefs, achievementDefs, coinGifts, seasons, clans, clanMembers, battlePassTiers, playerBattlePass } from "@shared/schema";
+import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, friendRequests, playerDailyTasks, playerAchievements, roomInvites, dailyTaskDefs, achievementDefs, coinGifts, seasons, clans, clanMembers, battlePassTiers, playerBattlePass, spectatorBets, dailyChallenges, dailyChallengeEntries } from "@shared/schema";
 import { eq, and, desc, asc, or, ilike, ne, isNotNull, sql } from "drizzle-orm";
 import cron from "node-cron";
 import { sendPushNotification, sendDailyTaskReminders, sendStreakResetWarnings, sendSeasonEndingNotifications } from "./notifications";
@@ -195,7 +195,12 @@ async function seedTaskAndAchievementDefs() {
 
 // Track which room each socket is currently in
 const socketRoomMap = new Map<string, string>();
-  const socketPlayerIdMap = new Map<string, string>();
+const socketPlayerIdMap = new Map<string, string>();
+
+// ── Spectator tracking ────────────────────────────────────────────────────────
+// Map roomId → Set of spectator socketIds
+const roomSpectators = new Map<string, Set<string>>();
+const MAX_SPECTATORS = 10;
 
 const MIN_PLAYERS = 2;
 
@@ -226,6 +231,27 @@ type RapidRoom = {
 };
 
 const rapidRooms = new Map<string, RapidRoom>();
+
+// ── WORD CHAIN MODE ─────────────────────────────────────────────────────────
+const WORD_CHAIN_TURN_TIME = 15;
+const WORD_CHAIN_ROUNDS_TO_WIN = 2;
+
+type WordChainPlayer = { socketId: string; playerId: string; name: string; skin: string; roundWins: number };
+type WordChainChainEntry = { socketId: string; playerName: string; word: string };
+type WordChainRoom = {
+  id: string;
+  players: WordChainPlayer[];
+  chain: WordChainChainEntry[];
+  currentTurnIdx: number;
+  roundNum: number;
+  requiredLetter: string;
+  turnTimer: ReturnType<typeof setTimeout> | null;
+  usedWords: Set<string>;
+};
+type WordChainQueueEntry = { socketId: string; playerId: string; name: string; skin: string };
+
+const wordChainRooms = new Map<string, WordChainRoom>();
+let wordChainQueue: WordChainQueueEntry[] = [];
 
 function shuffleArr<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -1060,7 +1086,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const results = calculateRoundScores(data.roomId);
             const currentRoom = getRoom(data.roomId);
             if (!currentRoom) return;
-            io.to(data.roomId).emit("round_results", {
+            const timerRoundPayload = {
               results,
               round: currentRoom.currentRound,
               totalRounds: currentRoom.totalRounds,
@@ -1069,7 +1095,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 name: p.name,
                 score: p.score,
               })),
-            });
+            };
+            io.to(data.roomId).emit("round_results", timerRoundPayload);
+            io.to(`spectate:${data.roomId}`).emit("spectate_update", { type: "round_results", payload: timerRoundPayload });
           }, 51000);
         } catch (e) {
           cb({ success: false, error: "server_error" });
@@ -1098,7 +1126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             const results = calculateRoundScores(data.roomId);
             const updatedRoom = getRoom(data.roomId);
-            io.to(data.roomId).emit("round_results", {
+            const roundResultsPayload = {
               results,
               round: updatedRoom?.currentRound || 0,
               totalRounds: updatedRoom?.totalRounds || 5,
@@ -1107,7 +1135,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 name: p.name,
                 score: p.score,
               })) || [],
-            });
+            };
+            io.to(data.roomId).emit("round_results", roundResultsPayload);
+            // Forward to spectators
+            io.to(`spectate:${data.roomId}`).emit("spectate_update", { type: "round_results", payload: roundResultsPayload });
           }
         } catch (e) {
           console.error("submit_answers error:", e);
@@ -1126,7 +1157,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const { isGameOver, room } = nextRound(data.roomId);
           if (isGameOver && room) {
             const tournamentInfo = roomTournamentMap.get(data.roomId);
-            io.to(data.roomId).emit("game_over", {
+            // Determine winner socket id for bet settlement
+            const sortedForBets = [...room.players].sort((a, b) => b.score - a.score);
+            const winnerSocketIdForBets = sortedForBets.length >= 2 && sortedForBets[0].score > sortedForBets[1].score
+              ? sortedForBets[0].id : null;
+
+            const gameOverPayload = {
               players: room.players.map((p) => {
                 const pid = socketPlayerIdMap.get(p.id) || "";
                 return {
@@ -1140,7 +1176,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }),
               tournamentId: tournamentInfo?.tournamentId || null,
               tournamentMatchId: tournamentInfo?.matchId || null,
-            });
+            };
+            io.to(data.roomId).emit("game_over", gameOverPayload);
+            // Forward game_over to spectators
+            io.to(`spectate:${data.roomId}`).emit("spectate_update", { type: "game_over", payload: gameOverPayload });
+
+            // ── Settle spectator bets ────────────────────────────────────────
+            (async () => {
+              try {
+                const unsettled = await db.select().from(spectatorBets)
+                  .where(and(eq(spectatorBets.roomId, data.roomId), eq(spectatorBets.settled, false)));
+                if (unsettled.length === 0) return;
+                if (!winnerSocketIdForBets) {
+                  // Draw: refund all bets
+                  for (const bet of unsettled) {
+                    await db.update(playerProfiles).set({ coins: sql`coins + ${bet.amount}` }).where(eq(playerProfiles.id, bet.spectatorId));
+                    const s = io.sockets.sockets.get(bet.spectatorId);
+                    if (s) s.emit("bet_settled", { result: "draw", refund: bet.amount });
+                  }
+                } else {
+                  const winners = unsettled.filter(b => b.betOnSocketId === winnerSocketIdForBets);
+                  const losers = unsettled.filter(b => b.betOnSocketId !== winnerSocketIdForBets);
+                  const loserPool = losers.reduce((acc, b) => acc + b.amount, 0);
+                  const totalWinnerStake = winners.reduce((acc, b) => acc + b.amount, 0);
+                  for (const bet of winners) {
+                    const share = totalWinnerStake > 0
+                      ? Math.floor(loserPool * (bet.amount / totalWinnerStake))
+                      : 0;
+                    const payout = bet.amount + share;
+                    await db.update(playerProfiles).set({ coins: sql`coins + ${payout}` }).where(eq(playerProfiles.id, bet.spectatorId));
+                    const s = io.sockets.sockets.get(bet.spectatorId);
+                    if (s) s.emit("bet_settled", { result: "win", payout });
+                  }
+                  for (const bet of losers) {
+                    const s = io.sockets.sockets.get(bet.spectatorId);
+                    if (s) s.emit("bet_settled", { result: "lose", payout: 0 });
+                  }
+                }
+                await db.update(spectatorBets).set({ settled: true }).where(eq(spectatorBets.roomId, data.roomId));
+                // Cleanup spectators from room
+                roomSpectators.delete(data.roomId);
+              } catch (err) {
+                console.error("[spectator-bets] settlement error:", err);
+              }
+            })();
 
             cb?.({ isGameOver: true });
 
@@ -1249,11 +1328,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
               })();
             }
           } else if (room) {
-            io.to(data.roomId).emit("new_round", {
+            const newRoundPayload = {
               letter: room.currentLetter,
               round: room.currentRound,
               totalRounds: room.totalRounds,
-            });
+            };
+            io.to(data.roomId).emit("new_round", newRoundPayload);
+            io.to(`spectate:${data.roomId}`).emit("spectate_update", { type: "new_round", payload: newRoundPayload });
             cb?.({ isGameOver: false, letter: room.currentLetter });
 
             // Start new 50-second timer
@@ -1261,7 +1342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const results = calculateRoundScores(data.roomId);
               const updatedRoom = getRoom(data.roomId);
               if (!updatedRoom) return;
-              io.to(data.roomId).emit("round_results", {
+              const nextTimerPayload = {
                 results,
                 round: updatedRoom.currentRound,
                 totalRounds: updatedRoom.totalRounds,
@@ -1270,7 +1351,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   name: p.name,
                   score: p.score,
                 })),
-              });
+              };
+              io.to(data.roomId).emit("round_results", nextTimerPayload);
+              io.to(`spectate:${data.roomId}`).emit("spectate_update", { type: "round_results", payload: nextTimerPayload });
             }, 51000);
           }
         } catch (e) {
@@ -1585,6 +1668,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       socket.to(data.roomId).emit("receive_emote", { emote: data.emote, playerName: data.playerName });
     });
 
+    // game_reaction: rate-limited emoji with task progress tracking
+    const reactionLastSent = new Map<string, number>();
+    socket.on("game_reaction", async (data: { roomId: string; emoji: string; playerName: string }) => {
+      const pid = socketPlayerIdMap.get(socket.id);
+      if (!pid || !data.roomId || !data.emoji) return;
+      const now = Date.now();
+      const lastSent = reactionLastSent.get(pid) || 0;
+      if (now - lastSent < 5000) return;
+      reactionLastSent.set(pid, now);
+      socket.to(data.roomId).emit("game_reaction", { emoji: data.emoji, playerName: data.playerName });
+      try {
+        const taskDef = await db.select({ id: dailyTaskDefs.id }).from(dailyTaskDefs)
+          .where(ilike(dailyTaskDefs.taskType, "%emote%")).limit(1);
+        if (taskDef.length > 0) {
+          const today = new Date().toISOString().slice(0, 10);
+          const existing = await db.select({ id: playerDailyTasks.id, progress: playerDailyTasks.progress, completed: playerDailyTasks.completed })
+            .from(playerDailyTasks)
+            .where(and(eq(playerDailyTasks.playerId, pid), eq(playerDailyTasks.taskId, taskDef[0].id), eq(playerDailyTasks.date, today))).limit(1);
+          if (existing.length > 0 && !existing[0].completed) {
+            await db.update(playerDailyTasks).set({ progress: existing[0].progress + 1 })
+              .where(eq(playerDailyTasks.id, existing[0].id));
+          }
+        }
+      } catch {}
+    });
+
     // Power card relay — broadcast card activation to all OTHER players in the room
     socket.on("power_card", (data: { roomId: string; type: string; playerName: string }) => {
       socket.to(data.roomId).emit("power_card", { type: data.type, playerName: data.playerName });
@@ -1756,6 +1865,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
     // ────────────────────────────────────────────────────────────────────
 
+    // ── SPECTATOR SOCKET EVENTS ──────────────────────────────────────────────
+    socket.on("spectate_join", (
+      data: { roomId: string },
+      cb?: (res: { success: boolean; error?: string; state?: ReturnType<typeof sanitizeRoom>; spectatorCount?: number }) => void
+    ) => {
+      const room = getRoom(data.roomId);
+      if (!room || room.state === "waiting" || room.state === "finished") {
+        cb?.({ success: false, error: "room_not_active" });
+        return;
+      }
+      let specs = roomSpectators.get(data.roomId);
+      if (!specs) { specs = new Set(); roomSpectators.set(data.roomId, specs); }
+      if (specs.size >= MAX_SPECTATORS) {
+        cb?.({ success: false, error: "spectators_full" });
+        return;
+      }
+      specs.add(socket.id);
+      socket.join(`spectate:${data.roomId}`);
+      cb?.({ success: true, state: sanitizeRoom(room), spectatorCount: specs.size });
+      // Notify players how many spectators are watching
+      io.to(data.roomId).emit("spectator_count", { count: specs.size });
+    });
+
+    socket.on("spectate_leave", (data: { roomId: string }) => {
+      const specs = roomSpectators.get(data.roomId);
+      if (specs) {
+        specs.delete(socket.id);
+        if (specs.size === 0) roomSpectators.delete(data.roomId);
+        io.to(data.roomId).emit("spectator_count", { count: specs?.size ?? 0 });
+      }
+      socket.leave(`spectate:${data.roomId}`);
+    });
+    // ────────────────────────────────────────────────────────────────────────
+
+    // ── WORD CHAIN SOCKET EVENTS ──────────────────────────────────────────────
+    socket.on("word_chain_join", (data: { playerId: string; playerName: string; skin: string }, callback: (res: { success: boolean; roomId?: string; error?: string }) => void) => {
+      const pid = data.playerId;
+      const pendingEntry = wordChainQueue.find(e => e.socketId !== socket.id);
+      if (pendingEntry) {
+        wordChainQueue = wordChainQueue.filter(e => e.socketId !== pendingEntry.socketId);
+        const roomId = `wc_${Date.now()}`;
+        const room: WordChainRoom = {
+          id: roomId,
+          players: [
+            { socketId: pendingEntry.socketId, playerId: pendingEntry.playerId, name: pendingEntry.name, skin: pendingEntry.skin, roundWins: 0 },
+            { socketId: socket.id, playerId: pid, name: data.playerName, skin: data.skin, roundWins: 0 },
+          ],
+          chain: [],
+          currentTurnIdx: 0,
+          roundNum: 1,
+          requiredLetter: ARABIC_LETTERS[Math.floor(Math.random() * ARABIC_LETTERS.length)],
+          turnTimer: null,
+          usedWords: new Set(),
+        };
+        wordChainRooms.set(roomId, room);
+        socket.join(roomId);
+        const oppSocket = io.sockets.sockets.get(pendingEntry.socketId);
+        if (oppSocket) oppSocket.join(roomId);
+        const startData = {
+          roomId,
+          players: room.players.map(p => ({ socketId: p.socketId, name: p.name, skin: p.skin, roundWins: p.roundWins })),
+          currentTurnSocketId: room.players[0].socketId,
+          requiredLetter: room.requiredLetter,
+          chain: [],
+          roundNum: 1,
+        };
+        io.to(roomId).emit("word_chain_start", startData);
+        startWordChainTurn(roomId);
+        callback({ success: true, roomId });
+      } else {
+        wordChainQueue.push({ socketId: socket.id, playerId: pid, name: data.playerName, skin: data.skin });
+        callback({ success: true });
+      }
+    });
+
+    socket.on("word_chain_submit", (data: { roomId: string; word: string }, callback: (res: { valid: boolean; error?: string }) => void) => {
+      const room = wordChainRooms.get(data.roomId);
+      if (!room) return callback({ valid: false, error: "room_not_found" });
+      const currentPlayer = room.players[room.currentTurnIdx];
+      if (currentPlayer.socketId !== socket.id) return callback({ valid: false, error: "not_your_turn" });
+      const word = data.word.trim();
+      if (room.usedWords.has(word)) return callback({ valid: false, error: "already_used" });
+      const allCategories: WordCategory[] = ["animals", "fruits", "vegetables", "cities", "countries", "objects", "boy_names", "girl_names"];
+      let wordValid = false;
+      for (const cat of allCategories) {
+        const result = validateWord(word, cat, room.requiredLetter, false);
+        if (result.valid) { wordValid = true; break; }
+      }
+      if (!wordValid) return callback({ valid: false, error: "invalid_word" });
+      if (room.turnTimer) { clearTimeout(room.turnTimer); room.turnTimer = null; }
+      room.usedWords.add(word);
+      room.chain.push({ socketId: socket.id, playerName: currentPlayer.name, word });
+      const lastChar = [...word].at(-1) || "";
+      room.requiredLetter = lastChar || ARABIC_LETTERS[Math.floor(Math.random() * ARABIC_LETTERS.length)];
+      room.currentTurnIdx = (room.currentTurnIdx + 1) % room.players.length;
+      io.to(data.roomId).emit("word_chain_update", {
+        chain: room.chain,
+        currentTurnSocketId: room.players[room.currentTurnIdx].socketId,
+        requiredLetter: room.requiredLetter,
+      });
+      startWordChainTurn(data.roomId);
+      callback({ valid: true });
+    });
+
+    socket.on("word_chain_leave", (data: { roomId: string }) => {
+      const room = wordChainRooms.get(data.roomId);
+      if (!room) return;
+      if (room.turnTimer) clearTimeout(room.turnTimer);
+      const opp = room.players.find(p => p.socketId !== socket.id);
+      if (opp) {
+        io.to(opp.socketId).emit("word_chain_opponent_left");
+      }
+      wordChainRooms.delete(data.roomId);
+    });
+    // ────────────────────────────────────────────────────────────────────────
+
     // Disconnect
     socket.on("disconnect", () => {
       console.log("Socket disconnected:", socket.id);
@@ -1775,6 +2000,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Remove from rapid matchmaking queue
       rapidQueue = rapidQueue.filter((p) => p.id !== socket.id);
+
+      // Remove from word chain queue
+      wordChainQueue = wordChainQueue.filter((p) => p.socketId !== socket.id);
+
+      // Handle word chain room disconnect
+      for (const [wcRoomId, wcRoom] of wordChainRooms) {
+        const isInRoom = wcRoom.players.some((p) => p.socketId === socket.id);
+        if (isInRoom) {
+          if (wcRoom.turnTimer) clearTimeout(wcRoom.turnTimer);
+          const opp = wcRoom.players.find((p) => p.socketId !== socket.id);
+          if (opp) {
+            io.to(opp.socketId).emit("word_chain_opponent_left");
+          }
+          wordChainRooms.delete(wcRoomId);
+          break;
+        }
+      }
 
       // Handle rapid room disconnect
       for (const [roomId, room] of rapidRooms) {
@@ -1812,6 +2054,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (room) {
           io.to(roomId).emit("room_updated", sanitizeRoom(room));
           io.to(roomId).emit("player_left", { playerId: socket.id });
+        }
+      }
+
+      // Clean up spectator sets on disconnect
+      for (const [roomId, specs] of roomSpectators) {
+        if (specs.has(socket.id)) {
+          specs.delete(socket.id);
+          if (specs.size === 0) roomSpectators.delete(roomId);
+          io.to(roomId).emit("spectator_count", { count: specs.size });
         }
       }
     });
@@ -1905,6 +2156,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
   // ────────────────────────────────────────────────────────────────────────
 
+  // ── WORD CHAIN HELPERS ───────────────────────────────────────────────────
+  function startWordChainTurn(roomId: string) {
+    const room = wordChainRooms.get(roomId);
+    if (!room) return;
+    if (room.turnTimer) clearTimeout(room.turnTimer);
+    room.turnTimer = setTimeout(() => {
+      const r = wordChainRooms.get(roomId);
+      if (!r) return;
+      const loser = r.players[r.currentTurnIdx];
+      const winner = r.players[(r.currentTurnIdx + 1) % r.players.length];
+      winner.roundWins++;
+      io.to(roomId).emit("word_chain_round_over", {
+        loserSocketId: loser.socketId,
+        winnerSocketId: winner.socketId,
+        chain: r.chain,
+        roundNum: r.roundNum,
+        roundWins: r.players.map(p => ({ socketId: p.socketId, wins: p.roundWins })),
+        reason: "timeout",
+      });
+      checkWordChainGameOver(roomId);
+    }, WORD_CHAIN_TURN_TIME * 1000);
+  }
+
+  function checkWordChainGameOver(roomId: string) {
+    const room = wordChainRooms.get(roomId);
+    if (!room) return;
+    const winner = room.players.find(p => p.roundWins >= WORD_CHAIN_ROUNDS_TO_WIN);
+    if (winner) {
+      const loser = room.players.find(p => p.socketId !== winner.socketId);
+      io.to(roomId).emit("word_chain_game_over", {
+        winnerSocketId: winner.socketId,
+        winnerPlayerId: winner.playerId,
+        loserSocketId: loser?.socketId,
+        chain: room.chain,
+        roundWins: room.players.map(p => ({ socketId: p.socketId, wins: p.roundWins })),
+      });
+      db.update(playerProfiles).set({ coins: sql`coins + 30`, updatedAt: new Date() })
+        .where(eq(playerProfiles.id, winner.playerId)).catch(() => {});
+      wordChainRooms.delete(roomId);
+    } else {
+      room.roundNum++;
+      room.chain = [];
+      room.usedWords.clear();
+      room.requiredLetter = ARABIC_LETTERS[Math.floor(Math.random() * ARABIC_LETTERS.length)];
+      room.currentTurnIdx = room.roundNum % 2 === 0 ? 1 : 0;
+      io.to(roomId).emit("word_chain_new_round", {
+        roundNum: room.roundNum,
+        requiredLetter: room.requiredLetter,
+        currentTurnSocketId: room.players[room.currentTurnIdx].socketId,
+        roundWins: room.players.map(p => ({ socketId: p.socketId, wins: p.roundWins })),
+      });
+      startWordChainTurn(roomId);
+    }
+  }
+  // ────────────────────────────────────────────────────────────────────────
+
   // REST API routes
   app.get("/api/room/:id", (req, res) => {
     const room = getRoom(req.params.id);
@@ -1913,6 +2220,311 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     res.json(sanitizeRoom(room));
   });
+
+  // ── SPECTATOR ROUTES ─────────────────────────────────────────────────────────
+
+  // GET /api/spectate/active-rooms — returns all currently playing rooms (for friends tab to check)
+  app.get("/api/spectate/active-rooms", (_req, res) => {
+    const result: { roomId: string; players: { id: string; name: string; skin: string; score: number }[] }[] = [];
+    // Iterate socketRoomMap to gather playing rooms
+    const seenRooms = new Set<string>();
+    for (const [, roomId] of socketRoomMap) {
+      if (seenRooms.has(roomId)) continue;
+      seenRooms.add(roomId);
+      const room = getRoom(roomId);
+      if (room && room.state === "playing") {
+        result.push({
+          roomId: room.id,
+          players: room.players.map(p => ({ id: p.id, name: p.name, skin: p.skin, score: p.score })),
+        });
+      }
+    }
+    res.json(result);
+  });
+
+  // POST /api/spectate/:roomId/bet — place a bet on a player
+  app.post("/api/spectate/:roomId/bet", async (req, res) => {
+    try {
+      const { roomId } = req.params;
+      const { spectatorId, betOnSocketId, amount } = req.body as {
+        spectatorId: string;
+        betOnSocketId: string;
+        amount: number;
+      };
+      if (!spectatorId || !betOnSocketId || !amount) {
+        return res.status(400).json({ error: "missing_params" });
+      }
+      const validAmounts = [50, 100, 200];
+      if (!validAmounts.includes(amount)) {
+        return res.status(400).json({ error: "invalid_amount" });
+      }
+      const room = getRoom(roomId);
+      if (!room || room.state !== "playing") {
+        return res.status(400).json({ error: "room_not_active" });
+      }
+      const isValidTarget = room.players.some(p => p.id === betOnSocketId);
+      if (!isValidTarget) {
+        return res.status(400).json({ error: "invalid_target" });
+      }
+      // Check existing bet for this spectator in this room
+      const existingBet = await db.select({ id: spectatorBets.id }).from(spectatorBets)
+        .where(and(eq(spectatorBets.roomId, roomId), eq(spectatorBets.spectatorId, spectatorId))).limit(1);
+      if (existingBet.length > 0) {
+        return res.status(400).json({ error: "already_bet" });
+      }
+      // Deduct coins atomically
+      const updated = await db.update(playerProfiles).set({
+        coins: sql`GREATEST(0, coins - ${amount})`,
+        updatedAt: new Date(),
+      }).where(and(eq(playerProfiles.id, spectatorId), sql`coins >= ${amount}`))
+        .returning({ coins: playerProfiles.coins });
+      if (updated.length === 0) {
+        return res.status(400).json({ error: "insufficient_coins" });
+      }
+      await db.insert(spectatorBets).values({ roomId, spectatorId, betOnSocketId, amount });
+      // Broadcast updated bet totals to all spectators
+      const allBets = await db.select().from(spectatorBets)
+        .where(and(eq(spectatorBets.roomId, roomId), eq(spectatorBets.settled, false)));
+      const betTotals: Record<string, number> = {};
+      for (const b of allBets) {
+        betTotals[b.betOnSocketId] = (betTotals[b.betOnSocketId] || 0) + b.amount;
+      }
+      io.to(`spectate:${roomId}`).emit("bet_update", { betTotals, totalBets: allBets.length });
+      return res.json({ success: true, newCoins: updated[0].coins });
+    } catch (e) {
+      console.error("[spectate-bet] error:", e);
+      return res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // GET /api/spectate/:roomId/bets — get current bet totals
+  app.get("/api/spectate/:roomId/bets", async (req, res) => {
+    try {
+      const { roomId } = req.params;
+      const allBets = await db.select().from(spectatorBets)
+        .where(and(eq(spectatorBets.roomId, roomId), eq(spectatorBets.settled, false)));
+      const betTotals: Record<string, number> = {};
+      for (const b of allBets) {
+        betTotals[b.betOnSocketId] = (betTotals[b.betOnSocketId] || 0) + b.amount;
+      }
+      return res.json({ betTotals, totalBets: allBets.length });
+    } catch (e) {
+      console.error("[spectate-bets] error:", e);
+      return res.status(500).json({ error: "server_error" });
+    }
+  });
+  // ────────────────────────────────────────────────────────────────────────────
+
+  // ── WORD CHAIN AI ENDPOINT ───────────────────────────────────────────────
+  // POST /api/word-chain/ai-turn — AI picks a valid word for chain mode
+  app.post("/api/word-chain/ai-turn", (req, res) => {
+    try {
+      const { requiredLetter, usedWords } = req.body as { requiredLetter: string; usedWords: string[] };
+      if (!requiredLetter) return res.status(400).json({ error: "missing_params" });
+      const used = new Set(usedWords || []);
+      const allCategories: WordCategory[] = ["animals", "fruits", "vegetables", "cities", "countries", "objects", "boy_names", "girl_names"];
+      const candidates: string[] = [];
+      for (const cat of allCategories) {
+        const ws = getWordsForLetter(cat, requiredLetter);
+        for (const w of ws) {
+          if (!used.has(w)) candidates.push(w);
+        }
+      }
+      if (candidates.length === 0) {
+        return res.json({ word: null, concede: true });
+      }
+      const word = candidates[Math.floor(Math.random() * candidates.length)];
+      return res.json({ word, concede: false });
+    } catch (e) {
+      console.error("[word-chain-ai] error:", e);
+      return res.status(500).json({ error: "server_error" });
+    }
+  });
+  // ────────────────────────────────────────────────────────────────────────────
+
+  // ── DAILY CHALLENGE ROUTES ────────────────────────────────────────────────
+
+  function getTodayDateString(): string {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  async function getOrCreateTodayChallenge(): Promise<{ date: string; word: string; letter: string }> {
+    const today = getTodayDateString();
+    const existing = await db.select().from(dailyChallenges).where(eq(dailyChallenges.date, today)).limit(1);
+    if (existing.length > 0) return existing[0];
+    // Auto-pick a word for today
+    const letter = ARABIC_LETTERS[Math.floor(Math.random() * ARABIC_LETTERS.length)];
+    const allCategories: WordCategory[] = ["animals", "fruits", "vegetables", "cities", "countries", "objects", "boy_names", "girl_names"];
+    const candidateWords: string[] = [];
+    for (const cat of allCategories) {
+      const ws = getWordsForLetter(cat, letter);
+      candidateWords.push(...ws);
+    }
+    const filtered = candidateWords.filter(w => w.length >= 3 && w.length <= 7);
+    const pool = filtered.length > 0 ? filtered : candidateWords;
+    if (pool.length === 0) {
+      return getOrCreateTodayChallenge();
+    }
+    const word = pool[Math.floor(Math.random() * pool.length)];
+    await db.insert(dailyChallenges).values({ date: today, word, letter }).onConflictDoNothing();
+    const fresh = await db.select().from(dailyChallenges).where(eq(dailyChallenges.date, today)).limit(1);
+    return fresh[0] ?? { date: today, word, letter };
+  }
+
+  function applyWordleColoring(guess: string, target: string): { letter: string; status: "correct" | "present" | "absent" }[] {
+    const result: { letter: string; status: "correct" | "present" | "absent" }[] = [];
+    const targetChars = [...target];
+    const guessChars = [...guess];
+    const used = new Array(targetChars.length).fill(false);
+    // First pass: correct
+    for (let i = 0; i < guessChars.length; i++) {
+      if (guessChars[i] === targetChars[i]) {
+        result.push({ letter: guessChars[i], status: "correct" });
+        used[i] = true;
+      } else {
+        result.push({ letter: guessChars[i], status: "absent" });
+      }
+    }
+    // Second pass: present
+    for (let i = 0; i < guessChars.length; i++) {
+      if (result[i].status === "correct") continue;
+      const foundIdx = targetChars.findIndex((ch, idx) => !used[idx] && ch === guessChars[i]);
+      if (foundIdx !== -1) {
+        result[i] = { letter: guessChars[i], status: "present" };
+        used[foundIdx] = true;
+      }
+    }
+    return result;
+  }
+
+  // GET /api/daily-challenge?playerId=xxx
+  app.get("/api/daily-challenge", async (req, res) => {
+    try {
+      const { playerId } = req.query as { playerId?: string };
+      const challenge = await getOrCreateTodayChallenge();
+      const wordLength = [...challenge.word].length;
+      let entry: { guesses: string[]; completed: boolean; won: boolean; guessCount: number; startedAt: Date } | null = null;
+      if (playerId) {
+        const rows = await db.select().from(dailyChallengeEntries)
+          .where(and(eq(dailyChallengeEntries.playerId, playerId), eq(dailyChallengeEntries.date, challenge.date))).limit(1);
+        if (rows.length > 0) {
+          const r = rows[0];
+          entry = { guesses: r.guesses, completed: r.completed, won: r.won, guessCount: r.guessCount, startedAt: r.startedAt };
+        }
+      }
+      // Reveal word only if completed
+      const revealedWord = (entry?.completed) ? challenge.word : null;
+      res.json({
+        date: challenge.date,
+        letter: challenge.letter,
+        wordLength,
+        entry,
+        word: revealedWord,
+      });
+    } catch (e) {
+      console.error("[daily-challenge] GET error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // POST /api/daily-challenge/guess
+  app.post("/api/daily-challenge/guess", async (req, res) => {
+    try {
+      const { playerId, guess } = req.body as { playerId: string; guess: string };
+      if (!playerId || !guess) return res.status(400).json({ error: "missing_params" });
+      const challenge = await getOrCreateTodayChallenge();
+      const today = challenge.date;
+      const MAX_GUESSES = 6;
+      // Get or create entry
+      let entryRows = await db.select().from(dailyChallengeEntries)
+        .where(and(eq(dailyChallengeEntries.playerId, playerId), eq(dailyChallengeEntries.date, today))).limit(1);
+      let isNew = false;
+      if (entryRows.length === 0) {
+        await db.insert(dailyChallengeEntries).values({ playerId, date: today });
+        entryRows = await db.select().from(dailyChallengeEntries)
+          .where(and(eq(dailyChallengeEntries.playerId, playerId), eq(dailyChallengeEntries.date, today))).limit(1);
+        isNew = true;
+      }
+      const entry = entryRows[0];
+      if (entry.completed) return res.status(400).json({ error: "already_completed" });
+      const currentGuesses = entry.guesses as string[];
+      if (currentGuesses.length >= MAX_GUESSES) return res.status(400).json({ error: "max_guesses_reached" });
+      const guessChars = [...guess.trim()];
+      const targetChars = [...challenge.word];
+      if (guessChars.length !== targetChars.length) {
+        return res.status(400).json({ error: "wrong_length", expected: targetChars.length });
+      }
+      const coloring = applyWordleColoring(guess.trim(), challenge.word);
+      const newGuesses = [...currentGuesses, guess.trim()];
+      const won = guess.trim() === challenge.word;
+      const completed = won || newGuesses.length >= MAX_GUESSES;
+      const now = new Date();
+      const durationSeconds = Math.round((now.getTime() - entry.startedAt.getTime()) / 1000);
+      await db.update(dailyChallengeEntries).set({
+        guesses: newGuesses,
+        guessCount: newGuesses.length,
+        completed,
+        won,
+        finishedAt: completed ? now : null,
+        durationSeconds: completed ? durationSeconds : entry.durationSeconds,
+      }).where(and(eq(dailyChallengeEntries.playerId, playerId), eq(dailyChallengeEntries.date, today)));
+      // Award coins on completion
+      let coinsAwarded = 0;
+      if (completed) {
+        if (won) {
+          coinsAwarded = Math.max(10, 60 - (newGuesses.length - 1) * 10);
+          await db.update(playerProfiles).set({ coins: sql`coins + ${coinsAwarded}`, updatedAt: new Date() })
+            .where(eq(playerProfiles.id, playerId));
+        }
+        // Compute rank among today's finishers
+        const allEntries = await db.select({ guessCount: dailyChallengeEntries.guessCount, durationSeconds: dailyChallengeEntries.durationSeconds, won: dailyChallengeEntries.won })
+          .from(dailyChallengeEntries).where(and(eq(dailyChallengeEntries.date, today), eq(dailyChallengeEntries.completed, true)));
+        const sorted = allEntries.filter(e => e.won).sort((a, b) => a.guessCount - b.guessCount || a.durationSeconds - b.durationSeconds);
+        const rank = won ? sorted.findIndex(e => e.guessCount === newGuesses.length && e.durationSeconds === durationSeconds) + 1 : null;
+        if (rank) {
+          await db.update(dailyChallengeEntries).set({ rank })
+            .where(and(eq(dailyChallengeEntries.playerId, playerId), eq(dailyChallengeEntries.date, today)));
+        }
+      }
+      return res.json({
+        coloring,
+        won,
+        completed,
+        guessCount: newGuesses.length,
+        word: completed ? challenge.word : null,
+        coinsAwarded: completed ? coinsAwarded : 0,
+      });
+    } catch (e) {
+      console.error("[daily-challenge] POST guess error:", e);
+      return res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // GET /api/daily-challenge/leaderboard
+  app.get("/api/daily-challenge/leaderboard", async (_req, res) => {
+    try {
+      const today = getTodayDateString();
+      const rows = await db.select({
+        playerId: dailyChallengeEntries.playerId,
+        guessCount: dailyChallengeEntries.guessCount,
+        durationSeconds: dailyChallengeEntries.durationSeconds,
+        rank: dailyChallengeEntries.rank,
+        finishedAt: dailyChallengeEntries.finishedAt,
+        name: playerProfiles.name,
+        skin: playerProfiles.equippedSkin,
+        level: playerProfiles.level,
+      }).from(dailyChallengeEntries)
+        .innerJoin(playerProfiles, eq(dailyChallengeEntries.playerId, playerProfiles.id))
+        .where(and(eq(dailyChallengeEntries.date, today), eq(dailyChallengeEntries.completed, true), eq(dailyChallengeEntries.won, true)))
+        .orderBy(asc(dailyChallengeEntries.guessCount), asc(dailyChallengeEntries.durationSeconds))
+        .limit(20);
+      res.json(rows.map((r, idx) => ({ ...r, displayRank: idx + 1 })));
+    } catch (e) {
+      console.error("[daily-challenge] leaderboard error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  // ────────────────────────────────────────────────────────────────────────────
 
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
@@ -3161,11 +3773,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         level: playerProfiles.level,
         wins: playerProfiles.wins,
       };
+      // Build a reverse map: playerId → socketId → roomId for active games
+      // socketPlayerIdMap: socket.id → playerId; invert it
+      const playerSocketMap = new Map<string, string>();
+      for (const [sockId, pid] of socketPlayerIdMap) {
+        playerSocketMap.set(pid, sockId);
+      }
       const result = [];
       for (const row of rows) {
         const otherId = row.playerId === playerId ? row.friendId : row.playerId;
         const [p] = await db.select(profileFields).from(playerProfiles).where(eq(playerProfiles.id, otherId));
-        if (p) result.push({ friendshipId: row.id, friend: p, since: row.createdAt });
+        if (!p) continue;
+        // Check if this friend is currently in an active game room
+        const friendSocketId = playerSocketMap.get(otherId);
+        let activeRoomId: string | null = null;
+        if (friendSocketId) {
+          const rid = socketRoomMap.get(friendSocketId);
+          if (rid) {
+            const room = getRoom(rid);
+            if (room && room.state === "playing") activeRoomId = rid;
+          }
+        }
+        result.push({ friendshipId: row.id, friend: p, since: row.createdAt, activeRoomId });
       }
       res.json(result);
     } catch (e) {
@@ -4156,6 +4785,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   cron.schedule("5 0 * * 1", () => {
     console.log("[cron] Clan war weekly payout (Monday 00:05)");
     handleClanWarWeeklyEnd().catch(console.error);
+  });
+
+  // Every day at 23:55 — pre-seed tomorrow's daily challenge word
+  cron.schedule("55 23 * * *", async () => {
+    try {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const dateStr = tomorrow.toISOString().slice(0, 10);
+      const existing = await db.select({ id: dailyChallenges.id }).from(dailyChallenges)
+        .where(eq(dailyChallenges.date, dateStr)).limit(1);
+      if (existing.length > 0) return;
+      const letter = ARABIC_LETTERS[Math.floor(Math.random() * ARABIC_LETTERS.length)];
+      const allCategories: WordCategory[] = ["animals", "fruits", "vegetables", "cities", "countries", "objects", "boy_names", "girl_names"];
+      const candidateWords: string[] = [];
+      for (const cat of allCategories) {
+        const ws = getWordsForLetter(cat, letter);
+        candidateWords.push(...ws);
+      }
+      const filtered = candidateWords.filter(w => w.length >= 3 && w.length <= 7);
+      const pool = filtered.length > 0 ? filtered : candidateWords;
+      if (pool.length === 0) return;
+      const word = pool[Math.floor(Math.random() * pool.length)];
+      await db.insert(dailyChallenges).values({ date: dateStr, word, letter }).onConflictDoNothing();
+      console.log(`[cron] Daily challenge pre-seeded for ${dateStr}: ${word} (${letter})`);
+    } catch (e) {
+      console.error("[cron] daily challenge pre-seed error:", e);
+    }
   });
 
   console.log("[cron] Push notification cron jobs scheduled");

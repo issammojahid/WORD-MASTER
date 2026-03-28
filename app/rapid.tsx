@@ -100,6 +100,12 @@ export default function RapidScreen() {
   const rapidRoomIdRef = useRef<string | null>(null);
   const phaseRef = useRef<string>("tier_select");
 
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [reactionCooldown, setReactionCooldown] = useState(false);
+  const [incomingReaction, setIncomingReaction] = useState<{ emoji: string; playerName: string } | null>(null);
+  const incomingReactionAnim = useRef(new Animated.Value(0)).current;
+  const reactionCooldownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const selectedTierRef = useRef<CoinTier | null>(null);
 
   const handleSelectTier = useCallback((tier: CoinTier) => {
@@ -236,12 +242,23 @@ export default function RapidScreen() {
       }
     };
 
+    const handleGameReaction = (data: { emoji: string; playerName: string }) => {
+      setIncomingReaction(data);
+      incomingReactionAnim.setValue(0);
+      Animated.sequence([
+        Animated.spring(incomingReactionAnim, { toValue: 1, tension: 120, friction: 7, useNativeDriver: true }),
+        Animated.delay(1200),
+        Animated.timing(incomingReactionAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]).start(() => setIncomingReaction(null));
+    };
+
     socket.on("connect", handleConnect);
     socket.on("rapid_start", handleRapidStart);
     socket.on("rapid_letter", handleRapidLetter);
     socket.on("rapid_word_result", handleRapidWordResult);
     socket.on("rapid_round_result", handleRapidRoundResult);
     socket.on("rapid_game_over", handleRapidGameOver);
+    socket.on("game_reaction", handleGameReaction);
 
     return () => {
       socket.off("connect", handleConnect);
@@ -250,6 +267,7 @@ export default function RapidScreen() {
       socket.off("rapid_word_result", handleRapidWordResult);
       socket.off("rapid_round_result", handleRapidRoundResult);
       socket.off("rapid_game_over", handleRapidGameOver);
+      socket.off("game_reaction", handleGameReaction);
       if (rapidRoomIdRef.current) {
         socket.emit("rapid_leave", { rapidRoomId: rapidRoomIdRef.current });
       } else if (phaseRef.current === "waiting") {
@@ -578,6 +596,22 @@ export default function RapidScreen() {
         </View>
       </View>
 
+      {/* Incoming reaction floating bubble */}
+      {incomingReaction && (
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.incomingReactionBubble, {
+            opacity: incomingReactionAnim,
+            transform: [
+              { scale: incomingReactionAnim.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) },
+              { translateY: incomingReactionAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) },
+            ],
+          }]}>
+          <Text style={styles.incomingReactionEmoji}>{incomingReaction.emoji}</Text>
+          <Text style={styles.incomingReactionName}>{incomingReaction.playerName}</Text>
+        </Animated.View>
+      )}
+
       <View style={styles.playBody}>
         <Animated.View style={[styles.timerCircle, { borderColor: timerColor, transform: [{ scale: timeLeft <= 3 ? pulseAnim : 1 }] }]}>
           <Text style={[styles.timerNum, { color: timerColor }]}>{timeLeft}</Text>
@@ -589,6 +623,38 @@ export default function RapidScreen() {
 
         <View style={styles.letterDisplay}>
           <Text style={styles.letterText}>{currentLetter}</Text>
+        </View>
+
+        {/* Reaction button */}
+        <View style={styles.reactionRow}>
+          <TouchableOpacity
+            style={[styles.reactionTriggerBtn, { opacity: reactionCooldown ? 0.4 : 1 }]}
+            onPress={() => !reactionCooldown && setShowReactionPicker(p => !p)}
+            disabled={reactionCooldown}
+          >
+            <Text style={{ fontSize: 20 }}>😊</Text>
+          </TouchableOpacity>
+          {showReactionPicker && (
+            <View style={styles.reactionPickerStrip}>
+              {["😂", "🔥", "👏", "💀", "🤝", "😤", "❤️", "😎"].map(emoji => (
+                <TouchableOpacity
+                  key={emoji}
+                  style={styles.reactionPickerBtn}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    if (rapidRoomId) socket.emit("game_reaction", { roomId: rapidRoomId, emoji, playerName: profile.name });
+                    setShowReactionPicker(false);
+                    setReactionCooldown(true);
+                    if (reactionCooldownRef.current) clearTimeout(reactionCooldownRef.current);
+                    reactionCooldownRef.current = setTimeout(() => setReactionCooldown(false), 5000);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontSize: 22 }}>{emoji}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
 
         <View style={styles.inputArea}>
@@ -944,6 +1010,22 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
   },
+  reactionRow: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "center" },
+  reactionTriggerBtn: {
+    width: 38, height: 38, borderRadius: 12, backgroundColor: "#12122A",
+    justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#1E1E3A",
+  },
+  reactionPickerStrip: {
+    flexDirection: "row", alignItems: "center", gap: 4, flexWrap: "wrap", justifyContent: "center",
+  },
+  reactionPickerBtn: { width: 36, height: 36, borderRadius: 10, justifyContent: "center", alignItems: "center" },
+  incomingReactionBubble: {
+    position: "absolute", top: 120, right: 16, alignItems: "center",
+    backgroundColor: "#1E1E3A", borderRadius: 20, padding: 10, zIndex: 999,
+    shadowColor: "#000", shadowOpacity: 0.4, shadowRadius: 8,
+  },
+  incomingReactionEmoji: { fontSize: 36 },
+  incomingReactionName: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#9898CC", marginTop: 2 },
   letterText: {
     fontFamily: "Cairo_700Bold",
     fontSize: 52,

@@ -1170,6 +1170,24 @@ export default function HomeScreen() {
       accent: LOGO.cyan,
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/ai-game"); },
     },
+    {
+      id: "daily",
+      title: "تحدي اليوم",
+      subtitle: "6 محاولات لتخمين الكلمة — مع لاعبين حول العالم",
+      emoji: "🌍",
+      gradient: ["#F59E0B30", "#10B98110"],
+      accent: "#10B981",
+      onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/daily-challenge"); },
+    },
+    {
+      id: "word-chain",
+      title: "سلسلة الكلمات",
+      subtitle: "كل كلمة تبدأ من آخر حرف السابقة — من يتوقف يخسر!",
+      emoji: "🔗",
+      gradient: ["#8B5CF630", "#8B5CF610"],
+      accent: "#8B5CF6",
+      onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/word-chain"); },
+    },
   ];
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {

@@ -254,6 +254,12 @@ export default function GameScreen() {
   const [floatingEmote, setFloatingEmote] = useState<{ emote: string; playerName: string } | null>(null);
   const emoteAnim = useRef(new Animated.Value(0)).current;
 
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [reactionCooldown, setReactionCooldown] = useState(false);
+  const [incomingReaction, setIncomingReaction] = useState<{ emoji: string; playerName: string } | null>(null);
+  const incomingReactionAnim = useRef(new Animated.Value(0)).current;
+  const reactionCooldownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const gameOverSlide = useRef(new Animated.Value(60)).current;
   const gameOverOpacity = useRef(new Animated.Value(0)).current;
   const winnerBounce = useRef(new Animated.Value(0)).current;
@@ -697,6 +703,17 @@ export default function GameScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     });
 
+    socket.on("game_reaction", (data: { emoji: string; playerName: string }) => {
+      setIncomingReaction(data);
+      incomingReactionAnim.setValue(0);
+      Animated.sequence([
+        Animated.spring(incomingReactionAnim, { toValue: 1, tension: 120, friction: 7, useNativeDriver: true }),
+        Animated.delay(1200),
+        Animated.timing(incomingReactionAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]).start(() => setIncomingReaction(null));
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    });
+
     // Opponent disconnected without using forfeit — declare me winner
     socket.on("elo_updated", (data: { elo: number; division: string; delta: number }) => {
       updateProfile({ elo: data.elo, division: data.division });
@@ -726,6 +743,7 @@ export default function GameScreen() {
       socket.off("game_over");
       socket.off("quick_chat");
       socket.off("receive_emote");
+      socket.off("game_reaction");
       socket.off("power_card");
       socket.off("player_left");
       if (freezeCountdownRef.current) { clearInterval(freezeCountdownRef.current); }
@@ -1092,7 +1110,55 @@ export default function GameScreen() {
         >
           <Ionicons name="chatbubble-ellipses" size={20} color={theme.textSecondary} />
         </TouchableOpacity>
+
+        {/* Reaction button */}
+        <TouchableOpacity
+          style={[styles.chatBtn, { opacity: reactionCooldown ? 0.4 : 1 }]}
+          onPress={() => !reactionCooldown && setShowReactionPicker(p => !p)}
+          disabled={reactionCooldown}
+        >
+          <Text style={{ fontSize: 18 }}>😊</Text>
+        </TouchableOpacity>
       </View>
+
+      {/* Reaction picker strip */}
+      {showReactionPicker && (
+        <View style={[styles.reactionPickerStrip, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          {["😂", "🔥", "👏", "💀", "🤝", "😤", "❤️", "😎"].map(emoji => (
+            <TouchableOpacity
+              key={emoji}
+              style={styles.reactionPickerBtn}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                socket.emit("game_reaction", { roomId, emoji, playerName: profile.name });
+                setShowReactionPicker(false);
+                setReactionCooldown(true);
+                if (reactionCooldownRef.current) clearTimeout(reactionCooldownRef.current);
+                reactionCooldownRef.current = setTimeout(() => setReactionCooldown(false), 5000);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.reactionPickerEmoji}>{emoji}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      {/* Incoming reaction bubble */}
+      {incomingReaction && (
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.incomingReactionBubble, {
+            opacity: incomingReactionAnim,
+            transform: [
+              { scale: incomingReactionAnim.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) },
+              { translateY: incomingReactionAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) },
+            ],
+          }]}>
+          <Text style={styles.incomingReactionEmoji}>{incomingReaction.emoji}</Text>
+          <Text style={styles.incomingReactionName}>{incomingReaction.playerName}</Text>
+        </Animated.View>
+      )}
 
       {submittedPlayers.length > 0 && (
         <View style={styles.submittedBar}>
@@ -1363,6 +1429,22 @@ const styles = StyleSheet.create({
     justifyContent: "center", alignItems: "center", marginLeft: 8,
     borderWidth: 1, borderColor: "#1E1E3A",
   },
+  reactionPickerStrip: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    paddingHorizontal: 12, paddingVertical: 8, gap: 4,
+    borderBottomWidth: 1, zIndex: 10,
+  },
+  reactionPickerBtn: {
+    width: 38, height: 38, borderRadius: 10, justifyContent: "center", alignItems: "center",
+  },
+  reactionPickerEmoji: { fontSize: 22 },
+  incomingReactionBubble: {
+    position: "absolute", top: 100, right: 16, alignItems: "center",
+    backgroundColor: "#1E1E3A", borderRadius: 20, padding: 10, zIndex: 999,
+    shadowColor: "#000", shadowOpacity: 0.4, shadowRadius: 8,
+  },
+  incomingReactionEmoji: { fontSize: 36 },
+  incomingReactionName: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#9898CC", marginTop: 2 },
 
   submittedBar: {
     flexDirection: "row", alignItems: "center", gap: 6,

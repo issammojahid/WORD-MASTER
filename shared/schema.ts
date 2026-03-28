@@ -308,3 +308,45 @@ export const clanMembers = pgTable("clan_members", {
 }));
 
 export type ClanMember = typeof clanMembers.$inferSelect;
+
+// ── SPECTATOR BETS ──────────────────────────────────────────────────────────
+export const spectatorBets = pgTable("spectator_bets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  roomId: varchar("room_id").notNull(),
+  spectatorId: varchar("spectator_id").notNull(),
+  betOnSocketId: varchar("bet_on_socket_id").notNull(),
+  amount: integer("amount").notNull(),
+  settled: boolean("settled").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type SpectatorBet = typeof spectatorBets.$inferSelect;
+
+// ── DAILY CHALLENGE ──────────────────────────────────────────────────────────
+export const dailyChallenges = pgTable("daily_challenges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  date: text("date").notNull().unique(),
+  word: text("word").notNull(),
+  letter: text("letter").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type DailyChallenge = typeof dailyChallenges.$inferSelect;
+
+export const dailyChallengeEntries = pgTable("daily_challenge_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: varchar("player_id").notNull(),
+  date: text("date").notNull(),
+  guesses: jsonb("guesses").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  completed: boolean("completed").notNull().default(false),
+  won: boolean("won").notNull().default(false),
+  guessCount: integer("guess_count").notNull().default(0),
+  durationSeconds: integer("duration_seconds").notNull().default(0),
+  startedAt: timestamp("started_at").notNull().default(sql`now()`),
+  finishedAt: timestamp("finished_at"),
+  rank: integer("rank"),
+}, (t) => ({
+  uniqPlayerDate: uniqueIndex("daily_challenge_entries_player_date_unique").on(t.playerId, t.date),
+}));
+
+export type DailyChallengeEntry = typeof dailyChallengeEntries.$inferSelect;
