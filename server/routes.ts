@@ -2182,6 +2182,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Prune reactionLastSentMap entries for disconnecting player to avoid memory leaks
+      const disconnectingPid = socketPlayerIdMap.get(socket.id);
+      if (disconnectingPid) {
+        for (const key of reactionLastSentMap.keys()) {
+          if (key.startsWith(`${disconnectingPid}:`)) reactionLastSentMap.delete(key);
+        }
+      }
+
       // Clean up from socketRoomMap first
       const trackedRoomId = socketRoomMap.get(socket.id);
       socketRoomMap.delete(socket.id);
