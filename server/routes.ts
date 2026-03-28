@@ -656,7 +656,7 @@ async function handleSeasonEnd() {
       const newElo = Math.max(800, Math.floor((p.peakElo ?? 1000) * 0.75));
       const newDivision = calcDivision(newElo);
       const currentTitles: string[] = Array.isArray(p.ownedTitles) ? (p.ownedTitles as string[]) : [];
-      const newTitles = reward.title && !currentTitles.includes(reward.title)
+      const newTitles: string[] = reward.title && !currentTitles.includes(reward.title)
         ? [...currentTitles, reward.title]
         : currentTitles;
       await db.update(playerProfiles).set({
@@ -666,7 +666,7 @@ async function handleSeasonEnd() {
         peakElo: newElo,
         seasonWins: 0,
         seasonLosses: 0,
-        ownedTitles: newTitles as any,
+        ownedTitles: newTitles,
         updatedAt: new Date(),
       }).where(eq(playerProfiles.id, p.id));
     }
