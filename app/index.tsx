@@ -1273,6 +1273,34 @@ export default function HomeScreen() {
                 </View>
                 <Text style={[styles.xpText, { color: theme.textMuted }]}>{profile.xp % 100}/100</Text>
               </View>
+              {(() => {
+                const DIVISION_MAP: Record<string, { emoji: string; color: string }> = {
+                  bronze:   { emoji: "🥉", color: "#CD7F32" },
+                  silver:   { emoji: "🥈", color: "#A8A8A8" },
+                  gold:     { emoji: "🥇", color: "#FFD700" },
+                  platinum: { emoji: "💠", color: "#00E5FF" },
+                  diamond:  { emoji: "💎", color: "#BF00FF" },
+                };
+                const div = DIVISION_MAP[profile.division ?? "bronze"] ?? DIVISION_MAP.bronze;
+                return (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 }}>
+                    <View style={{
+                      flexDirection: "row", alignItems: "center", gap: 3,
+                      backgroundColor: div.color + "18", borderRadius: 8,
+                      paddingHorizontal: 7, paddingVertical: 2,
+                      borderWidth: 1, borderColor: div.color + "40",
+                    }}>
+                      <Text style={{ fontSize: 11 }}>{div.emoji}</Text>
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 10, color: div.color }}>
+                        {profile.elo ?? 1000}
+                      </Text>
+                    </View>
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: theme.textMuted }}>
+                      {(profile.seasonWins ?? 0)}ف {(profile.seasonLosses ?? 0)}خ
+                    </Text>
+                  </View>
+                );
+              })()}
             </View>
           </TouchableOpacity>
 

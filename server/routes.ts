@@ -19,7 +19,7 @@ import {
 import { validateWord, CATEGORY_MAP, getWordsForLetter, type WordCategory } from "./wordDatabase";
 import { ARABIC_LETTERS } from "./gameLogic";
 import { db } from "./db";
-import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, friendRequests, playerDailyTasks, playerAchievements, roomInvites, dailyTaskDefs, achievementDefs, coinGifts } from "@shared/schema";
+import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, friendRequests, playerDailyTasks, playerAchievements, roomInvites, dailyTaskDefs, achievementDefs, coinGifts, seasons } from "@shared/schema";
 import { eq, and, desc, asc, or, ilike, ne, isNotNull, sql } from "drizzle-orm";
 import cron from "node-cron";
 import { sendPushNotification, sendDailyTaskReminders, sendStreakResetWarnings, sendSeasonEndingNotifications } from "./notifications";
@@ -588,12 +588,100 @@ function pickSpinReward() {
 const roomCoinEntries = new Map<string, number>();
 const roomPendingDeductions = new Map<string, string[]>();
 
+// ── RANKED SEASON HELPERS ─────────────────────────────────────────────────────
+
+function calcDivision(elo: number): string {
+  if (elo < 800)  return "bronze";
+  if (elo < 1100) return "silver";
+  if (elo < 1400) return "gold";
+  if (elo < 1700) return "platinum";
+  return "diamond";
+}
+
+function calcElo(
+  winnerElo: number,
+  loserElo: number,
+  K = 32
+): { winner: number; loser: number } {
+  const expectedWinner = 1 / (1 + Math.pow(10, (loserElo - winnerElo) / 400));
+  const newWinner = Math.round(winnerElo + K * (1 - expectedWinner));
+  const newLoser  = Math.max(100, Math.round(loserElo  + K * (0 - (1 - expectedWinner))));
+  return { winner: newWinner, loser: newLoser };
+}
+
+async function seedCurrentSeason() {
+  try {
+    const existing = await db.select().from(seasons)
+      .where(eq(seasons.status, "active")).limit(1);
+    if (existing.length > 0) return;
+    const now = new Date();
+    const endDate = new Date(now);
+    endDate.setDate(endDate.getDate() + 30);
+    const monthNames = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+    const name = `موسم ${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+    await db.insert(seasons).values({ name, startDate: now, endDate, status: "active" });
+    console.log(`[ranked] Seeded new season: ${name}`);
+  } catch (e) {
+    console.error("[ranked] seedCurrentSeason error:", e);
+  }
+}
+
+async function handleSeasonEnd() {
+  try {
+    const activeSeason = await db.select().from(seasons)
+      .where(eq(seasons.status, "active")).limit(1);
+    if (!activeSeason.length) return;
+    const season = activeSeason[0];
+    if (new Date(season.endDate) > new Date()) return;
+
+    console.log(`[ranked] Season ${season.name} ended — distributing rewards...`);
+
+    const DIVISION_REWARDS: Record<string, number> = {
+      diamond: 1000, platinum: 600, gold: 350, silver: 150, bronze: 50,
+    };
+
+    const players = await db.select({
+      id: playerProfiles.id,
+      division: playerProfiles.division,
+      peakElo: playerProfiles.peakElo,
+    }).from(playerProfiles);
+
+    for (const p of players) {
+      const reward = DIVISION_REWARDS[p.division] ?? 50;
+      const newElo = Math.max(800, Math.floor((p.peakElo ?? 1000) * 0.75));
+      const newDivision = calcDivision(newElo);
+      await db.update(playerProfiles).set({
+        coins: sql`coins + ${reward}`,
+        elo: newElo,
+        division: newDivision,
+        peakElo: newElo,
+        seasonWins: 0,
+        seasonLosses: 0,
+        updatedAt: new Date(),
+      }).where(eq(playerProfiles.id, p.id));
+    }
+
+    await db.update(seasons).set({ status: "completed" }).where(eq(seasons.id, season.id));
+
+    const now = new Date();
+    const endDate = new Date(now);
+    endDate.setDate(endDate.getDate() + 30);
+    const monthNames = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+    const name = `موسم ${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+    await db.insert(seasons).values({ name, startDate: now, endDate, status: "active" });
+    console.log(`[ranked] New season created: ${name}`);
+  } catch (e) {
+    console.error("[ranked] handleSeasonEnd error:", e);
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
   // On startup: seed static definitions and fix any players missing playerCode
   seedTaskAndAchievementDefs();
   fixMissingPlayerCodes();
+  seedCurrentSeason().catch(console.error);
 
   // REST endpoint: validate all answers for one round (used by offline mode)
   // POST /api/validate-round
@@ -912,6 +1000,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
 
             cb?.({ isGameOver: true });
+
+            // Background Elo update — only for 1v1 games with registered playerIds
+            if (room.players.length === 2) {
+              const p1Id = socketPlayerIdMap.get(room.players[0].id);
+              const p2Id = socketPlayerIdMap.get(room.players[1].id);
+              if (p1Id && p2Id) {
+                (async () => {
+                  try {
+                    const [prof1] = await db.select({ elo: playerProfiles.elo, peakElo: playerProfiles.peakElo, seasonWins: playerProfiles.seasonWins, seasonLosses: playerProfiles.seasonLosses })
+                      .from(playerProfiles).where(eq(playerProfiles.id, p1Id));
+                    const [prof2] = await db.select({ elo: playerProfiles.elo, peakElo: playerProfiles.peakElo, seasonWins: playerProfiles.seasonWins, seasonLosses: playerProfiles.seasonLosses })
+                      .from(playerProfiles).where(eq(playerProfiles.id, p2Id));
+                    if (!prof1 || !prof2) return;
+
+                    const score1 = room.players[0].score;
+                    const score2 = room.players[1].score;
+                    const isDraw = score1 === score2;
+
+                    let elo1 = prof1.elo ?? 1000;
+                    let elo2 = prof2.elo ?? 1000;
+
+                    let newElo1: number, newElo2: number;
+                    let wins1 = prof1.seasonWins ?? 0;
+                    let losses1 = prof1.seasonLosses ?? 0;
+                    let wins2 = prof2.seasonWins ?? 0;
+                    let losses2 = prof2.seasonLosses ?? 0;
+
+                    if (isDraw) {
+                      const K = 32;
+                      const expected1 = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
+                      newElo1 = Math.round(elo1 + K * (0.5 - expected1));
+                      newElo2 = Math.round(elo2 + K * (0.5 - (1 - expected1)));
+                    } else if (score1 > score2) {
+                      const { winner, loser } = calcElo(elo1, elo2);
+                      newElo1 = winner; newElo2 = loser;
+                      wins1++; losses2++;
+                    } else {
+                      const { winner, loser } = calcElo(elo2, elo1);
+                      newElo2 = winner; newElo1 = loser;
+                      wins2++; losses1++;
+                    }
+
+                    const peak1 = Math.max(prof1.peakElo ?? 1000, newElo1);
+                    const peak2 = Math.max(prof2.peakElo ?? 1000, newElo2);
+
+                    await db.update(playerProfiles).set({
+                      elo: newElo1, division: calcDivision(newElo1), peakElo: peak1,
+                      seasonWins: wins1, seasonLosses: losses1, updatedAt: new Date(),
+                    }).where(eq(playerProfiles.id, p1Id));
+
+                    await db.update(playerProfiles).set({
+                      elo: newElo2, division: calcDivision(newElo2), peakElo: peak2,
+                      seasonWins: wins2, seasonLosses: losses2, updatedAt: new Date(),
+                    }).where(eq(playerProfiles.id, p2Id));
+
+                    // Notify both players of their new Elo
+                    const sock1 = io.sockets.sockets.get(room.players[0].id);
+                    const sock2 = io.sockets.sockets.get(room.players[1].id);
+                    if (sock1) sock1.emit("elo_updated", { elo: newElo1, division: calcDivision(newElo1), delta: newElo1 - elo1 });
+                    if (sock2) sock2.emit("elo_updated", { elo: newElo2, division: calcDivision(newElo2), delta: newElo2 - elo2 });
+                  } catch (err) {
+                    console.error("[ranked] Elo update error:", err);
+                  }
+                })();
+              }
+            }
           } else if (room) {
             io.to(data.roomId).emit("new_round", {
               letter: room.currentLetter,
@@ -2256,6 +2410,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         players = await db.select().from(playerProfiles).orderBy(desc(playerProfiles.wins)).limit(50);
       } else if (type === "xp") {
         players = await db.select().from(playerProfiles).orderBy(desc(playerProfiles.xp)).limit(50);
+      } else if (type === "ranked") {
+        players = await db.select().from(playerProfiles).orderBy(desc(playerProfiles.elo)).limit(50);
       } else {
         players = await db.select().from(playerProfiles).orderBy(desc(playerProfiles.totalScore)).limit(50);
       }
@@ -2271,10 +2427,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         xp: p.xp,
         gamesPlayed: p.gamesPlayed,
         isVip: p.isVip && (!p.vipExpiresAt || new Date(p.vipExpiresAt) > new Date()),
+        elo: p.elo ?? 1000,
+        division: p.division ?? "bronze",
+        seasonWins: p.seasonWins ?? 0,
+        seasonLosses: p.seasonLosses ?? 0,
       }));
       res.json(result);
     } catch (e) {
       console.error("GET /api/leaderboard error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // ── RANKED SEASON ──────────────────────────────────────────────────────────
+  app.get("/api/ranked/season", async (_req, res) => {
+    try {
+      const [season] = await db.select().from(seasons)
+        .where(eq(seasons.status, "active")).limit(1);
+      if (!season) return res.json({ season: null });
+      const now = new Date();
+      const daysLeft = Math.max(0, Math.ceil((new Date(season.endDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+      res.json({ season: { ...season, daysLeft } });
+    } catch (e) {
+      console.error("GET /api/ranked/season error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });
@@ -3366,6 +3541,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   cron.schedule("0 12 * * *", () => {
     console.log("[cron] Running season ending notifications (12:00 PM)");
     sendSeasonEndingNotifications().catch(console.error);
+  });
+
+  cron.schedule("0 0 * * *", () => {
+    console.log("[cron] Checking season end (midnight)");
+    handleSeasonEnd().catch(console.error);
   });
 
   console.log("[cron] Push notification cron jobs scheduled");

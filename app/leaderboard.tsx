@@ -27,7 +27,7 @@ const LOGO = {
   green:  "#00FF87",
 };
 
-type TabFilter = "score" | "wins" | "xp";
+type TabFilter = "score" | "wins" | "xp" | "ranked";
 
 type LeaderboardEntry = {
   rank: number;
@@ -41,6 +41,18 @@ type LeaderboardEntry = {
   xp: number;
   gamesPlayed: number;
   isVip?: boolean;
+  elo?: number;
+  division?: string;
+  seasonWins?: number;
+  seasonLosses?: number;
+};
+
+const DIVISION_META: Record<string, { emoji: string; nameAr: string; color: string }> = {
+  bronze:   { emoji: "🥉", nameAr: "برونز",   color: "#CD7F32" },
+  silver:   { emoji: "🥈", nameAr: "فضة",     color: "#A8A8A8" },
+  gold:     { emoji: "🥇", nameAr: "ذهب",     color: "#FFD700" },
+  platinum: { emoji: "💠", nameAr: "بلاتين",  color: "#00E5FF" },
+  diamond:  { emoji: "💎", nameAr: "ماسة",    color: "#BF00FF" },
 };
 
 const RANK_COLORS = [Colors.rank1, Colors.rank2, Colors.rank3];
@@ -60,11 +72,12 @@ function getTitleLabel(titleId: string): { label: string; color: string } | null
   return { label: t.nameAr, color: colors[t.rarity] || LOGO.cyan };
 }
 
-function AnimatedRow({ entry, index, isMe, getValue }: {
+function AnimatedRow({ entry, index, isMe, getValue, tab }: {
   entry: LeaderboardEntry;
   index: number;
   isMe: boolean;
   getValue: (e: LeaderboardEntry) => number;
+  tab: TabFilter;
 }) {
   const { theme } = useTheme();
   const slideX = useRef(new Animated.Value(60)).current;
@@ -79,6 +92,7 @@ function AnimatedRow({ entry, index, isMe, getValue }: {
 
   const skin = SKINS.find((s) => s.id === entry.skin) || SKINS[0];
   const titleInfo = getTitleLabel(entry.equippedTitle);
+  const divMeta = tab === "ranked" && entry.division ? DIVISION_META[entry.division] : null;
 
   return (
     <Animated.View style={{ transform: [{ translateX: slideX }], opacity }}>
@@ -95,30 +109,42 @@ function AnimatedRow({ entry, index, isMe, getValue }: {
         <Text style={[styles.rankRowNum, { color: theme.textMuted }]}>
           {entry.rank}
         </Text>
-        <View style={[styles.rankRowAvatar, { backgroundColor: skin.color + "33", borderColor: skin.color + "55" }]}>
+        <View style={[styles.rankRowAvatar, {
+          backgroundColor: divMeta ? divMeta.color + "22" : skin.color + "33",
+          borderColor: divMeta ? divMeta.color + "66" : skin.color + "55",
+        }]}>
           <Text style={styles.rankRowEmoji}>{skin.emoji}</Text>
         </View>
         <View style={styles.rankRowInfo}>
           <View style={styles.rankRowNameRow}>
             {entry.isVip && <Text style={{ fontSize: 12, marginRight: 3 }}>👑</Text>}
+            {divMeta && (
+              <Text style={{ fontSize: 12, marginRight: 3 }}>{divMeta.emoji}</Text>
+            )}
             <Text style={[styles.rankRowName, { color: theme.textPrimary }]} numberOfLines={1}>
               {entry.name}
               {isMe ? " (أنت)" : ""}
             </Text>
           </View>
           <View style={styles.rankRowSubRow}>
-            {titleInfo && (
+            {divMeta ? (
+              <View style={[styles.titlePill, { backgroundColor: divMeta.color + "20", borderColor: divMeta.color + "50" }]}>
+                <Text style={[styles.titlePillText, { color: divMeta.color }]}>{divMeta.nameAr}</Text>
+              </View>
+            ) : titleInfo ? (
               <View style={[styles.titlePill, { backgroundColor: titleInfo.color + "20", borderColor: titleInfo.color + "50" }]}>
                 <Text style={[styles.titlePillText, { color: titleInfo.color }]}>{titleInfo.label}</Text>
               </View>
-            )}
+            ) : null}
             <Text style={[styles.rankRowSub, { color: theme.textMuted }]}>
-              Lv.{entry.level} · {entry.gamesPlayed} مباراة
+              {tab === "ranked"
+                ? `${entry.seasonWins ?? 0}ف · ${entry.seasonLosses ?? 0}خ`
+                : `Lv.${entry.level} · ${entry.gamesPlayed} مباراة`}
             </Text>
           </View>
         </View>
-        <Text style={[styles.rankRowValue, { color: isMe ? LOGO.yellow : theme.textPrimary }]}>
-          {getValue(entry).toLocaleString()}
+        <Text style={[styles.rankRowValue, { color: isMe ? LOGO.yellow : (divMeta ? divMeta.color : theme.textPrimary) }]}>
+          {tab === "ranked" ? (getValue(entry) || 1000).toLocaleString() : getValue(entry).toLocaleString()}
         </Text>
       </View>
     </Animated.View>
@@ -158,15 +184,16 @@ export default function LeaderboardScreen() {
   const myRank = myEntry ? myEntry.rank : null;
 
   const getValue = (e: LeaderboardEntry) =>
-    tab === "wins" ? e.wins : tab === "xp" ? e.xp : e.score;
+    tab === "wins" ? e.wins : tab === "xp" ? e.xp : tab === "ranked" ? (e.elo ?? 1000) : e.score;
 
   const top3 = entries.slice(0, 3);
   const rest = entries.slice(3);
 
   const TAB_ICONS: Record<TabFilter, { icon: string; color: string; label: string }> = {
-    score:  { icon: "star",       color: LOGO.yellow, label: "النقاط" },
-    wins:   { icon: "trophy",     color: LOGO.cyan,   label: "الانتصارات" },
-    xp:     { icon: "flash",      color: LOGO.purple, label: "الخبرة" },
+    score:  { icon: "star",       color: LOGO.yellow,  label: "النقاط" },
+    wins:   { icon: "trophy",     color: LOGO.cyan,    label: "الانتصارات" },
+    xp:     { icon: "flash",      color: LOGO.purple,  label: "الخبرة" },
+    ranked: { icon: "shield",     color: "#FFD700",    label: "المرتبة" },
   };
 
   return (
@@ -203,7 +230,7 @@ export default function LeaderboardScreen() {
 
       {/* Filter tabs */}
       <View style={[styles.filterRow, { backgroundColor: theme.card + "CC" }]}>
-        {(["score", "wins", "xp"] as TabFilter[]).map((f) => {
+        {(["score", "wins", "xp", "ranked"] as TabFilter[]).map((f) => {
           const info = TAB_ICONS[f];
           const active = tab === f;
           return (
@@ -330,6 +357,7 @@ export default function LeaderboardScreen() {
                 index={i}
                 isMe={entry.id === playerId}
                 getValue={getValue}
+                tab={tab}
               />
             ))}
 

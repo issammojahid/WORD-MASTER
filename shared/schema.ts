@@ -50,9 +50,27 @@ export const playerProfiles = pgTable("player_profiles", {
   isVip: boolean("is_vip").notNull().default(false),
   vipExpiresAt: timestamp("vip_expires_at"),
   vipSubscriptionId: text("vip_subscription_id"),
+  // ── Ranked Season System ───────────────────────────────────────────────────
+  elo: integer("elo").notNull().default(1000),
+  division: text("division").notNull().default("bronze"),
+  peakElo: integer("peak_elo").notNull().default(1000),
+  seasonWins: integer("season_wins").notNull().default(0),
+  seasonLosses: integer("season_losses").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 });
+
+// ── RANKED SEASONS ──────────────────────────────────────────────────────────
+export const seasons = pgTable("seasons", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type Season = typeof seasons.$inferSelect;
 
 export type PlayerProfile = typeof playerProfiles.$inferSelect;
 export type InsertPlayerProfile = typeof playerProfiles.$inferInsert;

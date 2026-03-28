@@ -237,6 +237,11 @@ export type PlayerProfile = {
   // VIP
   isVip: boolean;
   vipExpiresAt: string | null;
+  // Ranked Season
+  elo: number;
+  division: string;
+  seasonWins: number;
+  seasonLosses: number;
 };
 
 type PlayerContextType = {
@@ -300,6 +305,10 @@ const defaultProfile: PlayerProfile = {
   equippedTitle: "beginner",
   isVip: false,
   vipExpiresAt: null,
+  elo: 1000,
+  division: "bronze",
+  seasonWins: 0,
+  seasonLosses: 0,
 };
 
 function calculateLevel(xp: number): number {
@@ -417,6 +426,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               playerTag: sp.playerTag ?? parsed?.playerTag ?? null,
               isVip: sp.isVip ?? false,
               vipExpiresAt: sp.vipExpiresAt ?? null,
+              elo: sp.elo ?? parsed?.elo ?? 1000,
+              division: sp.division ?? parsed?.division ?? "bronze",
+              seasonWins: sp.seasonWins ?? parsed?.seasonWins ?? 0,
+              seasonLosses: sp.seasonLosses ?? parsed?.seasonLosses ?? 0,
             };
 
             setProfile(merged);
