@@ -1768,14 +1768,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!inMainRoom && !inRapidRoom) return;
 
       // Resolve authoritative player name from server-side room state
-      let authoritativeName = data.playerName;
+      // Reject event if server cannot resolve a name (do not trust client-supplied name)
+      let authoritativeName: string | null = null;
       if (inMainRoom) {
         const mainRoom = getRoom(data.roomId);
-        const roomPlayer = mainRoom?.players.find(p => p.id === socket.id);
-        if (roomPlayer) authoritativeName = roomPlayer.name;
+        authoritativeName = mainRoom?.players.find(p => p.id === socket.id)?.name ?? null;
       } else if (rapidPlayer) {
         authoritativeName = rapidPlayer.name;
       }
+      if (!authoritativeName) return;
 
       const now = Date.now();
       const rateLimitKey = `${pid}:${data.roomId}`;
