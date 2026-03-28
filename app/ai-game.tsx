@@ -21,6 +21,9 @@ import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { GAME_CATEGORIES, type GameCategory, ARABIC_LETTERS } from "@/constants/i18n";
 import { playSound } from "@/lib/sound-manager";
+import { LinearGradient } from "expo-linear-gradient";
+
+const AI_BG: [string, string, string] = ["#010D07", "#011A0D", "#010D07"];
 
 type Difficulty = "easy" | "normal" | "hard" | "legendary";
 
@@ -432,6 +435,7 @@ export default function AIGameScreen() {
   if (phase === "difficulty") {
     return (
       <View style={[styles.container, { paddingTop: topInset, backgroundColor: theme.background }]}>
+        <LinearGradient colors={AI_BG} style={StyleSheet.absoluteFillObject} />
         <View style={[styles.header, { borderBottomColor: theme.cardBorder }]}>
           <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: theme.card }]}>
             <Ionicons name="chevron-back" size={22} color={theme.textPrimary} />
@@ -482,6 +486,7 @@ export default function AIGameScreen() {
   if (phase === "loading") {
     return (
       <View style={[styles.container, { alignItems: "center", justifyContent: "center", backgroundColor: theme.background }]}>
+        <LinearGradient colors={AI_BG} style={StyleSheet.absoluteFillObject} />
         <Text style={styles.loadingEmoji}>🤖</Text>
         <Text style={styles.loadingText}>جاري التحضير...</Text>
       </View>
@@ -491,6 +496,7 @@ export default function AIGameScreen() {
   if (phase === "playing") {
     return (
       <View style={[styles.container, { paddingTop: topInset, backgroundColor: theme.background }]}>
+        <LinearGradient colors={AI_BG} style={StyleSheet.absoluteFillObject} />
         <View style={[styles.gameHeader, { backgroundColor: theme.backgroundSecondary, borderBottomColor: theme.cardBorder }]}>
           <View style={styles.gameHeaderLeft}>
             <Text style={[styles.roundLabel, { color: theme.textSecondary }]}>جولة {currentRound}/{TOTAL_ROUNDS}</Text>
@@ -597,6 +603,7 @@ export default function AIGameScreen() {
 
     return (
       <View style={[styles.container, { paddingTop: topInset, backgroundColor: theme.background }]}>
+        <LinearGradient colors={AI_BG} style={StyleSheet.absoluteFillObject} />
         <View style={[styles.resultsHeader, { backgroundColor: theme.backgroundSecondary, borderBottomColor: theme.cardBorder }]}>
           <Text style={[styles.resultsTitle, { color: theme.textPrimary }]}>نتائج الجولة {currentRound}</Text>
           <View style={styles.roundScoreRow}>
@@ -667,6 +674,7 @@ export default function AIGameScreen() {
     const xpGain = Math.max(10, Math.floor(playerTotalScore / 2));
     return (
       <View style={[styles.container, styles.gameOverContainer, { paddingTop: topInset, backgroundColor: theme.background }]}>
+        <LinearGradient colors={AI_BG} style={StyleSheet.absoluteFillObject} />
         <View style={[styles.gameOverCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
           <Text style={styles.gameOverEmoji}>{won ? "🏆" : draw ? "🤝" : "😔"}</Text>
           <Text style={[styles.gameOverTitle, { color: won ? Colors.gold : draw ? theme.textPrimary : Colors.ruby }]}>

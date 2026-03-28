@@ -21,6 +21,9 @@ import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { ARABIC_LETTERS, GAME_CATEGORIES, GameCategory } from "@/constants/i18n";
 import { getApiUrl } from "@/lib/query-client";
+import { LinearGradient } from "expo-linear-gradient";
+
+const OFFLINE_BG: [string, string, string] = ["#01100C", "#011A14", "#01100C"];
 
 const ROUND_TIME = 50;
 const TOTAL_ROUNDS = 5;
@@ -297,6 +300,7 @@ export default function OfflineScreen() {
     const sorted = Object.entries(playerTotals).sort(([, a], [, b]) => b - a);
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+        <LinearGradient colors={OFFLINE_BG} style={StyleSheet.absoluteFillObject} />
         <ScrollView contentContainerStyle={styles.gameOverContent}>
           <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
@@ -330,6 +334,7 @@ export default function OfflineScreen() {
   if (phase === "results" && roundResults) {
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+        <LinearGradient colors={OFFLINE_BG} style={StyleSheet.absoluteFillObject} />
         <View style={[styles.roundResultsHeader, { backgroundColor: theme.backgroundSecondary, borderBottomColor: theme.cardBorder }]}>
           <Text style={[styles.roundResultsTitle, { color: theme.textPrimary }]}>{t.results} - {t.round} {currentRound}/{TOTAL_ROUNDS}</Text>
         </View>
@@ -381,6 +386,7 @@ export default function OfflineScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topInset, backgroundColor: theme.background }]}>
+      <LinearGradient colors={OFFLINE_BG} style={StyleSheet.absoluteFillObject} />
       <View style={[styles.gameTopBar, { backgroundColor: theme.backgroundSecondary, borderBottomColor: theme.cardBorder }]}>
         <TouchableOpacity style={[styles.backBtnSmall, { backgroundColor: theme.card }]} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={18} color={theme.textSecondary} />

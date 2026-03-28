@@ -18,6 +18,9 @@ import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { getSocket } from "@/services/socket";
 import { playSound } from "@/lib/sound-manager";
+import { LinearGradient } from "expo-linear-gradient";
+
+const RAPID_BG: [string, string, string] = ["#120200", "#1E0400", "#120200"];
 
 const { width } = Dimensions.get("window");
 const ROUND_TIME = 10;
@@ -337,6 +340,7 @@ export default function RapidScreen() {
   if (phase === "tier_select") {
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+        <LinearGradient colors={RAPID_BG} style={StyleSheet.absoluteFillObject} />
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
@@ -384,6 +388,7 @@ export default function RapidScreen() {
   if (phase === "waiting") {
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+        <LinearGradient colors={RAPID_BG} style={StyleSheet.absoluteFillObject} />
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={handleLeave}>
           <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
@@ -413,6 +418,7 @@ export default function RapidScreen() {
     const opponentSkin = opponent ? (SKINS.find((s) => s.id === opponent.skin) || SKINS[0]) : SKINS[0];
     return (
       <View style={[styles.container, styles.countdownContainer, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+        <LinearGradient colors={RAPID_BG} style={StyleSheet.absoluteFillObject} />
         <View style={styles.vsRow}>
           <View style={styles.vsPlayer}>
             <View style={[styles.vsAvatar, { backgroundColor: equippedSkin.color + "33" }]}>
@@ -451,6 +457,7 @@ export default function RapidScreen() {
     const oppAttempt = opponent && roundResult?.attempts ? roundResult.attempts[Object.keys(roundResult.attempts).find((k) => k !== socketIdRef.current) || ""] : null;
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+        <LinearGradient colors={RAPID_BG} style={StyleSheet.absoluteFillObject} />
         <View style={styles.roundResultContent}>
           <Text style={styles.roundResultRound}>الجولة {roundResult?.round || currentRound} / {TOTAL_ROUNDS}</Text>
           <View style={styles.scoreBoard}>
@@ -511,6 +518,7 @@ export default function RapidScreen() {
     const gameTitle = gameOverData.isDraw ? "تعادل!" : gameOverData.won ? "فزت!" : "خسرت";
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+        <LinearGradient colors={RAPID_BG} style={StyleSheet.absoluteFillObject} />
         <View style={styles.gameOverContent}>
           <Text style={styles.gameOverEmoji}>{gameEmoji}</Text>
           <Text style={[styles.gameOverTitle, { color: theme.textPrimary }]}>{gameTitle}</Text>
@@ -552,6 +560,7 @@ export default function RapidScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+      <LinearGradient colors={RAPID_BG} style={StyleSheet.absoluteFillObject} />
       <View style={styles.playHeader}>
         <View style={styles.roundInfo}>
           <Text style={styles.roundText}>الجولة {currentRound}/{TOTAL_ROUNDS}</Text>

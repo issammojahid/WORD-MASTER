@@ -23,6 +23,9 @@ import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { ScreenErrorBoundary } from "@/components/ScreenErrorBoundary";
 import { getPlayerDisplayId } from "@/lib/player-code";
+import { LinearGradient } from "expo-linear-gradient";
+
+const FRIENDS_BG: [string, string, string] = ["#080015", "#0F0025", "#080015"];
 
 type PlayerResult = {
   id: string;
@@ -276,6 +279,7 @@ function FriendsScreenInner() {
 
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+      <LinearGradient colors={FRIENDS_BG} style={StyleSheet.absoluteFillObject} />
       <View style={styles.header}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
