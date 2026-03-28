@@ -2632,13 +2632,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [existing] = await db.select({ id: clans.id }).from(clans).where(ilike(clans.name, name.trim())).limit(1);
       if (existing) return res.status(400).json({ error: "name_taken" });
 
-      const [newClan] = await db.insert(clans).values({ name: name.trim(), emoji, leaderId: playerId }).returning();
+      const result = await db.transaction(async (tx) => {
+        const [newClan] = await tx.insert(clans).values({ name: name.trim(), emoji, leaderId: playerId }).returning();
+        await tx.insert(clanMembers).values({ clanId: newClan.id, playerId, role: "leader", warScore: 0 });
+        await tx.update(playerProfiles).set({ coins: player.coins - 500, clanId: newClan.id, updatedAt: new Date() }).where(eq(playerProfiles.id, playerId));
+        return { clan: newClan, coins: player.coins - 500 };
+      });
 
-      await db.insert(clanMembers).values({ clanId: newClan.id, playerId, role: "leader", warScore: 0 });
-
-      await db.update(playerProfiles).set({ coins: player.coins - 500, clanId: newClan.id, updatedAt: new Date() }).where(eq(playerProfiles.id, playerId));
-
-      res.json({ clan: newClan, coins: player.coins - 500 });
+      res.json(result);
     } catch (e) {
       console.error("POST /api/clans/create error:", e);
       res.status(500).json({ error: "server_error" });
@@ -2662,8 +2663,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const memberCount = await db.select({ count: sql<number>`count(*)` }).from(clanMembers).where(eq(clanMembers.clanId, id));
       if (Number(memberCount[0]?.count ?? 0) >= 20) return res.status(400).json({ error: "clan_full" });
 
-      await db.insert(clanMembers).values({ clanId: id, playerId, role: "member", warScore: 0 });
-      await db.update(playerProfiles).set({ clanId: id, updatedAt: new Date() }).where(eq(playerProfiles.id, playerId));
+      await db.transaction(async (tx) => {
+        await tx.insert(clanMembers).values({ clanId: id, playerId, role: "member", warScore: 0 });
+        await tx.update(playerProfiles).set({ clanId: id, updatedAt: new Date() }).where(eq(playerProfiles.id, playerId));
+      });
 
       res.json({ ok: true });
     } catch (e) {
@@ -2686,25 +2689,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [membership] = await db.select({ id: clanMembers.id }).from(clanMembers).where(and(eq(clanMembers.clanId, id), eq(clanMembers.playerId, playerId))).limit(1);
       if (!membership) return res.status(400).json({ error: "not_a_member" });
 
-      await db.delete(clanMembers).where(and(eq(clanMembers.clanId, id), eq(clanMembers.playerId, playerId)));
-      // Only null the profile's clanId if it still points to THIS clan (guards against stale state)
-      await db.update(playerProfiles).set({ clanId: null, updatedAt: new Date() }).where(and(eq(playerProfiles.id, playerId), eq(playerProfiles.clanId, id)));
+      await db.transaction(async (tx) => {
+        await tx.delete(clanMembers).where(and(eq(clanMembers.clanId, id), eq(clanMembers.playerId, playerId)));
+        // Only null the profile's clanId if it still points to THIS clan
+        await tx.update(playerProfiles).set({ clanId: null, updatedAt: new Date() }).where(and(eq(playerProfiles.id, playerId), eq(playerProfiles.clanId, id)));
 
-      // Recalculate totalWarScore after member left
-      const remaining = await db.select({ warScore: clanMembers.warScore }).from(clanMembers).where(eq(clanMembers.clanId, id));
-      const total = remaining.reduce((sum, m) => sum + (m.warScore ?? 0), 0);
-      await db.update(clans).set({ totalWarScore: total }).where(eq(clans.id, id));
+        // Recalculate totalWarScore after member left
+        const remaining = await tx.select({ warScore: clanMembers.warScore }).from(clanMembers).where(eq(clanMembers.clanId, id));
+        const total = remaining.reduce((sum, m) => sum + (m.warScore ?? 0), 0);
+        await tx.update(clans).set({ totalWarScore: total }).where(eq(clans.id, id));
 
-      // If leader left, disband or promote
-      if (clan.leaderId === playerId) {
-        const others = await db.select().from(clanMembers).where(eq(clanMembers.clanId, id)).orderBy(desc(clanMembers.warScore)).limit(1);
-        if (others.length > 0) {
-          await db.update(clans).set({ leaderId: others[0].playerId }).where(eq(clans.id, id));
-          await db.update(clanMembers).set({ role: "leader" }).where(and(eq(clanMembers.clanId, id), eq(clanMembers.playerId, others[0].playerId)));
-        } else {
-          await db.delete(clans).where(eq(clans.id, id));
+        // If leader left, disband or promote
+        if (clan.leaderId === playerId) {
+          const others = await tx.select().from(clanMembers).where(eq(clanMembers.clanId, id)).orderBy(desc(clanMembers.warScore)).limit(1);
+          if (others.length > 0) {
+            await tx.update(clans).set({ leaderId: others[0].playerId }).where(eq(clans.id, id));
+            await tx.update(clanMembers).set({ role: "leader" }).where(and(eq(clanMembers.clanId, id), eq(clanMembers.playerId, others[0].playerId)));
+          } else {
+            await tx.delete(clans).where(eq(clans.id, id));
+          }
         }
-      }
+      });
 
       res.json({ ok: true });
     } catch (e) {
@@ -2729,13 +2734,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [targetMembership] = await db.select({ id: clanMembers.id }).from(clanMembers).where(and(eq(clanMembers.clanId, id), eq(clanMembers.playerId, targetPlayerId))).limit(1);
       if (!targetMembership) return res.status(400).json({ error: "not_a_member" });
 
-      await db.delete(clanMembers).where(and(eq(clanMembers.clanId, id), eq(clanMembers.playerId, targetPlayerId)));
-      // Only null profile.clanId if it still points to THIS clan
-      await db.update(playerProfiles).set({ clanId: null, updatedAt: new Date() }).where(and(eq(playerProfiles.id, targetPlayerId), eq(playerProfiles.clanId, id)));
-
-      const remaining = await db.select({ warScore: clanMembers.warScore }).from(clanMembers).where(eq(clanMembers.clanId, id));
-      const total = remaining.reduce((sum, m) => sum + (m.warScore ?? 0), 0);
-      await db.update(clans).set({ totalWarScore: total }).where(eq(clans.id, id));
+      await db.transaction(async (tx) => {
+        await tx.delete(clanMembers).where(and(eq(clanMembers.clanId, id), eq(clanMembers.playerId, targetPlayerId)));
+        // Only null profile.clanId if it still points to THIS clan
+        await tx.update(playerProfiles).set({ clanId: null, updatedAt: new Date() }).where(and(eq(playerProfiles.id, targetPlayerId), eq(playerProfiles.clanId, id)));
+        const remaining = await tx.select({ warScore: clanMembers.warScore }).from(clanMembers).where(eq(clanMembers.clanId, id));
+        const total = remaining.reduce((sum, m) => sum + (m.warScore ?? 0), 0);
+        await tx.update(clans).set({ totalWarScore: total }).where(eq(clans.id, id));
+      });
 
       res.json({ ok: true });
     } catch (e) {

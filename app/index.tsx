@@ -1420,6 +1420,30 @@ export default function HomeScreen() {
             </>
           )}
         </LinearGradient>
+
+        {/* ── CLAN WARS BANNER ────────────────────────── */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/clans"); }}
+          style={{ marginHorizontal: 16, marginTop: 14, marginBottom: 6 }}
+        >
+          <LinearGradient
+            colors={["#1A003D", "#2D006B", "#1A003D"]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={{
+              flexDirection: "row", alignItems: "center", paddingVertical: 12, paddingHorizontal: 16,
+              borderRadius: 18, borderWidth: 1.5, borderColor: "#BF00FF40",
+              gap: 10,
+            }}
+          >
+            <Text style={{ fontSize: 26 }}>⚔️</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>حروب العصابات</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.6)" }}>انضم أو أنشئ عصابة وتنافس أسبوعياً</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#BF00FF" />
+          </LinearGradient>
+        </TouchableOpacity>
       </ScrollView>
 
       {/* ── BOTTOM NAVIGATION ───────────────────────────── */}
@@ -1459,11 +1483,11 @@ export default function HomeScreen() {
           </View>
           <Text style={[styles.navLabel, { color: LOGO.purple }]}>المهام</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/clans")} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/achievements")} activeOpacity={0.7}>
           <View style={styles.navIconWrap}>
-            <Text style={{ fontSize: 22 }}>⚔️</Text>
+            <Ionicons name="trophy" size={22} color={LOGO.yellow} />
           </View>
-          <Text style={[styles.navLabel, { color: "#FF6B00" }]}>العصابات</Text>
+          <Text style={[styles.navLabel, { color: LOGO.yellow }]}>الإنجازات</Text>
         </TouchableOpacity>
       </LinearGradient>
 
