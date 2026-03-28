@@ -636,27 +636,37 @@ async function handleSeasonEnd() {
 
     console.log(`[ranked] Season ${season.name} ended — distributing rewards...`);
 
-    const DIVISION_REWARDS: Record<string, number> = {
-      diamond: 1000, platinum: 600, gold: 350, silver: 150, bronze: 50,
+    const DIVISION_REWARDS: Record<string, { coins: number; title: string | null }> = {
+      diamond:  { coins: 1000, title: "morocco_legend" },
+      platinum: { coins: 600,  title: "champion_title" },
+      gold:     { coins: 350,  title: "letter_king" },
+      silver:   { coins: 150,  title: "word_master" },
+      bronze:   { coins: 50,   title: null },
     };
 
     const players = await db.select({
       id: playerProfiles.id,
       division: playerProfiles.division,
       peakElo: playerProfiles.peakElo,
+      ownedTitles: playerProfiles.ownedTitles,
     }).from(playerProfiles);
 
     for (const p of players) {
-      const reward = DIVISION_REWARDS[p.division] ?? 50;
+      const reward = DIVISION_REWARDS[p.division ?? "bronze"] ?? DIVISION_REWARDS.bronze;
       const newElo = Math.max(800, Math.floor((p.peakElo ?? 1000) * 0.75));
       const newDivision = calcDivision(newElo);
+      const currentTitles: string[] = Array.isArray(p.ownedTitles) ? (p.ownedTitles as string[]) : [];
+      const newTitles = reward.title && !currentTitles.includes(reward.title)
+        ? [...currentTitles, reward.title]
+        : currentTitles;
       await db.update(playerProfiles).set({
-        coins: sql`coins + ${reward}`,
+        coins: sql`coins + ${reward.coins}`,
         elo: newElo,
         division: newDivision,
         peakElo: newElo,
         seasonWins: 0,
         seasonLosses: 0,
+        ownedTitles: newTitles as any,
         updatedAt: new Date(),
       }).where(eq(playerProfiles.id, p.id));
     }
@@ -2450,6 +2460,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ season: { ...season, daysLeft } });
     } catch (e) {
       console.error("GET /api/ranked/season error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // ── RANKED LEADERBOARD (dedicated endpoint) ────────────────────────────────
+  app.get("/api/ranked/leaderboard", async (_req, res) => {
+    try {
+      const players = await db.select().from(playerProfiles)
+        .orderBy(desc(playerProfiles.elo)).limit(50);
+      const result = players.map((p, idx) => ({
+        rank: idx + 1,
+        id: p.id,
+        name: p.name,
+        skin: p.equippedSkin,
+        equippedTitle: p.equippedTitle || "beginner",
+        level: p.level,
+        wins: p.wins,
+        score: p.totalScore,
+        xp: p.xp,
+        gamesPlayed: p.gamesPlayed,
+        isVip: p.isVip && (!p.vipExpiresAt || new Date(p.vipExpiresAt) > new Date()),
+        elo: p.elo ?? 1000,
+        division: p.division ?? "bronze",
+        seasonWins: p.seasonWins ?? 0,
+        seasonLosses: p.seasonLosses ?? 0,
+      }));
+      res.json(result);
+    } catch (e) {
+      console.error("GET /api/ranked/leaderboard error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });

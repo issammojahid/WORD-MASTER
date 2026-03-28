@@ -1274,12 +1274,12 @@ export default function HomeScreen() {
                 <Text style={[styles.xpText, { color: theme.textMuted }]}>{profile.xp % 100}/100</Text>
               </View>
               {(() => {
-                const DIVISION_MAP: Record<string, { emoji: string; color: string }> = {
-                  bronze:   { emoji: "🥉", color: "#CD7F32" },
-                  silver:   { emoji: "🥈", color: "#A8A8A8" },
-                  gold:     { emoji: "🥇", color: "#FFD700" },
-                  platinum: { emoji: "💠", color: "#00E5FF" },
-                  diamond:  { emoji: "💎", color: "#BF00FF" },
+                const DIVISION_MAP: Record<string, { emoji: string; nameAr: string; color: string }> = {
+                  bronze:   { emoji: "🥉", nameAr: "برونز",  color: "#CD7F32" },
+                  silver:   { emoji: "🥈", nameAr: "فضة",    color: "#A8A8A8" },
+                  gold:     { emoji: "🥇", nameAr: "ذهب",    color: "#FFD700" },
+                  platinum: { emoji: "💠", nameAr: "بلاتين", color: "#00E5FF" },
+                  diamond:  { emoji: "💎", nameAr: "ماسة",   color: "#BF00FF" },
                 };
                 const div = DIVISION_MAP[profile.division ?? "bronze"] ?? DIVISION_MAP.bronze;
                 return (
@@ -1292,6 +1292,9 @@ export default function HomeScreen() {
                     }}>
                       <Text style={{ fontSize: 11 }}>{div.emoji}</Text>
                       <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 10, color: div.color }}>
+                        {div.nameAr}
+                      </Text>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: div.color + "CC" }}>
                         {profile.elo ?? 1000}
                       </Text>
                     </View>

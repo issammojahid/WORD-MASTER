@@ -172,12 +172,25 @@ export default function LeaderboardScreen() {
   const { data: entries = [], isLoading } = useQuery<LeaderboardEntry[]>({
     queryKey: ["/api/leaderboard", tab],
     queryFn: async () => {
-      const url = new URL(`/api/leaderboard?type=${tab}`, getApiUrl());
+      const path = tab === "ranked" ? "/api/ranked/leaderboard" : `/api/leaderboard?type=${tab}`;
+      const url = new URL(path, getApiUrl());
       const res = await fetch(url.toString());
       if (!res.ok) throw new Error("Failed");
       return res.json();
     },
     staleTime: 30_000,
+  });
+
+  const { data: seasonData } = useQuery<{ season: { name: string; daysLeft: number } | null }>({
+    queryKey: ["/api/ranked/season"],
+    queryFn: async () => {
+      const url = new URL("/api/ranked/season", getApiUrl());
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    staleTime: 60_000,
+    enabled: tab === "ranked",
   });
 
   const myEntry = entries.find((e) => e.id === playerId);
@@ -255,6 +268,37 @@ export default function LeaderboardScreen() {
           );
         })}
       </View>
+
+      {/* Season countdown banner */}
+      {tab === "ranked" && seasonData?.season && (
+        <View style={{
+          marginHorizontal: 16, marginBottom: 6,
+          borderRadius: 10, overflow: "hidden",
+        }}>
+          <LinearGradient
+            colors={["#BF00FF22", "#FFD70018", "#00E5FF14"]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={{
+              flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+              paddingHorizontal: 14, paddingVertical: 8,
+              borderWidth: 1, borderColor: "#BF00FF30", borderRadius: 10,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Text style={{ fontSize: 14 }}>🏆</Text>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#FFD700" }}>
+                {seasonData.season.name}
+              </Text>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <Text style={{ fontSize: 12 }}>⏳</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "#00E5FF" }}>
+                {seasonData.season.daysLeft} يوم متبقي
+              </Text>
+            </View>
+          </LinearGradient>
+        </View>
+      )}
 
       {isLoading ? (
         <View style={styles.center}>
