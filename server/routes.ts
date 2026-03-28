@@ -1745,14 +1745,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     // game_reaction: rate-limited emoji with task progress tracking
+    const ALLOWED_REACTION_EMOJIS = new Set(["😂", "🔥", "👏", "💀", "🤝", "😤", "❤️", "😎"]);
     const reactionLastSent = new Map<string, number>();
     socket.on("game_reaction", async (data: { roomId: string; emoji: string; playerName: string }) => {
       const pid = socketPlayerIdMap.get(socket.id);
       if (!pid || !data.roomId || !data.emoji) return;
+      if (!ALLOWED_REACTION_EMOJIS.has(data.emoji)) return;
       const now = Date.now();
-      const lastSent = reactionLastSent.get(pid) || 0;
+      const rateLimitKey = `${pid}:${data.roomId}`;
+      const lastSent = reactionLastSent.get(rateLimitKey) || 0;
       if (now - lastSent < 5000) return;
-      reactionLastSent.set(pid, now);
+      reactionLastSent.set(rateLimitKey, now);
       socket.to(data.roomId).emit("game_reaction", { emoji: data.emoji, playerName: data.playerName });
       incrementEmojiTaskProgress(pid).catch(() => {});
     });
