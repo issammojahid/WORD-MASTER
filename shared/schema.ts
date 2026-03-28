@@ -274,7 +274,7 @@ export const playerBattlePass = pgTable("player_battle_pass", {
   passXp: integer("pass_xp").notNull().default(0),
   currentTier: integer("current_tier").notNull().default(0),
   premiumUnlocked: boolean("premium_unlocked").notNull().default(false),
-  claimedTiers: jsonb("claimed_tiers").$type<number[]>().notNull().default(sql`'[]'::jsonb`),
+  claimedTiers: jsonb("claimed_tiers").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
 }, (t) => ({
   uniqPlayerSeason: uniqueIndex("player_battle_pass_player_season_unique").on(t.playerId, t.seasonId),

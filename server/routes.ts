@@ -678,8 +678,12 @@ async function handleSeasonEnd() {
     endDate.setDate(endDate.getDate() + 30);
     const monthNames = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
     const name = `موسم ${monthNames[now.getMonth()]} ${now.getFullYear()}`;
-    await db.insert(seasons).values({ name, startDate: now, endDate, status: "active" });
+    const [newSeason] = await db.insert(seasons).values({ name, startDate: now, endDate, status: "active" }).returning({ id: seasons.id });
     console.log(`[ranked] New season created: ${name}`);
+    if (newSeason?.id) {
+      // Note: seedBattlePassTiers is defined later in the file but hoisted as a named async function
+      seedBattlePassTiers(newSeason.id).catch((e) => console.error("[battle-pass] season rollover seed error:", e));
+    }
   } catch (e) {
     console.error("[ranked] handleSeasonEnd error:", e);
   }
@@ -1230,14 +1234,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 }
               }
 
-              // ── Battle Pass XP: +20 per win, +10 per game played ───────
+              // ── Battle Pass XP: +10 per game played, +10 bonus for winner (= +20 total) ──
               (async () => {
                 try {
+                  const winnerSocketId = hasClearWinner ? sortedByScore[0].id : null;
                   for (const player of room.players) {
                     const pid = socketPlayerIdMap.get(player.id);
                     if (!pid) continue;
-                    const isWinner = hasClearWinner && pid === socketPlayerIdMap.get(sortedByScore[0].id);
-                    await awardBattlePassXp(pid, isWinner ? BP_XP_WIN : BP_XP_GAME);
+                    const xp = BP_XP_GAME + (hasClearWinner && player.id === winnerSocketId ? (BP_XP_WIN - BP_XP_GAME) : 0);
+                    await awardBattlePassXp(pid, xp);
                   }
                 } catch (err) {
                   console.error("[battle-pass] game xp award error:", err);
@@ -2955,7 +2960,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (track === "premium" && !pass.premiumUnlocked) return res.status(403).json({ error: "premium_not_unlocked" });
 
       const claimedKey = `${tierNum}_${track}`;
-      const claimedArr: string[] = Array.isArray(pass.claimedTiers) ? (pass.claimedTiers as unknown as string[]) : [];
+      const claimedArr: string[] = Array.isArray(pass.claimedTiers) ? pass.claimedTiers : [];
       if (claimedArr.includes(claimedKey)) return res.status(400).json({ error: "already_claimed" });
 
       const [tierDef] = await db.select().from(battlePassTiers)
@@ -2998,7 +3003,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await db.transaction(async (tx) => {
         await tx.update(playerProfiles).set(updates as Parameters<typeof tx.update>[1]).where(eq(playerProfiles.id, playerId));
         await tx.update(playerBattlePass).set({
-          claimedTiers: newClaimed as unknown as number[],
+          claimedTiers: newClaimed,
           updatedAt: new Date(),
         }).where(and(eq(playerBattlePass.playerId, playerId), eq(playerBattlePass.seasonId, activeSeason.id)));
       });
