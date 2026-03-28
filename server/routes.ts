@@ -1734,15 +1734,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       reactionLastSent.set(pid, now);
       socket.to(data.roomId).emit("game_reaction", { emoji: data.emoji, playerName: data.playerName });
       try {
-        const taskDef = await db.select({ id: dailyTaskDefs.id, key: dailyTaskDefs.key }).from(dailyTaskDefs)
-          .where(ilike(dailyTaskDefs.type, "%emote%")).limit(1);
-        if (taskDef.length > 0) {
-          const today = new Date().toISOString().slice(0, 10);
+        const today = new Date().toISOString().slice(0, 10);
+        const emojiTaskKeys = TASK_POOL.filter(t => t.type === "emojis").map(t => t.key);
+        for (const taskKey of emojiTaskKeys) {
+          const def = TASK_POOL.find(d => d.key === taskKey);
+          if (!def) continue;
           const existing = await db.select({ id: playerDailyTasks.id, progress: playerDailyTasks.progress, completed: playerDailyTasks.completed })
             .from(playerDailyTasks)
-            .where(and(eq(playerDailyTasks.playerId, pid), eq(playerDailyTasks.taskKey, taskDef[0].key), eq(playerDailyTasks.assignedDate, today))).limit(1);
+            .where(and(
+              eq(playerDailyTasks.playerId, pid),
+              eq(playerDailyTasks.taskKey, taskKey),
+              eq(playerDailyTasks.assignedDate, today)
+            )).limit(1);
           if (existing.length > 0 && !existing[0].completed) {
-            await db.update(playerDailyTasks).set({ progress: existing[0].progress + 1 })
+            const newProgress = Math.min(existing[0].progress + 1, def.target);
+            await db.update(playerDailyTasks)
+              .set({ progress: newProgress, completed: newProgress >= def.target })
               .where(eq(playerDailyTasks.id, existing[0].id));
           }
         }
