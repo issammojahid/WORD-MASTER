@@ -2132,12 +2132,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Disconnect
     socket.on("disconnect", () => {
       console.log("Socket disconnected:", socket.id);
-      // Capture playerId before deletion for cleanup tasks
-      const disconnectPid = socketPlayerIdMap.get(socket.id);
       socketPlayerIdMap.delete(socket.id);
-
-      // Note: reactionLastSentMap entries for disconnecting player are intentionally
-      // kept until natural TTL expiry (5s) to prevent reconnect-based cooldown bypass.
+      // Note: reactionLastSentMap entries are kept until TTL expiry via periodic cleanup
+      // to prevent reconnect-based cooldown bypass.
 
       // Refund coin entry for players who disconnect while in matchmaking queue
       const queueEntry = matchmakingQueue.find((p) => p.id === socket.id);
