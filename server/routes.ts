@@ -2428,6 +2428,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!betOnPlayerId) return res.status(400).json({ success: false, error: "invalid_target" });
       const isPlayerInRoom = room.players.some(p => socketPlayerIdMap.get(p.id) === spectatorId);
       if (isPlayerInRoom) return res.status(403).json({ success: false, error: "players_cannot_bet" });
+      // Enforce spectator membership: spectatorId must correspond to an active spectator socket
+      const spectatorSocket = [...socketPlayerIdMap.entries()].find(([, pid]) => pid === spectatorId)?.[0];
+      const spectateRoomSet = roomSpectators.get(roomId);
+      if (!spectatorSocket || !spectateRoomSet || !spectateRoomSet.has(spectatorSocket)) {
+        return res.status(403).json({ success: false, error: "not_spectating" });
+      }
       const existingBet = await db.select({ id: spectatorBets.id }).from(spectatorBets)
         .where(and(eq(spectatorBets.roomId, roomId), eq(spectatorBets.spectatorId, spectatorId))).limit(1);
       if (existingBet.length > 0) return res.status(409).json({ success: false, error: "already_bet" });
