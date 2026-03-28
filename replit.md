@@ -13,6 +13,16 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
 
 ## Recent Features Added
 
+- **Clan Wars / نظام العصابات (Task #5)**:
+  - **Schema**: `clans` table (id, name, emoji, leader_id, total_war_score, created_at), `clan_members` table (id, clan_id, player_id, war_score, role, joined_at), nullable `clan_id` column on `player_profiles`
+  - **Backend Routes**: `GET /api/clans/leaderboard` (top 10), `GET /api/clans/search?q=` (search by name), `GET /api/clans/:id` (detail + member list + rank), `POST /api/clans/create` (costs 500 coins), `POST /api/clans/:id/join`, `POST /api/clans/:id/leave`, `POST /api/clans/:id/kick`, `POST /api/clans/:id/rename`
+  - **War Score**: Every match win adds +1 to `clan_members.war_score` for the winner and +1 to `clans.total_war_score` in the `next_round` → game_over handler
+  - **Weekly Cron**: Every Monday 00:05 — distributes rewards (1st: 300 coins/member, 2nd: 150, 3rd: 75) then resets all war scores
+  - **Frontend**: `app/clans.tsx` — two-tab screen (عصابتي + الترتيب), create/join modals with clan emoji picker, member list with war scores, kick/leave functionality, weekly war info card
+  - **Home Screen**: Bottom nav "العصابات" ⚔️ button (replaced Achievements) navigates to `/clans`
+  - **PlayerContext**: `clanId: string | null` field added to `PlayerProfile` type + default + server merge
+  - Files: `shared/schema.ts`, `server/routes.ts`, `app/clans.tsx`, `contexts/PlayerContext.tsx`, `app/index.tsx`
+
 - **Shop UI Rebuild (Task #2)**:
   - Rebuilt `app/shop.tsx` with premium mobile game styling while preserving all game logic exactly
   - Enhanced design tokens (`L` object) with deeper dark theme colors, additional tokens (`cardInner`, `purpleDeep`, `goldGlow`, `headerGrad1/2`)

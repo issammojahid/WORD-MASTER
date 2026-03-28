@@ -50,6 +50,8 @@ export const playerProfiles = pgTable("player_profiles", {
   isVip: boolean("is_vip").notNull().default(false),
   vipExpiresAt: timestamp("vip_expires_at"),
   vipSubscriptionId: text("vip_subscription_id"),
+  // ── Clan Wars ──────────────────────────────────────────────────────────────
+  clanId: varchar("clan_id"),
   // ── Ranked Season System ───────────────────────────────────────────────────
   elo: integer("elo").notNull().default(1000),
   division: text("division").notNull().default("silver"),
@@ -248,3 +250,26 @@ export const coinGifts = pgTable("coin_gifts", {
 });
 
 export type CoinGift = typeof coinGifts.$inferSelect;
+
+// ── CLAN WARS ──────────────────────────────────────────────────────────────
+export const clans = pgTable("clans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  emoji: text("emoji").notNull().default("⚔️"),
+  leaderId: varchar("leader_id").notNull(),
+  totalWarScore: integer("total_war_score").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export type Clan = typeof clans.$inferSelect;
+
+export const clanMembers = pgTable("clan_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clanId: varchar("clan_id").notNull(),
+  playerId: varchar("player_id").notNull(),
+  warScore: integer("war_score").notNull().default(0),
+  role: text("role").notNull().default("member"),
+  joinedAt: timestamp("joined_at").notNull().default(sql`now()`),
+});
+
+export type ClanMember = typeof clanMembers.$inferSelect;

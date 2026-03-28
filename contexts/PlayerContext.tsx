@@ -237,6 +237,8 @@ export type PlayerProfile = {
   // VIP
   isVip: boolean;
   vipExpiresAt: string | null;
+  // Clan Wars
+  clanId: string | null;
   // Ranked Season
   elo: number;
   division: string;
@@ -305,6 +307,7 @@ const defaultProfile: PlayerProfile = {
   equippedTitle: "beginner",
   isVip: false,
   vipExpiresAt: null,
+  clanId: null,
   elo: 1000,
   division: "silver",
   seasonWins: 0,
@@ -427,6 +430,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               isVip: sp.isVip ?? false,
               vipExpiresAt: sp.vipExpiresAt ?? null,
               elo: sp.elo ?? parsed?.elo ?? 1000,
+              clanId: sp.clanId ?? parsed?.clanId ?? null,
               division: sp.division ?? parsed?.division ?? "bronze",
               seasonWins: sp.seasonWins ?? parsed?.seasonWins ?? 0,
               seasonLosses: sp.seasonLosses ?? parsed?.seasonLosses ?? 0,

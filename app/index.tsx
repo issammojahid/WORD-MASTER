@@ -1459,11 +1459,11 @@ export default function HomeScreen() {
           </View>
           <Text style={[styles.navLabel, { color: LOGO.purple }]}>المهام</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/achievements")} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/clans")} activeOpacity={0.7}>
           <View style={styles.navIconWrap}>
-            <Ionicons name="trophy" size={22} color={LOGO.yellow} />
+            <Text style={{ fontSize: 22 }}>⚔️</Text>
           </View>
-          <Text style={[styles.navLabel, { color: LOGO.yellow }]}>الإنجازات</Text>
+          <Text style={[styles.navLabel, { color: "#FF6B00" }]}>العصابات</Text>
         </TouchableOpacity>
       </LinearGradient>
 

@@ -19,7 +19,7 @@ import {
 import { validateWord, CATEGORY_MAP, getWordsForLetter, type WordCategory } from "./wordDatabase";
 import { ARABIC_LETTERS } from "./gameLogic";
 import { db } from "./db";
-import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, friendRequests, playerDailyTasks, playerAchievements, roomInvites, dailyTaskDefs, achievementDefs, coinGifts, seasons } from "@shared/schema";
+import { playerProfiles, dailySpins, winStreaks, tournaments, tournamentPlayers, tournamentMatches, friends, friendRequests, playerDailyTasks, playerAchievements, roomInvites, dailyTaskDefs, achievementDefs, coinGifts, seasons, clans, clanMembers } from "@shared/schema";
 import { eq, and, desc, asc, or, ilike, ne, isNotNull, sql } from "drizzle-orm";
 import cron from "node-cron";
 import { sendPushNotification, sendDailyTaskReminders, sendStreakResetWarnings, sendSeasonEndingNotifications } from "./notifications";
@@ -685,6 +685,42 @@ async function handleSeasonEnd() {
   }
 }
 
+// ── CLAN WAR: weekly reward distribution & score reset ────────────────────────
+async function handleClanWarWeeklyEnd() {
+  try {
+    // Rank clans by totalWarScore
+    const allClans = await db.select().from(clans).orderBy(desc(clans.totalWarScore));
+    if (allClans.length === 0) return;
+
+    const rewardsByRank: Record<number, number> = { 1: 300, 2: 150, 3: 75 };
+
+    for (let i = 0; i < allClans.length; i++) {
+      const clan = allClans[i];
+      const rank = i + 1;
+      const rewardPerMember = rewardsByRank[rank] ?? 0;
+
+      const members = await db.select({ playerId: clanMembers.playerId }).from(clanMembers).where(eq(clanMembers.clanId, clan.id));
+
+      if (rewardPerMember > 0) {
+        for (const m of members) {
+          const [prof] = await db.select({ coins: playerProfiles.coins }).from(playerProfiles).where(eq(playerProfiles.id, m.playerId)).limit(1);
+          if (prof) {
+            await db.update(playerProfiles).set({ coins: prof.coins + rewardPerMember, updatedAt: new Date() }).where(eq(playerProfiles.id, m.playerId));
+          }
+        }
+      }
+
+      // Reset war scores for all members
+      await db.update(clanMembers).set({ warScore: 0 }).where(eq(clanMembers.clanId, clan.id));
+      await db.update(clans).set({ totalWarScore: 0 }).where(eq(clans.id, clan.id));
+    }
+
+    console.log(`[clan-war] Weekly rewards distributed to top ${Math.min(allClans.length, 3)} clans`);
+  } catch (e) {
+    console.error("[clan-war] handleClanWarWeeklyEnd error:", e);
+  }
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
@@ -1074,6 +1110,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     console.error("[ranked] Elo update error:", err);
                   }
                 })();
+              }
+            }
+
+            // ── Clan war score: winner's clan gets +1 ─────────────────────
+            if (room.players.length >= 2) {
+              const sortedByScore = [...room.players].sort((a, b) => b.score - a.score);
+              const topScore = sortedByScore[0].score;
+              const secondScore = sortedByScore[1].score;
+              const hasClearWinner = topScore > secondScore;
+              if (hasClearWinner) {
+                const winnerId = socketPlayerIdMap.get(sortedByScore[0].id);
+                if (winnerId) {
+                  (async () => {
+                    try {
+                      const [winnerProf] = await db.select({ clanId: playerProfiles.clanId }).from(playerProfiles).where(eq(playerProfiles.id, winnerId)).limit(1);
+                      if (winnerProf?.clanId) {
+                        await db.update(clanMembers).set({ warScore: sql`war_score + 1` }).where(and(eq(clanMembers.clanId, winnerProf.clanId), eq(clanMembers.playerId, winnerId)));
+                        await db.update(clans).set({ totalWarScore: sql`total_war_score + 1` }).where(eq(clans.id, winnerProf.clanId));
+                      }
+                    } catch (err) {
+                      console.error("[clan-war] warScore update error:", err);
+                    }
+                  })();
+                }
               }
             }
           } else if (room) {
@@ -2493,6 +2553,206 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── CLAN WARS ─────────────────────────────────────────────────────────────
+
+  // GET /api/clans/leaderboard — top 10 clans by total war score
+  app.get("/api/clans/leaderboard", async (_req, res) => {
+    try {
+      const top = await db.select().from(clans).orderBy(desc(clans.totalWarScore)).limit(10);
+      const result = await Promise.all(top.map(async (c, idx) => {
+        const memberCount = await db.select({ count: sql<number>`count(*)` }).from(clanMembers).where(eq(clanMembers.clanId, c.id));
+        return { ...c, rank: idx + 1, memberCount: Number(memberCount[0]?.count ?? 0) };
+      }));
+      res.json(result);
+    } catch (e) {
+      console.error("GET /api/clans/leaderboard error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // GET /api/clans/search?q= — search clans by name
+  app.get("/api/clans/search", async (req, res) => {
+    try {
+      const q = (req.query.q as string || "").trim();
+      if (q.length < 2) return res.json([]);
+      const results = await db.select().from(clans).where(ilike(clans.name, `%${q}%`)).limit(20);
+      const withCounts = await Promise.all(results.map(async (c) => {
+        const memberCount = await db.select({ count: sql<number>`count(*)` }).from(clanMembers).where(eq(clanMembers.clanId, c.id));
+        return { ...c, memberCount: Number(memberCount[0]?.count ?? 0) };
+      }));
+      return res.json(withCounts);
+    } catch (e) {
+      console.error("GET /api/clans/search error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // GET /api/clans/:id — get clan detail with members
+  app.get("/api/clans/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [clan] = await db.select().from(clans).where(eq(clans.id, id)).limit(1);
+      if (!clan) return res.status(404).json({ error: "not_found" });
+
+      const members = await db.select({
+        id: clanMembers.id,
+        playerId: clanMembers.playerId,
+        warScore: clanMembers.warScore,
+        role: clanMembers.role,
+        joinedAt: clanMembers.joinedAt,
+        name: playerProfiles.name,
+        equippedSkin: playerProfiles.equippedSkin,
+        level: playerProfiles.level,
+      }).from(clanMembers)
+        .innerJoin(playerProfiles, eq(clanMembers.playerId, playerProfiles.id))
+        .where(eq(clanMembers.clanId, id))
+        .orderBy(desc(clanMembers.warScore));
+
+      const leaderboardRank = await db.select({ count: sql<number>`count(*)` }).from(clans).where(sql`total_war_score > ${clan.totalWarScore}`);
+      const rank = Number(leaderboardRank[0]?.count ?? 0) + 1;
+
+      res.json({ ...clan, members, rank });
+    } catch (e) {
+      console.error("GET /api/clans/:id error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // POST /api/clans/create — costs 500 coins
+  app.post("/api/clans/create", async (req, res) => {
+    try {
+      const { playerId, name, emoji } = req.body as { playerId: string; name: string; emoji: string };
+      if (!playerId || !name?.trim() || !emoji) return res.status(400).json({ error: "missing_params" });
+
+      const [player] = await db.select({ coins: playerProfiles.coins, clanId: playerProfiles.clanId }).from(playerProfiles).where(eq(playerProfiles.id, playerId)).limit(1);
+      if (!player) return res.status(404).json({ error: "player_not_found" });
+      if (player.clanId) return res.status(400).json({ error: "already_in_clan" });
+      if (player.coins < 500) return res.status(400).json({ error: "insufficient_coins" });
+
+      const [existing] = await db.select({ id: clans.id }).from(clans).where(ilike(clans.name, name.trim())).limit(1);
+      if (existing) return res.status(400).json({ error: "name_taken" });
+
+      const [newClan] = await db.insert(clans).values({ name: name.trim(), emoji, leaderId: playerId }).returning();
+
+      await db.insert(clanMembers).values({ clanId: newClan.id, playerId, role: "leader", warScore: 0 });
+
+      await db.update(playerProfiles).set({ coins: player.coins - 500, clanId: newClan.id, updatedAt: new Date() }).where(eq(playerProfiles.id, playerId));
+
+      res.json({ clan: newClan, coins: player.coins - 500 });
+    } catch (e) {
+      console.error("POST /api/clans/create error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // POST /api/clans/:id/join
+  app.post("/api/clans/:id/join", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { playerId } = req.body as { playerId: string };
+      if (!playerId) return res.status(400).json({ error: "missing_params" });
+
+      const [clan] = await db.select().from(clans).where(eq(clans.id, id)).limit(1);
+      if (!clan) return res.status(404).json({ error: "not_found" });
+
+      const [player] = await db.select({ clanId: playerProfiles.clanId }).from(playerProfiles).where(eq(playerProfiles.id, playerId)).limit(1);
+      if (!player) return res.status(404).json({ error: "player_not_found" });
+      if (player.clanId) return res.status(400).json({ error: "already_in_clan" });
+
+      const memberCount = await db.select({ count: sql<number>`count(*)` }).from(clanMembers).where(eq(clanMembers.clanId, id));
+      if (Number(memberCount[0]?.count ?? 0) >= 20) return res.status(400).json({ error: "clan_full" });
+
+      await db.insert(clanMembers).values({ clanId: id, playerId, role: "member", warScore: 0 });
+      await db.update(playerProfiles).set({ clanId: id, updatedAt: new Date() }).where(eq(playerProfiles.id, playerId));
+
+      res.json({ ok: true });
+    } catch (e) {
+      console.error("POST /api/clans/:id/join error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // POST /api/clans/:id/leave
+  app.post("/api/clans/:id/leave", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { playerId } = req.body as { playerId: string };
+      if (!playerId) return res.status(400).json({ error: "missing_params" });
+
+      const [clan] = await db.select().from(clans).where(eq(clans.id, id)).limit(1);
+      if (!clan) return res.status(404).json({ error: "not_found" });
+
+      await db.delete(clanMembers).where(and(eq(clanMembers.clanId, id), eq(clanMembers.playerId, playerId)));
+      await db.update(playerProfiles).set({ clanId: null, updatedAt: new Date() }).where(eq(playerProfiles.id, playerId));
+
+      // Recalculate totalWarScore after member left
+      const remaining = await db.select({ warScore: clanMembers.warScore }).from(clanMembers).where(eq(clanMembers.clanId, id));
+      const total = remaining.reduce((sum, m) => sum + (m.warScore ?? 0), 0);
+      await db.update(clans).set({ totalWarScore: total }).where(eq(clans.id, id));
+
+      // If leader left, disband or promote
+      if (clan.leaderId === playerId) {
+        const others = await db.select().from(clanMembers).where(eq(clanMembers.clanId, id)).orderBy(desc(clanMembers.warScore)).limit(1);
+        if (others.length > 0) {
+          await db.update(clans).set({ leaderId: others[0].playerId }).where(eq(clans.id, id));
+          await db.update(clanMembers).set({ role: "leader" }).where(and(eq(clanMembers.clanId, id), eq(clanMembers.playerId, others[0].playerId)));
+        } else {
+          await db.delete(clans).where(eq(clans.id, id));
+        }
+      }
+
+      res.json({ ok: true });
+    } catch (e) {
+      console.error("POST /api/clans/:id/leave error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // POST /api/clans/:id/kick — leader kicks a member
+  app.post("/api/clans/:id/kick", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { leaderId, targetPlayerId } = req.body as { leaderId: string; targetPlayerId: string };
+      if (!leaderId || !targetPlayerId) return res.status(400).json({ error: "missing_params" });
+
+      const [clan] = await db.select().from(clans).where(eq(clans.id, id)).limit(1);
+      if (!clan) return res.status(404).json({ error: "not_found" });
+      if (clan.leaderId !== leaderId) return res.status(403).json({ error: "not_leader" });
+      if (targetPlayerId === leaderId) return res.status(400).json({ error: "cannot_kick_self" });
+
+      await db.delete(clanMembers).where(and(eq(clanMembers.clanId, id), eq(clanMembers.playerId, targetPlayerId)));
+      await db.update(playerProfiles).set({ clanId: null, updatedAt: new Date() }).where(eq(playerProfiles.id, targetPlayerId));
+
+      const remaining = await db.select({ warScore: clanMembers.warScore }).from(clanMembers).where(eq(clanMembers.clanId, id));
+      const total = remaining.reduce((sum, m) => sum + (m.warScore ?? 0), 0);
+      await db.update(clans).set({ totalWarScore: total }).where(eq(clans.id, id));
+
+      res.json({ ok: true });
+    } catch (e) {
+      console.error("POST /api/clans/:id/kick error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // POST /api/clans/:id/rename — leader renames clan
+  app.post("/api/clans/:id/rename", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { leaderId, name } = req.body as { leaderId: string; name: string };
+      if (!leaderId || !name?.trim()) return res.status(400).json({ error: "missing_params" });
+
+      const [clan] = await db.select().from(clans).where(eq(clans.id, id)).limit(1);
+      if (!clan) return res.status(404).json({ error: "not_found" });
+      if (clan.leaderId !== leaderId) return res.status(403).json({ error: "not_leader" });
+
+      await db.update(clans).set({ name: name.trim() }).where(eq(clans.id, id));
+      res.json({ ok: true });
+    } catch (e) {
+      console.error("POST /api/clans/:id/rename error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
   // ── FRIENDS ───────────────────────────────────────────────────────────────
   app.get("/api/players/search", async (req, res) => {
     try {
@@ -3585,6 +3845,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   cron.schedule("0 0 * * *", () => {
     console.log("[cron] Checking season end (midnight)");
     handleSeasonEnd().catch(console.error);
+  });
+
+  // Every Monday at 00:05 — distribute clan war rewards and reset scores
+  cron.schedule("5 0 * * 1", () => {
+    console.log("[cron] Clan war weekly payout (Monday 00:05)");
+    handleClanWarWeeklyEnd().catch(console.error);
   });
 
   console.log("[cron] Push notification cron jobs scheduled");
