@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, jsonb, boolean, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -270,6 +270,8 @@ export const clanMembers = pgTable("clan_members", {
   warScore: integer("war_score").notNull().default(0),
   role: text("role").notNull().default("member"),
   joinedAt: timestamp("joined_at").notNull().default(sql`now()`),
-});
+}, (t) => ({
+  uniqMembership: uniqueIndex("clan_members_clan_player_unique").on(t.clanId, t.playerId),
+}));
 
 export type ClanMember = typeof clanMembers.$inferSelect;
