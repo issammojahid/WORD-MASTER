@@ -2132,8 +2132,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Disconnect
     socket.on("disconnect", () => {
       console.log("Socket disconnected:", socket.id);
-      // Capture before deletion so settleBets can still reverse-lookup remaining players
+      // Capture playerId before deletion for cleanup tasks
+      const disconnectPid = socketPlayerIdMap.get(socket.id);
       socketPlayerIdMap.delete(socket.id);
+
+      // Prune reactionLastSentMap entries for disconnecting player (memory leak prevention)
+      if (disconnectPid) {
+        for (const key of reactionLastSentMap.keys()) {
+          if (key.startsWith(`${disconnectPid}:`)) reactionLastSentMap.delete(key);
+        }
+      }
 
       // Refund coin entry for players who disconnect while in matchmaking queue
       const queueEntry = matchmakingQueue.find((p) => p.id === socket.id);
@@ -2179,14 +2187,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           } else {
             rapidRooms.delete(roomId);
           }
-        }
-      }
-
-      // Prune reactionLastSentMap entries for disconnecting player to avoid memory leaks
-      const disconnectingPid = socketPlayerIdMap.get(socket.id);
-      if (disconnectingPid) {
-        for (const key of reactionLastSentMap.keys()) {
-          if (key.startsWith(`${disconnectingPid}:`)) reactionLastSentMap.delete(key);
         }
       }
 
