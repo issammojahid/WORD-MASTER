@@ -1734,13 +1734,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       reactionLastSent.set(pid, now);
       socket.to(data.roomId).emit("game_reaction", { emoji: data.emoji, playerName: data.playerName });
       try {
-        const taskDef = await db.select({ id: dailyTaskDefs.id }).from(dailyTaskDefs)
-          .where(ilike(dailyTaskDefs.taskType, "%emote%")).limit(1);
+        const taskDef = await db.select({ id: dailyTaskDefs.id, key: dailyTaskDefs.key }).from(dailyTaskDefs)
+          .where(ilike(dailyTaskDefs.type, "%emote%")).limit(1);
         if (taskDef.length > 0) {
           const today = new Date().toISOString().slice(0, 10);
           const existing = await db.select({ id: playerDailyTasks.id, progress: playerDailyTasks.progress, completed: playerDailyTasks.completed })
             .from(playerDailyTasks)
-            .where(and(eq(playerDailyTasks.playerId, pid), eq(playerDailyTasks.taskId, taskDef[0].id), eq(playerDailyTasks.date, today))).limit(1);
+            .where(and(eq(playerDailyTasks.playerId, pid), eq(playerDailyTasks.taskKey, taskDef[0].key), eq(playerDailyTasks.assignedDate, today))).limit(1);
           if (existing.length > 0 && !existing[0].completed) {
             await db.update(playerDailyTasks).set({ progress: existing[0].progress + 1 })
               .where(eq(playerDailyTasks.id, existing[0].id));
