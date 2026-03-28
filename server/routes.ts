@@ -1757,6 +1757,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pid = socketPlayerIdMap.get(socket.id);
       if (!pid || !data.roomId || !data.emoji) return;
       if (!ALLOWED_REACTION_EMOJIS.has(data.emoji)) return;
+
+      // Verify socket is a member of the claimed room (main game OR rapid mode)
+      const trackedRoomId = socketRoomMap.get(socket.id);
+      const inMainRoom = trackedRoomId === data.roomId;
+      const rapidRoom = rapidRooms.get(data.roomId);
+      const inRapidRoom = rapidRoom != null && rapidRoom.players.some(p => p.socketId === socket.id);
+      if (!inMainRoom && !inRapidRoom) return;
+
       const now = Date.now();
       const rateLimitKey = `${pid}:${data.roomId}`;
       const lastSent = reactionLastSentMap.get(rateLimitKey) || 0;
