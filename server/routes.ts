@@ -198,6 +198,7 @@ const socketRoomMap = new Map<string, string>();
 const socketPlayerIdMap = new Map<string, string>();
 
 // ── Shared helper: increment emoji task progress for a player ────────────────
+// Mirrors the emojis-type logic in POST /api/task-progress (same code path).
 async function incrementEmojiTaskProgress(playerId: string): Promise<void> {
   const today = new Date().toISOString().slice(0, 10);
   const emojiTaskDefs = TASK_POOL.filter(t => t.type === "emojis");
@@ -211,9 +212,11 @@ async function incrementEmojiTaskProgress(playerId: string): Promise<void> {
       )).limit(1);
     if (rows.length > 0 && !rows[0].claimed) {
       const newProgress = Math.min((rows[0].progress ?? 0) + 1, def.target);
+      // Only update progress (matches /api/task-progress endpoint behavior exactly)
       await db.update(playerDailyTasks)
-        .set({ progress: newProgress, completed: newProgress >= def.target })
+        .set({ progress: newProgress })
         .where(eq(playerDailyTasks.id, rows[0].id));
+      console.log(`[emoji-task] player=${playerId} task=${def.key} progress=${newProgress}/${def.target}`);
     }
   }
 }
@@ -1757,7 +1760,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (now - lastSent < 5000) return;
       reactionLastSent.set(rateLimitKey, now);
       socket.to(data.roomId).emit("game_reaction", { emoji: data.emoji, playerName: data.playerName });
-      incrementEmojiTaskProgress(pid).catch(() => {});
+      incrementEmojiTaskProgress(pid).catch((err) => {
+        console.error(`[emoji-task] Failed to update progress for player=${pid}:`, err);
+      });
     });
 
     // Power card relay — broadcast card activation to all OTHER players in the room
