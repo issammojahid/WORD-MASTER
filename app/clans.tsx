@@ -246,6 +246,36 @@ export default function ClansScreen() {
     );
   };
 
+  // ── Rename clan (leader only) ─────────────────────────────────────────────
+  const [showRename, setShowRename] = useState(false);
+  const [renameInput, setRenameInput] = useState("");
+  const [renaming, setRenaming] = useState(false);
+
+  const handleRename = async () => {
+    if (!myClan || !renameInput.trim() || renaming) return;
+    setRenaming(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      const res = await fetch(new URL(`/api/clans/${myClan.id}/rename`, BASE).toString(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leaderId: playerId, name: renameInput.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        Alert.alert("خطأ", data.error === "not_leader" ? "أنت لست القائد" : "حدث خطأ");
+      } else {
+        setShowRename(false);
+        setRenameInput("");
+        await fetchMyClan();
+        Alert.alert("تم!", "تم تغيير اسم العصابة بنجاح ✅");
+      }
+    } catch {
+      Alert.alert("خطأ", "تعذر الاتصال بالخادم");
+    }
+    setRenaming(false);
+  };
+
   // ── Kick member ───────────────────────────────────────────────────────────
   const handleKick = (targetId: string, targetName: string) => {
     if (!myClan) return;
@@ -319,6 +349,7 @@ export default function ClansScreen() {
               theme={theme}
               onLeave={handleLeave}
               onKick={handleKick}
+              onRename={() => { setRenameInput(myClan.name); setShowRename(true); }}
               onRefresh={async () => { setRefreshing(true); await fetchMyClan(); }}
             />
           ) : (
@@ -382,6 +413,38 @@ export default function ClansScreen() {
                 disabled={!createName.trim() || creating}
               >
                 {creating ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.confirmBtnText}>إنشاء 🗡️</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Rename Clan Modal (leader only) */}
+      <Modal visible={showRename} transparent animationType="fade" onRequestClose={() => setShowRename(false)}>
+        <View style={[styles.modalOverlay, { backgroundColor: "rgba(0,0,0,0.75)" }]}>
+          <View style={[styles.modalCard, { backgroundColor: theme.modalBg }]}>
+            <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>تغيير اسم العصابة</Text>
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>الاسم الجديد</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.inputText }]}
+              value={renameInput}
+              onChangeText={setRenameInput}
+              maxLength={20}
+              textAlign="right"
+              placeholder="اسم العصابة..."
+              placeholderTextColor={theme.inputPlaceholder}
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={[styles.cancelBtn, { backgroundColor: theme.card }]} onPress={() => { setShowRename(false); setRenameInput(""); }}>
+                <Text style={[styles.cancelBtnText, { color: theme.textSecondary }]}>إلغاء</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmBtn, (!renameInput.trim() || renaming) && styles.confirmBtnDisabled]}
+                onPress={handleRename}
+                disabled={!renameInput.trim() || renaming}
+              >
+                {renaming ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.confirmBtnText}>حفظ ✅</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -479,7 +542,7 @@ function NoClanView({ profile, theme, onCreate, onJoin }: { profile: ReturnType<
 }
 
 function MyClanView({
-  clan, playerId, isLeader, myWarScore, theme, onLeave, onKick, onRefresh,
+  clan, playerId, isLeader, myWarScore, theme, onLeave, onKick, onRename, onRefresh,
 }: {
   clan: ClanDetail;
   playerId: string;
@@ -488,6 +551,7 @@ function MyClanView({
   theme: ReturnType<typeof useTheme>["theme"];
   onLeave: () => void;
   onKick: (id: string, name: string) => void;
+  onRename: () => void;
   onRefresh: () => Promise<void>;
 }) {
   return (
@@ -517,8 +581,14 @@ function MyClanView({
           </View>
         </View>
         {isLeader && (
-          <View style={styles.leaderBadge}>
-            <Text style={styles.leaderBadgeText}>👑 القائد</Text>
+          <View style={styles.leaderRow}>
+            <View style={styles.leaderBadge}>
+              <Text style={styles.leaderBadgeText}>👑 القائد</Text>
+            </View>
+            <TouchableOpacity style={styles.renameBtn} onPress={onRename} activeOpacity={0.8}>
+              <Ionicons name="pencil" size={14} color="#BF00FF" />
+              <Text style={styles.renameBtnText}>تغيير الاسم</Text>
+            </TouchableOpacity>
           </View>
         )}
         <Text style={styles.myWarScore}>نقاطك: {myWarScore} ⚔️</Text>
@@ -681,11 +751,18 @@ const styles = StyleSheet.create({
   clanStatValue: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" },
   clanStatLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 2 },
   clanStatDivider: { width: 1, height: 32, backgroundColor: "rgba(255,255,255,0.2)" },
+  leaderRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
   leaderBadge: {
     backgroundColor: "#F5C84220", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4,
-    borderWidth: 1, borderColor: "#F5C84240", marginBottom: 8,
+    borderWidth: 1, borderColor: "#F5C84240",
   },
   leaderBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#F5C842" },
+  renameBtn: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    backgroundColor: "#BF00FF15", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4,
+    borderWidth: 1, borderColor: "#BF00FF30",
+  },
+  renameBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#BF00FF" },
   myWarScore: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "rgba(255,255,255,0.75)" },
 
   warInfoCard: {
