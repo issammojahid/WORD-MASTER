@@ -306,7 +306,7 @@ const defaultProfile: PlayerProfile = {
   isVip: false,
   vipExpiresAt: null,
   elo: 1000,
-  division: "bronze",
+  division: "silver",
   seasonWins: 0,
   seasonLosses: 0,
 };

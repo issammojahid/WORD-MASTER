@@ -52,7 +52,7 @@ export const playerProfiles = pgTable("player_profiles", {
   vipSubscriptionId: text("vip_subscription_id"),
   // ── Ranked Season System ───────────────────────────────────────────────────
   elo: integer("elo").notNull().default(1000),
-  division: text("division").notNull().default("bronze"),
+  division: text("division").notNull().default("silver"),
   peakElo: integer("peak_elo").notNull().default(1000),
   seasonWins: integer("season_wins").notNull().default(0),
   seasonLosses: integer("season_losses").notNull().default(0),

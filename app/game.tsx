@@ -698,6 +698,10 @@ export default function GameScreen() {
     });
 
     // Opponent disconnected without using forfeit — declare me winner
+    socket.on("elo_updated", (data: { elo: number; division: string; delta: number }) => {
+      updateProfile({ elo: data.elo, division: data.division });
+    });
+
     socket.on("player_left", ({ playerId: leftId }: { playerId: string }) => {
       if (isGameOverRef.current) return;
       stopTimer();

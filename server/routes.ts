@@ -2438,7 +2438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gamesPlayed: p.gamesPlayed,
         isVip: p.isVip && (!p.vipExpiresAt || new Date(p.vipExpiresAt) > new Date()),
         elo: p.elo ?? 1000,
-        division: p.division ?? "bronze",
+        division: p.division ?? "silver",
         seasonWins: p.seasonWins ?? 0,
         seasonLosses: p.seasonLosses ?? 0,
       }));
@@ -2482,7 +2482,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gamesPlayed: p.gamesPlayed,
         isVip: p.isVip && (!p.vipExpiresAt || new Date(p.vipExpiresAt) > new Date()),
         elo: p.elo ?? 1000,
-        division: p.division ?? "bronze",
+        division: p.division ?? "silver",
         seasonWins: p.seasonWins ?? 0,
         seasonLosses: p.seasonLosses ?? 0,
       }));
