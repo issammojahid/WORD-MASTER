@@ -263,7 +263,9 @@ export const battlePassTiers = pgTable("battle_pass_tiers", {
   premiumRewardType: text("premium_reward_type").notNull(),
   premiumRewardId: text("premium_reward_id"),
   premiumRewardAmount: integer("premium_reward_amount").notNull().default(0),
-});
+}, (t) => ({
+  uniqSeasonTier: uniqueIndex("battle_pass_tiers_season_tier_unique").on(t.seasonId, t.tier),
+}));
 
 export type BattlePassTier = typeof battlePassTiers.$inferSelect;
 

@@ -750,13 +750,13 @@ async function seedBattlePassTiers(seasonId: string) {
 }
 
 async function getOrCreatePlayerBattlePass(playerId: string, seasonId: string) {
-  const [existing] = await db.select().from(playerBattlePass)
-    .where(and(eq(playerBattlePass.playerId, playerId), eq(playerBattlePass.seasonId, seasonId))).limit(1);
-  if (existing) return existing;
-  const [created] = await db.insert(playerBattlePass).values({
+  // ON CONFLICT DO NOTHING prevents race conditions on simultaneous first-write
+  await db.insert(playerBattlePass).values({
     playerId, seasonId, passXp: 0, currentTier: 0, premiumUnlocked: false, claimedTiers: [],
-  }).returning();
-  return created;
+  }).onConflictDoNothing();
+  const [pass] = await db.select().from(playerBattlePass)
+    .where(and(eq(playerBattlePass.playerId, playerId), eq(playerBattlePass.seasonId, seasonId))).limit(1);
+  return pass;
 }
 
 async function awardBattlePassXp(playerId: string, xpAmount: number) {
@@ -2941,8 +2941,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           )).returning({ id: playerBattlePass.id });
         if (updated.length === 0) throw Object.assign(new Error("already_premium"), { statusCode: 400 });
 
-        await tx.update(playerProfiles).set({ coins: profile.coins - BP_PREMIUM_COST, updatedAt: new Date() }).where(eq(playerProfiles.id, playerId));
-        newCoins = profile.coins - BP_PREMIUM_COST;
+        // Use SQL arithmetic for coin deduction to avoid stale-write under concurrent coin mutations
+        const [updatedProfile] = await tx.update(playerProfiles)
+          .set({ coins: sql`coins - ${BP_PREMIUM_COST}`, updatedAt: new Date() })
+          .where(and(eq(playerProfiles.id, playerId), sql`coins >= ${BP_PREMIUM_COST}`))
+          .returning({ coins: playerProfiles.coins });
+        if (!updatedProfile) throw Object.assign(new Error("insufficient_coins"), { statusCode: 400 });
+        newCoins = updatedProfile.coins;
       });
 
       res.json({ ok: true, coins: newCoins });
@@ -2996,12 +3001,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const profileUpdates: Partial<typeof playerProfiles.$inferInsert> = { updatedAt: new Date() };
 
+        resultNewCoins = profile.coins;
         if (rewardType === "coins") {
-          profileUpdates.coins = profile.coins + rewardAmt;
-          resultNewCoins = profile.coins + rewardAmt;
+          // Atomic coin increment to avoid stale-write under concurrent coin mutations
+          const [updProf] = await tx.update(playerProfiles)
+            .set({ coins: sql`coins + ${rewardAmt}`, updatedAt: new Date() })
+            .where(eq(playerProfiles.id, playerId))
+            .returning({ coins: playerProfiles.coins });
+          resultNewCoins = updProf?.coins ?? profile.coins + rewardAmt;
           grantedLabel.push(`🪙 +${rewardAmt}`);
         } else {
-          resultNewCoins = profile.coins;
           if (rewardType === "powerCard" && rewardId) {
             const pc = profile.powerCards ?? { time: 0, freeze: 0, hint: 0 };
             profileUpdates.powerCards = { ...pc, [rewardId]: ((pc as Record<string, number>)[rewardId] ?? 0) + rewardAmt };
@@ -3019,9 +3028,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
               grantedLabel.push(`👑 ${rewardId}`);
             }
           }
+          profileUpdates.updatedAt = new Date();
+          await tx.update(playerProfiles).set(profileUpdates as Parameters<typeof tx.update>[1]).where(eq(playerProfiles.id, playerId));
         }
-
-        await tx.update(playerProfiles).set(profileUpdates as Parameters<typeof tx.update>[1]).where(eq(playerProfiles.id, playerId));
         // Atomic claim: append claimedKey only if NOT already present in the JSONB array
         // Uses PostgreSQL jsonb_array_elements to prevent duplicate claims from concurrent requests
         const updateResult = await tx.update(playerBattlePass).set({
