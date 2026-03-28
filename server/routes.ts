@@ -2917,27 +2917,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/battle-pass/:playerId/buy-premium — deduct 1000 coins, unlock premium
+  // POST /api/battle-pass/:playerId/buy-premium — deduct 1000 coins, unlock premium (atomic)
   app.post("/api/battle-pass/:playerId/buy-premium", async (req, res) => {
     try {
       const { playerId } = req.params;
       const [activeSeason] = await db.select({ id: seasons.id }).from(seasons).where(eq(seasons.status, "active")).limit(1);
       if (!activeSeason) return res.status(404).json({ error: "no_active_season" });
 
-      const pass = await getOrCreatePlayerBattlePass(playerId, activeSeason.id);
-      if (pass.premiumUnlocked) return res.status(400).json({ error: "already_premium" });
+      await getOrCreatePlayerBattlePass(playerId, activeSeason.id);
 
-      const [profile] = await db.select({ coins: playerProfiles.coins }).from(playerProfiles).where(eq(playerProfiles.id, playerId)).limit(1);
-      if (!profile) return res.status(404).json({ error: "player_not_found" });
-      if (profile.coins < BP_PREMIUM_COST) return res.status(400).json({ error: "insufficient_coins" });
-
+      let newCoins: number | undefined;
       await db.transaction(async (tx) => {
+        // Lock the profile row and check coins atomically
+        const [profile] = await tx.select({ coins: playerProfiles.coins }).from(playerProfiles).where(eq(playerProfiles.id, playerId)).limit(1);
+        if (!profile) throw Object.assign(new Error("player_not_found"), { statusCode: 404 });
+        if (profile.coins < BP_PREMIUM_COST) throw Object.assign(new Error("insufficient_coins"), { statusCode: 400 });
+
+        // Atomically unlock premium only if not already unlocked (prevents double spend on concurrent requests)
+        const updated = await tx.update(playerBattlePass).set({ premiumUnlocked: true, updatedAt: new Date() })
+          .where(and(
+            eq(playerBattlePass.playerId, playerId),
+            eq(playerBattlePass.seasonId, activeSeason.id),
+            eq(playerBattlePass.premiumUnlocked, false),
+          )).returning({ id: playerBattlePass.id });
+        if (updated.length === 0) throw Object.assign(new Error("already_premium"), { statusCode: 400 });
+
         await tx.update(playerProfiles).set({ coins: profile.coins - BP_PREMIUM_COST, updatedAt: new Date() }).where(eq(playerProfiles.id, playerId));
-        await tx.update(playerBattlePass).set({ premiumUnlocked: true, updatedAt: new Date() }).where(and(eq(playerBattlePass.playerId, playerId), eq(playerBattlePass.seasonId, activeSeason.id)));
+        newCoins = profile.coins - BP_PREMIUM_COST;
       });
 
-      res.json({ ok: true, coins: profile.coins - BP_PREMIUM_COST });
-    } catch (e) {
+      res.json({ ok: true, coins: newCoins });
+    } catch (e: unknown) {
+      const err = e as { message?: string; statusCode?: number };
+      if (err.statusCode && err.message) return res.status(err.statusCode).json({ error: err.message });
       console.error("POST /api/battle-pass/:playerId/buy-premium error:", e);
       res.status(500).json({ error: "server_error" });
     }
@@ -2955,13 +2967,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [activeSeason] = await db.select({ id: seasons.id }).from(seasons).where(eq(seasons.status, "active")).limit(1);
       if (!activeSeason) return res.status(404).json({ error: "no_active_season" });
 
-      const pass = await getOrCreatePlayerBattlePass(playerId, activeSeason.id);
-      if (pass.currentTier < tierNum) return res.status(400).json({ error: "tier_not_reached" });
-      if (track === "premium" && !pass.premiumUnlocked) return res.status(403).json({ error: "premium_not_unlocked" });
-
-      const claimedKey = `${tierNum}_${track}`;
-      const claimedArr: string[] = Array.isArray(pass.claimedTiers) ? pass.claimedTiers : [];
-      if (claimedArr.includes(claimedKey)) return res.status(400).json({ error: "already_claimed" });
+      await getOrCreatePlayerBattlePass(playerId, activeSeason.id);
 
       const [tierDef] = await db.select().from(battlePassTiers)
         .where(and(eq(battlePassTiers.seasonId, activeSeason.id), eq(battlePassTiers.tier, tierNum))).limit(1);
@@ -2970,40 +2976,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rewardType = track === "free" ? tierDef.freeRewardType : tierDef.premiumRewardType;
       const rewardId   = track === "free" ? tierDef.freeRewardId   : tierDef.premiumRewardId;
       const rewardAmt  = track === "free" ? tierDef.freeRewardAmount : tierDef.premiumRewardAmount;
+      const claimedKey = `${tierNum}_${track}`;
 
-      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId)).limit(1);
-      if (!profile) return res.status(404).json({ error: "player_not_found" });
-
-      const updates: Partial<typeof playerProfiles.$inferInsert> = { updatedAt: new Date() };
+      let resultNewCoins = 0;
       const grantedLabel: string[] = [];
 
-      if (rewardType === "coins") {
-        updates.coins = profile.coins + rewardAmt;
-        grantedLabel.push(`🪙 +${rewardAmt}`);
-      } else if (rewardType === "powerCard" && rewardId) {
-        const pc = profile.powerCards ?? { time: 0, freeze: 0, hint: 0 };
-        updates.powerCards = { ...pc, [rewardId]: ((pc as Record<string, number>)[rewardId] ?? 0) + rewardAmt };
-        grantedLabel.push(`🃏 +${rewardAmt} ${rewardId}`);
-      } else if (rewardType === "skin" && rewardId) {
-        const owned = Array.isArray(profile.ownedSkins) ? (profile.ownedSkins as string[]) : [];
-        if (!owned.includes(rewardId)) {
-          updates.ownedSkins = [...owned, rewardId];
-          grantedLabel.push(`👗 ${rewardId}`);
-        }
-      } else if (rewardType === "title" && rewardId) {
-        const owned = Array.isArray(profile.ownedTitles) ? (profile.ownedTitles as string[]) : [];
-        if (!owned.includes(rewardId)) {
-          updates.ownedTitles = [...owned, rewardId];
-          grantedLabel.push(`👑 ${rewardId}`);
-        }
-      }
-
-      const newClaimed = [...claimedArr, claimedKey];
-
       await db.transaction(async (tx) => {
-        await tx.update(playerProfiles).set(updates as Parameters<typeof tx.update>[1]).where(eq(playerProfiles.id, playerId));
+        // Re-read pass and profile inside transaction to prevent race conditions
+        const [pass] = await tx.select().from(playerBattlePass)
+          .where(and(eq(playerBattlePass.playerId, playerId), eq(playerBattlePass.seasonId, activeSeason.id))).limit(1);
+        if (!pass) throw Object.assign(new Error("pass_not_found"), { statusCode: 404 });
+        if (pass.currentTier < tierNum) throw Object.assign(new Error("tier_not_reached"), { statusCode: 400 });
+        if (track === "premium" && !pass.premiumUnlocked) throw Object.assign(new Error("premium_not_unlocked"), { statusCode: 403 });
+
+        const claimedArr: string[] = Array.isArray(pass.claimedTiers) ? pass.claimedTiers : [];
+        if (claimedArr.includes(claimedKey)) throw Object.assign(new Error("already_claimed"), { statusCode: 400 });
+
+        const [profile] = await tx.select().from(playerProfiles).where(eq(playerProfiles.id, playerId)).limit(1);
+        if (!profile) throw Object.assign(new Error("player_not_found"), { statusCode: 404 });
+
+        const profileUpdates: Partial<typeof playerProfiles.$inferInsert> = { updatedAt: new Date() };
+
+        if (rewardType === "coins") {
+          profileUpdates.coins = profile.coins + rewardAmt;
+          resultNewCoins = profile.coins + rewardAmt;
+          grantedLabel.push(`🪙 +${rewardAmt}`);
+        } else {
+          resultNewCoins = profile.coins;
+          if (rewardType === "powerCard" && rewardId) {
+            const pc = profile.powerCards ?? { time: 0, freeze: 0, hint: 0 };
+            profileUpdates.powerCards = { ...pc, [rewardId]: ((pc as Record<string, number>)[rewardId] ?? 0) + rewardAmt };
+            grantedLabel.push(`🃏 +${rewardAmt} ${rewardId}`);
+          } else if (rewardType === "skin" && rewardId) {
+            const owned = Array.isArray(profile.ownedSkins) ? (profile.ownedSkins as string[]) : [];
+            if (!owned.includes(rewardId)) {
+              profileUpdates.ownedSkins = [...owned, rewardId];
+              grantedLabel.push(`👗 ${rewardId}`);
+            }
+          } else if (rewardType === "title" && rewardId) {
+            const owned = Array.isArray(profile.ownedTitles) ? (profile.ownedTitles as string[]) : [];
+            if (!owned.includes(rewardId)) {
+              profileUpdates.ownedTitles = [...owned, rewardId];
+              grantedLabel.push(`👑 ${rewardId}`);
+            }
+          }
+        }
+
+        await tx.update(playerProfiles).set(profileUpdates as Parameters<typeof tx.update>[1]).where(eq(playerProfiles.id, playerId));
         await tx.update(playerBattlePass).set({
-          claimedTiers: newClaimed,
+          claimedTiers: [...claimedArr, claimedKey],
           updatedAt: new Date(),
         }).where(and(eq(playerBattlePass.playerId, playerId), eq(playerBattlePass.seasonId, activeSeason.id)));
       });
@@ -3014,9 +3035,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         rewardType,
         rewardId: rewardId ?? null,
         rewardAmount: rewardAmt,
-        newCoins: rewardType === "coins" ? profile.coins + rewardAmt : profile.coins,
+        newCoins: resultNewCoins,
       });
-    } catch (e) {
+    } catch (e: unknown) {
+      const err = e as { message?: string; statusCode?: number };
+      if (err.statusCode && err.message) return res.status(err.statusCode).json({ error: err.message });
       console.error("POST /api/battle-pass/:playerId/claim/:tier error:", e);
       res.status(500).json({ error: "server_error" });
     }
@@ -3586,6 +3609,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
       }
+
+      // ── Award Battle Pass XP for completing a task ─────────────────────
+      awardBattlePassXp(playerId, BP_XP_GAME).catch((e) => console.error("[battle-pass] daily task xp error:", e));
 
       res.json({ success: true, coinsEarned: def.rewardCoins, xpEarned: def.rewardXp, titleAwarded });
     } catch (e) {
