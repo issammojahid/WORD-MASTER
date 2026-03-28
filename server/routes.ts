@@ -197,6 +197,27 @@ async function seedTaskAndAchievementDefs() {
 const socketRoomMap = new Map<string, string>();
 const socketPlayerIdMap = new Map<string, string>();
 
+// ── Shared helper: increment emoji task progress for a player ────────────────
+async function incrementEmojiTaskProgress(playerId: string): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10);
+  const emojiTaskDefs = TASK_POOL.filter(t => t.type === "emojis");
+  for (const def of emojiTaskDefs) {
+    const rows = await db.select({ id: playerDailyTasks.id, progress: playerDailyTasks.progress, claimed: playerDailyTasks.claimed })
+      .from(playerDailyTasks)
+      .where(and(
+        eq(playerDailyTasks.playerId, playerId),
+        eq(playerDailyTasks.taskKey, def.key),
+        eq(playerDailyTasks.assignedDate, today)
+      )).limit(1);
+    if (rows.length > 0 && !rows[0].claimed) {
+      const newProgress = Math.min((rows[0].progress ?? 0) + 1, def.target);
+      await db.update(playerDailyTasks)
+        .set({ progress: newProgress, completed: newProgress >= def.target })
+        .where(eq(playerDailyTasks.id, rows[0].id));
+    }
+  }
+}
+
 // ── Spectator tracking ────────────────────────────────────────────────────────
 // Map roomId → Set of spectator socketIds
 const roomSpectators = new Map<string, Set<string>>();
@@ -1733,27 +1754,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (now - lastSent < 5000) return;
       reactionLastSent.set(pid, now);
       socket.to(data.roomId).emit("game_reaction", { emoji: data.emoji, playerName: data.playerName });
-      try {
-        const today = new Date().toISOString().slice(0, 10);
-        const emojiTaskKeys = TASK_POOL.filter(t => t.type === "emojis").map(t => t.key);
-        for (const taskKey of emojiTaskKeys) {
-          const def = TASK_POOL.find(d => d.key === taskKey);
-          if (!def) continue;
-          const existing = await db.select({ id: playerDailyTasks.id, progress: playerDailyTasks.progress, completed: playerDailyTasks.completed })
-            .from(playerDailyTasks)
-            .where(and(
-              eq(playerDailyTasks.playerId, pid),
-              eq(playerDailyTasks.taskKey, taskKey),
-              eq(playerDailyTasks.assignedDate, today)
-            )).limit(1);
-          if (existing.length > 0 && !existing[0].completed) {
-            const newProgress = Math.min(existing[0].progress + 1, def.target);
-            await db.update(playerDailyTasks)
-              .set({ progress: newProgress, completed: newProgress >= def.target })
-              .where(eq(playerDailyTasks.id, existing[0].id));
-          }
-        }
-      } catch {}
+      incrementEmojiTaskProgress(pid).catch(() => {});
     });
 
     // Power card relay — broadcast card activation to all OTHER players in the room

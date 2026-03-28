@@ -7,6 +7,7 @@ import {
   TextInput,
   Platform,
   Animated,
+  Easing,
   Dimensions,
 } from "react-native";
 import { router } from "expo-router";
@@ -104,6 +105,7 @@ export default function RapidScreen() {
   const [reactionCooldown, setReactionCooldown] = useState(false);
   const [incomingReaction, setIncomingReaction] = useState<{ emoji: string; playerName: string } | null>(null);
   const incomingReactionAnim = useRef(new Animated.Value(0)).current;
+  const incomingReactionRise = useRef(new Animated.Value(0)).current;
   const reactionCooldownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const selectedTierRef = useRef<CoinTier | null>(null);
@@ -245,10 +247,14 @@ export default function RapidScreen() {
     const handleGameReaction = (data: { emoji: string; playerName: string }) => {
       setIncomingReaction(data);
       incomingReactionAnim.setValue(0);
-      Animated.sequence([
-        Animated.spring(incomingReactionAnim, { toValue: 1, tension: 120, friction: 7, useNativeDriver: true }),
-        Animated.delay(1200),
-        Animated.timing(incomingReactionAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
+      incomingReactionRise.setValue(0);
+      Animated.parallel([
+        Animated.sequence([
+          Animated.spring(incomingReactionAnim, { toValue: 1, tension: 120, friction: 7, useNativeDriver: true }),
+          Animated.delay(900),
+          Animated.timing(incomingReactionAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+        ]),
+        Animated.timing(incomingReactionRise, { toValue: 1, duration: 1600, easing: Easing.out(Easing.quad), useNativeDriver: true }),
       ]).start(() => setIncomingReaction(null));
     };
 
@@ -596,15 +602,15 @@ export default function RapidScreen() {
         </View>
       </View>
 
-      {/* Incoming reaction floating bubble */}
+      {/* Incoming reaction floating bubble — rises upward and fades, non-blocking */}
       {incomingReaction && (
         <Animated.View
           pointerEvents="none"
           style={[styles.incomingReactionBubble, {
             opacity: incomingReactionAnim,
             transform: [
-              { scale: incomingReactionAnim.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) },
-              { translateY: incomingReactionAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) },
+              { scale: incomingReactionAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) },
+              { translateY: incomingReactionRise.interpolate({ inputRange: [0, 1], outputRange: [0, -80] }) },
             ],
           }]}>
           <Text style={styles.incomingReactionEmoji}>{incomingReaction.emoji}</Text>
