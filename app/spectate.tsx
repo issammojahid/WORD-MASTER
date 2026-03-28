@@ -66,6 +66,7 @@ export default function SpectateScreen() {
   const [lastResults, setLastResults] = useState<RoundResultEntry[]>([]);
 
   const [betTotals, setBetTotals] = useState<Record<string, number>>({});
+  const [bettorIds, setBettorIds] = useState<Record<string, string[]>>({});
   const [myBetSocketId, setMyBetSocketId] = useState<string | null>(null);
   const [betSettled, setBetSettled] = useState<BetSettledEvent | null>(null);
   const [betLoading, setBetLoading] = useState(false);
@@ -175,8 +176,9 @@ export default function SpectateScreen() {
       setSpectatorCount(data.count);
     };
 
-    const handleBetUpdate = (data: { betTotals: Record<string, number>; totalBets: number }) => {
+    const handleBetUpdate = (data: { betTotals: Record<string, number>; bettors?: Record<string, string[]>; totalBets: number }) => {
       setBetTotals(data.betTotals || {});
+      if (data.bettors) setBettorIds(data.bettors);
     };
 
     const handleBetSettled = (data: BetSettledEvent) => {
@@ -245,7 +247,7 @@ export default function SpectateScreen() {
       const res = await fetch(url.toString(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ spectatorId: playerId, betOnSocketId, amount }),
+        body: JSON.stringify({ spectatorSocketId: socket.id, betOnSocketId, amount }),
       });
       const data = await res.json();
       if (data.success) {
@@ -375,12 +377,20 @@ export default function SpectateScreen() {
                 {betPool > 0 && (
                   <View style={styles.betPoolBadge}>
                     <Ionicons name="star" size={10} color={Colors.gold} />
-                    <Text style={styles.betPoolText}>{betPool}</Text>
+                    <Text style={styles.betPoolText}>{betPool} 🪙</Text>
+                  </View>
+                )}
+                {(bettorIds[player.id] || []).length > 0 && (
+                  <View style={[styles.betPoolBadge, { backgroundColor: "#8B5CF618", marginTop: 2 }]}>
+                    <Ionicons name="people" size={10} color="#8B5CF6" />
+                    <Text style={[styles.betPoolText, { color: "#8B5CF6" }]}>
+                      {(bettorIds[player.id] || []).length} مراهن
+                    </Text>
                   </View>
                 )}
                 {betOnThis && (
                   <View style={[styles.myBetBadge, { backgroundColor: Colors.emerald + "22" }]}>
-                    <Text style={styles.myBetBadgeText}>رهانك</Text>
+                    <Text style={styles.myBetBadgeText}>رهانك ✅</Text>
                   </View>
                 )}
               </View>

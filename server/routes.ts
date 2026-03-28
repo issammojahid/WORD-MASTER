@@ -201,6 +201,32 @@ const socketPlayerIdMap = new Map<string, string>();
 // Map roomId → Set of spectator socketIds
 const roomSpectators = new Map<string, Set<string>>();
 const MAX_SPECTATORS = 10;
+const MAIN_ROUND_SECONDS = 50;
+
+// Map roomId → active spectate timer interval (for per-second timer broadcast)
+const spectateTimerIntervals = new Map<string, ReturnType<typeof setInterval>>();
+
+function startSpectateTimer(roomId: string, ioRef: SocketIOServer) {
+  if (spectateTimerIntervals.has(roomId)) {
+    clearInterval(spectateTimerIntervals.get(roomId)!);
+    spectateTimerIntervals.delete(roomId);
+  }
+  let secondsLeft = MAIN_ROUND_SECONDS;
+  const interval = setInterval(() => {
+    secondsLeft--;
+    ioRef.to(`spectate:${roomId}`).emit("spectate_timer", { secondsLeft });
+    if (secondsLeft <= 0) {
+      clearInterval(interval);
+      spectateTimerIntervals.delete(roomId);
+    }
+  }, 1000);
+  spectateTimerIntervals.set(roomId, interval);
+}
+
+function stopSpectateTimer(roomId: string) {
+  const interval = spectateTimerIntervals.get(roomId);
+  if (interval) { clearInterval(interval); spectateTimerIntervals.delete(roomId); }
+}
 
 const MIN_PLAYERS = 2;
 
@@ -1078,6 +1104,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             totalRounds: result.room.totalRounds,
             wordCategory: result.room.wordCategory || "general",
           });
+          // Broadcast per-second countdown to spectators
+          startSpectateTimer(data.roomId, io);
 
           // Start 50-second timer
           const room = result.room;
@@ -1096,6 +1124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 score: p.score,
               })),
             };
+            stopSpectateTimer(data.roomId);
             io.to(data.roomId).emit("round_results", timerRoundPayload);
             io.to(`spectate:${data.roomId}`).emit("spectate_update", { type: "round_results", payload: timerRoundPayload });
           }, 51000);
@@ -1119,11 +1148,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Notify room that this player submitted
           io.to(data.roomId).emit("player_submitted", { playerId: socket.id });
 
+          // Broadcast submitted words to spectators as live feed
+          if (data.answers) {
+            const submitterName = room?.players.find(p => p.id === socket.id)?.name || "";
+            const submittedWords = Object.values(data.answers).filter(w => w && w.trim());
+            for (const word of submittedWords) {
+              io.to(`spectate:${data.roomId}`).emit("spectate_live_word", {
+                playerName: submitterName,
+                word,
+                playerId: socketPlayerIdMap.get(socket.id) || socket.id,
+              });
+            }
+          }
+
           if (allSubmitted && room) {
             if (room.timer) {
               clearTimeout(room.timer);
               room.timer = null;
             }
+            stopSpectateTimer(data.roomId);
             const results = calculateRoundScores(data.roomId);
             const updatedRoom = getRoom(data.roomId);
             const roundResultsPayload = {
@@ -1340,6 +1383,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             io.to(data.roomId).emit("new_round", newRoundPayload);
             io.to(`spectate:${data.roomId}`).emit("spectate_update", { type: "new_round", payload: newRoundPayload });
             cb?.({ isGameOver: false, letter: room.currentLetter });
+            // Restart spectate countdown timer for new round
+            startSpectateTimer(data.roomId, io);
 
             // Start new 50-second timer
             room.timer = setTimeout(() => {
@@ -1356,6 +1401,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   score: p.score,
                 })),
               };
+              stopSpectateTimer(data.roomId);
               io.to(data.roomId).emit("round_results", nextTimerPayload);
               io.to(`spectate:${data.roomId}`).emit("spectate_update", { type: "round_results", payload: nextTimerPayload });
             }, 51000);
@@ -2253,23 +2299,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/spectate/:roomId/bet", async (req, res) => {
     try {
       const { roomId } = req.params;
-      const { spectatorId, betOnSocketId, amount } = req.body as {
-        spectatorId: string;
+      const { spectatorSocketId, betOnSocketId, amount } = req.body as {
+        spectatorSocketId: string;
         betOnSocketId: string;
         amount: number;
       };
-      if (!spectatorId || !betOnSocketId || !amount) {
+      if (!spectatorSocketId || !betOnSocketId || !amount) {
         return res.status(400).json({ error: "missing_params" });
       }
       const validAmounts = [50, 100, 200];
       if (!validAmounts.includes(amount)) {
         return res.status(400).json({ error: "invalid_amount" });
       }
-      // Verify spectatorId is a real registered player
-      const [spectatorProfile] = await db.select({ id: playerProfiles.id })
-        .from(playerProfiles).where(eq(playerProfiles.id, spectatorId)).limit(1);
-      if (!spectatorProfile) {
+      // Derive spectatorId from server-side socket→player mapping (prevents IDOR)
+      const spectatorId = socketPlayerIdMap.get(spectatorSocketId);
+      if (!spectatorId) {
         return res.status(403).json({ error: "unauthorized" });
+      }
+      // Verify the socket is still connected
+      const spectatorSocket = io.sockets.sockets.get(spectatorSocketId);
+      if (!spectatorSocket) {
+        return res.status(403).json({ error: "socket_not_connected" });
       }
       const room = getRoom(roomId);
       if (!room || room.state !== "playing") {
@@ -2283,6 +2333,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isPlayerInRoom = room.players.some(p => socketPlayerIdMap.get(p.id) === spectatorId);
       if (isPlayerInRoom) {
         return res.status(403).json({ error: "players_cannot_bet" });
+      }
+      // Spectator must be joined to this spectate room
+      const spectateRoom = roomSpectators.get(roomId);
+      if (!spectateRoom || !spectateRoom.has(spectatorSocketId)) {
+        return res.status(403).json({ error: "not_spectating" });
       }
       // Check existing bet for this spectator in this room
       const existingBet = await db.select({ id: spectatorBets.id }).from(spectatorBets)
