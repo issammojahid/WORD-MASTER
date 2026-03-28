@@ -1200,10 +1200,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const { isGameOver, room } = nextRound(data.roomId);
           if (isGameOver && room) {
             const tournamentInfo = roomTournamentMap.get(data.roomId);
-            // Determine winner socket id for bet settlement
+            // Determine winner player id for bet settlement
             const sortedForBets = [...room.players].sort((a, b) => b.score - a.score);
             const winnerSocketIdForBets = sortedForBets.length >= 2 && sortedForBets[0].score > sortedForBets[1].score
               ? sortedForBets[0].id : null;
+            const winnerPlayerIdForBets = winnerSocketIdForBets ? (socketPlayerIdMap.get(winnerSocketIdForBets) || null) : null;
 
             const gameOverPayload = {
               players: room.players.map((p) => {
@@ -1239,15 +1240,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     }
                   }
                 };
-                if (!winnerSocketIdForBets) {
+                if (!winnerPlayerIdForBets) {
                   // Draw: refund all bets
                   for (const bet of unsettled) {
                     await db.update(playerProfiles).set({ coins: sql`coins + ${bet.amount}` }).where(eq(playerProfiles.id, bet.spectatorId));
                     emitToPlayer(bet.spectatorId, "bet_settled", { result: "draw", refund: bet.amount });
                   }
                 } else {
-                  const winners = unsettled.filter(b => b.betOnSocketId === winnerSocketIdForBets);
-                  const losers = unsettled.filter(b => b.betOnSocketId !== winnerSocketIdForBets);
+                  const winners = unsettled.filter(b => b.betOnPlayerId === winnerPlayerIdForBets);
+                  const losers = unsettled.filter(b => b.betOnPlayerId !== winnerPlayerIdForBets);
                   const loserPool = losers.reduce((acc, b) => acc + b.amount, 0);
                   // Even split: each winner gets their stake back + equal share of loser pool
                   const evenShare = winners.length > 0 ? Math.floor(loserPool / winners.length) : 0;
@@ -1955,7 +1956,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       socket.leave(`spectate:${data.roomId}`);
     });
 
-    // ── SPECTATE PLACE BET (socket event — authoritative identity via socket.id) ──
+    // ── SPECTATE PLACE BET (socket — identity derived server-side, bets stored by player ID) ──
     socket.on("spectate_place_bet", async (
       data: { roomId: string; betOnSocketId: string; amount: number },
       callback: (res: { success: boolean; error?: string; newCoins?: number }) => void
@@ -1967,8 +1968,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!validAmounts.includes(data.amount)) return callback({ success: false, error: "invalid_amount" });
         const room = getRoom(data.roomId);
         if (!room || room.state !== "playing") return callback({ success: false, error: "room_not_active" });
-        const isValidTarget = room.players.some(p => p.id === data.betOnSocketId);
-        if (!isValidTarget) return callback({ success: false, error: "invalid_target" });
+        const targetPlayer = room.players.find(p => p.id === data.betOnSocketId);
+        if (!targetPlayer) return callback({ success: false, error: "invalid_target" });
+        // Resolve target to stable playerId
+        const betOnPlayerId = socketPlayerIdMap.get(data.betOnSocketId);
+        if (!betOnPlayerId) return callback({ success: false, error: "invalid_target" });
         const isPlayerInRoom = room.players.some(p => socketPlayerIdMap.get(p.id) === spectatorId);
         if (isPlayerInRoom) return callback({ success: false, error: "players_cannot_bet" });
         const spectateRoomSet = roomSpectators.get(data.roomId);
@@ -1980,24 +1984,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
           coins: sql`GREATEST(0, coins - ${data.amount})`,
           updatedAt: new Date(),
         }).where(and(eq(playerProfiles.id, spectatorId), sql`coins >= ${data.amount}`))
-          .returning({ coins: playerProfiles.coins, name: playerProfiles.name });
+          .returning({ coins: playerProfiles.coins });
         if (updated.length === 0) return callback({ success: false, error: "insufficient_coins" });
-        await db.insert(spectatorBets).values({ roomId: data.roomId, spectatorId, betOnSocketId: data.betOnSocketId, amount: data.amount });
-        // Broadcast updated bet totals + named bettor list
+        await db.insert(spectatorBets).values({ roomId: data.roomId, spectatorId, betOnPlayerId, amount: data.amount });
+        // Broadcast updated bet totals + named bettor list (keyed by target socketId for UI)
         const allBets = await db.select({
-          betOnSocketId: spectatorBets.betOnSocketId,
+          betOnPlayerId: spectatorBets.betOnPlayerId,
           amount: spectatorBets.amount,
           spectatorId: spectatorBets.spectatorId,
           spectatorName: playerProfiles.name,
         }).from(spectatorBets)
           .leftJoin(playerProfiles, eq(spectatorBets.spectatorId, playerProfiles.id))
           .where(and(eq(spectatorBets.roomId, data.roomId), eq(spectatorBets.settled, false)));
+        // Re-key by socketId for the client (reverse-lookup from socketPlayerIdMap)
+        const playerIdToSocketId = new Map<string, string>();
+        for (const [sid, pid] of socketPlayerIdMap.entries()) playerIdToSocketId.set(pid, sid);
         const betTotals: Record<string, number> = {};
         const bettors: Record<string, { id: string; name: string }[]> = {};
         for (const b of allBets) {
-          betTotals[b.betOnSocketId] = (betTotals[b.betOnSocketId] || 0) + b.amount;
-          if (!bettors[b.betOnSocketId]) bettors[b.betOnSocketId] = [];
-          bettors[b.betOnSocketId].push({ id: b.spectatorId, name: b.spectatorName || b.spectatorId });
+          const sid = playerIdToSocketId.get(b.betOnPlayerId) || b.betOnPlayerId;
+          betTotals[sid] = (betTotals[sid] || 0) + b.amount;
+          if (!bettors[sid]) bettors[sid] = [];
+          bettors[sid].push({ id: b.spectatorId, name: b.spectatorName || b.spectatorId });
         }
         io.to(`spectate:${data.roomId}`).emit("bet_update", { betTotals, bettors, totalBets: allBets.length });
         callback({ success: true, newCoins: updated[0].coins });
@@ -2358,19 +2366,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { roomId } = req.params;
       const allBets = await db.select({
-        betOnSocketId: spectatorBets.betOnSocketId,
+        betOnPlayerId: spectatorBets.betOnPlayerId,
         amount: spectatorBets.amount,
         spectatorId: spectatorBets.spectatorId,
         spectatorName: playerProfiles.name,
       }).from(spectatorBets)
         .leftJoin(playerProfiles, eq(spectatorBets.spectatorId, playerProfiles.id))
         .where(and(eq(spectatorBets.roomId, roomId), eq(spectatorBets.settled, false)));
+      // Re-key by socketId (for UI which tracks players by socket id)
+      const playerIdToSocketId = new Map<string, string>();
+      for (const [sid, pid] of socketPlayerIdMap.entries()) playerIdToSocketId.set(pid, sid);
       const betTotals: Record<string, number> = {};
       const bettors: Record<string, { id: string; name: string }[]> = {};
       for (const b of allBets) {
-        betTotals[b.betOnSocketId] = (betTotals[b.betOnSocketId] || 0) + b.amount;
-        if (!bettors[b.betOnSocketId]) bettors[b.betOnSocketId] = [];
-        bettors[b.betOnSocketId].push({ id: b.spectatorId, name: b.spectatorName || b.spectatorId });
+        const sid = playerIdToSocketId.get(b.betOnPlayerId) || b.betOnPlayerId;
+        betTotals[sid] = (betTotals[sid] || 0) + b.amount;
+        if (!bettors[sid]) bettors[sid] = [];
+        bettors[sid].push({ id: b.spectatorId, name: b.spectatorName || b.spectatorId });
       }
       return res.json({ betTotals, bettors, totalBets: allBets.length });
     } catch (e) {
@@ -2379,6 +2391,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   // ────────────────────────────────────────────────────────────────────────────
+
+  // POST /api/spectate/:roomId/bet — REST endpoint for placing a spectator bet
+  // Requires header x-player-id for identity (used when socket not available)
+  app.post("/api/spectate/:roomId/bet", async (req, res) => {
+    try {
+      const { roomId } = req.params;
+      const { betOnSocketId, amount } = req.body as { betOnSocketId: string; amount: number };
+      const spectatorId = req.headers["x-player-id"] as string | undefined;
+      if (!spectatorId) return res.status(401).json({ success: false, error: "unauthorized" });
+      const validAmounts = [50, 100, 200];
+      if (!validAmounts.includes(amount)) return res.status(400).json({ success: false, error: "invalid_amount" });
+      const room = getRoom(roomId);
+      if (!room || room.state !== "playing") return res.status(400).json({ success: false, error: "room_not_active" });
+      const targetPlayer = room.players.find(p => p.id === betOnSocketId);
+      if (!targetPlayer) return res.status(400).json({ success: false, error: "invalid_target" });
+      const betOnPlayerId = socketPlayerIdMap.get(betOnSocketId);
+      if (!betOnPlayerId) return res.status(400).json({ success: false, error: "invalid_target" });
+      const isPlayerInRoom = room.players.some(p => socketPlayerIdMap.get(p.id) === spectatorId);
+      if (isPlayerInRoom) return res.status(403).json({ success: false, error: "players_cannot_bet" });
+      const existingBet = await db.select({ id: spectatorBets.id }).from(spectatorBets)
+        .where(and(eq(spectatorBets.roomId, roomId), eq(spectatorBets.spectatorId, spectatorId))).limit(1);
+      if (existingBet.length > 0) return res.status(409).json({ success: false, error: "already_bet" });
+      const updated = await db.update(playerProfiles).set({
+        coins: sql`GREATEST(0, coins - ${amount})`,
+        updatedAt: new Date(),
+      }).where(and(eq(playerProfiles.id, spectatorId), sql`coins >= ${amount}`))
+        .returning({ coins: playerProfiles.coins });
+      if (updated.length === 0) return res.status(402).json({ success: false, error: "insufficient_coins" });
+      await db.insert(spectatorBets).values({ roomId, spectatorId, betOnPlayerId, amount });
+      // Broadcast updated totals via socket to spectators
+      const allBets = await db.select({
+        betOnPlayerId: spectatorBets.betOnPlayerId,
+        amount: spectatorBets.amount,
+        spectatorId: spectatorBets.spectatorId,
+        spectatorName: playerProfiles.name,
+      }).from(spectatorBets)
+        .leftJoin(playerProfiles, eq(spectatorBets.spectatorId, playerProfiles.id))
+        .where(and(eq(spectatorBets.roomId, roomId), eq(spectatorBets.settled, false)));
+      const playerIdToSocketId = new Map<string, string>();
+      for (const [sid, pid] of socketPlayerIdMap.entries()) playerIdToSocketId.set(pid, sid);
+      const betTotals: Record<string, number> = {};
+      const bettors: Record<string, { id: string; name: string }[]> = {};
+      for (const b of allBets) {
+        const sid = playerIdToSocketId.get(b.betOnPlayerId) || b.betOnPlayerId;
+        betTotals[sid] = (betTotals[sid] || 0) + b.amount;
+        if (!bettors[sid]) bettors[sid] = [];
+        bettors[sid].push({ id: b.spectatorId, name: b.spectatorName || b.spectatorId });
+      }
+      io.to(`spectate:${roomId}`).emit("bet_update", { betTotals, bettors, totalBets: allBets.length });
+      return res.json({ success: true, newCoins: updated[0].coins, betTotals, bettors });
+    } catch (e) {
+      console.error("[spectate-bet] error:", e);
+      return res.status(500).json({ success: false, error: "server_error" });
+    }
+  });
 
   // ── WORD CHAIN AI ENDPOINT ───────────────────────────────────────────────
   // POST /api/word-chain/ai-turn — AI picks a valid word for chain mode

@@ -314,7 +314,7 @@ export const spectatorBets = pgTable("spectator_bets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   roomId: varchar("room_id").notNull(),
   spectatorId: varchar("spectator_id").notNull(),
-  betOnSocketId: varchar("bet_on_socket_id").notNull(),
+  betOnPlayerId: varchar("bet_on_player_id").notNull(),
   amount: integer("amount").notNull(),
   settled: boolean("settled").notNull().default(false),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),

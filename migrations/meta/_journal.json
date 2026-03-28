@@ -8,6 +8,13 @@
       "when": 1773698063943,
       "tag": "0000_volatile_lockjaw",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1774718322391,
+      "tag": "0001_bent_tyger_tiger",
+      "breakpoints": true
     }
   ]
 }
