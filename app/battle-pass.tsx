@@ -224,10 +224,10 @@ export default function BattlePassScreen() {
             <Animated.View style={[styles.xpBarFill, { width: `${xpProgressPct * 100}%` }]} />
           </View>
           <View style={styles.xpRow}>
-            <Text style={[styles.xpSmall, { color: theme.textMuted }]}>{xpInCurrentTier} XP</Text>
-            <Text style={[styles.xpSmall, { color: theme.textMuted }]}>التالي: {xpForNextTier} XP</Text>
+            <Text style={[styles.xpSmall, { color: theme.textMuted }]}>{xpInCurrentTier} / {xpForNextTier} XP</Text>
+            <Text style={[styles.xpSmall, { color: theme.textMuted }]}>متبقي: {xpForNextTier - xpInCurrentTier} XP</Text>
           </View>
-          <Text style={[styles.xpTotal, { color: theme.textMuted }]}>إجمالي XP: {passXp} | كل فوز: +20 XP • كل لعبة: +10 XP</Text>
+          <Text style={[styles.xpTotal, { color: theme.textMuted }]}>إجمالي XP: {passXp} | فوز: +20 XP • لعبة: +10 XP</Text>
         </View>
 
         {/* Premium Banner */}

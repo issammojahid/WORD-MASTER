@@ -763,12 +763,11 @@ async function awardBattlePassXp(playerId: string, xpAmount: number) {
   try {
     const [activeSeason] = await db.select({ id: seasons.id }).from(seasons).where(eq(seasons.status, "active")).limit(1);
     if (!activeSeason) return;
-    const pass = await getOrCreatePlayerBattlePass(playerId, activeSeason.id);
-    const newXp = pass.passXp + xpAmount;
-    const newTier = Math.min(30, Math.floor(newXp / BP_XP_PER_TIER));
+    await getOrCreatePlayerBattlePass(playerId, activeSeason.id);
+    // Use atomic SQL increment to prevent lost updates from concurrent events
     await db.update(playerBattlePass).set({
-      passXp: newXp,
-      currentTier: Math.max(pass.currentTier, newTier),
+      passXp: sql`pass_xp + ${xpAmount}`,
+      currentTier: sql`LEAST(30, FLOOR((pass_xp + ${xpAmount}) / ${BP_XP_PER_TIER})::int)`,
       updatedAt: new Date(),
     }).where(and(eq(playerBattlePass.playerId, playerId), eq(playerBattlePass.seasonId, activeSeason.id)));
   } catch (e) {
