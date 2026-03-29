@@ -59,7 +59,7 @@ export function CountryPickerModal({ visible, onClose, onSelect, currentCode }: 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={[styles.sheet, { backgroundColor: (theme as any).modalBg ?? theme.card }]}>
+        <View style={[styles.sheet, { backgroundColor: theme.modalBg }]}>
           <View style={styles.handle} />
           <Text style={[styles.title, { color: theme.textPrimary }]}>اختر بلدك 🌍</Text>
           <FlatList
@@ -78,7 +78,7 @@ export function CountryPickerModal({ visible, onClose, onSelect, currentCode }: 
                 >
                   <Text style={styles.countryFlag}>{item.flag}</Text>
                   <Text
-                    style={[styles.countryName, { color: active ? CYAN : ((theme as any).textSecondary ?? theme.textPrimary) }]}
+                    style={[styles.countryName, { color: active ? CYAN : theme.textSecondary }]}
                     numberOfLines={1}
                   >
                     {item.nameAr}

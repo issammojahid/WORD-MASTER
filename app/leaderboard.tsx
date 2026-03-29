@@ -166,10 +166,17 @@ export default function LeaderboardScreen() {
     ])).start();
   }, []);
 
-  const myCountry = profile.country || "MA";
-  const myCountryInfo = getCountryInfo(myCountry);
+  const myCountry = profile.country;
+  const resolvedCountry = myCountry ?? "MA";
+  const myCountryInfo = getCountryInfo(resolvedCountry);
 
-  const countryParam = geo === "national" ? myCountry : null;
+  const countryParam = geo === "national" ? resolvedCountry : null;
+
+  useEffect(() => {
+    if (myCountry === null) {
+      setShowCountryPicker(true);
+    }
+  }, [myCountry]);
 
   const { data: entries = [], isLoading } = useQuery<LeaderboardEntry[]>({
     queryKey: ["/api/leaderboard", tab, geo, myCountry],
