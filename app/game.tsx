@@ -1126,6 +1126,55 @@ export default function GameScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* ─── LIVE SCORE STRIP ─── */}
+      {gamePlayers.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={[styles.liveScoreStrip, { backgroundColor: theme.backgroundSecondary, borderBottomColor: theme.cardBorder }]}
+          contentContainerStyle={styles.liveScoreStripContent}
+        >
+          {[...gamePlayers].sort((a, b) => b.score - a.score).map((player, idx) => {
+            const isMe = player.id === socketId;
+            const hasSubmitted = submittedPlayers.includes(player.id);
+            const avatarEmoji = isMe
+              ? (SKINS.find(s => s.id === profile.equippedSkin)?.emoji ?? player.name[0])
+              : player.name[0];
+            const rankLabel = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}`;
+            return (
+              <View
+                key={player.id}
+                style={[
+                  styles.liveScoreChip,
+                  { backgroundColor: theme.card, borderColor: isMe ? Colors.gold : theme.cardBorder },
+                  isMe && styles.liveScoreChipMe,
+                ]}
+              >
+                <Text style={styles.liveScoreRank}>{rankLabel}</Text>
+                <View style={[styles.liveScoreAvatar, { backgroundColor: isMe ? Colors.gold + "25" : theme.backgroundSecondary }]}>
+                  <Text style={isMe ? styles.liveScoreAvatarEmoji : styles.liveScoreAvatarLetter}>
+                    {avatarEmoji}
+                  </Text>
+                </View>
+                <View style={styles.liveScoreInfo}>
+                  <Text style={[styles.liveScoreName, { color: isMe ? Colors.gold : theme.textPrimary }]} numberOfLines={1}>
+                    {player.name.length > 7 ? player.name.slice(0, 6) + "…" : player.name}
+                  </Text>
+                  <Text style={[styles.liveScorePoints, { color: theme.textSecondary }]}>
+                    {player.score} ⭐
+                  </Text>
+                </View>
+                {hasSubmitted && (
+                  <View style={styles.liveScoreCheck}>
+                    <Text style={styles.liveScoreCheckText}>✓</Text>
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </ScrollView>
+      )}
+
       {/* Reaction picker strip */}
       {showReactionPicker && (
         <View style={[styles.reactionPickerStrip, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
@@ -1765,4 +1814,83 @@ const styles = StyleSheet.create({
   },
   floatingEmoteText: { fontSize: 48 },
   floatingEmoteName: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.gold, marginTop: 4 },
+
+  liveScoreStrip: {
+    borderBottomWidth: 1,
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  liveScoreStripContent: {
+    flexDirection: "row",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    gap: 7,
+    alignItems: "center",
+  },
+  liveScoreChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    minWidth: 85,
+  },
+  liveScoreChipMe: {
+    shadowColor: Colors.gold,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  liveScoreRank: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  liveScoreAvatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  liveScoreAvatarEmoji: { fontSize: 15, lineHeight: 18 },
+  liveScoreAvatarLetter: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 12,
+    color: "#E8E8FF",
+    lineHeight: 16,
+  },
+  liveScoreInfo: {
+    flexDirection: "column",
+    justifyContent: "center",
+    flex: 1,
+    minWidth: 0,
+  },
+  liveScoreName: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 11,
+    lineHeight: 14,
+  },
+  liveScorePoints: {
+    fontFamily: "Cairo_600SemiBold",
+    fontSize: 10,
+    lineHeight: 13,
+  },
+  liveScoreCheck: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.emerald,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 1,
+  },
+  liveScoreCheckText: {
+    fontSize: 9,
+    color: "#fff",
+    fontFamily: "Cairo_700Bold",
+    lineHeight: 12,
+  },
 });
