@@ -1675,14 +1675,16 @@ const styles = StyleSheet.create({
   topRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   coinsBadge: {
     flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, gap: 5,
-    borderWidth: 1, borderColor: LOGO.yellow + "40",
+    paddingHorizontal: 13, paddingVertical: 8, borderRadius: 22, gap: 5,
+    borderWidth: 2, borderColor: LOGO.yellow + "60",
+    borderBottomWidth: 3, borderBottomColor: "#C4A010",
   },
   coinsText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: LOGO.yellow },
   settingsBtn: {
-    width: 38, height: 38, borderRadius: 12,
+    width: 40, height: 40, borderRadius: 20,
     backgroundColor: "rgba(255,255,255,0.08)", justifyContent: "center", alignItems: "center",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+    borderWidth: 2, borderColor: "rgba(255,255,255,0.18)",
+    borderBottomWidth: 3, borderBottomColor: "rgba(255,255,255,0.08)",
   },
 
   streakBar: {
@@ -1731,7 +1733,9 @@ const styles = StyleSheet.create({
   },
   modePlayBtn: {
     flexDirection: "row", alignItems: "center", gap: 7,
-    paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14,
+    paddingHorizontal: 20, paddingVertical: 13, borderRadius: 20,
+    borderBottomWidth: 4,
+    borderWidth: 2, borderColor: "rgba(255,255,255,0.20)",
   },
   modePlayText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#fff" },
 
@@ -1772,8 +1776,10 @@ const styles = StyleSheet.create({
   },
   navBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 9, color: "#fff" },
   navHomeBtn: {
-    width: 56, height: 56, borderRadius: 28,
+    width: 60, height: 60, borderRadius: 30,
     justifyContent: "center", alignItems: "center",
+    borderWidth: 3, borderColor: "rgba(255,255,255,0.25)",
+    borderBottomWidth: 5, borderBottomColor: "#C4A010",
     shadowColor: LOGO.yellow, shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.65, shadowRadius: 14, elevation: 16,
   },

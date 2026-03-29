@@ -34,6 +34,28 @@ import ViewShot, { captureRef } from "react-native-view-shot";
 const ROUND_TIME = 50;
 const FREEZE_SECS = 4;
 
+const CAT_EMOJI: Record<string, string> = {
+  girlName:  "👧",
+  boyName:   "👦",
+  animal:    "🐾",
+  fruit:     "🍎",
+  vegetable: "🥦",
+  object:    "🎯",
+  city:      "🏙️",
+  country:   "🌍",
+};
+
+const CAT_COLOR: Record<string, string> = {
+  girlName:  "#FF6B9D",
+  boyName:   "#4FC3F7",
+  animal:    "#81C784",
+  fruit:     "#FFB347",
+  vegetable: "#A5D6A7",
+  object:    "#CE93D8",
+  city:      "#64B5F6",
+  country:   "#4DB6AC",
+};
+
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 
 // Deterministic ice particle layout
@@ -1254,27 +1276,41 @@ export default function GameScreen() {
         bottomOffset={150}
         keyboardShouldPersistTaps="handled"
       >
-        {activeCategories.map((cat, idx) => (
-          <View key={cat} style={styles.categoryInputRow}>
-            <Text style={[styles.categoryLabel, { color: theme.textSecondary }]}>{t[cat as keyof typeof t] as string}</Text>
-            <TextInput
+        {activeCategories.map((cat, idx) => {
+          const catColor = CAT_COLOR[cat] ?? Colors.gold;
+          const catEmoji = CAT_EMOJI[cat] ?? "✏️";
+          const isFilled = !!(answers[cat]);
+          return (
+            <View
+              key={cat}
               style={[
-                styles.categoryInput,
-                { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.inputText },
-                submitted && styles.categoryInputSubmitted,
-                !!(answers[cat]) && styles.categoryInputFilled,
+                styles.categoryInputRow,
+                { borderColor: isFilled ? catColor + "60" : theme.cardBorder, backgroundColor: isFilled ? catColor + "0A" : theme.card },
               ]}
-              value={answers[cat] || ""}
-              onChangeText={(val) => { if (!submitted) setAnswers((prev) => ({ ...prev, [cat]: val })); }}
-              placeholder={`${currentLetter}...`}
-              placeholderTextColor={theme.inputPlaceholder}
-              editable={!submitted && !isFrozen}
-              textAlign="right"
-              returnKeyType={idx < activeCategories.length - 1 ? "next" : "done"}
-              autoCorrect={false}
-            />
-          </View>
-        ))}
+            >
+              <View style={[styles.catAccentBar, { backgroundColor: catColor }]} />
+              <Text style={styles.catEmojiLabel}>{catEmoji}</Text>
+              <Text style={[styles.categoryLabel, { color: isFilled ? catColor : theme.textSecondary }]}>
+                {t[cat as keyof typeof t] as string}
+              </Text>
+              <TextInput
+                style={[
+                  styles.categoryInput,
+                  { color: theme.inputText },
+                  submitted && styles.categoryInputSubmitted,
+                ]}
+                value={answers[cat] || ""}
+                onChangeText={(val) => { if (!submitted) setAnswers((prev) => ({ ...prev, [cat]: val })); }}
+                placeholder={`${currentLetter}...`}
+                placeholderTextColor={theme.inputPlaceholder}
+                editable={!submitted && !isFrozen}
+                textAlign="right"
+                returnKeyType={idx < activeCategories.length - 1 ? "next" : "done"}
+                autoCorrect={false}
+              />
+            </View>
+          );
+        })}
       </KeyboardAwareScrollView>
 
       {/* ─── POWER TOAST ─── */}
@@ -1462,26 +1498,27 @@ const styles = StyleSheet.create({
   // Game top bar
   gameTopBar: {
     flexDirection: "row", alignItems: "center", paddingHorizontal: 12,
-    paddingVertical: 12, backgroundColor: "#0E0E24",
-    borderBottomWidth: 1, borderBottomColor: "#1E1E3A",
+    paddingVertical: 10, backgroundColor: "#0E0E24",
+    borderBottomWidth: 2, borderBottomColor: Colors.gold + "30",
   },
   letterDisplay: {
-    width: 64, height: 64, borderRadius: 32, backgroundColor: Colors.gold,
+    width: 68, height: 68, borderRadius: 34, backgroundColor: Colors.gold,
     justifyContent: "center", alignItems: "center", marginRight: 12,
-    shadowColor: Colors.gold, shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.4, shadowRadius: 10, elevation: 8,
+    borderWidth: 3, borderColor: "rgba(255,255,255,0.25)",
+    shadowColor: Colors.gold, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.55, shadowRadius: 14, elevation: 10,
   },
   letterText: { fontFamily: "Cairo_700Bold", fontSize: 36, color: "#000000", lineHeight: 48 },
   gameInfoRight: { flex: 1 },
-  roundLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#9898CC", marginBottom: 8, textAlign: "right" },
+  roundLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#9898CC", marginBottom: 6, textAlign: "right" },
   timerContainer: { flexDirection: "row", alignItems: "center", gap: 10 },
-  timerTrack: { flex: 1, height: 8, backgroundColor: "#1E1E3A", borderRadius: 4, overflow: "hidden" },
-  timerFill: { height: "100%", borderRadius: 4 },
+  timerTrack: { flex: 1, height: 12, backgroundColor: "#1E1E3A", borderRadius: 6, overflow: "hidden", borderWidth: 1, borderColor: "#2A2A4A" },
+  timerFill: { height: "100%", borderRadius: 6 },
   timerText: { fontFamily: "Cairo_700Bold", fontSize: 22, minWidth: 32, textAlign: "center" },
   chatBtn: {
-    width: 38, height: 38, borderRadius: 12, backgroundColor: "#12122A",
+    width: 40, height: 40, borderRadius: 20, backgroundColor: "#12122A",
     justifyContent: "center", alignItems: "center", marginLeft: 8,
-    borderWidth: 1, borderColor: "#1E1E3A",
+    borderWidth: 2, borderColor: "#2A2A4A",
   },
   reactionPickerStrip: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
@@ -1518,9 +1555,10 @@ const styles = StyleSheet.create({
   },
   hintBtn: {
     flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: "#12122A", borderRadius: 14,
-    paddingHorizontal: 12, paddingVertical: 6,
-    borderWidth: 1.5, borderColor: Colors.gold + "50",
+    backgroundColor: Colors.gold + "18", borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 7,
+    borderWidth: 2, borderColor: Colors.gold + "70",
+    borderBottomWidth: 3, borderBottomColor: Colors.goldDark,
     marginLeft: "auto" as any,
   },
   hintBtnDisabled: { opacity: 0.4 },
@@ -1528,15 +1566,21 @@ const styles = StyleSheet.create({
   hintBtnText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: Colors.gold },
   hintBtnCount: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#9898CC" },
   submittedText: { fontFamily: "Cairo_400Regular", fontSize: 12, color: Colors.emerald },
-  inputsContent: { padding: 12, gap: 8 },
-  categoryInputRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  categoryLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#9898CC", width: 72, textAlign: "right" },
-  categoryInput: {
-    flex: 1, backgroundColor: "#0E0E24", borderRadius: 12, borderWidth: 1,
-    borderColor: "#1E1E3A", paddingHorizontal: 14, paddingVertical: 10,
-    fontSize: 16, fontFamily: "Cairo_400Regular", color: "#E8E8FF",
+  inputsContent: { padding: 12, gap: 10 },
+  categoryInputRow: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    borderRadius: 18, borderWidth: 2, overflow: "hidden",
+    paddingVertical: 4, paddingRight: 10,
   },
-  categoryInputFilled: { borderColor: Colors.gold + "80", backgroundColor: Colors.gold + "10" },
+  catAccentBar: { width: 5, alignSelf: "stretch", borderRadius: 3, marginRight: 2 },
+  catEmojiLabel: { fontSize: 18, lineHeight: 24 },
+  categoryLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, width: 62, textAlign: "right" },
+  categoryInput: {
+    flex: 1, borderRadius: 0, paddingHorizontal: 10, paddingVertical: 12,
+    fontSize: 16, fontFamily: "Cairo_600SemiBold",
+    backgroundColor: "transparent",
+  },
+  categoryInputFilled: {},
   categoryInputSubmitted: { opacity: 0.6 },
   // Power cards
   powerCardsRow: {
@@ -1544,20 +1588,20 @@ const styles = StyleSheet.create({
     flexDirection: "row", gap: 8,
   },
   powerCard: {
-    flex: 1, backgroundColor: "#12122A", borderRadius: 14, paddingVertical: 8,
-    alignItems: "center", borderWidth: 1.5,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2, shadowRadius: 4, elevation: 3,
+    flex: 1, backgroundColor: "#12122A", borderRadius: 18, paddingVertical: 10,
+    alignItems: "center", borderWidth: 2,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3, shadowRadius: 6, elevation: 5,
   },
   powerCardUsed: {
-    backgroundColor: "#0A0A1A", opacity: 0.5,
+    backgroundColor: "#0A0A1A", opacity: 0.45,
   },
-  powerCardIcon: { fontSize: 20, marginBottom: 1 },
+  powerCardIcon: { fontSize: 22, marginBottom: 2 },
   powerCardLabel: { fontFamily: "Cairo_700Bold", fontSize: 11 },
   powerCardDesc: { fontFamily: "Cairo_400Regular", fontSize: 9, marginTop: 1 },
   powerCardCountBadge: {
     position: "absolute", top: 4, right: 4,
-    width: 18, height: 18, borderRadius: 9,
+    width: 20, height: 20, borderRadius: 10,
     justifyContent: "center", alignItems: "center",
   },
   powerCardCountText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#fff" },
@@ -1591,17 +1635,20 @@ const styles = StyleSheet.create({
 
   submitBtn: {
     position: "absolute", left: 16, right: 16, backgroundColor: Colors.gold,
-    borderRadius: 16, paddingVertical: 16, flexDirection: "row",
+    borderRadius: 20, paddingVertical: 16, flexDirection: "row",
     justifyContent: "center", alignItems: "center",
-    shadowColor: Colors.gold, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35, shadowRadius: 12, elevation: 8,
+    borderBottomWidth: 5, borderBottomColor: Colors.goldDark,
+    borderWidth: 2, borderColor: "rgba(255,255,255,0.2)",
+    shadowColor: Colors.gold, shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.45, shadowRadius: 14, elevation: 10,
   },
   submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#000000" },
   submittedState: {
     position: "absolute", left: 16, right: 16, backgroundColor: Colors.emerald + "22",
-    borderRadius: 16, paddingVertical: 16, flexDirection: "row",
+    borderRadius: 20, paddingVertical: 16, flexDirection: "row",
     justifyContent: "center", alignItems: "center", gap: 10,
-    borderWidth: 1, borderColor: Colors.emerald + "40",
+    borderWidth: 2, borderColor: Colors.emerald + "60",
+    borderBottomWidth: 4, borderBottomColor: Colors.emeraldDark,
   },
   submittedStateText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: Colors.emerald },
 
