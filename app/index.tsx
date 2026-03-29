@@ -62,58 +62,68 @@ function LoginRewardPopup({ onClaim }: { onClaim: () => void }) {
       opacity: popOp,
     }}>
       <Animated.View style={{
-        width: "100%", backgroundColor: theme.modalBg,
-        borderRadius: 28, padding: 28, alignItems: "center",
-        borderWidth: 1.5, borderColor: "#F5C842" + "50",
-        shadowColor: "#F5C842", shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.5, shadowRadius: 30, elevation: 30,
+        width: "100%", backgroundColor: "#130B2B",
+        borderRadius: 30, padding: 28, alignItems: "center",
+        borderWidth: 4, borderColor: "#F5C842" + "80",
+        borderBottomWidth: 6, borderBottomColor: "#C4A010",
+        shadowColor: "#F5C842", shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.7, shadowRadius: 35, elevation: 35,
         transform: [{ scale: popScale }],
       }}>
+        {/* Corner decorations */}
+        <Text style={{ position: "absolute", top: 12, left: 16, fontSize: 18, opacity: 0.7 }}>✦</Text>
+        <Text style={{ position: "absolute", top: 12, right: 16, fontSize: 18, opacity: 0.7 }}>✦</Text>
+        <Text style={{ position: "absolute", bottom: 70, left: 14, fontSize: 14, opacity: 0.5 }}>⭐</Text>
+        <Text style={{ position: "absolute", bottom: 70, right: 14, fontSize: 14, opacity: 0.5 }}>⭐</Text>
+
         {/* Coin particles */}
         {COIN_PARTICLES.map((p, i) => (
           <Animated.Text key={i} style={{
-            position: "absolute", fontSize: 18,
+            position: "absolute", fontSize: 20,
             transform: [{ translateX: p.dx }, { translateY: p.dy }],
-            opacity: 0.7,
+            opacity: 0.8,
           }}>🪙</Animated.Text>
         ))}
 
         {/* Animated coin */}
         <Animated.Text style={{
-          fontSize: 72, marginBottom: 16,
+          fontSize: 80, marginBottom: 16,
           transform: [
             { translateY: coinY },
             { rotate: coinRot.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) },
           ],
         }}>🎁</Animated.Text>
 
-        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 22, color: "#F5C842", marginBottom: 8, textAlign: "center" }}>
+        <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 24, color: "#F5C842", marginBottom: 6, textAlign: "center" }}>
           مكافأة الدخول اليومية
         </Text>
-        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: theme.textSecondary, marginBottom: 6, textAlign: "center" }}>
-          حصلت على
+        <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: "rgba(255,255,255,0.65)", marginBottom: 10, textAlign: "center" }}>
+          حصلت على 🎉
         </Text>
         <View style={{
-          flexDirection: "row", alignItems: "center", gap: 8,
-          backgroundColor: "#F5C842" + "20", borderRadius: 16,
-          paddingHorizontal: 24, paddingVertical: 10, marginBottom: 24,
-          borderWidth: 1, borderColor: "#F5C842" + "40",
+          flexDirection: "row", alignItems: "center", gap: 10,
+          backgroundColor: "#F5C842" + "28", borderRadius: 20,
+          paddingHorizontal: 28, paddingVertical: 12, marginBottom: 24,
+          borderWidth: 3, borderColor: "#F5C842" + "60",
+          borderBottomWidth: 5, borderBottomColor: "#C4A010",
         }}>
-          <Text style={{ fontSize: 24 }}>🪙</Text>
-          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 26, color: "#F5C842" }}>250 عملة!</Text>
+          <Text style={{ fontSize: 28 }}>🪙</Text>
+          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 30, color: "#F5C842" }}>250 عملة!</Text>
         </View>
 
         <TouchableOpacity
           style={{
-            width: "100%", minHeight: 48, justifyContent: "center", borderRadius: 16,
+            width: "100%", minHeight: 54, justifyContent: "center", borderRadius: 20,
             backgroundColor: "#F5C842", alignItems: "center",
-            shadowColor: "#F5C842", shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.5, shadowRadius: 10, elevation: 8,
+            borderWidth: 3, borderColor: "rgba(255,255,255,0.30)",
+            borderBottomWidth: 5, borderBottomColor: "#C4A010",
+            shadowColor: "#F5C842", shadowOffset: { width: 0, height: 5 },
+            shadowOpacity: 0.6, shadowRadius: 12, elevation: 10,
           }}
           onPress={onClaim}
           activeOpacity={0.85}
         >
-          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#000" }}>✨ استلم المكافأة</Text>
+          <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 17, color: "#000" }}>✨ استلم المكافأة</Text>
         </TouchableOpacity>
       </Animated.View>
     </Animated.View>
@@ -136,12 +146,13 @@ const LOGO = {
 
 // ── Background blob shapes (abstract decoration) ──────────────────────────────
 const BG_BLOBS = [
-  { top: -60,  left: -50,  size: 180, color: LOGO.cyan   + "1A" },
-  { top: 120,  right: -50, size: 160, color: LOGO.pink   + "16" },
-  { top: 320,  left: -60,  size: 200, color: LOGO.purple + "18" },
-  { top: 560,  right: -40, size: 150, color: LOGO.yellow + "14" },
-  { top: 800,  left: -30,  size: 170, color: LOGO.cyan   + "12" },
-  { top: 1050, right: -60, size: 190, color: LOGO.pink   + "14" },
+  { top: -60,  left: -50,  size: 200, color: LOGO.cyan   + "28" },
+  { top: 80,   right: -60, size: 180, color: LOGO.pink   + "22" },
+  { top: 300,  left: -70,  size: 220, color: LOGO.purple + "24" },
+  { top: 520,  right: -50, size: 170, color: LOGO.yellow + "20" },
+  { top: 760,  left: -40,  size: 190, color: LOGO.cyan   + "1E" },
+  { top: 1000, right: -70, size: 210, color: LOGO.pink   + "20" },
+  { top: 1260, left: -50,  size: 180, color: LOGO.purple + "1C" },
 ];
 
 // ── Background floating particle ───────────────────────────────────────────────
@@ -180,14 +191,66 @@ const BgParticle = memo(({ color, startX, startY, size, delay, duration }: BgPar
 });
 
 const BG_PARTICLES: BgParticleProps[] = [
-  { color: LOGO.cyan,   startX: width * 0.1,  startY: height * 0.7,  size: 5, delay: 0,    duration: 6000 },
-  { color: LOGO.pink,   startX: width * 0.25, startY: height * 0.65, size: 4, delay: 800,  duration: 7200 },
-  { color: LOGO.purple, startX: width * 0.55, startY: height * 0.75, size: 6, delay: 1600, duration: 5800 },
-  { color: LOGO.yellow, startX: width * 0.75, startY: height * 0.68, size: 4, delay: 400,  duration: 6600 },
-  { color: LOGO.cyan,   startX: width * 0.4,  startY: height * 0.8,  size: 5, delay: 2200, duration: 7000 },
-  { color: LOGO.pink,   startX: width * 0.85, startY: height * 0.72, size: 3, delay: 1200, duration: 6200 },
-  { color: LOGO.purple, startX: width * 0.15, startY: height * 0.82, size: 4, delay: 3000, duration: 5600 },
-  { color: LOGO.yellow, startX: width * 0.62, startY: height * 0.6,  size: 5, delay: 1800, duration: 6800 },
+  { color: LOGO.cyan,   startX: width * 0.1,  startY: height * 0.7,  size: 6, delay: 0,    duration: 6000 },
+  { color: LOGO.pink,   startX: width * 0.25, startY: height * 0.65, size: 5, delay: 800,  duration: 7200 },
+  { color: LOGO.purple, startX: width * 0.55, startY: height * 0.75, size: 7, delay: 1600, duration: 5800 },
+  { color: LOGO.yellow, startX: width * 0.75, startY: height * 0.68, size: 5, delay: 400,  duration: 6600 },
+  { color: LOGO.cyan,   startX: width * 0.4,  startY: height * 0.8,  size: 6, delay: 2200, duration: 7000 },
+  { color: LOGO.pink,   startX: width * 0.85, startY: height * 0.72, size: 4, delay: 1200, duration: 6200 },
+  { color: LOGO.purple, startX: width * 0.15, startY: height * 0.82, size: 5, delay: 3000, duration: 5600 },
+  { color: LOGO.yellow, startX: width * 0.62, startY: height * 0.6,  size: 6, delay: 1800, duration: 6800 },
+  { color: LOGO.cyan,   startX: width * 0.92, startY: height * 0.85, size: 4, delay: 500,  duration: 6400 },
+  { color: LOGO.pink,   startX: width * 0.05, startY: height * 0.55, size: 5, delay: 2600, duration: 7400 },
+  { color: LOGO.yellow, startX: width * 0.48, startY: height * 0.9,  size: 7, delay: 1000, duration: 5400 },
+  { color: LOGO.purple, startX: width * 0.72, startY: height * 0.5,  size: 4, delay: 3400, duration: 6000 },
+];
+
+// ── Arabic floating letters ───────────────────────────────────────────────────
+type ArabicFloatProps = { letter: string; color: string; startX: number; startY: number; fontSize: number; delay: number; duration: number };
+const ArabicLetterFloat = memo(({ letter, color, startX, startY, fontSize, delay, duration }: ArabicFloatProps) => {
+  const posY = useRef(new Animated.Value(0)).current;
+  const op   = useRef(new Animated.Value(0)).current;
+  const rot  = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const run = () => {
+      posY.setValue(0); op.setValue(0); rot.setValue(-15 + Math.random() * 30);
+      Animated.parallel([
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(posY, { toValue: -height * 0.28, duration, useNativeDriver: true }),
+        ]),
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(op,  { toValue: 0.18, duration: 600, useNativeDriver: true }),
+          Animated.delay(duration - 1100),
+          Animated.timing(op,  { toValue: 0, duration: 500, useNativeDriver: true }),
+        ]),
+      ]).start(({ finished }) => { if (finished) run(); });
+    };
+    run();
+    return () => { posY.stopAnimation(); op.stopAnimation(); };
+  }, []);
+  return (
+    <Animated.Text pointerEvents="none" style={{
+      position: "absolute", left: startX, top: startY,
+      fontSize, color, fontFamily: "Cairo_700Bold",
+      opacity: op,
+      transform: [{ translateY: posY }, { rotate: rot.interpolate({ inputRange: [-15, 15], outputRange: ["-15deg", "15deg"] }) }],
+    }}>{letter}</Animated.Text>
+  );
+});
+
+const BG_ARABIC: ArabicFloatProps[] = [
+  { letter: "أ", color: LOGO.cyan,   startX: width * 0.08, startY: height * 0.6,  fontSize: 28, delay: 0,    duration: 8000 },
+  { letter: "ب", color: LOGO.pink,   startX: width * 0.22, startY: height * 0.72, fontSize: 22, delay: 1200, duration: 7000 },
+  { letter: "ح", color: LOGO.purple, startX: width * 0.68, startY: height * 0.58, fontSize: 32, delay: 600,  duration: 9000 },
+  { letter: "ر", color: LOGO.yellow, startX: width * 0.82, startY: height * 0.78, fontSize: 24, delay: 2000, duration: 7500 },
+  { letter: "و", color: LOGO.cyan,   startX: width * 0.45, startY: height * 0.85, fontSize: 26, delay: 1800, duration: 8500 },
+  { letter: "ف", color: LOGO.pink,   startX: width * 0.88, startY: height * 0.62, fontSize: 20, delay: 3000, duration: 6800 },
+  { letter: "م", color: LOGO.purple, startX: width * 0.12, startY: height * 0.82, fontSize: 30, delay: 900,  duration: 8200 },
+  { letter: "غ", color: LOGO.yellow, startX: width * 0.58, startY: height * 0.7,  fontSize: 22, delay: 2400, duration: 7200 },
+  { letter: "ن", color: LOGO.cyan,   startX: width * 0.35, startY: height * 0.68, fontSize: 26, delay: 400,  duration: 9200 },
+  { letter: "ك", color: LOGO.pink,   startX: width * 0.75, startY: height * 0.88, fontSize: 28, delay: 1500, duration: 7800 },
 ];
 
 // ── Logo sparkle ──────────────────────────────────────────────────────────────
@@ -442,7 +505,7 @@ function FeaturePopup({
           colors={[panel.gradientFrom, panel.gradientMid, theme.card]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={[pStyles.card, { borderColor: panel.color + "55" }]}
+          style={[pStyles.card, { borderColor: panel.color + "80", borderBottomColor: panel.color + "CC" }]}
         >
           <TouchableOpacity
             style={pStyles.closeBtn}
@@ -452,12 +515,17 @@ function FeaturePopup({
             <Ionicons name="close" size={20} color={theme.textPrimary} />
           </TouchableOpacity>
 
+          {/* Corner stars */}
+          <Text style={{ position: "absolute", top: 14, left: 18, fontSize: 16, opacity: 0.55 }}>✦</Text>
+          <Text style={{ position: "absolute", bottom: 80, right: 16, fontSize: 13, opacity: 0.4 }}>✦</Text>
+
           <View
             style={[
               pStyles.iconCircle,
               {
-                backgroundColor: panel.color + "22",
-                borderColor: panel.color + "50",
+                backgroundColor: panel.color + "30",
+                borderColor: panel.color + "80",
+                borderBottomColor: panel.color + "BB",
                 shadowColor: panel.color,
               },
             ]}
@@ -473,7 +541,7 @@ function FeaturePopup({
           <View
             style={[
               pStyles.rewardBadge,
-              { backgroundColor: panel.color + "18", borderColor: panel.color + "45" },
+              { backgroundColor: panel.color + "22", borderColor: panel.color + "65", borderBottomColor: panel.color + "99" },
             ]}
           >
             <Text style={[pStyles.rewardText, { color: panel.color }]}>{panel.reward}</Text>
@@ -538,53 +606,57 @@ const pStyles = StyleSheet.create({
     elevation: 30,
   },
   card: {
-    width: "100%", borderRadius: 28, padding: 26,
-    alignItems: "center", borderWidth: 1.5,
+    width: "100%", borderRadius: 30, padding: 26,
+    alignItems: "center", borderWidth: 3.5,
+    borderBottomWidth: 6,
   },
   closeBtn: {
     position: "absolute", top: 14, right: 14, zIndex: 10,
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: "rgba(0,0,0,0.4)",
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center", alignItems: "center",
+    borderWidth: 2, borderColor: "rgba(255,255,255,0.18)",
   },
   iconCircle: {
-    width: 104, height: 104, borderRadius: 52,
+    width: 110, height: 110, borderRadius: 30,
     justifyContent: "center", alignItems: "center",
     marginBottom: 18, marginTop: 10,
-    borderWidth: 1.5,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.7, shadowRadius: 18,
-    elevation: 14,
+    borderWidth: 3.5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.8, shadowRadius: 20,
+    elevation: 16,
   },
-  iconEmoji: { fontSize: 52 },
+  iconEmoji: { fontSize: 56 },
   title: {
-    fontFamily: "Cairo_700Bold", fontSize: 24,
+    fontFamily: "Cairo_700Bold", fontSize: 26,
     textAlign: "center", marginBottom: 8,
   },
   subtitle: {
     fontFamily: "Cairo_400Regular", fontSize: 13,
-    color: "#9898CC", textAlign: "center",
+    color: "#AAAACC", textAlign: "center",
     marginBottom: 16, lineHeight: 22,
   },
   rewardBadge: {
-    paddingHorizontal: 20, paddingVertical: 10,
-    borderRadius: 22, borderWidth: 1, marginBottom: 24,
+    paddingHorizontal: 22, paddingVertical: 12,
+    borderRadius: 22, borderWidth: 2.5, marginBottom: 24,
+    borderBottomWidth: 4,
   },
-  rewardText: { fontFamily: "Cairo_600SemiBold", fontSize: 14 },
+  rewardText: { fontFamily: "Cairo_700Bold", fontSize: 15 },
   buttonsRow: { flexDirection: "row", gap: 12, width: "100%", marginBottom: 20 },
   skipBtn: {
-    flex: 1, minHeight: 48, justifyContent: "center", borderRadius: 16,
-    backgroundColor: "rgba(0,0,0,0.32)", alignItems: "center",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+    flex: 1, minHeight: 52, justifyContent: "center", borderRadius: 18,
+    backgroundColor: "rgba(0,0,0,0.35)", alignItems: "center",
+    borderWidth: 2.5, borderColor: "rgba(255,255,255,0.18)",
+    borderBottomWidth: 4, borderBottomColor: "rgba(0,0,0,0.3)",
   },
-  skipText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#9898CC" },
+  skipText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#9898CC" },
   playBtnWrapper: { flex: 2 },
   playBtn: {
-    flex: 1, minHeight: 48, borderRadius: 16,
+    flex: 1, minHeight: 52, borderRadius: 18,
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     overflow: "hidden",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.55, shadowRadius: 14, elevation: 10,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.65, shadowRadius: 16, elevation: 12,
   },
   playBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
   shineOverlay: {
@@ -911,28 +983,35 @@ const ModeCard = memo(({ item, index, isActive, isDark, theme }: {
 
   const Icon = MODE_ICONS[item.id] ?? QuickIcon;
 
-  const cardGrad: [string, string, string] = [item.accent + "38", "#0E0E24", "#0A0A1A"];
+  const cardGrad: [string, string, string] = [item.accent + "50", item.accent + "28", "#0A0A1E"];
 
   return (
     <Animated.View style={{
       width: CARD_WIDTH, marginHorizontal: CARD_MARGIN,
-      opacity: entrOp, borderRadius: 24,
+      opacity: entrOp, borderRadius: 26,
       shadowColor: item.accent,
-      shadowOffset: { width: 0, height: isActive ? 12 : 4 },
-      shadowOpacity: isActive ? 0.45 : 0.12,
-      shadowRadius: isActive ? 24 : 8,
-      elevation: isActive ? 16 : 4,
+      shadowOffset: { width: 0, height: isActive ? 14 : 6 },
+      shadowOpacity: isActive ? 0.60 : 0.25,
+      shadowRadius: isActive ? 26 : 10,
+      elevation: isActive ? 20 : 6,
       transform: [{ translateY: entrY }, { scale: Animated.multiply(pressScl, activeScl) as any }],
     }}>
+      {/* 3D base layer */}
+      <View style={{
+        position: "absolute", bottom: -6, left: 8, right: 8, height: 14,
+        borderRadius: 20, backgroundColor: item.accent + "35",
+      }} />
       <TouchableOpacity
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         onPress={item.onPress}
         activeOpacity={0.92}
         style={{
-          borderRadius: 24, overflow: "hidden",
-          borderWidth: isActive ? 1.5 : 1,
-          borderColor: isActive ? item.accent + (isDark ? "90" : "60") : item.accent + (isDark ? "28" : "25"),
+          borderRadius: 26, overflow: "hidden",
+          borderWidth: 3,
+          borderColor: isActive ? item.accent + "CC" : item.accent + "70",
+          borderBottomWidth: 5,
+          borderBottomColor: item.accent + "FF",
         }}
       >
         <LinearGradient
@@ -943,10 +1022,14 @@ const ModeCard = memo(({ item, index, isActive, isDark, theme }: {
 
         {/* Top accent stripe */}
         <LinearGradient
-          colors={[item.accent + "60", item.accent + "00"]}
+          colors={[item.accent + "90", item.accent + "30"]}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-          style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
+          style={{ position: "absolute", top: 0, left: 0, right: 0, height: 5, borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
         />
+
+        {/* Corner stars */}
+        <Text pointerEvents="none" style={{ position: "absolute", top: 8, right: 10, fontSize: 12, opacity: 0.6 }}>✦</Text>
+        <Text pointerEvents="none" style={{ position: "absolute", bottom: 40, left: 8, fontSize: 10, opacity: 0.4 }}>✦</Text>
 
         {/* Gloss sweep */}
         <Animated.View
@@ -961,18 +1044,20 @@ const ModeCard = memo(({ item, index, isActive, isDark, theme }: {
 
         {/* Content */}
         <View style={cSt.inner}>
+          {/* Emoji pill */}
           <View style={{
-            backgroundColor: item.accent + (isDark ? "18" : "14"),
-            borderRadius: ICON_OUTER / 2 + 10,
-            padding: 8,
-            borderWidth: 1.5,
-            borderColor: item.accent + (isDark ? "35" : "25"),
+            backgroundColor: item.accent + "30",
+            borderRadius: 22, paddingHorizontal: 18, paddingVertical: 10,
+            borderWidth: 2.5, borderColor: item.accent + "80",
+            borderBottomWidth: 4, borderBottomColor: item.accent + "CC",
+            marginBottom: 4,
+            alignItems: "center", justifyContent: "center",
           }}>
-            <Icon accent={item.accent} />
+            <Text style={{ fontSize: 36 }}>{item.emoji}</Text>
           </View>
 
-          <Text style={[styles.modeTitle, { color: item.accent, marginTop: 4 }]}>{item.title}</Text>
-          <Text style={[styles.modeSubtitle, { color: theme.textSecondary }]}>{item.subtitle}</Text>
+          <Text style={[styles.modeTitle, { color: "#fff", marginTop: 6 }]}>{item.title}</Text>
+          <Text style={[styles.modeSubtitle, { color: item.accent + "CC" }]}>{item.subtitle}</Text>
 
           {/* Play button */}
           <Animated.View style={[cSt.btnWrap, { transform: [{ scale: btnPulse }] }]}>
@@ -983,14 +1068,14 @@ const ModeCard = memo(({ item, index, isActive, isDark, theme }: {
                 overflow: "hidden",
                 shadowColor: item.accent,
                 shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.5,
-                shadowRadius: 8,
-                elevation: 6,
+                shadowOpacity: 0.6,
+                shadowRadius: 10,
+                elevation: 8,
                 width: "100%",
                 justifyContent: "center",
               }]}
             >
-              <Ionicons name="play-circle" size={17} color="#fff" />
+              <Ionicons name="play-circle" size={19} color="#fff" />
               <Text style={styles.modePlayText}>العب الآن</Text>
               <Animated.View
                 pointerEvents="none"
@@ -1238,6 +1323,8 @@ export default function HomeScreen() {
 
       {/* Floating background particles (dark mode only) */}
       {isDark && BG_PARTICLES.map((p, i) => <BgParticle key={i} {...p} />)}
+      {/* Floating Arabic letters */}
+      {isDark && BG_ARABIC.map((a, i) => <ArabicLetterFloat key={i} {...a} />)}
 
       <ScrollView
         style={{ flex: 1 }}
@@ -1463,25 +1550,37 @@ export default function HomeScreen() {
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/daily-challenge"); }}
           style={{ marginHorizontal: 16, marginTop: 14, marginBottom: 6 }}
         >
+          <View style={{
+            position: "absolute", bottom: -5, left: 8, right: 8, height: 12,
+            borderRadius: 16, backgroundColor: "#10B98135",
+          }} />
           <LinearGradient
-            colors={["#001A10", "#003A20", "#001A10"]}
+            colors={["#002A18", "#005030", "#002A18"]}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             style={{
-              flexDirection: "row", alignItems: "center", paddingVertical: 12, paddingHorizontal: 16,
-              borderRadius: 18, borderWidth: 1.5, borderColor: "#10B98140",
-              gap: 10,
+              flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16,
+              borderRadius: 22, borderWidth: 3, borderColor: "#10B98165",
+              borderBottomWidth: 5, borderBottomColor: "#10B98190",
+              gap: 12,
             }}
           >
-            <Text style={{ fontSize: 26 }}>🌍</Text>
+            <View style={{
+              width: 52, height: 52, borderRadius: 16, backgroundColor: "#10B98125",
+              borderWidth: 2, borderColor: "#10B98155", alignItems: "center", justifyContent: "center",
+            }}>
+              <Text style={{ fontSize: 28 }}>🌍</Text>
+            </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>تحدي اليوم</Text>
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" }}>🗓 تحدي اليوم</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>
                 6 محاولات لتخمين الكلمة العربية
               </Text>
             </View>
-            <View style={{ alignItems: "flex-end", gap: 2 }}>
-              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#10B981" }}>{dailyCountdown}</Text>
-              <Ionicons name="chevron-forward" size={16} color="#10B981" />
+            <View style={{ alignItems: "flex-end", gap: 3 }}>
+              <View style={{ backgroundColor: "#10B98130", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: "#10B98155" }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#10B981" }}>⏱ {dailyCountdown}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#10B981" />
             </View>
           </LinearGradient>
         </TouchableOpacity>
@@ -1490,23 +1589,38 @@ export default function HomeScreen() {
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/battle-pass"); }}
-          style={{ marginHorizontal: 16, marginTop: 6, marginBottom: 6 }}
+          style={{ marginHorizontal: 16, marginTop: 10, marginBottom: 6 }}
         >
+          <View style={{
+            position: "absolute", bottom: -5, left: 8, right: 8, height: 12,
+            borderRadius: 16, backgroundColor: "#00CFFF30",
+          }} />
           <LinearGradient
-            colors={["#00192D", "#003060", "#00192D"]}
+            colors={["#00243F", "#004A80", "#00243F"]}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             style={{
-              flexDirection: "row", alignItems: "center", paddingVertical: 12, paddingHorizontal: 16,
-              borderRadius: 18, borderWidth: 1.5, borderColor: "#00CFFF40",
-              gap: 10,
+              flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16,
+              borderRadius: 22, borderWidth: 3, borderColor: "#00CFFF65",
+              borderBottomWidth: 5, borderBottomColor: "#00CFFF90",
+              gap: 12,
             }}
           >
-            <Text style={{ fontSize: 26 }}>🎫</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>باس الموسم</Text>
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.6)" }}>30 مكافأة • العب واكسب XP</Text>
+            <View style={{
+              width: 52, height: 52, borderRadius: 16, backgroundColor: "#00CFFF20",
+              borderWidth: 2, borderColor: "#00CFFF55", alignItems: "center", justifyContent: "center",
+            }}>
+              <Text style={{ fontSize: 28 }}>🎫</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#00CFFF" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" }}>🎯 باس الموسم</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>30 مكافأة • العب واكسب XP</Text>
+            </View>
+            <View style={{
+              backgroundColor: "#00CFFF25", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6,
+              borderWidth: 1.5, borderColor: "#00CFFF55", alignItems: "center",
+            }}>
+              <Ionicons name="chevron-forward" size={20} color="#00CFFF" />
+            </View>
           </LinearGradient>
         </TouchableOpacity>
 
@@ -1514,23 +1628,38 @@ export default function HomeScreen() {
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/clans"); }}
-          style={{ marginHorizontal: 16, marginTop: 6, marginBottom: 6 }}
+          style={{ marginHorizontal: 16, marginTop: 10, marginBottom: 10 }}
         >
+          <View style={{
+            position: "absolute", bottom: -5, left: 8, right: 8, height: 12,
+            borderRadius: 16, backgroundColor: "#BF00FF30",
+          }} />
           <LinearGradient
-            colors={["#1A003D", "#2D006B", "#1A003D"]}
+            colors={["#250050", "#4A0099", "#250050"]}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             style={{
-              flexDirection: "row", alignItems: "center", paddingVertical: 12, paddingHorizontal: 16,
-              borderRadius: 18, borderWidth: 1.5, borderColor: "#BF00FF40",
-              gap: 10,
+              flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16,
+              borderRadius: 22, borderWidth: 3, borderColor: "#BF00FF65",
+              borderBottomWidth: 5, borderBottomColor: "#BF00FF90",
+              gap: 12,
             }}
           >
-            <Text style={{ fontSize: 26 }}>⚔️</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>حروب العصابات</Text>
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.6)" }}>انضم أو أنشئ عصابة وتنافس أسبوعياً</Text>
+            <View style={{
+              width: 52, height: 52, borderRadius: 16, backgroundColor: "#BF00FF20",
+              borderWidth: 2, borderColor: "#BF00FF55", alignItems: "center", justifyContent: "center",
+            }}>
+              <Text style={{ fontSize: 28 }}>⚔️</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#BF00FF" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" }}>⚡ حروب العصابات</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>انضم أو أنشئ عصابة وتنافس أسبوعياً</Text>
+            </View>
+            <View style={{
+              backgroundColor: "#BF00FF25", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6,
+              borderWidth: 1.5, borderColor: "#BF00FF55", alignItems: "center",
+            }}>
+              <Ionicons name="chevron-forward" size={20} color="#BF00FF" />
+            </View>
           </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
@@ -1648,12 +1777,13 @@ const styles = StyleSheet.create({
   },
   profileRow: {
     flex: 1, flexDirection: "row", alignItems: "center",
-    borderRadius: 18, padding: 10, gap: 10,
+    borderRadius: 22, padding: 10, gap: 10,
     overflow: "hidden",
-    borderWidth: 1, borderColor: LOGO.cyan + "30",
+    borderWidth: 3, borderColor: LOGO.cyan + "55",
+    borderBottomWidth: 4, borderBottomColor: LOGO.cyan + "88",
   },
   avatarCircle: {
-    width: 46, height: 46, borderRadius: 23,
+    width: 50, height: 50, borderRadius: 25,
     justifyContent: "center", alignItems: "center",
   },
   avatarEmoji: { fontSize: 24 },
@@ -1689,15 +1819,17 @@ const styles = StyleSheet.create({
 
   streakBar: {
     width: "100%", flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: Colors.ruby + "18", borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 10, marginBottom: 12,
-    borderWidth: 1, borderColor: Colors.ruby + "30",
+    backgroundColor: Colors.ruby + "22", borderRadius: 18,
+    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12,
+    borderWidth: 2.5, borderColor: Colors.ruby + "55",
+    borderBottomWidth: 4, borderBottomColor: Colors.ruby + "80",
   },
-  streakText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: Colors.ruby, flex: 1 },
+  streakText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#FF6B6B", flex: 1 },
   streakRewardHint: {
-    backgroundColor: Colors.ruby + "22", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3,
+    backgroundColor: Colors.ruby + "28", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4,
+    borderWidth: 1.5, borderColor: Colors.ruby + "55",
   },
-  streakRewardHintText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: Colors.ruby },
+  streakRewardHintText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: Colors.ruby },
 
   logoContainer: { alignItems: "center", marginBottom: 6, position: "relative", paddingHorizontal: 20 },
   logoGlowRing: {
@@ -1744,14 +1876,15 @@ const styles = StyleSheet.create({
   dotActive: { width: 20, borderRadius: 3 },
 
   statsRow: {
-    flexDirection: "row", borderRadius: 18,
-    paddingVertical: 14, paddingHorizontal: 14, width: "100%",
-    borderWidth: 1, borderColor: LOGO.cyan + "22",
+    flexDirection: "row", borderRadius: 22,
+    paddingVertical: 14, paddingHorizontal: 10, width: "100%",
+    borderWidth: 3, borderColor: LOGO.cyan + "50",
+    borderBottomWidth: 5, borderBottomColor: LOGO.cyan + "70",
   },
   statItem: { flex: 1, alignItems: "center" },
-  statValue: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#E8E8FF" },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "#5A5A88", marginTop: 2 },
-  statDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.10)", marginVertical: 4 },
+  statValue: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#E8E8FF" },
+  statLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#8888CC", marginTop: 2 },
+  statDivider: { width: 2, backgroundColor: "rgba(255,255,255,0.12)", marginVertical: 4, borderRadius: 1 },
 
   bottomNav: {
     position: "absolute", bottom: 0, left: 0, right: 0,
@@ -1764,9 +1897,11 @@ const styles = StyleSheet.create({
   navItem: { alignItems: "center", gap: 4, flex: 1 },
   navItemCenter: { alignItems: "center", gap: 4, flex: 1, marginTop: -20 },
   navIconWrap: {
-    width: 40, height: 36, borderRadius: 12,
+    width: 42, height: 38, borderRadius: 16,
     justifyContent: "center", alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    backgroundColor: "rgba(255,255,255,0.09)",
+    borderWidth: 1.5, borderColor: "rgba(255,255,255,0.12)",
+    borderBottomWidth: 3, borderBottomColor: "rgba(0,0,0,0.25)",
   },
   navBadge: {
     position: "absolute", top: -4, right: -6,
@@ -1790,29 +1925,34 @@ const styles = StyleSheet.create({
     justifyContent: "center", alignItems: "center", padding: 24,
   },
   modalCard: {
-    width: "100%", backgroundColor: "#160D33", borderRadius: 20, padding: 24,
-    borderWidth: 1, borderColor: LOGO.purple + "40",
+    width: "100%", backgroundColor: "#160D33", borderRadius: 26, padding: 24,
+    borderWidth: 3, borderColor: LOGO.purple + "70",
+    borderBottomWidth: 5, borderBottomColor: LOGO.purple + "99",
   },
   modalTitle: {
-    fontFamily: "Cairo_700Bold", fontSize: 18, color: "#E8E8FF",
+    fontFamily: "Cairo_700Bold", fontSize: 20, color: LOGO.cyan,
     textAlign: "center", marginBottom: 16,
   },
   nameInput: {
-    borderWidth: 1, borderColor: LOGO.cyan + "40", borderRadius: 12,
-    padding: 12, fontFamily: "Cairo_400Regular", fontSize: 16,
+    borderWidth: 2.5, borderColor: LOGO.cyan + "60", borderRadius: 16,
+    borderBottomWidth: 4, borderBottomColor: LOGO.cyan + "99",
+    padding: 14, fontFamily: "Cairo_400Regular", fontSize: 16,
     color: "#E8E8FF", marginBottom: 16,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    backgroundColor: "rgba(255,255,255,0.06)",
   },
   modalButtons: { flexDirection: "row", gap: 12 },
   modalCancel: {
-    flex: 1, paddingVertical: 12, borderRadius: 12,
+    flex: 1, paddingVertical: 14, borderRadius: 18,
     backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.12)",
+    borderWidth: 2.5, borderColor: "rgba(255,255,255,0.18)",
+    borderBottomWidth: 4, borderBottomColor: "rgba(0,0,0,0.25)",
   },
-  modalCancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#9898CC" },
+  modalCancelText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#9898CC" },
   modalConfirm: {
-    flex: 1, paddingVertical: 12, borderRadius: 12,
+    flex: 1, paddingVertical: 14, borderRadius: 18,
     backgroundColor: LOGO.yellow, alignItems: "center",
+    borderWidth: 2.5, borderColor: "rgba(255,255,255,0.30)",
+    borderBottomWidth: 4, borderBottomColor: "#C4A010",
   },
   modalConfirmText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#000" },
 });
