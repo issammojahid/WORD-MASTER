@@ -50,6 +50,8 @@ export const playerProfiles = pgTable("player_profiles", {
   isVip: boolean("is_vip").notNull().default(false),
   vipExpiresAt: timestamp("vip_expires_at"),
   vipSubscriptionId: text("vip_subscription_id"),
+  // ── Country ────────────────────────────────────────────────────────────────
+  country: text("country").default("MA"),
   // ── Clan Wars ──────────────────────────────────────────────────────────────
   clanId: varchar("clan_id"),
   // ── Ranked Season System ───────────────────────────────────────────────────

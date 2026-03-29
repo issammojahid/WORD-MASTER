@@ -2862,7 +2862,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing.playerCode) updateData.playerCode = await ensurePlayerCode(id);
       if (!existing.playerTag) updateData.playerTag = await generateUniquePlayerTag();
       if (!existing.referralCode) updateData.referralCode = await generateUniqueReferralCode();
-      const allowedFields = ["name", "coins", "xp", "level", "equippedSkin", "ownedSkins", "equippedTitle", "ownedTitles", "totalScore", "gamesPlayed", "wins", "winStreak", "bestStreak", "lastStreakReward", "powerCards"];
+      const allowedFields = ["name", "coins", "xp", "level", "equippedSkin", "ownedSkins", "equippedTitle", "ownedTitles", "totalScore", "gamesPlayed", "wins", "winStreak", "bestStreak", "lastStreakReward", "powerCards", "country"];
       for (const key of allowedFields) {
         if (data[key] !== undefined) updateData[key] = data[key];
       }
@@ -3396,15 +3396,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/leaderboard", async (req, res) => {
     try {
       const type = (req.query.type as string) || "score";
+      const country = (req.query.country as string) || null;
+      const countryFilter = country ? eq(playerProfiles.country, country) : undefined;
       let players;
       if (type === "wins") {
-        players = await db.select().from(playerProfiles).orderBy(desc(playerProfiles.wins)).limit(50);
+        players = await db.select().from(playerProfiles).where(countryFilter).orderBy(desc(playerProfiles.wins)).limit(50);
       } else if (type === "xp") {
-        players = await db.select().from(playerProfiles).orderBy(desc(playerProfiles.xp)).limit(50);
+        players = await db.select().from(playerProfiles).where(countryFilter).orderBy(desc(playerProfiles.xp)).limit(50);
       } else if (type === "ranked") {
-        players = await db.select().from(playerProfiles).orderBy(desc(playerProfiles.elo)).limit(50);
+        players = await db.select().from(playerProfiles).where(countryFilter).orderBy(desc(playerProfiles.elo)).limit(50);
       } else {
-        players = await db.select().from(playerProfiles).orderBy(desc(playerProfiles.totalScore)).limit(50);
+        players = await db.select().from(playerProfiles).where(countryFilter).orderBy(desc(playerProfiles.totalScore)).limit(50);
       }
       const result = players.map((p, idx) => ({
         rank: idx + 1,
@@ -3422,6 +3424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         division: p.division ?? "silver",
         seasonWins: p.seasonWins ?? 0,
         seasonLosses: p.seasonLosses ?? 0,
+        country: p.country ?? "MA",
       }));
       res.json(result);
     } catch (e) {
@@ -3446,9 +3449,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ── RANKED LEADERBOARD (dedicated endpoint) ────────────────────────────────
-  app.get("/api/ranked/leaderboard", async (_req, res) => {
+  app.get("/api/ranked/leaderboard", async (req, res) => {
     try {
+      const country = (req.query.country as string) || null;
+      const countryFilter = country ? eq(playerProfiles.country, country) : undefined;
       const players = await db.select().from(playerProfiles)
+        .where(countryFilter)
         .orderBy(desc(playerProfiles.elo)).limit(50);
       const result = players.map((p, idx) => ({
         rank: idx + 1,
@@ -3466,6 +3472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         division: p.division ?? "silver",
         seasonWins: p.seasonWins ?? 0,
         seasonLosses: p.seasonLosses ?? 0,
+        country: p.country ?? "MA",
       }));
       res.json(result);
     } catch (e) {

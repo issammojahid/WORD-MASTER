@@ -29,6 +29,8 @@ import { getPlayerDisplayId } from "@/lib/player-code";
 import { getApiUrl } from "@/lib/query-client";
 import { fetch } from "expo/fetch";
 import { updateNotificationSetting, getNotificationSettings } from "@/lib/notifications";
+import { getCountryInfo, CountryPickerModal } from "@/lib/countries";
+
 const LOGO = {
   cyan:   "#00F5FF",
   pink:   "#FF006E",
@@ -39,9 +41,10 @@ const LOGO = {
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { t, language, setLanguage, soundEffects, setSoundEffects, musicEnabled, setMusicEnabled } = useLanguage();
-  const { playerId, profile, addCoins } = usePlayer();
+  const { playerId, profile, addCoins, updateProfile } = usePlayer();
   const { theme } = useTheme();
   const [showExitModal, setShowExitModal] = useState(false);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
   const [referralCode, setReferralCode] = useState("");
   const [referralCount, setReferralCount] = useState(0);
@@ -175,6 +178,28 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+        {/* ── Country ──────────────────────────────────── */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={{ fontSize: 20 }}>🌍</Text>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>بلدك</Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.settingRow, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+            onPress={() => setShowCountryPicker(true)}
+            activeOpacity={0.7}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12, flex: 1 }}>
+              <Text style={{ fontSize: 26 }}>{getCountryInfo(profile.country || "MA").flag}</Text>
+              <View>
+                <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 11, color: theme.textMuted }}>اختر بلدك للظهور في الترتيب الوطني</Text>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: theme.textPrimary }}>{getCountryInfo(profile.country || "MA").nameAr}</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
+          </TouchableOpacity>
+        </View>
 
         {/* ── Player Code ─────────────────────────────── */}
         <View style={styles.section}>
@@ -454,6 +479,13 @@ export default function SettingsScreen() {
 
       </ScrollView>
 
+      <CountryPickerModal
+        visible={showCountryPicker}
+        onClose={() => setShowCountryPicker(false)}
+        onSelect={(code) => updateProfile({ country: code })}
+        currentCode={profile.country || "MA"}
+      />
+
       {/* ── Exit confirmation modal ─────────────────── */}
       <Modal visible={showExitModal} transparent animationType="fade" onRequestClose={() => setShowExitModal(false)}>
         <View style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}>
@@ -495,6 +527,10 @@ const styles = StyleSheet.create({
   section: { gap: 12 },
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
   sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#E8E8FF" },
+  settingRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    borderRadius: 14, padding: 14, borderWidth: 1,
+  },
 
   codeCard: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",

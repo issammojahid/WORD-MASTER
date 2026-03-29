@@ -13,6 +13,14 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
 
 ## Recent Features Added
 
+- **National & International Leaderboard (Task #12)**:
+  - **Schema**: `country` text column (default "MA") added to `player_profiles`
+  - **Backend**: `GET /api/leaderboard` and `GET /api/ranked/leaderboard` now accept optional `?country=XX` query param to filter by country; `country` included in all leaderboard API responses; `country` added to `allowedFields` in `PUT /api/player/:id`
+  - **Shared utility**: `lib/countries.tsx` — list of 30 countries (Arab world + Europe/Americas), `getCountryInfo()` helper, reusable `CountryPickerModal` component
+  - **PlayerContext**: `country: string` (default "MA") added to `PlayerProfile` type, `defaultProfile`, and server sync merge
+  - **Leaderboard UI** (`app/leaderboard.tsx`): Geo filter row with "وطني 🏳" (national = filtered by player's country) and "دولي 🌍" (international = all); flag emoji shown per player in list rows and podium; country picker button in header
+  - **Settings** (`app/settings.tsx`): "بلدك" section with current flag/name display and tap-to-open country picker modal
+
 - **Clan Wars / نظام العصابات (Task #5)**:
   - **Schema**: `clans` table (id, name, emoji, leader_id, total_war_score, created_at), `clan_members` table (id, clan_id, player_id, war_score, role, joined_at), nullable `clan_id` column on `player_profiles`
   - **Backend Routes**: `GET /api/clans/leaderboard` (top 10), `GET /api/clans/search?q=` (search by name), `GET /api/clans/:id` (detail + member list + rank), `POST /api/clans/create` (costs 500 coins), `POST /api/clans/:id/join`, `POST /api/clans/:id/leave`, `POST /api/clans/:id/kick`, `POST /api/clans/:id/rename`
