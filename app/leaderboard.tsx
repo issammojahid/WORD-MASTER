@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Platform,
   Animated,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -19,6 +20,8 @@ import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { COUNTRIES, getCountryInfo, CountryPickerModal } from "@/lib/countries";
+
+const COUNTRY_CHOSEN_KEY = "country_picker_shown_v1";
 
 const LOGO = {
   cyan:   "#00F5FF",
@@ -173,10 +176,23 @@ export default function LeaderboardScreen() {
   const countryParam = geo === "national" ? resolvedCountry : null;
 
   useEffect(() => {
-    if (myCountry === null) {
-      setShowCountryPicker(true);
-    }
-  }, [myCountry]);
+    if (myCountry !== null) return;
+    AsyncStorage.getItem(COUNTRY_CHOSEN_KEY).then((val) => {
+      if (!val) {
+        setShowCountryPicker(true);
+      }
+    });
+  }, []);
+
+  const handlePickerClose = useCallback(() => {
+    setShowCountryPicker(false);
+    AsyncStorage.setItem(COUNTRY_CHOSEN_KEY, "1");
+  }, []);
+
+  const handleSelectCountry = useCallback((code: string) => {
+    updateProfile({ country: code });
+    AsyncStorage.setItem(COUNTRY_CHOSEN_KEY, "1");
+  }, [updateProfile]);
 
   const { data: entries = [], isLoading } = useQuery<LeaderboardEntry[]>({
     queryKey: ["/api/leaderboard", tab, geo, myCountry],
@@ -225,10 +241,6 @@ export default function LeaderboardScreen() {
     wins:   { icon: "trophy", color: LOGO.cyan,   label: "الانتصارات" },
     xp:     { icon: "flash",  color: LOGO.purple, label: "الخبرة" },
     ranked: { icon: "shield", color: "#FFD700",   label: "المرتبة" },
-  };
-
-  const handleSelectCountry = (code: string) => {
-    updateProfile({ country: code });
   };
 
   return (
@@ -426,9 +438,9 @@ export default function LeaderboardScreen() {
 
       <CountryPickerModal
         visible={showCountryPicker}
-        onClose={() => setShowCountryPicker(false)}
+        onClose={handlePickerClose}
         onSelect={handleSelectCountry}
-        currentCode={myCountry}
+        currentCode={resolvedCountry}
       />
     </View>
   );

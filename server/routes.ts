@@ -2864,7 +2864,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing.referralCode) updateData.referralCode = await generateUniqueReferralCode();
       const allowedFields = ["name", "coins", "xp", "level", "equippedSkin", "ownedSkins", "equippedTitle", "ownedTitles", "totalScore", "gamesPlayed", "wins", "winStreak", "bestStreak", "lastStreakReward", "powerCards", "country"];
       for (const key of allowedFields) {
-        if (data[key] !== undefined) updateData[key] = data[key];
+        if (data[key] !== undefined) {
+          // Never overwrite country with null — DB default "MA" is the fallback
+          if (key === "country" && data[key] === null) continue;
+          updateData[key] = data[key];
+        }
       }
       const [updated] = await db.update(playerProfiles).set(updateData).where(eq(playerProfiles.id, id)).returning();
       res.json(updated);
