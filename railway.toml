@@ -1,5 +1,5 @@
 [build]
-buildCommand = "npm install && node scripts/prod-migrate.cjs && npm run server:build && cp -r server/data server_dist/data"
+buildCommand = "npm install && npm run db:push && npm run server:build && cp -r server/data server_dist/data"
 
 [deploy]
 startCommand = "npm run server:prod"
