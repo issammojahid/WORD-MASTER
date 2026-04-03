@@ -1,7 +1,7 @@
 [build]
-buildCommand = "npm install && npm run server:build && cp -r server/data server_dist/data"
+buildCommand = "npm install --include=dev && npm run server:build && cp -r server/data server_dist/data"
 
 [deploy]
-startCommand = "npm run db:push && npm run server:prod"
+startCommand = "npx drizzle-kit push --force; npm run server:prod"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
