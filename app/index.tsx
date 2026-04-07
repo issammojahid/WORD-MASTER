@@ -1552,14 +1552,6 @@ export default function HomeScreen() {
             <Text style={[styles.parchisiCellLabel, { color: "#F5C842" }]}>سلسلة</Text>
           </View>
         </View>
-        {/* Tournament wins badge — shown below the grid when non-zero */}
-        {tournamentWins > 0 && (
-          <View style={styles.tournamentBadge}>
-            <Text style={{ fontSize: 14 }}>🏆</Text>
-            <Text style={styles.tournamentBadgeText}>{tournamentWins} انتصار في البطولة</Text>
-          </View>
-        )}
-
         {/* ── BANNERS: Daily + Battle Pass (2-column row) ────── */}
         <View style={{ flexDirection: "row", marginHorizontal: 16, marginTop: 12, gap: 10, marginBottom: 8 }}>
           {/* Daily Challenge */}
@@ -1632,6 +1624,14 @@ export default function HomeScreen() {
             <Ionicons name="chevron-forward" size={18} color="#BF00FF" />
           </LinearGradient>
         </TouchableOpacity>
+
+        {/* Tournament wins badge — at the very bottom when non-zero */}
+        {tournamentWins > 0 && (
+          <View style={styles.tournamentBadge}>
+            <Text style={{ fontSize: 14 }}>🏆</Text>
+            <Text style={styles.tournamentBadgeText}>{tournamentWins} انتصار في البطولة</Text>
+          </View>
+        )}
       </ScrollView>
 
       {/* ── BOTTOM NAVIGATION ───────────────────────────── */}
