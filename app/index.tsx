@@ -1473,16 +1473,24 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* ── LOGO ────────────────────────────────────────── */}
-        <Animated.View style={[styles.logoContainer, { transform: [{ translateY: floatAnim }] }]}>
-          {/* Sparkles near letter */}
-          {LOGO_SPARKLES.map((s, i) => <LogoSparkle key={i} {...s} />)}
-          {/* Glow ring behind letter */}
-          <View style={styles.logoGlowRing} />
-          {/* The "ح" letter */}
-          <Text style={styles.logoLetter}>ح</Text>
-          <Text style={styles.appSubtitle}>{t.homeSubtitle}</Text>
-        </Animated.View>
+        {/* ── HERO BAR ─────────────────────────────────────── */}
+        <View style={styles.heroBar}>
+          <LinearGradient
+            colors={[LOGO.cyan + "1A", LOGO.purple + "14"]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <Text style={styles.heroBarLetter}>ح</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.heroBarTitle}>حروف المغرب</Text>
+            <Text style={styles.heroBarSubtitle}>{t.homeSubtitle}</Text>
+          </View>
+          <View style={{ flexDirection: "row", gap: 3 }}>
+            {["✦", "⭐", "✦"].map((s, i) => (
+              <Text key={i} style={{ fontSize: 10, color: i === 1 ? LOGO.yellow : LOGO.cyan, opacity: 0.7 }}>{s}</Text>
+            ))}
+          </View>
+        </View>
 
         {/* ── GAME MODES CAROUSEL ─────────────────────────── */}
         <View style={styles.carouselSection}>
@@ -1552,124 +1560,74 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* ── DAILY CHALLENGE BANNER ──────────────────── */}
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/daily-challenge"); }}
-          style={{ marginHorizontal: 16, marginTop: 14, marginBottom: 6 }}
-        >
-          <View style={{
-            position: "absolute", bottom: -5, left: 8, right: 8, height: 12,
-            borderRadius: 16, backgroundColor: "#10B98135",
-          }} />
-          <LinearGradient
-            colors={["#002A18", "#005030", "#002A18"]}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={{
-              flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16,
-              borderRadius: 22, borderWidth: 3, borderColor: "#10B98165",
-              borderBottomWidth: 5, borderBottomColor: "#10B98190",
-              gap: 12,
-            }}
+        {/* ── BANNERS ROW (3 compact cards side by side) ─────── */}
+        <View style={{ flexDirection: "row", marginHorizontal: 16, marginTop: 12, gap: 10, marginBottom: 10 }}>
+          {/* Daily Challenge */}
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            activeOpacity={0.85}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/daily-challenge"); }}
           >
-            <View style={{
-              width: 52, height: 52, borderRadius: 16, backgroundColor: "#10B98125",
-              borderWidth: 2, borderColor: "#10B98155", alignItems: "center", justifyContent: "center",
-            }}>
-              <Text style={{ fontSize: 28 }}>🌍</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" }}>🗓 تحدي اليوم</Text>
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>
-                6 محاولات لتخمين الكلمة العربية
-              </Text>
-            </View>
-            <View style={{ alignItems: "flex-end", gap: 3 }}>
-              <View style={{ backgroundColor: "#10B98130", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: "#10B98155" }}>
-                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#10B981" }}>⏱ {dailyCountdown}</Text>
+            <LinearGradient
+              colors={["#002A18", "#004A28"]}
+              start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+              style={{
+                borderRadius: 18, padding: 12,
+                borderWidth: 2, borderColor: "#10B98160",
+                borderBottomWidth: 3, borderBottomColor: "#10B98190",
+                gap: 6, alignItems: "center",
+              }}
+            >
+              <Text style={{ fontSize: 26 }}>🌍</Text>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff", textAlign: "center" }}>تحدي اليوم</Text>
+              <View style={{ backgroundColor: "#10B98130", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: "#10B98150" }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 10, color: "#10B981" }}>⏱ {dailyCountdown}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#10B981" />
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
-
-        {/* ── BATTLE PASS BANNER ──────────────────────── */}
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/battle-pass"); }}
-          style={{ marginHorizontal: 16, marginTop: 10, marginBottom: 6 }}
-        >
-          <View style={{
-            position: "absolute", bottom: -5, left: 8, right: 8, height: 12,
-            borderRadius: 16, backgroundColor: "#00CFFF30",
-          }} />
-          <LinearGradient
-            colors={["#00243F", "#004A80", "#00243F"]}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={{
-              flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16,
-              borderRadius: 22, borderWidth: 3, borderColor: "#00CFFF65",
-              borderBottomWidth: 5, borderBottomColor: "#00CFFF90",
-              gap: 12,
-            }}
+            </LinearGradient>
+          </TouchableOpacity>
+          {/* Battle Pass */}
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            activeOpacity={0.85}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/battle-pass"); }}
           >
-            <View style={{
-              width: 52, height: 52, borderRadius: 16, backgroundColor: "#00CFFF20",
-              borderWidth: 2, borderColor: "#00CFFF55", alignItems: "center", justifyContent: "center",
-            }}>
-              <Text style={{ fontSize: 28 }}>🎫</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" }}>🎯 باس الموسم</Text>
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>30 مكافأة • العب واكسب XP</Text>
-            </View>
-            <View style={{
-              backgroundColor: "#00CFFF25", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6,
-              borderWidth: 1.5, borderColor: "#00CFFF55", alignItems: "center",
-            }}>
-              <Ionicons name="chevron-forward" size={20} color="#00CFFF" />
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
-
-        {/* ── CLAN WARS BANNER ────────────────────────── */}
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/clans"); }}
-          style={{ marginHorizontal: 16, marginTop: 10, marginBottom: 10 }}
-        >
-          <View style={{
-            position: "absolute", bottom: -5, left: 8, right: 8, height: 12,
-            borderRadius: 16, backgroundColor: "#BF00FF30",
-          }} />
-          <LinearGradient
-            colors={["#250050", "#4A0099", "#250050"]}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={{
-              flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16,
-              borderRadius: 22, borderWidth: 3, borderColor: "#BF00FF65",
-              borderBottomWidth: 5, borderBottomColor: "#BF00FF90",
-              gap: 12,
-            }}
+            <LinearGradient
+              colors={["#00243F", "#004060"]}
+              start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+              style={{
+                borderRadius: 18, padding: 12,
+                borderWidth: 2, borderColor: "#00CFFF60",
+                borderBottomWidth: 3, borderBottomColor: "#00CFFF90",
+                gap: 6, alignItems: "center",
+              }}
+            >
+              <Text style={{ fontSize: 26 }}>🎫</Text>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff", textAlign: "center" }}>باس الموسم</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: "#00CFFF", textAlign: "center" }}>30 مكافأة</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+          {/* Clan Wars */}
+          <TouchableOpacity
+            style={{ flex: 1 }}
+            activeOpacity={0.85}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/clans"); }}
           >
-            <View style={{
-              width: 52, height: 52, borderRadius: 16, backgroundColor: "#BF00FF20",
-              borderWidth: 2, borderColor: "#BF00FF55", alignItems: "center", justifyContent: "center",
-            }}>
-              <Text style={{ fontSize: 28 }}>⚔️</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" }}>⚡ حروب العصابات</Text>
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>انضم أو أنشئ عصابة وتنافس أسبوعياً</Text>
-            </View>
-            <View style={{
-              backgroundColor: "#BF00FF25", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6,
-              borderWidth: 1.5, borderColor: "#BF00FF55", alignItems: "center",
-            }}>
-              <Ionicons name="chevron-forward" size={20} color="#BF00FF" />
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
+            <LinearGradient
+              colors={["#250050", "#3D0080"]}
+              start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+              style={{
+                borderRadius: 18, padding: 12,
+                borderWidth: 2, borderColor: "#BF00FF60",
+                borderBottomWidth: 3, borderBottomColor: "#BF00FF90",
+                gap: 6, alignItems: "center",
+              }}
+            >
+              <Text style={{ fontSize: 26 }}>⚔️</Text>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff", textAlign: "center" }}>حروب العصابات</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: "#BF00FF", textAlign: "center" }}>تنافس أسبوعياً</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {/* ── BOTTOM NAVIGATION ───────────────────────────── */}
@@ -1876,7 +1834,7 @@ const styles = StyleSheet.create({
     borderWidth: 2.5, borderColor: "#7C3AED66",
   },
   parchisiCell: {
-    width: "50%", paddingVertical: 14, paddingHorizontal: 12,
+    width: "50%", paddingVertical: 10, paddingHorizontal: 12,
     alignItems: "center", justifyContent: "center",
   },
   parchisiCellRed: {
@@ -1925,10 +1883,10 @@ const styles = StyleSheet.create({
 
   streakBar: {
     width: "100%", flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: Colors.ruby + "22", borderRadius: 18,
-    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12,
-    borderWidth: 2.5, borderColor: Colors.ruby + "55",
-    borderBottomWidth: 4, borderBottomColor: Colors.ruby + "80",
+    backgroundColor: Colors.ruby + "22", borderRadius: 14,
+    paddingHorizontal: 12, paddingVertical: 7, marginBottom: 8,
+    borderWidth: 2, borderColor: Colors.ruby + "55",
+    borderBottomWidth: 3, borderBottomColor: Colors.ruby + "80",
   },
   streakText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#FF6B6B", flex: 1 },
   streakRewardHint: {
@@ -1937,23 +1895,26 @@ const styles = StyleSheet.create({
   },
   streakRewardHintText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: Colors.ruby },
 
-  logoContainer: { alignItems: "center", marginBottom: 6, position: "relative", paddingHorizontal: 20 },
-  logoGlowRing: {
-    position: "absolute",
-    width: 96, height: 96, borderRadius: 48,
-    backgroundColor: LOGO.cyan + "1E",
+  heroBar: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    width: "100%", marginBottom: 10,
+    borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10,
+    overflow: "hidden",
+    borderWidth: 1.5, borderColor: LOGO.cyan + "30",
   },
-  logoLetter: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 88,
-    color: LOGO.cyan,
-    textAlign: "center",
-    lineHeight: 100,
+  heroBarLetter: {
+    fontFamily: "Cairo_700Bold", fontSize: 42,
+    color: LOGO.cyan, lineHeight: 48,
+    textShadowColor: LOGO.cyan + "80",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
   },
-  appSubtitle: {
-    fontFamily: "Cairo_600SemiBold", fontSize: 15,
-    color: LOGO.cyan, textAlign: "center", marginTop: 4,
-    letterSpacing: 0.5, opacity: 0.9,
+  heroBarTitle: {
+    fontFamily: "Cairo_700Bold", fontSize: 14, color: "#FFFFFF",
+  },
+  heroBarSubtitle: {
+    fontFamily: "Cairo_400Regular", fontSize: 11,
+    color: LOGO.cyan, opacity: 0.85, marginTop: 1,
   },
 
   carouselSection: { width: "100%", marginBottom: 16, marginHorizontal: -16 },
