@@ -142,6 +142,7 @@ const LOGO = {
   pink:   "#FF006E",
   purple: "#BF00FF",
   yellow: "#F5C842",
+  green:  "#00FF87",
 };
 
 // ── Background blob shapes (abstract decoration) ──────────────────────────────
@@ -1669,11 +1670,11 @@ export default function HomeScreen() {
         colors={isDark ? ["rgba(12,10,30,0.97)", "rgba(18,11,42,0.99)"] : [theme.card + "FA", theme.backgroundSecondary + "FA"]}
         style={[styles.bottomNav, { paddingBottom: bottomInset, height: NAV_BAR_HEIGHT }]}
       >
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/shop")} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/leaderboard")} activeOpacity={0.7}>
           <View style={styles.navIconWrap}>
-            <MaterialCommunityIcons name="shopping" size={22} color={LOGO.cyan} />
+            <Ionicons name="podium" size={22} color={LOGO.green} />
           </View>
-          <Text style={[styles.navLabel, { color: LOGO.cyan }]}>المتجر</Text>
+          <Text style={[styles.navLabel, { color: LOGO.green }]}>المتصدرون</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push("/friends")} activeOpacity={0.7}>
           <View style={styles.navIconWrap}>
