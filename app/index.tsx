@@ -1560,8 +1560,8 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* ── BANNERS ROW (3 compact cards side by side) ─────── */}
-        <View style={{ flexDirection: "row", marginHorizontal: 16, marginTop: 12, gap: 10, marginBottom: 10 }}>
+        {/* ── BANNERS: Daily + Battle Pass (2-column row) ────── */}
+        <View style={{ flexDirection: "row", marginHorizontal: 16, marginTop: 12, gap: 10, marginBottom: 8 }}>
           {/* Daily Challenge */}
           <TouchableOpacity
             style={{ flex: 1 }}
@@ -1578,7 +1578,7 @@ export default function HomeScreen() {
                 gap: 6, alignItems: "center",
               }}
             >
-              <Text style={{ fontSize: 26 }}>🌍</Text>
+              <Text style={{ fontSize: 22 }}>🌍</Text>
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff", textAlign: "center" }}>تحدي اليوم</Text>
               <View style={{ backgroundColor: "#10B98130", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: "#10B98150" }}>
                 <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 10, color: "#10B981" }}>⏱ {dailyCountdown}</Text>
@@ -1601,33 +1601,37 @@ export default function HomeScreen() {
                 gap: 6, alignItems: "center",
               }}
             >
-              <Text style={{ fontSize: 26 }}>🎫</Text>
+              <Text style={{ fontSize: 22 }}>🎫</Text>
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff", textAlign: "center" }}>باس الموسم</Text>
               <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: "#00CFFF", textAlign: "center" }}>30 مكافأة</Text>
             </LinearGradient>
           </TouchableOpacity>
-          {/* Clan Wars */}
-          <TouchableOpacity
-            style={{ flex: 1 }}
-            activeOpacity={0.85}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/clans"); }}
-          >
-            <LinearGradient
-              colors={["#250050", "#3D0080"]}
-              start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-              style={{
-                borderRadius: 18, padding: 12,
-                borderWidth: 2, borderColor: "#BF00FF60",
-                borderBottomWidth: 3, borderBottomColor: "#BF00FF90",
-                gap: 6, alignItems: "center",
-              }}
-            >
-              <Text style={{ fontSize: 26 }}>⚔️</Text>
-              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff", textAlign: "center" }}>حروب العصابات</Text>
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: "#BF00FF", textAlign: "center" }}>تنافس أسبوعياً</Text>
-            </LinearGradient>
-          </TouchableOpacity>
         </View>
+
+        {/* ── BANNER: Clan Wars (full-width slim strip) ────── */}
+        <TouchableOpacity
+          style={{ marginHorizontal: 16, marginBottom: 10 }}
+          activeOpacity={0.85}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/clans"); }}
+        >
+          <LinearGradient
+            colors={["#250050", "#4A0099", "#250050"]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={{
+              flexDirection: "row", alignItems: "center", gap: 10,
+              paddingVertical: 10, paddingHorizontal: 14,
+              borderRadius: 18, borderWidth: 2, borderColor: "#BF00FF60",
+              borderBottomWidth: 3, borderBottomColor: "#BF00FF90",
+            }}
+          >
+            <Text style={{ fontSize: 22 }}>⚔️</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>⚡ حروب العصابات</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: "rgba(255,255,255,0.60)", marginTop: 1 }}>انضم أو أنشئ عصابة وتنافس أسبوعياً</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#BF00FF" />
+          </LinearGradient>
+        </TouchableOpacity>
       </ScrollView>
 
       {/* ── BOTTOM NAVIGATION ───────────────────────────── */}
