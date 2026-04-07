@@ -1355,6 +1355,9 @@ export default function HomeScreen() {
               const skinRingColor = skinRarityColors[equippedSkin.rarity] || "#00F5FF";
               return (
                 <View style={styles.parchisiAvatarWrap}>
+                  {/* Cross/diamond motif behind the avatar */}
+                  <View style={[styles.parchisiCrossH, { backgroundColor: skinRingColor + "22" }]} />
+                  <View style={[styles.parchisiCrossV, { backgroundColor: skinRingColor + "22" }]} />
                   {/* Outer glow ring */}
                   <View style={[styles.parchisiAvatarRing, {
                     borderColor: skinRingColor,
@@ -1534,15 +1537,11 @@ export default function HomeScreen() {
             <Text style={[styles.parchisiCellValue, { color: "#60A5FA" }]}>{profile.totalScore}</Text>
             <Text style={[styles.parchisiCellLabel, { color: "#60A5FA" }]}>نقاط</Text>
           </View>
-          {/* Bottom-right: yellow — streak / tournament */}
+          {/* Bottom-right: yellow — best streak */}
           <View style={[styles.parchisiCell, styles.parchisiCellYellow]}>
-            <Text style={styles.parchisiCellIcon}>{tournamentWins > 0 ? "🏅" : "🔥"}</Text>
-            <Text style={[styles.parchisiCellValue, { color: "#F5C842" }]}>
-              {tournamentWins > 0 ? tournamentWins : profile.bestStreak}
-            </Text>
-            <Text style={[styles.parchisiCellLabel, { color: "#F5C842" }]}>
-              {tournamentWins > 0 ? "بطولات" : "سلسلة"}
-            </Text>
+            <Text style={styles.parchisiCellIcon}>🔥</Text>
+            <Text style={[styles.parchisiCellValue, { color: "#F5C842" }]}>{profile.bestStreak}</Text>
+            <Text style={[styles.parchisiCellLabel, { color: "#F5C842" }]}>سلسلة</Text>
           </View>
         </View>
 
@@ -1816,6 +1815,12 @@ const styles = StyleSheet.create({
   },
 
   parchisiAvatarWrap: { alignItems: "center", justifyContent: "center" },
+  parchisiCrossH: {
+    position: "absolute", width: 80, height: 10, borderRadius: 5,
+  },
+  parchisiCrossV: {
+    position: "absolute", width: 10, height: 80, borderRadius: 5,
+  },
   parchisiAvatarRing: {
     width: 66, height: 66, borderRadius: 33,
     borderWidth: 3,
