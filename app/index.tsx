@@ -1544,6 +1544,13 @@ export default function HomeScreen() {
             <Text style={[styles.parchisiCellLabel, { color: "#F5C842" }]}>سلسلة</Text>
           </View>
         </View>
+        {/* Tournament wins badge — shown below the grid when non-zero */}
+        {tournamentWins > 0 && (
+          <View style={styles.tournamentBadge}>
+            <Text style={{ fontSize: 14 }}>🏆</Text>
+            <Text style={styles.tournamentBadgeText}>{tournamentWins} انتصار في البطولة</Text>
+          </View>
+        )}
 
         {/* ── DAILY CHALLENGE BANNER ──────────────────── */}
         <TouchableOpacity
@@ -1863,7 +1870,8 @@ const styles = StyleSheet.create({
 
   parchisiGrid: {
     flexDirection: "row", flexWrap: "wrap",
-    marginHorizontal: 0, marginBottom: 12,
+    width: "100%", alignSelf: "stretch",
+    marginBottom: 12,
     borderRadius: 18, overflow: "hidden",
     borderWidth: 2.5, borderColor: "#7C3AED66",
   },
@@ -1890,6 +1898,15 @@ const styles = StyleSheet.create({
   parchisiCellIcon: { fontSize: 18, marginBottom: 2 },
   parchisiCellValue: { fontFamily: "Cairo_700Bold", fontSize: 22 },
   parchisiCellLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, marginTop: 1 },
+
+  tournamentBadge: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    width: "100%", marginBottom: 10,
+    backgroundColor: "#FFD70018", borderRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderWidth: 1.5, borderColor: "#FFD70050",
+  },
+  tournamentBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#FFD700" },
 
   topRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   coinsBadge: {
