@@ -1335,68 +1335,81 @@ export default function HomeScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── TOP BAR ─────────────────────────────────────── */}
+        {/* ── TOP BAR (Parchisi style) ─────────────────────── */}
         <View style={styles.topBar}>
+          {/* Parchisi profile card */}
           <TouchableOpacity
             style={styles.profileRow}
             onPress={() => { setShowNameModal(true); setNameInput(profile.name); }}
             activeOpacity={0.8}
           >
-            <LinearGradient
-              colors={[LOGO.cyan + "18", LOGO.purple + "14"]}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
-            />
+            {/* Board corner decorations */}
+            <View style={styles.parchisiCornerTL} />
+            <View style={styles.parchisiCornerTR} />
+            <View style={styles.parchisiCornerBL} />
+            <View style={styles.parchisiCornerBR} />
+
+            {/* Avatar — large game piece */}
             {(() => {
               const skinRarityColors: Record<string, string> = { common: "#00F5FF", rare: "#BF00FF", epic: "#FF006E", legendary: "#F5C842" };
               const skinRingColor = skinRarityColors[equippedSkin.rarity] || "#00F5FF";
-              const isSpecialRarity = equippedSkin.rarity !== "common";
               return (
-                <View style={[styles.avatarCircle, {
-                  borderWidth: isSpecialRarity ? 2 : 1.5,
-                  borderColor: skinRingColor + (equippedSkin.rarity === "legendary" ? "CC" : equippedSkin.rarity === "epic" ? "99" : "60"),
-                  shadowColor: skinRingColor,
-                  shadowOpacity: equippedSkin.rarity === "legendary" ? 0.55 : equippedSkin.rarity === "epic" ? 0.35 : equippedSkin.rarity === "rare" ? 0.20 : 0,
-                  shadowRadius: equippedSkin.rarity === "legendary" ? 12 : equippedSkin.rarity === "epic" ? 8 : 4,
-                  shadowOffset: { width: 0, height: 0 }, elevation: isSpecialRarity ? 6 : 1,
-                  backgroundColor: equippedSkin.color + "33",
-                }]}>
-                  <Text style={styles.avatarEmoji}>{equippedSkin.emoji}</Text>
+                <View style={styles.parchisiAvatarWrap}>
+                  {/* Outer glow ring */}
+                  <View style={[styles.parchisiAvatarRing, {
+                    borderColor: skinRingColor,
+                    shadowColor: skinRingColor,
+                  }]}>
+                    <View style={[styles.parchisiAvatarInner, { backgroundColor: equippedSkin.color + "44" }]}>
+                      <Text style={styles.parchisiAvatarEmoji}>{equippedSkin.emoji}</Text>
+                    </View>
+                  </View>
+                  {/* Lv badge pinned to bottom of avatar */}
+                  <View style={styles.parchisiLvPin}>
+                    <Text style={styles.parchisiLvText}>Lv.{profile.level}</Text>
+                  </View>
                 </View>
               );
             })()}
+
+            {/* Right side: name + title + XP + division */}
             <View style={styles.profileMeta}>
+              {/* Name row */}
               <View style={styles.nameEditRow}>
                 {profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > new Date()) && (
-                  <Text style={{ fontSize: 14, marginRight: 4 }}>👑</Text>
+                  <Text style={{ fontSize: 13, marginRight: 3 }}>👑</Text>
                 )}
-                <Text style={[styles.playerName, { color: theme.textPrimary }]} numberOfLines={1}>{profile.name}</Text>
-                <Ionicons name="pencil" size={11} color={theme.textMuted} style={{ marginLeft: 4 }} />
+                <Text style={[styles.playerName, { color: "#FFFFFF" }]} numberOfLines={1}>{profile.name}</Text>
+                <Ionicons name="pencil" size={10} color="rgba(255,255,255,0.4)" style={{ marginLeft: 3 }} />
               </View>
+
+              {/* Title badge */}
               {(() => {
                 const titleData = TITLES.find((t) => t.id === profile.equippedTitle);
                 if (!titleData || titleData.id === "beginner") return null;
                 const tColors: Record<string, string> = { common: "#00F5FF", rare: "#BF00FF", epic: "#FF006E", legendary: "#F5C842" };
                 const tColor = tColors[titleData.rarity] || "#00F5FF";
                 return (
-                  <View style={[styles.equippedTitleBadge, { backgroundColor: tColor + "18", borderColor: tColor + "50" }]}>
+                  <View style={[styles.equippedTitleBadge, { backgroundColor: tColor + "22", borderColor: tColor + "60" }]}>
                     <Text style={[styles.equippedTitleText, { color: tColor }]}>{titleData.nameAr}</Text>
                   </View>
                 );
               })()}
-              <View style={styles.levelRow}>
-                <View style={styles.levelBadge}>
-                  <Text style={styles.levelText}>Lv.{profile.level}</Text>
-                </View>
+
+              {/* XP track (score track style) */}
+              <View style={styles.parchisiXpRow}>
+                <Text style={styles.parchisiXpLabel}>XP</Text>
                 <View style={styles.xpBarContainer}>
                   <LinearGradient
-                    colors={[LOGO.cyan, LOGO.purple]}
+                    colors={["#FF4444", "#F5C842"]}
                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                     style={[styles.xpBar, { width: `${xpProgress * 100}%` as any }]}
                   />
                 </View>
-                <Text style={[styles.xpText, { color: theme.textMuted }]}>{profile.xp % 100}/100</Text>
+                <Text style={styles.xpText}>{profile.xp % 100}/100</Text>
               </View>
+
+              {/* Division token */}
               {(() => {
                 const DIVISION_MAP: Record<string, { emoji: string; nameAr: string; color: string }> = {
                   bronze:   { emoji: "🥉", nameAr: "برونز",  color: "#CD7F32" },
@@ -1407,23 +1420,14 @@ export default function HomeScreen() {
                 };
                 const div = DIVISION_MAP[profile.division ?? "bronze"] ?? DIVISION_MAP.bronze;
                 return (
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 }}>
-                    <View style={{
-                      flexDirection: "row", alignItems: "center", gap: 3,
-                      backgroundColor: div.color + "18", borderRadius: 8,
-                      paddingHorizontal: 7, paddingVertical: 2,
-                      borderWidth: 1, borderColor: div.color + "40",
-                    }}>
-                      <Text style={{ fontSize: 11 }}>{div.emoji}</Text>
-                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 10, color: div.color }}>
-                        {div.nameAr}
-                      </Text>
-                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: div.color + "CC" }}>
-                        {profile.elo ?? 1000}
-                      </Text>
+                  <View style={styles.parchisiDivRow}>
+                    <View style={[styles.parchisiDivToken, { borderColor: div.color, backgroundColor: div.color + "22" }]}>
+                      <Text style={{ fontSize: 10 }}>{div.emoji}</Text>
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 9, color: div.color }}>{div.nameAr}</Text>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 8, color: div.color + "CC" }}>{profile.elo ?? 1000}</Text>
                     </View>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: theme.textMuted }}>
-                      {(profile.seasonWins ?? 0)}ف {(profile.seasonLosses ?? 0)}خ
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: "rgba(255,255,255,0.45)" }}>
+                      {(profile.seasonWins ?? 0)}ف · {(profile.seasonLosses ?? 0)}خ
                     </Text>
                   </View>
                 );
@@ -1431,6 +1435,7 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
 
+          {/* Coins + Settings */}
           <View style={styles.topRight}>
             <TouchableOpacity
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/shop"); }}
@@ -1509,41 +1514,37 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ── STATS ROW ───────────────────────────────────── */}
-        <LinearGradient
-          colors={[LOGO.cyan + "18", LOGO.purple + "14", LOGO.pink + "10"]}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={styles.statsRow}
-        >
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.textPrimary }]}>{profile.gamesPlayed}</Text>
-            <Text style={[styles.statLabel, { color: theme.textMuted }]}>مباريات</Text>
+        {/* ── STATS GRID (Parchisi 2×2 board) ──────────────── */}
+        <View style={styles.parchisiGrid}>
+          {/* Top-left: red — games played */}
+          <View style={[styles.parchisiCell, styles.parchisiCellRed]}>
+            <Text style={styles.parchisiCellIcon}>🎮</Text>
+            <Text style={[styles.parchisiCellValue, { color: "#FF6B6B" }]}>{profile.gamesPlayed}</Text>
+            <Text style={[styles.parchisiCellLabel, { color: "#FF6B6B" }]}>مباريات</Text>
           </View>
-          <View style={[styles.statDivider, { backgroundColor: theme.cardBorder }]} />
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.textPrimary }]}>{profile.wins}</Text>
-            <Text style={[styles.statLabel, { color: theme.textMuted }]}>انتصارات</Text>
+          {/* Top-right: green — wins */}
+          <View style={[styles.parchisiCell, styles.parchisiCellGreen]}>
+            <Text style={styles.parchisiCellIcon}>🏆</Text>
+            <Text style={[styles.parchisiCellValue, { color: "#4ADE80" }]}>{profile.wins}</Text>
+            <Text style={[styles.parchisiCellLabel, { color: "#4ADE80" }]}>انتصارات</Text>
           </View>
-          <View style={[styles.statDivider, { backgroundColor: theme.cardBorder }]} />
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.textPrimary }]}>{profile.totalScore}</Text>
-            <Text style={[styles.statLabel, { color: theme.textMuted }]}>نقاط</Text>
+          {/* Bottom-left: blue — score */}
+          <View style={[styles.parchisiCell, styles.parchisiCellBlue]}>
+            <Text style={styles.parchisiCellIcon}>⭐</Text>
+            <Text style={[styles.parchisiCellValue, { color: "#60A5FA" }]}>{profile.totalScore}</Text>
+            <Text style={[styles.parchisiCellLabel, { color: "#60A5FA" }]}>نقاط</Text>
           </View>
-          <View style={[styles.statDivider, { backgroundColor: theme.cardBorder }]} />
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.textPrimary }]}>{profile.bestStreak}</Text>
-            <Text style={[styles.statLabel, { color: theme.textMuted }]}>سلسلة</Text>
+          {/* Bottom-right: yellow — streak / tournament */}
+          <View style={[styles.parchisiCell, styles.parchisiCellYellow]}>
+            <Text style={styles.parchisiCellIcon}>{tournamentWins > 0 ? "🏅" : "🔥"}</Text>
+            <Text style={[styles.parchisiCellValue, { color: "#F5C842" }]}>
+              {tournamentWins > 0 ? tournamentWins : profile.bestStreak}
+            </Text>
+            <Text style={[styles.parchisiCellLabel, { color: "#F5C842" }]}>
+              {tournamentWins > 0 ? "بطولات" : "سلسلة"}
+            </Text>
           </View>
-          {tournamentWins > 0 && (
-            <>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: Colors.gold }]}>🏆 {tournamentWins}</Text>
-                <Text style={[styles.statLabel, { color: theme.textMuted }]}>بطولات</Text>
-              </View>
-            </>
-          )}
-        </LinearGradient>
+        </View>
 
         {/* ── DAILY CHALLENGE BANNER ──────────────────── */}
         <TouchableOpacity
@@ -1778,30 +1779,112 @@ const styles = StyleSheet.create({
   },
   profileRow: {
     flex: 1, flexDirection: "row", alignItems: "center",
-    borderRadius: 22, padding: 10, gap: 10,
+    borderRadius: 18, padding: 10, gap: 10,
     overflow: "hidden",
-    borderWidth: 3, borderColor: LOGO.cyan + "55",
-    borderBottomWidth: 4, borderBottomColor: LOGO.cyan + "88",
+    backgroundColor: "rgba(15,10,35,0.92)",
+    borderWidth: 2.5, borderColor: "#7C3AED99",
+    borderBottomWidth: 4, borderBottomColor: "#7C3AED",
   },
-  avatarCircle: {
-    width: 50, height: 50, borderRadius: 25,
+
+  parchisiCornerTL: {
+    position: "absolute", top: 0, left: 0,
+    width: 14, height: 14,
+    borderTopLeftRadius: 18,
+    backgroundColor: "#FF444455",
+    borderRightWidth: 1.5, borderBottomWidth: 1.5, borderColor: "#FF4444AA",
+  },
+  parchisiCornerTR: {
+    position: "absolute", top: 0, right: 0,
+    width: 14, height: 14,
+    borderTopRightRadius: 18,
+    backgroundColor: "#4ADE8055",
+    borderLeftWidth: 1.5, borderBottomWidth: 1.5, borderColor: "#4ADE80AA",
+  },
+  parchisiCornerBL: {
+    position: "absolute", bottom: 0, left: 0,
+    width: 14, height: 14,
+    borderBottomLeftRadius: 18,
+    backgroundColor: "#60A5FA55",
+    borderRightWidth: 1.5, borderTopWidth: 1.5, borderColor: "#60A5FAAA",
+  },
+  parchisiCornerBR: {
+    position: "absolute", bottom: 0, right: 0,
+    width: 14, height: 14,
+    borderBottomRightRadius: 18,
+    backgroundColor: "#F5C84255",
+    borderLeftWidth: 1.5, borderTopWidth: 1.5, borderColor: "#F5C842AA",
+  },
+
+  parchisiAvatarWrap: { alignItems: "center", justifyContent: "center" },
+  parchisiAvatarRing: {
+    width: 66, height: 66, borderRadius: 33,
+    borderWidth: 3,
+    justifyContent: "center", alignItems: "center",
+    shadowOpacity: 0.7, shadowRadius: 10, shadowOffset: { width: 0, height: 0 },
+    elevation: 8,
+  },
+  parchisiAvatarInner: {
+    width: 56, height: 56, borderRadius: 28,
     justifyContent: "center", alignItems: "center",
   },
-  avatarEmoji: { fontSize: 24 },
+  parchisiAvatarEmoji: { fontSize: 30 },
+  parchisiLvPin: {
+    marginTop: -8,
+    backgroundColor: "#1A0A3A",
+    borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2,
+    borderWidth: 1.5, borderColor: LOGO.yellow + "80",
+    zIndex: 2,
+  },
+  parchisiLvText: { fontFamily: "Cairo_700Bold", fontSize: 9, color: LOGO.yellow },
+
   profileMeta: { flex: 1 },
-  nameEditRow: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
-  playerName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#E8E8FF", flex: 1 },
+  nameEditRow: { flexDirection: "row", alignItems: "center", marginBottom: 3 },
+  playerName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#FFFFFF", flex: 1 },
   equippedTitleBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, alignSelf: "flex-start", marginTop: 1 },
   equippedTitleText: { fontFamily: "Cairo_700Bold", fontSize: 9 },
-  levelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  levelBadge: {
-    backgroundColor: LOGO.yellow + "28", paddingHorizontal: 7,
-    paddingVertical: 1, borderRadius: 7,
+
+  parchisiXpRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4, marginBottom: 2 },
+  parchisiXpLabel: { fontFamily: "Cairo_700Bold", fontSize: 9, color: "rgba(255,255,255,0.5)" },
+  xpBarContainer: { flex: 1, height: 5, backgroundColor: "rgba(255,255,255,0.10)", borderRadius: 3, overflow: "hidden" },
+  xpBar: { height: "100%", borderRadius: 3 },
+  xpText: { fontFamily: "Cairo_400Regular", fontSize: 9, color: "rgba(255,255,255,0.45)" },
+
+  parchisiDivRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 },
+  parchisiDivToken: {
+    flexDirection: "row", alignItems: "center", gap: 3,
+    borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3,
+    borderWidth: 1.5,
   },
-  levelText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: LOGO.yellow },
-  xpBarContainer: { flex: 1, height: 4, backgroundColor: "rgba(255,255,255,0.10)", borderRadius: 2, overflow: "hidden" },
-  xpBar: { height: "100%", borderRadius: 2 },
-  xpText: { fontFamily: "Cairo_400Regular", fontSize: 9, color: "#5A5A88" },
+
+  parchisiGrid: {
+    flexDirection: "row", flexWrap: "wrap",
+    marginHorizontal: 0, marginBottom: 12,
+    borderRadius: 18, overflow: "hidden",
+    borderWidth: 2.5, borderColor: "#7C3AED66",
+  },
+  parchisiCell: {
+    width: "50%", paddingVertical: 14, paddingHorizontal: 12,
+    alignItems: "center", justifyContent: "center",
+  },
+  parchisiCellRed: {
+    backgroundColor: "#FF444418",
+    borderRightWidth: 1.5, borderBottomWidth: 1.5, borderColor: "#FF444440",
+  },
+  parchisiCellGreen: {
+    backgroundColor: "#4ADE8018",
+    borderLeftWidth: 1.5, borderBottomWidth: 1.5, borderColor: "#4ADE8040",
+  },
+  parchisiCellBlue: {
+    backgroundColor: "#60A5FA18",
+    borderRightWidth: 1.5, borderTopWidth: 1.5, borderColor: "#60A5FA40",
+  },
+  parchisiCellYellow: {
+    backgroundColor: "#F5C84218",
+    borderLeftWidth: 1.5, borderTopWidth: 1.5, borderColor: "#F5C84240",
+  },
+  parchisiCellIcon: { fontSize: 18, marginBottom: 2 },
+  parchisiCellValue: { fontFamily: "Cairo_700Bold", fontSize: 22 },
+  parchisiCellLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, marginTop: 1 },
 
   topRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   coinsBadge: {
@@ -1876,16 +1959,6 @@ const styles = StyleSheet.create({
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.20)" },
   dotActive: { width: 20, borderRadius: 3 },
 
-  statsRow: {
-    flexDirection: "row", borderRadius: 22,
-    paddingVertical: 14, paddingHorizontal: 10, width: "100%",
-    borderWidth: 3, borderColor: LOGO.cyan + "50",
-    borderBottomWidth: 5, borderBottomColor: LOGO.cyan + "70",
-  },
-  statItem: { flex: 1, alignItems: "center" },
-  statValue: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#E8E8FF" },
-  statLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#8888CC", marginTop: 2 },
-  statDivider: { width: 2, backgroundColor: "rgba(255,255,255,0.12)", marginVertical: 4, borderRadius: 1 },
 
   bottomNav: {
     position: "absolute", bottom: 0, left: 0, right: 0,
