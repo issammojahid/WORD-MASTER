@@ -1502,7 +1502,7 @@ export default function HomeScreen() {
               width: 44, height: 44, borderRadius: 13, backgroundColor: "#10B98125",
               borderWidth: 1.5, borderColor: "#10B98155", alignItems: "center", justifyContent: "center",
             }}>
-              <Image source={require("@/assets/banners/daily-challenge.png")} style={{ width: 30, height: 30 }} resizeMode="contain" />
+              <Image source={require("@/assets/banners/daily-challenge.png")} style={{ width: 36, height: 36 }} resizeMode="contain" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>🗓 تحدي اليوم</Text>
@@ -1543,7 +1543,7 @@ export default function HomeScreen() {
               width: 44, height: 44, borderRadius: 13, backgroundColor: "#00CFFF20",
               borderWidth: 2, borderColor: "#00CFFF55", alignItems: "center", justifyContent: "center",
             }}>
-              <Image source={require("@/assets/banners/battle-pass.png")} style={{ width: 30, height: 30 }} resizeMode="contain" />
+              <Image source={require("@/assets/banners/battle-pass.png")} style={{ width: 36, height: 36 }} resizeMode="contain" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>🎯 باس الموسم</Text>
@@ -1577,7 +1577,7 @@ export default function HomeScreen() {
               width: 44, height: 44, borderRadius: 13, backgroundColor: "#BF00FF20",
               borderWidth: 1.5, borderColor: "#BF00FF55", alignItems: "center", justifyContent: "center",
             }}>
-              <Image source={require("@/assets/banners/clan-wars.png")} style={{ width: 30, height: 30 }} resizeMode="contain" />
+              <Image source={require("@/assets/banners/clan-wars.png")} style={{ width: 36, height: 36 }} resizeMode="contain" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>⚡ حروب العصابات</Text>
@@ -1672,7 +1672,6 @@ const styles = StyleSheet.create({
     width: 40, height: 40, borderRadius: 20,
     justifyContent: "center", alignItems: "center",
   },
-  avatarEmoji: { fontSize: 21 },
   avatarImage: { width: 36, height: 36, borderRadius: 18 },
   storeBtn: {
     width: 40, height: 40, borderRadius: 20,
