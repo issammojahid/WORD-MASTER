@@ -198,7 +198,7 @@ export default function ProfileScreen() {
             <LinearGradient
               colors={[LOGO.cyan, LOGO.purple]}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={[s.xpBarFill, { width: `${xpData.progress * 100}%` as any }]}
+              style={[s.xpBarFill, { width: `${xpData.progress * 100}%` as `${number}%` }]}
             />
           </View>
           <Text style={[s.xpHint, { color: theme.textMuted }]}>

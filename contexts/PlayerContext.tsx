@@ -395,6 +395,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         let parsed: Partial<PlayerProfile> | undefined;
         if (stored) {
           try { parsed = JSON.parse(stored); } catch { parsed = undefined; }
+          if (parsed) parsed.level = calculateLevel(parsed.xp ?? 0);
           setProfile(mergeProfile(parsed || {}));
         }
 
@@ -426,7 +427,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               name: sp.name || parsed?.name || defaultProfile.name,
               coins: serverCoins,
               xp: isNewPlayer ? 0 : Math.max(sp.xp ?? 0, parsed?.xp ?? 0),
-              level: isNewPlayer ? 1 : Math.max(sp.level ?? 1, parsed?.level ?? 1),
+              level: isNewPlayer ? 1 : calculateLevel(Math.max(sp.xp ?? 0, parsed?.xp ?? 0)),
               equippedSkin: sp.equippedSkin || parsed?.equippedSkin || defaultProfile.equippedSkin,
               ownedSkins: [...new Set([...(sp.ownedSkins || []), ...(parsed?.ownedSkins || []), "student"])] as SkinId[],
               totalScore: Math.max(sp.totalScore ?? 0, parsed?.totalScore ?? 0),
