@@ -15,6 +15,7 @@ import {
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  ImageBackground,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -68,8 +69,11 @@ function LoginRewardPopup({ onClaim }: { onClaim: () => void }) {
         borderBottomWidth: 6, borderBottomColor: "#C4A010",
         shadowColor: "#F5C842", shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.7, shadowRadius: 35, elevation: 35,
-        transform: [{ scale: popScale }],
+        transform: [{ scale: popScale }], overflow: "hidden",
       }}>
+        <ImageBackground source={require("../assets/images/bg_popup_reward.png")} style={StyleSheet.absoluteFillObject} imageStyle={{ borderRadius: 30 }} resizeMode="cover">
+          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(19,11,43,0.72)", borderRadius: 30 }]} />
+        </ImageBackground>
         {/* Corner decorations */}
         <Text style={{ position: "absolute", top: 12, left: 16, fontSize: 18, opacity: 0.7 }}>✦</Text>
         <Text style={{ position: "absolute", top: 12, right: 16, fontSize: 18, opacity: 0.7 }}>✦</Text>
@@ -1303,13 +1307,11 @@ export default function HomeScreen() {
   const streakIcon = profile.winStreak >= 10 ? "🔥🔥🔥" : profile.winStreak >= 5 ? "🔥🔥" : profile.winStreak >= 3 ? "🔥" : "";
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Colorful gradient background */}
-      <LinearGradient
-        colors={["#0A0A1A", "#0E0E24", "#0A0A1A"]}
-        start={{ x: 0, y: 0 }} end={{ x: 0.6, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
-      />
+    <View style={[styles.container]}>
+      {/* AI background image */}
+      <ImageBackground source={require("../assets/images/bg_home.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.58)" }]} />
+      </ImageBackground>
 
       {/* Abstract background blobs (dark mode only) */}
       {isDark && BG_BLOBS.map((b, i) => (
@@ -1694,7 +1696,10 @@ export default function HomeScreen() {
       {/* ── NAME MODAL ──────────────────────────────────── */}
       <Modal visible={showNameModal} transparent animationType="fade" onRequestClose={() => setShowNameModal(false)}>
         <View style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}>
-          <View style={[styles.modalCard, { backgroundColor: theme.modalBg }]}>
+          <View style={[styles.modalCard, { overflow: "hidden" }]}>
+            <ImageBackground source={require("../assets/images/bg_popup.png")} style={StyleSheet.absoluteFillObject} imageStyle={{ borderRadius: 26 }} resizeMode="cover">
+              <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 26 }]} />
+            </ImageBackground>
             <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>اسم اللاعب</Text>
             <TextInput
               style={[styles.nameInput, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.inputText }]}

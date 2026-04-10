@@ -13,6 +13,7 @@ import {
   TextInput,
   Share,
   ActivityIndicator,
+  ImageBackground,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -157,10 +158,9 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-      <LinearGradient
-        colors={["#0A0E1A", "#0D1526", "#0A0E1A"]}
-        style={StyleSheet.absoluteFillObject}
-      />
+      <ImageBackground source={require("../assets/images/bg_settings.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.65)" }]} />
+      </ImageBackground>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>

@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  ImageBackground,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -363,7 +364,7 @@ export default function WordChainScreen() {
   if (phase === "mode_select") {
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-        <LinearGradient colors={WC_BG} style={StyleSheet.absoluteFillObject} />
+        <ImageBackground source={require("../assets/images/bg_word_chain.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover"><View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.62)" }]} /></ImageBackground>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color="#E8E8FF" />
         </TouchableOpacity>
@@ -399,7 +400,7 @@ export default function WordChainScreen() {
   if (phase === "waiting") {
     return (
       <View style={[styles.container, styles.centerContent, { paddingTop: topInset }]}>
-        <LinearGradient colors={WC_BG} style={StyleSheet.absoluteFillObject} />
+        <ImageBackground source={require("../assets/images/bg_word_chain.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover"><View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.62)" }]} /></ImageBackground>
         <TouchableOpacity style={[styles.backBtn, { position: "absolute", top: topInset + 8, left: 16 }]} onPress={() => { setPhase("mode_select"); socket.emit("word_chain_cancel"); }}>
           <Ionicons name="arrow-back" size={22} color="#E8E8FF" />
         </TouchableOpacity>
@@ -414,7 +415,7 @@ export default function WordChainScreen() {
     const iWon = gameOverData.winnerSocketId === (isAiMode ? "me" : mySocketId);
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-        <LinearGradient colors={WC_BG} style={StyleSheet.absoluteFillObject} />
+        <ImageBackground source={require("../assets/images/bg_word_chain.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover"><View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.62)" }]} /></ImageBackground>
         <ScrollView contentContainerStyle={styles.gameOverContent}>
           <Text style={styles.gameOverEmoji}>{iWon ? "🏆" : "😔"}</Text>
           <Text style={styles.gameOverTitle}>{iWon ? "فزت!" : "خسرت"}</Text>
@@ -455,7 +456,7 @@ export default function WordChainScreen() {
     const oppWins = roundWins.find(r => r.socketId !== (isAiMode ? "me" : mySocketId))?.wins || 0;
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-        <LinearGradient colors={WC_BG} style={StyleSheet.absoluteFillObject} />
+        <ImageBackground source={require("../assets/images/bg_word_chain.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover"><View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.62)" }]} /></ImageBackground>
         <View style={styles.roundOverContent}>
           <Text style={styles.roundOverEmoji}>{iWon ? "✅" : "❌"}</Text>
           <Text style={styles.roundOverTitle}>{iWon ? "فزت بالجولة!" : "خسرت الجولة"}</Text>

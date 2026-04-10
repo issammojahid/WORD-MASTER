@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, memo, useCallback } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Alert, Platform, Animated, Dimensions, Modal, Easing,
+  Alert, Platform, Animated, Dimensions, Modal, Easing, ImageBackground,
 } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -327,7 +327,9 @@ function BoxOpeningModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.boxModalOverlay}>
         <View style={styles.boxModalContent}>
-          <LinearGradient colors={["#1A1040", "#0A0A1A", "#0E0E24"]} style={StyleSheet.absoluteFillObject} />
+          <ImageBackground source={require("../assets/images/bg_popup_reward.png")} style={StyleSheet.absoluteFillObject} imageStyle={{ borderRadius: 28 }} resizeMode="cover">
+            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(10,5,25,0.70)", borderRadius: 28 }]} />
+          </ImageBackground>
 
           <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
             {PARTICLES.map((sym, i) => (
@@ -444,7 +446,8 @@ function SpinModal({ visible, onClose }: { visible: boolean; onClose: () => void
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={{ flex: 1, backgroundColor: "#000000AA", justifyContent: "center", alignItems: "center" }} activeOpacity={1} onPress={onClose}>
         <Animated.View style={{ transform: [{ scale }], width: SW * 0.88, borderRadius: 24, overflow: "hidden" }}>
-          <LinearGradient colors={["#1E0050", "#0D0025", "#070014"]} style={{ padding: 28, alignItems: "center" }}>
+          <ImageBackground source={require("../assets/images/bg_spin.png")} style={{ padding: 28, alignItems: "center" }} imageStyle={{ borderRadius: 24 }} resizeMode="cover">
+            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(10,0,30,0.70)", borderRadius: 24 }]} />
             <Text style={{ fontSize: 60, marginBottom: 8 }}>🎡</Text>
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 22, color: "#FFF", marginBottom: 6, textAlign: "center" }}>عجلة الحظ</Text>
             <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: "#B0B0D0", textAlign: "center", marginBottom: 18, lineHeight: 22 }}>
@@ -472,7 +475,7 @@ function SpinModal({ visible, onClose }: { visible: boolean; onClose: () => void
             <TouchableOpacity onPress={onClose} style={{ marginTop: 14 }} activeOpacity={0.7}>
               <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 13, color: "#8888AA" }}>إغلاق</Text>
             </TouchableOpacity>
-          </LinearGradient>
+          </ImageBackground>
         </Animated.View>
       </TouchableOpacity>
     </Modal>
@@ -1105,7 +1108,9 @@ export default function ShopScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topInset }]}>
-      <LinearGradient colors={["#0A0A1A", "#0D0D26", "#0A0A1A"]} style={StyleSheet.absoluteFillObject} />
+      <ImageBackground source={require("../assets/images/bg_shop.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.58)" }]} />
+      </ImageBackground>
       <ShopParticles />
 
       <View style={styles.header}>

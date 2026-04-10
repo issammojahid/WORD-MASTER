@@ -9,6 +9,7 @@ import {
   Platform,
   ActivityIndicator,
   Modal,
+  ImageBackground,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -340,7 +341,9 @@ export default function DailyChallengeScreen() {
   if (loading) {
     return (
       <View style={[styles.container, styles.centerContent, { paddingTop: topInset }]}>
-        <LinearGradient colors={DC_BG} style={StyleSheet.absoluteFillObject} />
+        <ImageBackground source={require("../assets/images/bg_daily.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
+          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.60)" }]} />
+        </ImageBackground>
         <ActivityIndicator size="large" color={Colors.emerald} />
         <Text style={styles.loadingText}>جاري تحميل تحدي اليوم...</Text>
       </View>
@@ -349,7 +352,9 @@ export default function DailyChallengeScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-      <LinearGradient colors={DC_BG} style={StyleSheet.absoluteFillObject} />
+      <ImageBackground source={require("../assets/images/bg_daily.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.60)" }]} />
+      </ImageBackground>
 
       {/* Header */}
       <View style={styles.header}>

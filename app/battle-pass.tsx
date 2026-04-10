@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  ImageBackground,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -204,10 +205,11 @@ export default function BattlePassScreen() {
   const xpProgressPct = Math.min(1, xpInCurrentTier / xpPerTier);
 
   return (
-    <LinearGradient
-      colors={isDark ? ["#000c1a", "#001830", "#000c1a"] : ["#e8f4ff", "#d0e8ff", "#e8f4ff"]}
-      style={{ flex: 1 }}
-    >
+    <View style={{ flex: 1 }}>
+      <ImageBackground source={require("../assets/images/bg_battle_pass.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.62)" }]} />
+      </ImageBackground>
+      <View style={{ flex: 1 }}>
       {/* Header */}
       <LinearGradient
         colors={["#00192D", "#003060"]}
@@ -363,7 +365,8 @@ export default function BattlePassScreen() {
           );
         })}
       </ScrollView>
-    </LinearGradient>
+      </View>
+    </View>
   );
 }
 

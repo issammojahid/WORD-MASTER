@@ -8,6 +8,7 @@ import {
   ScrollView,
   Animated,
   Platform,
+  ImageBackground,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -435,7 +436,7 @@ export default function AIGameScreen() {
   if (phase === "difficulty") {
     return (
       <View style={[styles.container, { paddingTop: topInset, backgroundColor: theme.background }]}>
-        <LinearGradient colors={AI_BG} style={StyleSheet.absoluteFillObject} />
+        <ImageBackground source={require("../assets/images/bg_ai.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover"><View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.60)" }]} /></ImageBackground>
         <View style={[styles.header, { borderBottomColor: theme.cardBorder }]}>
           <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: theme.card }]}>
             <Ionicons name="chevron-back" size={22} color={theme.textPrimary} />
@@ -486,7 +487,7 @@ export default function AIGameScreen() {
   if (phase === "loading") {
     return (
       <View style={[styles.container, { alignItems: "center", justifyContent: "center", backgroundColor: theme.background }]}>
-        <LinearGradient colors={AI_BG} style={StyleSheet.absoluteFillObject} />
+        <ImageBackground source={require("../assets/images/bg_ai.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover"><View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.60)" }]} /></ImageBackground>
         <Text style={styles.loadingEmoji}>🤖</Text>
         <Text style={styles.loadingText}>جاري التحضير...</Text>
       </View>
@@ -496,7 +497,7 @@ export default function AIGameScreen() {
   if (phase === "playing") {
     return (
       <View style={[styles.container, { paddingTop: topInset, backgroundColor: theme.background }]}>
-        <LinearGradient colors={AI_BG} style={StyleSheet.absoluteFillObject} />
+        <ImageBackground source={require("../assets/images/bg_ai.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover"><View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.60)" }]} /></ImageBackground>
         <View style={[styles.gameHeader, { backgroundColor: theme.backgroundSecondary, borderBottomColor: theme.cardBorder }]}>
           <View style={styles.gameHeaderLeft}>
             <Text style={[styles.roundLabel, { color: theme.textSecondary }]}>جولة {currentRound}/{TOTAL_ROUNDS}</Text>
@@ -603,7 +604,7 @@ export default function AIGameScreen() {
 
     return (
       <View style={[styles.container, { paddingTop: topInset, backgroundColor: theme.background }]}>
-        <LinearGradient colors={AI_BG} style={StyleSheet.absoluteFillObject} />
+        <ImageBackground source={require("../assets/images/bg_ai.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover"><View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.60)" }]} /></ImageBackground>
         <View style={[styles.resultsHeader, { backgroundColor: theme.backgroundSecondary, borderBottomColor: theme.cardBorder }]}>
           <Text style={[styles.resultsTitle, { color: theme.textPrimary }]}>نتائج الجولة {currentRound}</Text>
           <View style={styles.roundScoreRow}>
@@ -674,7 +675,7 @@ export default function AIGameScreen() {
     const xpGain = Math.max(10, Math.floor(playerTotalScore / 2));
     return (
       <View style={[styles.container, styles.gameOverContainer, { paddingTop: topInset, backgroundColor: theme.background }]}>
-        <LinearGradient colors={AI_BG} style={StyleSheet.absoluteFillObject} />
+        <ImageBackground source={require("../assets/images/bg_ai.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover"><View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.60)" }]} /></ImageBackground>
         <View style={[styles.gameOverCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
           <Text style={styles.gameOverEmoji}>{won ? "🏆" : draw ? "🤝" : "😔"}</Text>
           <Text style={[styles.gameOverTitle, { color: won ? Colors.gold : draw ? theme.textPrimary : Colors.ruby }]}>
