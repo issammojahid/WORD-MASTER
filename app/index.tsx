@@ -1344,24 +1344,6 @@ export default function HomeScreen() {
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFillObject}
             />
-            {(() => {
-              const skinRarityColors: Record<string, string> = { common: "#00F5FF", rare: "#BF00FF", epic: "#FF006E", legendary: "#F5C842" };
-              const skinRingColor = skinRarityColors[equippedSkin.rarity] || "#00F5FF";
-              const isSpecialRarity = equippedSkin.rarity !== "common";
-              return (
-                <View style={[styles.avatarCircle, {
-                  borderWidth: isSpecialRarity ? 2 : 1.5,
-                  borderColor: skinRingColor + (equippedSkin.rarity === "legendary" ? "CC" : equippedSkin.rarity === "epic" ? "99" : "60"),
-                  shadowColor: skinRingColor,
-                  shadowOpacity: equippedSkin.rarity === "legendary" ? 0.55 : equippedSkin.rarity === "epic" ? 0.35 : equippedSkin.rarity === "rare" ? 0.20 : 0,
-                  shadowRadius: equippedSkin.rarity === "legendary" ? 12 : equippedSkin.rarity === "epic" ? 8 : 4,
-                  shadowOffset: { width: 0, height: 0 }, elevation: isSpecialRarity ? 6 : 1,
-                  backgroundColor: equippedSkin.color + "33",
-                }]}>
-                  <Text style={styles.avatarEmoji}>{equippedSkin.emoji}</Text>
-                </View>
-              );
-            })()}
             <View style={styles.profileMeta}>
               <View style={styles.nameEditRow}>
                 {profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > new Date()) && (
@@ -1382,6 +1364,24 @@ export default function HomeScreen() {
                 );
               })()}
               <View style={styles.levelRow}>
+                {(() => {
+                  const skinRarityColors: Record<string, string> = { common: "#00F5FF", rare: "#BF00FF", epic: "#FF006E", legendary: "#F5C842" };
+                  const skinRingColor = skinRarityColors[equippedSkin.rarity] || "#00F5FF";
+                  const isSpecialRarity = equippedSkin.rarity !== "common";
+                  return (
+                    <View style={[styles.avatarCircle, {
+                      borderWidth: isSpecialRarity ? 2 : 1.5,
+                      borderColor: skinRingColor + (equippedSkin.rarity === "legendary" ? "CC" : equippedSkin.rarity === "epic" ? "99" : "60"),
+                      shadowColor: skinRingColor,
+                      shadowOpacity: equippedSkin.rarity === "legendary" ? 0.55 : equippedSkin.rarity === "epic" ? 0.35 : equippedSkin.rarity === "rare" ? 0.20 : 0,
+                      shadowRadius: equippedSkin.rarity === "legendary" ? 12 : equippedSkin.rarity === "epic" ? 8 : 4,
+                      shadowOffset: { width: 0, height: 0 }, elevation: isSpecialRarity ? 6 : 1,
+                      backgroundColor: equippedSkin.color + "33",
+                    }]}>
+                      <Text style={styles.avatarEmoji}>{equippedSkin.emoji}</Text>
+                    </View>
+                  );
+                })()}
                 <View style={styles.levelBadge}>
                   <Text style={styles.levelText}>Lv.{profile.level}</Text>
                 </View>
@@ -1742,16 +1742,16 @@ const styles = StyleSheet.create({
   },
   profileRow: {
     flex: 1, flexDirection: "row", alignItems: "center",
-    borderRadius: 22, padding: 10, gap: 10,
+    borderRadius: 22, padding: 10,
     overflow: "hidden",
     borderWidth: 3, borderColor: LOGO.cyan + "55",
     borderBottomWidth: 4, borderBottomColor: LOGO.cyan + "88",
   },
   avatarCircle: {
-    width: 50, height: 50, borderRadius: 25,
+    width: 28, height: 28, borderRadius: 14,
     justifyContent: "center", alignItems: "center",
   },
-  avatarEmoji: { fontSize: 24 },
+  avatarEmoji: { fontSize: 14 },
   profileMeta: { flex: 1 },
   nameEditRow: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
   playerName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#E8E8FF", flex: 1 },
