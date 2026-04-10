@@ -8,7 +8,6 @@ import {
   Dimensions,
   Platform,
   Alert,
-  ImageBackground,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -205,9 +204,10 @@ export default function LeagueScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-      <ImageBackground source={require("../assets/images/bg_league.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.60)" }]} />
-      </ImageBackground>
+      <LinearGradient
+        colors={["#0A0E1A", "#0D1526", "#0A0E1A"]}
+        style={StyleSheet.absoluteFillObject}
+      />
 
       {/* Header */}
       <View style={styles.header}>

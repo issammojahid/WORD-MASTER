@@ -8,7 +8,6 @@ import {
   Animated,
   Platform,
   Alert,
-  ImageBackground,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
@@ -270,9 +269,7 @@ export default function SpectateScreen() {
   if (error) {
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-        <ImageBackground source={require("../assets/images/bg_spectate.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.60)" }]} />
-        </ImageBackground>
+        <LinearGradient colors={SPECTATE_BG} style={StyleSheet.absoluteFillObject} />
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color="#E8E8FF" />
         </TouchableOpacity>
@@ -289,9 +286,7 @@ export default function SpectateScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-      <ImageBackground source={require("../assets/images/bg_spectate.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.60)" }]} />
-      </ImageBackground>
+      <LinearGradient colors={SPECTATE_BG} style={StyleSheet.absoluteFillObject} />
 
       {/* Header */}
       <View style={styles.header}>

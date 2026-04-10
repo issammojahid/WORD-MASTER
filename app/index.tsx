@@ -15,7 +15,6 @@ import {
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  ImageBackground,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -69,11 +68,8 @@ function LoginRewardPopup({ onClaim }: { onClaim: () => void }) {
         borderBottomWidth: 6, borderBottomColor: "#C4A010",
         shadowColor: "#F5C842", shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.7, shadowRadius: 35, elevation: 35,
-        transform: [{ scale: popScale }], overflow: "hidden",
+        transform: [{ scale: popScale }],
       }}>
-        <ImageBackground source={require("../assets/images/bg_popup_reward.png")} style={StyleSheet.absoluteFillObject} imageStyle={{ borderRadius: 30 }} resizeMode="cover">
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(19,11,43,0.72)", borderRadius: 30 }]} />
-        </ImageBackground>
         {/* Corner decorations */}
         <Text style={{ position: "absolute", top: 12, left: 16, fontSize: 18, opacity: 0.7 }}>✦</Text>
         <Text style={{ position: "absolute", top: 12, right: 16, fontSize: 18, opacity: 0.7 }}>✦</Text>
@@ -1307,11 +1303,13 @@ export default function HomeScreen() {
   const streakIcon = profile.winStreak >= 10 ? "🔥🔥🔥" : profile.winStreak >= 5 ? "🔥🔥" : profile.winStreak >= 3 ? "🔥" : "";
 
   return (
-    <View style={[styles.container]}>
-      {/* AI background image */}
-      <ImageBackground source={require("../assets/images/bg_home.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.58)" }]} />
-      </ImageBackground>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Colorful gradient background */}
+      <LinearGradient
+        colors={["#0A0A1A", "#0E0E24", "#0A0A1A"]}
+        start={{ x: 0, y: 0 }} end={{ x: 0.6, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
 
       {/* Abstract background blobs (dark mode only) */}
       {isDark && BG_BLOBS.map((b, i) => (
@@ -1337,84 +1335,68 @@ export default function HomeScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── TOP BAR (Parchisi style) ─────────────────────── */}
+        {/* ── TOP BAR ─────────────────────────────────────── */}
         <View style={styles.topBar}>
-          {/* Parchisi profile card */}
           <TouchableOpacity
             style={styles.profileRow}
             onPress={() => { setShowNameModal(true); setNameInput(profile.name); }}
             activeOpacity={0.8}
           >
-            {/* Board corner decorations */}
-            <View style={styles.parchisiCornerTL} />
-            <View style={styles.parchisiCornerTR} />
-            <View style={styles.parchisiCornerBL} />
-            <View style={styles.parchisiCornerBR} />
-
-            {/* Avatar — large game piece */}
+            <LinearGradient
+              colors={[LOGO.cyan + "18", LOGO.purple + "14"]}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFillObject}
+            />
             {(() => {
               const skinRarityColors: Record<string, string> = { common: "#00F5FF", rare: "#BF00FF", epic: "#FF006E", legendary: "#F5C842" };
               const skinRingColor = skinRarityColors[equippedSkin.rarity] || "#00F5FF";
+              const isSpecialRarity = equippedSkin.rarity !== "common";
               return (
-                <View style={styles.parchisiAvatarWrap}>
-                  {/* Cross/diamond motif behind the avatar */}
-                  <View style={[styles.parchisiCrossH, { backgroundColor: skinRingColor + "22" }]} />
-                  <View style={[styles.parchisiCrossV, { backgroundColor: skinRingColor + "22" }]} />
-                  {/* Outer glow ring */}
-                  <View style={[styles.parchisiAvatarRing, {
-                    borderColor: skinRingColor,
-                    shadowColor: skinRingColor,
-                  }]}>
-                    <View style={[styles.parchisiAvatarInner, { backgroundColor: equippedSkin.color + "44" }]}>
-                      <Text style={styles.parchisiAvatarEmoji}>{equippedSkin.emoji}</Text>
-                    </View>
-                  </View>
-                  {/* Lv badge pinned to bottom of avatar */}
-                  <View style={styles.parchisiLvPin}>
-                    <Text style={styles.parchisiLvText}>Lv.{profile.level}</Text>
-                  </View>
+                <View style={[styles.avatarCircle, {
+                  borderWidth: isSpecialRarity ? 2 : 1.5,
+                  borderColor: skinRingColor + (equippedSkin.rarity === "legendary" ? "CC" : equippedSkin.rarity === "epic" ? "99" : "60"),
+                  shadowColor: skinRingColor,
+                  shadowOpacity: equippedSkin.rarity === "legendary" ? 0.55 : equippedSkin.rarity === "epic" ? 0.35 : equippedSkin.rarity === "rare" ? 0.20 : 0,
+                  shadowRadius: equippedSkin.rarity === "legendary" ? 12 : equippedSkin.rarity === "epic" ? 8 : 4,
+                  shadowOffset: { width: 0, height: 0 }, elevation: isSpecialRarity ? 6 : 1,
+                  backgroundColor: equippedSkin.color + "33",
+                }]}>
+                  <Text style={styles.avatarEmoji}>{equippedSkin.emoji}</Text>
                 </View>
               );
             })()}
-
-            {/* Right side: name + title + XP + division */}
             <View style={styles.profileMeta}>
-              {/* Name row */}
               <View style={styles.nameEditRow}>
                 {profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > new Date()) && (
-                  <Text style={{ fontSize: 13, marginRight: 3 }}>👑</Text>
+                  <Text style={{ fontSize: 14, marginRight: 4 }}>👑</Text>
                 )}
-                <Text style={[styles.playerName, { color: "#FFFFFF" }]} numberOfLines={1}>{profile.name}</Text>
-                <Ionicons name="pencil" size={10} color="rgba(255,255,255,0.4)" style={{ marginLeft: 3 }} />
+                <Text style={[styles.playerName, { color: theme.textPrimary }]} numberOfLines={1}>{profile.name}</Text>
+                <Ionicons name="pencil" size={11} color={theme.textMuted} style={{ marginLeft: 4 }} />
               </View>
-
-              {/* Title badge */}
               {(() => {
                 const titleData = TITLES.find((t) => t.id === profile.equippedTitle);
                 if (!titleData || titleData.id === "beginner") return null;
                 const tColors: Record<string, string> = { common: "#00F5FF", rare: "#BF00FF", epic: "#FF006E", legendary: "#F5C842" };
                 const tColor = tColors[titleData.rarity] || "#00F5FF";
                 return (
-                  <View style={[styles.equippedTitleBadge, { backgroundColor: tColor + "22", borderColor: tColor + "60" }]}>
+                  <View style={[styles.equippedTitleBadge, { backgroundColor: tColor + "18", borderColor: tColor + "50" }]}>
                     <Text style={[styles.equippedTitleText, { color: tColor }]}>{titleData.nameAr}</Text>
                   </View>
                 );
               })()}
-
-              {/* XP track (score track style) */}
-              <View style={styles.parchisiXpRow}>
-                <Text style={styles.parchisiXpLabel}>XP</Text>
+              <View style={styles.levelRow}>
+                <View style={styles.levelBadge}>
+                  <Text style={styles.levelText}>Lv.{profile.level}</Text>
+                </View>
                 <View style={styles.xpBarContainer}>
                   <LinearGradient
-                    colors={["#FF4444", "#F5C842"]}
+                    colors={[LOGO.cyan, LOGO.purple]}
                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                     style={[styles.xpBar, { width: `${xpProgress * 100}%` as any }]}
                   />
                 </View>
-                <Text style={styles.xpText}>{profile.xp % 100}/100</Text>
+                <Text style={[styles.xpText, { color: theme.textMuted }]}>{profile.xp % 100}/100</Text>
               </View>
-
-              {/* Division token */}
               {(() => {
                 const DIVISION_MAP: Record<string, { emoji: string; nameAr: string; color: string }> = {
                   bronze:   { emoji: "🥉", nameAr: "برونز",  color: "#CD7F32" },
@@ -1425,14 +1407,23 @@ export default function HomeScreen() {
                 };
                 const div = DIVISION_MAP[profile.division ?? "bronze"] ?? DIVISION_MAP.bronze;
                 return (
-                  <View style={styles.parchisiDivRow}>
-                    <View style={[styles.parchisiDivToken, { borderColor: div.color, backgroundColor: div.color + "22" }]}>
-                      <Text style={{ fontSize: 10 }}>{div.emoji}</Text>
-                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 9, color: div.color }}>{div.nameAr}</Text>
-                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 8, color: div.color + "CC" }}>{profile.elo ?? 1000}</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 }}>
+                    <View style={{
+                      flexDirection: "row", alignItems: "center", gap: 3,
+                      backgroundColor: div.color + "18", borderRadius: 8,
+                      paddingHorizontal: 7, paddingVertical: 2,
+                      borderWidth: 1, borderColor: div.color + "40",
+                    }}>
+                      <Text style={{ fontSize: 11 }}>{div.emoji}</Text>
+                      <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 10, color: div.color }}>
+                        {div.nameAr}
+                      </Text>
+                      <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: div.color + "CC" }}>
+                        {profile.elo ?? 1000}
+                      </Text>
                     </View>
-                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: "rgba(255,255,255,0.45)" }}>
-                      {(profile.seasonWins ?? 0)}ف · {(profile.seasonLosses ?? 0)}خ
+                    <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 9, color: theme.textMuted }}>
+                      {(profile.seasonWins ?? 0)}ف {(profile.seasonLosses ?? 0)}خ
                     </Text>
                   </View>
                 );
@@ -1440,7 +1431,6 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
 
-          {/* Coins + Settings */}
           <View style={styles.topRight}>
             <TouchableOpacity
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/shop"); }}
@@ -1475,24 +1465,16 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* ── HERO BAR ─────────────────────────────────────── */}
-        <View style={styles.heroBar}>
-          <LinearGradient
-            colors={[LOGO.cyan + "1A", LOGO.purple + "14"]}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={StyleSheet.absoluteFillObject}
-          />
-          <Text style={styles.heroBarLetter}>ح</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.heroBarTitle}>حروف المغرب</Text>
-            <Text style={styles.heroBarSubtitle}>{t.homeSubtitle}</Text>
-          </View>
-          <View style={{ flexDirection: "row", gap: 3 }}>
-            {["✦", "⭐", "✦"].map((s, i) => (
-              <Text key={i} style={{ fontSize: 10, color: i === 1 ? LOGO.yellow : LOGO.cyan, opacity: 0.7 }}>{s}</Text>
-            ))}
-          </View>
-        </View>
+        {/* ── LOGO ────────────────────────────────────────── */}
+        <Animated.View style={[styles.logoContainer, { transform: [{ translateY: floatAnim }] }]}>
+          {/* Sparkles near letter */}
+          {LOGO_SPARKLES.map((s, i) => <LogoSparkle key={i} {...s} />)}
+          {/* Glow ring behind letter */}
+          <View style={styles.logoGlowRing} />
+          {/* The "ح" letter */}
+          <Text style={styles.logoLetter}>ح</Text>
+          <Text style={styles.appSubtitle}>{t.homeSubtitle}</Text>
+        </Animated.View>
 
         {/* ── GAME MODES CAROUSEL ─────────────────────────── */}
         <View style={styles.carouselSection}>
@@ -1527,113 +1509,160 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ── STATS GRID (Parchisi 2×2 board) ──────────────── */}
-        <View style={styles.parchisiGrid}>
-          {/* Top-left: red — games played */}
-          <View style={[styles.parchisiCell, styles.parchisiCellRed]}>
-            <Text style={styles.parchisiCellIcon}>🎮</Text>
-            <Text style={[styles.parchisiCellValue, { color: "#FF6B6B" }]}>{profile.gamesPlayed}</Text>
-            <Text style={[styles.parchisiCellLabel, { color: "#FF6B6B" }]}>مباريات</Text>
+        {/* ── STATS ROW ───────────────────────────────────── */}
+        <LinearGradient
+          colors={[LOGO.cyan + "18", LOGO.purple + "14", LOGO.pink + "10"]}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={styles.statsRow}
+        >
+          <View style={styles.statItem}>
+            <Text style={[styles.statValue, { color: theme.textPrimary }]}>{profile.gamesPlayed}</Text>
+            <Text style={[styles.statLabel, { color: theme.textMuted }]}>مباريات</Text>
           </View>
-          {/* Top-right: green — wins */}
-          <View style={[styles.parchisiCell, styles.parchisiCellGreen]}>
-            <Text style={styles.parchisiCellIcon}>🏆</Text>
-            <Text style={[styles.parchisiCellValue, { color: "#4ADE80" }]}>{profile.wins}</Text>
-            <Text style={[styles.parchisiCellLabel, { color: "#4ADE80" }]}>انتصارات</Text>
+          <View style={[styles.statDivider, { backgroundColor: theme.cardBorder }]} />
+          <View style={styles.statItem}>
+            <Text style={[styles.statValue, { color: theme.textPrimary }]}>{profile.wins}</Text>
+            <Text style={[styles.statLabel, { color: theme.textMuted }]}>انتصارات</Text>
           </View>
-          {/* Bottom-left: blue — score */}
-          <View style={[styles.parchisiCell, styles.parchisiCellBlue]}>
-            <Text style={styles.parchisiCellIcon}>⭐</Text>
-            <Text style={[styles.parchisiCellValue, { color: "#60A5FA" }]}>{profile.totalScore}</Text>
-            <Text style={[styles.parchisiCellLabel, { color: "#60A5FA" }]}>نقاط</Text>
+          <View style={[styles.statDivider, { backgroundColor: theme.cardBorder }]} />
+          <View style={styles.statItem}>
+            <Text style={[styles.statValue, { color: theme.textPrimary }]}>{profile.totalScore}</Text>
+            <Text style={[styles.statLabel, { color: theme.textMuted }]}>نقاط</Text>
           </View>
-          {/* Bottom-right: yellow — best streak */}
-          <View style={[styles.parchisiCell, styles.parchisiCellYellow]}>
-            <Text style={styles.parchisiCellIcon}>🔥</Text>
-            <Text style={[styles.parchisiCellValue, { color: "#F5C842" }]}>{profile.bestStreak}</Text>
-            <Text style={[styles.parchisiCellLabel, { color: "#F5C842" }]}>سلسلة</Text>
+          <View style={[styles.statDivider, { backgroundColor: theme.cardBorder }]} />
+          <View style={styles.statItem}>
+            <Text style={[styles.statValue, { color: theme.textPrimary }]}>{profile.bestStreak}</Text>
+            <Text style={[styles.statLabel, { color: theme.textMuted }]}>سلسلة</Text>
           </View>
-        </View>
-        {/* ── BANNERS: Daily + Battle Pass (2-column row) ────── */}
-        <View style={{ flexDirection: "row", marginHorizontal: 16, marginTop: 12, gap: 10, marginBottom: 8 }}>
-          {/* Daily Challenge */}
-          <TouchableOpacity
-            style={{ flex: 1 }}
-            activeOpacity={0.85}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/daily-challenge"); }}
-          >
-            <LinearGradient
-              colors={["#002A18", "#004A28"]}
-              start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-              style={{
-                borderRadius: 18, padding: 12,
-                borderWidth: 2, borderColor: "#10B98160",
-                borderBottomWidth: 3, borderBottomColor: "#10B98190",
-                gap: 6, alignItems: "center",
-              }}
-            >
-              <Text style={{ fontSize: 22 }}>🌍</Text>
-              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff", textAlign: "center" }}>تحدي اليوم</Text>
-              <View style={{ backgroundColor: "#10B98130", borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: "#10B98150" }}>
-                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 10, color: "#10B981" }}>⏱ {dailyCountdown}</Text>
+          {tournamentWins > 0 && (
+            <>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={[styles.statValue, { color: Colors.gold }]}>🏆 {tournamentWins}</Text>
+                <Text style={[styles.statLabel, { color: theme.textMuted }]}>بطولات</Text>
               </View>
-            </LinearGradient>
-          </TouchableOpacity>
-          {/* Battle Pass */}
-          <TouchableOpacity
-            style={{ flex: 1 }}
-            activeOpacity={0.85}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/battle-pass"); }}
-          >
-            <LinearGradient
-              colors={["#00243F", "#004060"]}
-              start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-              style={{
-                borderRadius: 18, padding: 12,
-                borderWidth: 2, borderColor: "#00CFFF60",
-                borderBottomWidth: 3, borderBottomColor: "#00CFFF90",
-                gap: 6, alignItems: "center",
-              }}
-            >
-              <Text style={{ fontSize: 22 }}>🎫</Text>
-              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#fff", textAlign: "center" }}>باس الموسم</Text>
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: "#00CFFF", textAlign: "center" }}>30 مكافأة</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
+            </>
+          )}
+        </LinearGradient>
 
-        {/* ── BANNER: Clan Wars (full-width slim strip) ────── */}
+        {/* ── DAILY CHALLENGE BANNER ──────────────────── */}
         <TouchableOpacity
-          style={{ marginHorizontal: 16, marginBottom: 10 }}
+          activeOpacity={0.85}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/daily-challenge"); }}
+          style={{ marginHorizontal: 16, marginTop: 14, marginBottom: 6 }}
+        >
+          <View style={{
+            position: "absolute", bottom: -5, left: 8, right: 8, height: 12,
+            borderRadius: 16, backgroundColor: "#10B98135",
+          }} />
+          <LinearGradient
+            colors={["#002A18", "#005030", "#002A18"]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={{
+              flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16,
+              borderRadius: 22, borderWidth: 3, borderColor: "#10B98165",
+              borderBottomWidth: 5, borderBottomColor: "#10B98190",
+              gap: 12,
+            }}
+          >
+            <View style={{
+              width: 52, height: 52, borderRadius: 16, backgroundColor: "#10B98125",
+              borderWidth: 2, borderColor: "#10B98155", alignItems: "center", justifyContent: "center",
+            }}>
+              <Text style={{ fontSize: 28 }}>🌍</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" }}>🗓 تحدي اليوم</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>
+                6 محاولات لتخمين الكلمة العربية
+              </Text>
+            </View>
+            <View style={{ alignItems: "flex-end", gap: 3 }}>
+              <View style={{ backgroundColor: "#10B98130", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: "#10B98155" }}>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#10B981" }}>⏱ {dailyCountdown}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#10B981" />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* ── BATTLE PASS BANNER ──────────────────────── */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/battle-pass"); }}
+          style={{ marginHorizontal: 16, marginTop: 10, marginBottom: 6 }}
+        >
+          <View style={{
+            position: "absolute", bottom: -5, left: 8, right: 8, height: 12,
+            borderRadius: 16, backgroundColor: "#00CFFF30",
+          }} />
+          <LinearGradient
+            colors={["#00243F", "#004A80", "#00243F"]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={{
+              flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16,
+              borderRadius: 22, borderWidth: 3, borderColor: "#00CFFF65",
+              borderBottomWidth: 5, borderBottomColor: "#00CFFF90",
+              gap: 12,
+            }}
+          >
+            <View style={{
+              width: 52, height: 52, borderRadius: 16, backgroundColor: "#00CFFF20",
+              borderWidth: 2, borderColor: "#00CFFF55", alignItems: "center", justifyContent: "center",
+            }}>
+              <Text style={{ fontSize: 28 }}>🎫</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" }}>🎯 باس الموسم</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>30 مكافأة • العب واكسب XP</Text>
+            </View>
+            <View style={{
+              backgroundColor: "#00CFFF25", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6,
+              borderWidth: 1.5, borderColor: "#00CFFF55", alignItems: "center",
+            }}>
+              <Ionicons name="chevron-forward" size={20} color="#00CFFF" />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* ── CLAN WARS BANNER ────────────────────────── */}
+        <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/clans"); }}
+          style={{ marginHorizontal: 16, marginTop: 10, marginBottom: 10 }}
         >
+          <View style={{
+            position: "absolute", bottom: -5, left: 8, right: 8, height: 12,
+            borderRadius: 16, backgroundColor: "#BF00FF30",
+          }} />
           <LinearGradient
             colors={["#250050", "#4A0099", "#250050"]}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             style={{
-              flexDirection: "row", alignItems: "center", gap: 10,
-              paddingVertical: 10, paddingHorizontal: 14,
-              borderRadius: 18, borderWidth: 2, borderColor: "#BF00FF60",
-              borderBottomWidth: 3, borderBottomColor: "#BF00FF90",
+              flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16,
+              borderRadius: 22, borderWidth: 3, borderColor: "#BF00FF65",
+              borderBottomWidth: 5, borderBottomColor: "#BF00FF90",
+              gap: 12,
             }}
           >
-            <Text style={{ fontSize: 22 }}>⚔️</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 13, color: "#fff" }}>⚡ حروب العصابات</Text>
-              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 10, color: "rgba(255,255,255,0.60)", marginTop: 1 }}>انضم أو أنشئ عصابة وتنافس أسبوعياً</Text>
+            <View style={{
+              width: 52, height: 52, borderRadius: 16, backgroundColor: "#BF00FF20",
+              borderWidth: 2, borderColor: "#BF00FF55", alignItems: "center", justifyContent: "center",
+            }}>
+              <Text style={{ fontSize: 28 }}>⚔️</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#BF00FF" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" }}>⚡ حروب العصابات</Text>
+              <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>انضم أو أنشئ عصابة وتنافس أسبوعياً</Text>
+            </View>
+            <View style={{
+              backgroundColor: "#BF00FF25", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6,
+              borderWidth: 1.5, borderColor: "#BF00FF55", alignItems: "center",
+            }}>
+              <Ionicons name="chevron-forward" size={20} color="#BF00FF" />
+            </View>
           </LinearGradient>
         </TouchableOpacity>
-
-        {/* Tournament wins badge — at the very bottom when non-zero */}
-        {tournamentWins > 0 && (
-          <View style={styles.tournamentBadge}>
-            <Text style={{ fontSize: 14 }}>🏆</Text>
-            <Text style={styles.tournamentBadgeText}>{tournamentWins} انتصار في البطولة</Text>
-          </View>
-        )}
       </ScrollView>
 
       {/* ── BOTTOM NAVIGATION ───────────────────────────── */}
@@ -1696,10 +1725,7 @@ export default function HomeScreen() {
       {/* ── NAME MODAL ──────────────────────────────────── */}
       <Modal visible={showNameModal} transparent animationType="fade" onRequestClose={() => setShowNameModal(false)}>
         <View style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}>
-          <View style={[styles.modalCard, { overflow: "hidden" }]}>
-            <ImageBackground source={require("../assets/images/bg_popup.png")} style={StyleSheet.absoluteFillObject} imageStyle={{ borderRadius: 26 }} resizeMode="cover">
-              <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 26 }]} />
-            </ImageBackground>
+          <View style={[styles.modalCard, { backgroundColor: theme.modalBg }]}>
             <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>اسم اللاعب</Text>
             <TextInput
               style={[styles.nameInput, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.inputText }]}
@@ -1752,128 +1778,30 @@ const styles = StyleSheet.create({
   },
   profileRow: {
     flex: 1, flexDirection: "row", alignItems: "center",
-    borderRadius: 18, padding: 10, gap: 10,
+    borderRadius: 22, padding: 10, gap: 10,
     overflow: "hidden",
-    backgroundColor: "rgba(15,10,35,0.92)",
-    borderWidth: 2.5, borderColor: "#7C3AED99",
-    borderBottomWidth: 4, borderBottomColor: "#7C3AED",
+    borderWidth: 3, borderColor: LOGO.cyan + "55",
+    borderBottomWidth: 4, borderBottomColor: LOGO.cyan + "88",
   },
-
-  parchisiCornerTL: {
-    position: "absolute", top: 0, left: 0,
-    width: 14, height: 14,
-    borderTopLeftRadius: 18,
-    backgroundColor: "#FF444455",
-    borderRightWidth: 1.5, borderBottomWidth: 1.5, borderColor: "#FF4444AA",
-  },
-  parchisiCornerTR: {
-    position: "absolute", top: 0, right: 0,
-    width: 14, height: 14,
-    borderTopRightRadius: 18,
-    backgroundColor: "#4ADE8055",
-    borderLeftWidth: 1.5, borderBottomWidth: 1.5, borderColor: "#4ADE80AA",
-  },
-  parchisiCornerBL: {
-    position: "absolute", bottom: 0, left: 0,
-    width: 14, height: 14,
-    borderBottomLeftRadius: 18,
-    backgroundColor: "#60A5FA55",
-    borderRightWidth: 1.5, borderTopWidth: 1.5, borderColor: "#60A5FAAA",
-  },
-  parchisiCornerBR: {
-    position: "absolute", bottom: 0, right: 0,
-    width: 14, height: 14,
-    borderBottomRightRadius: 18,
-    backgroundColor: "#F5C84255",
-    borderLeftWidth: 1.5, borderTopWidth: 1.5, borderColor: "#F5C842AA",
-  },
-
-  parchisiAvatarWrap: { alignItems: "center", justifyContent: "center" },
-  parchisiCrossH: {
-    position: "absolute", width: 80, height: 10, borderRadius: 5,
-  },
-  parchisiCrossV: {
-    position: "absolute", width: 10, height: 80, borderRadius: 5,
-  },
-  parchisiAvatarRing: {
-    width: 66, height: 66, borderRadius: 33,
-    borderWidth: 3,
-    justifyContent: "center", alignItems: "center",
-    shadowOpacity: 0.7, shadowRadius: 10, shadowOffset: { width: 0, height: 0 },
-    elevation: 8,
-  },
-  parchisiAvatarInner: {
-    width: 56, height: 56, borderRadius: 28,
+  avatarCircle: {
+    width: 50, height: 50, borderRadius: 25,
     justifyContent: "center", alignItems: "center",
   },
-  parchisiAvatarEmoji: { fontSize: 30 },
-  parchisiLvPin: {
-    marginTop: -8,
-    backgroundColor: "#1A0A3A",
-    borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2,
-    borderWidth: 1.5, borderColor: LOGO.yellow + "80",
-    zIndex: 2,
-  },
-  parchisiLvText: { fontFamily: "Cairo_700Bold", fontSize: 9, color: LOGO.yellow },
-
+  avatarEmoji: { fontSize: 24 },
   profileMeta: { flex: 1 },
-  nameEditRow: { flexDirection: "row", alignItems: "center", marginBottom: 3 },
-  playerName: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#FFFFFF", flex: 1 },
+  nameEditRow: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
+  playerName: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#E8E8FF", flex: 1 },
   equippedTitleBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, alignSelf: "flex-start", marginTop: 1 },
   equippedTitleText: { fontFamily: "Cairo_700Bold", fontSize: 9 },
-
-  parchisiXpRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4, marginBottom: 2 },
-  parchisiXpLabel: { fontFamily: "Cairo_700Bold", fontSize: 9, color: "rgba(255,255,255,0.5)" },
-  xpBarContainer: { flex: 1, height: 5, backgroundColor: "rgba(255,255,255,0.10)", borderRadius: 3, overflow: "hidden" },
-  xpBar: { height: "100%", borderRadius: 3 },
-  xpText: { fontFamily: "Cairo_400Regular", fontSize: 9, color: "rgba(255,255,255,0.45)" },
-
-  parchisiDivRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 3 },
-  parchisiDivToken: {
-    flexDirection: "row", alignItems: "center", gap: 3,
-    borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3,
-    borderWidth: 1.5,
+  levelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  levelBadge: {
+    backgroundColor: LOGO.yellow + "28", paddingHorizontal: 7,
+    paddingVertical: 1, borderRadius: 7,
   },
-
-  parchisiGrid: {
-    flexDirection: "row", flexWrap: "wrap",
-    width: "100%", alignSelf: "stretch",
-    marginBottom: 12,
-    borderRadius: 18, overflow: "hidden",
-    borderWidth: 2.5, borderColor: "#7C3AED66",
-  },
-  parchisiCell: {
-    width: "50%", paddingVertical: 10, paddingHorizontal: 12,
-    alignItems: "center", justifyContent: "center",
-  },
-  parchisiCellRed: {
-    backgroundColor: "#FF444418",
-    borderRightWidth: 1.5, borderBottomWidth: 1.5, borderColor: "#FF444440",
-  },
-  parchisiCellGreen: {
-    backgroundColor: "#4ADE8018",
-    borderLeftWidth: 1.5, borderBottomWidth: 1.5, borderColor: "#4ADE8040",
-  },
-  parchisiCellBlue: {
-    backgroundColor: "#60A5FA18",
-    borderRightWidth: 1.5, borderTopWidth: 1.5, borderColor: "#60A5FA40",
-  },
-  parchisiCellYellow: {
-    backgroundColor: "#F5C84218",
-    borderLeftWidth: 1.5, borderTopWidth: 1.5, borderColor: "#F5C84240",
-  },
-  parchisiCellIcon: { fontSize: 18, marginBottom: 2 },
-  parchisiCellValue: { fontFamily: "Cairo_700Bold", fontSize: 22 },
-  parchisiCellLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, marginTop: 1 },
-
-  tournamentBadge: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    width: "100%", marginBottom: 10,
-    backgroundColor: "#FFD70018", borderRadius: 12,
-    paddingHorizontal: 12, paddingVertical: 8,
-    borderWidth: 1.5, borderColor: "#FFD70050",
-  },
-  tournamentBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#FFD700" },
+  levelText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: LOGO.yellow },
+  xpBarContainer: { flex: 1, height: 4, backgroundColor: "rgba(255,255,255,0.10)", borderRadius: 2, overflow: "hidden" },
+  xpBar: { height: "100%", borderRadius: 2 },
+  xpText: { fontFamily: "Cairo_400Regular", fontSize: 9, color: "#5A5A88" },
 
   topRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   coinsBadge: {
@@ -1892,10 +1820,10 @@ const styles = StyleSheet.create({
 
   streakBar: {
     width: "100%", flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: Colors.ruby + "22", borderRadius: 14,
-    paddingHorizontal: 12, paddingVertical: 7, marginBottom: 8,
-    borderWidth: 2, borderColor: Colors.ruby + "55",
-    borderBottomWidth: 3, borderBottomColor: Colors.ruby + "80",
+    backgroundColor: Colors.ruby + "22", borderRadius: 18,
+    paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12,
+    borderWidth: 2.5, borderColor: Colors.ruby + "55",
+    borderBottomWidth: 4, borderBottomColor: Colors.ruby + "80",
   },
   streakText: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#FF6B6B", flex: 1 },
   streakRewardHint: {
@@ -1904,26 +1832,23 @@ const styles = StyleSheet.create({
   },
   streakRewardHintText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: Colors.ruby },
 
-  heroBar: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    width: "100%", marginBottom: 10,
-    borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10,
-    overflow: "hidden",
-    borderWidth: 1.5, borderColor: LOGO.cyan + "30",
+  logoContainer: { alignItems: "center", marginBottom: 6, position: "relative", paddingHorizontal: 20 },
+  logoGlowRing: {
+    position: "absolute",
+    width: 96, height: 96, borderRadius: 48,
+    backgroundColor: LOGO.cyan + "1E",
   },
-  heroBarLetter: {
-    fontFamily: "Cairo_700Bold", fontSize: 42,
-    color: LOGO.cyan, lineHeight: 48,
-    textShadowColor: LOGO.cyan + "80",
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 8,
+  logoLetter: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 88,
+    color: LOGO.cyan,
+    textAlign: "center",
+    lineHeight: 100,
   },
-  heroBarTitle: {
-    fontFamily: "Cairo_700Bold", fontSize: 14, color: "#FFFFFF",
-  },
-  heroBarSubtitle: {
-    fontFamily: "Cairo_400Regular", fontSize: 11,
-    color: LOGO.cyan, opacity: 0.85, marginTop: 1,
+  appSubtitle: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 15,
+    color: LOGO.cyan, textAlign: "center", marginTop: 4,
+    letterSpacing: 0.5, opacity: 0.9,
   },
 
   carouselSection: { width: "100%", marginBottom: 16, marginHorizontal: -16 },
@@ -1951,6 +1876,16 @@ const styles = StyleSheet.create({
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.20)" },
   dotActive: { width: 20, borderRadius: 3 },
 
+  statsRow: {
+    flexDirection: "row", borderRadius: 22,
+    paddingVertical: 14, paddingHorizontal: 10, width: "100%",
+    borderWidth: 3, borderColor: LOGO.cyan + "50",
+    borderBottomWidth: 5, borderBottomColor: LOGO.cyan + "70",
+  },
+  statItem: { flex: 1, alignItems: "center" },
+  statValue: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#E8E8FF" },
+  statLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#8888CC", marginTop: 2 },
+  statDivider: { width: 2, backgroundColor: "rgba(255,255,255,0.12)", marginVertical: 4, borderRadius: 1 },
 
   bottomNav: {
     position: "absolute", bottom: 0, left: 0, right: 0,

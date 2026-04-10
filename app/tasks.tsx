@@ -10,7 +10,6 @@ import {
   Platform,
   Animated,
   Easing,
-  ImageBackground,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -283,9 +282,10 @@ function TasksScreenInner() {
 
   return (
     <View style={{ flex: 1 }}>
-      <ImageBackground source={require("../assets/images/bg_tasks.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.60)" }]} />
-      </ImageBackground>
+      <LinearGradient
+        colors={["#0A0A1A", "#0E0E24", "#0A0A1A"]}
+        style={StyleSheet.absoluteFillObject}
+      />
 
       <View style={{ paddingTop: topInset + 8, paddingBottom: bottomInset, flex: 1 }}>
         <View style={s.header}>

@@ -9,7 +9,6 @@ import {
   Animated,
   Easing,
   Dimensions,
-  ImageBackground,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -364,10 +363,8 @@ export default function RapidScreen() {
 
   if (phase === "tier_select") {
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-        <ImageBackground source={require("../assets/images/bg_rapid.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.62)" }]} />
-        </ImageBackground>
+      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+        <LinearGradient colors={RAPID_BG} style={StyleSheet.absoluteFillObject} />
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
@@ -414,10 +411,8 @@ export default function RapidScreen() {
 
   if (phase === "waiting") {
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-        <ImageBackground source={require("../assets/images/bg_rapid.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.62)" }]} />
-        </ImageBackground>
+      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+        <LinearGradient colors={RAPID_BG} style={StyleSheet.absoluteFillObject} />
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={handleLeave}>
           <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
         </TouchableOpacity>
@@ -446,10 +441,8 @@ export default function RapidScreen() {
     const color = countColors[countdownNum] || Colors.gold;
     const opponentSkin = opponent ? (SKINS.find((s) => s.id === opponent.skin) || SKINS[0]) : SKINS[0];
     return (
-      <View style={[styles.container, styles.countdownContainer, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-        <ImageBackground source={require("../assets/images/bg_rapid.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.62)" }]} />
-        </ImageBackground>
+      <View style={[styles.container, styles.countdownContainer, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+        <LinearGradient colors={RAPID_BG} style={StyleSheet.absoluteFillObject} />
         <View style={styles.vsRow}>
           <View style={styles.vsPlayer}>
             <View style={[styles.vsAvatar, { backgroundColor: equippedSkin.color + "33" }]}>
@@ -487,10 +480,8 @@ export default function RapidScreen() {
     const myAttempt = socketIdRef.current && roundResult?.attempts ? roundResult.attempts[socketIdRef.current] : null;
     const oppAttempt = opponent && roundResult?.attempts ? roundResult.attempts[Object.keys(roundResult.attempts).find((k) => k !== socketIdRef.current) || ""] : null;
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-        <ImageBackground source={require("../assets/images/bg_rapid.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.62)" }]} />
-        </ImageBackground>
+      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+        <LinearGradient colors={RAPID_BG} style={StyleSheet.absoluteFillObject} />
         <View style={styles.roundResultContent}>
           <Text style={styles.roundResultRound}>الجولة {roundResult?.round || currentRound} / {TOTAL_ROUNDS}</Text>
           <View style={styles.scoreBoard}>
@@ -550,10 +541,8 @@ export default function RapidScreen() {
     const gameEmoji = gameOverData.isDraw ? "🤝" : gameOverData.won ? "🏆" : "😞";
     const gameTitle = gameOverData.isDraw ? "تعادل!" : gameOverData.won ? "فزت!" : "خسرت";
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-        <ImageBackground source={require("../assets/images/bg_rapid.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.62)" }]} />
-        </ImageBackground>
+      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+        <LinearGradient colors={RAPID_BG} style={StyleSheet.absoluteFillObject} />
         <View style={styles.gameOverContent}>
           <Text style={styles.gameOverEmoji}>{gameEmoji}</Text>
           <Text style={[styles.gameOverTitle, { color: theme.textPrimary }]}>{gameTitle}</Text>
@@ -594,10 +583,8 @@ export default function RapidScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-      <ImageBackground source={require("../assets/images/bg_rapid.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.62)" }]} />
-      </ImageBackground>
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+      <LinearGradient colors={RAPID_BG} style={StyleSheet.absoluteFillObject} />
       <View style={styles.playHeader}>
         <View style={styles.roundInfo}>
           <Text style={styles.roundText}>الجولة {currentRound}/{TOTAL_ROUNDS}</Text>

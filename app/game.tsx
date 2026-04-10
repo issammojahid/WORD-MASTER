@@ -14,7 +14,6 @@ import {
   Dimensions,
   BackHandler,
   Share,
-  ImageBackground,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
@@ -806,10 +805,7 @@ export default function GameScreen() {
     const podiumBorderColors = [Colors.gold + "80", "#9EB3C4" + "80", "#CD8042" + "80"];
 
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-        <ImageBackground source={require("../assets/images/bg_game.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.65)" }]} />
-        </ImageBackground>
+      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
         <Animated.View style={{ flex: 1, opacity: gameOverOpacity, transform: [{ translateY: gameOverSlide }] }}>
         <ScrollView contentContainerStyle={styles.gameOverContent} showsVerticalScrollIndicator={false}>
           {/* Title with winner bounce */}
@@ -1036,10 +1032,7 @@ export default function GameScreen() {
   if (roundResults) {
     const isHost = socketId && gamePlayers.length > 0 && gamePlayers[0].id === socketId;
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-        <ImageBackground source={require("../assets/images/bg_game.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.65)" }]} />
-        </ImageBackground>
+      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
         <View style={[styles.roundResultsHeader, { backgroundColor: theme.backgroundSecondary, borderBottomColor: theme.cardBorder }]}>
           <Text style={[styles.roundResultsTitle, { color: theme.textPrimary }]}>{t.results} - {t.round} {currentRound}/{numTotalRounds}</Text>
         </View>
@@ -1099,10 +1092,7 @@ export default function GameScreen() {
 
   // Game play screen
   return (
-    <View style={[styles.container, { paddingTop: topInset }]}>
-      <ImageBackground source={require("../assets/images/bg_game.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.65)" }]} />
-      </ImageBackground>
+    <View style={[styles.container, { paddingTop: topInset, backgroundColor: theme.background }]}>
 
       {/* ─── CHAT BUBBLES OVERLAY ─── */}
       {chatBubbles.length > 0 && (
@@ -1394,10 +1384,7 @@ export default function GameScreen() {
       {/* ─── QUICK CHAT PANEL ─── */}
       <Modal visible={showChatPanel} transparent animationType="slide" onRequestClose={() => setShowChatPanel(false)}>
         <TouchableOpacity style={[styles.chatPanelOverlay, { backgroundColor: theme.overlay }]} activeOpacity={1} onPress={() => setShowChatPanel(false)}>
-          <View style={[styles.chatPanel, { backgroundColor: theme.backgroundSecondary, borderColor: theme.cardBorder, overflow: "hidden" }]}>
-            <ImageBackground source={require("../assets/images/bg_popup.png")} style={StyleSheet.absoluteFillObject} imageStyle={{ borderRadius: 20 }} resizeMode="cover">
-              <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.60)", borderRadius: 20 }]} />
-            </ImageBackground>
+          <View style={[styles.chatPanel, { backgroundColor: theme.backgroundSecondary, borderColor: theme.cardBorder }]}>
             <Text style={[styles.chatPanelTitle, { color: theme.textPrimary }]}>رسالة سريعة</Text>
             <View style={styles.chatMessagesGrid}>
               {QUICK_MESSAGES.map((msg) => (
@@ -1414,10 +1401,10 @@ export default function GameScreen() {
       <Modal visible={showExitConfirm} transparent animationType="none" onRequestClose={() => setShowExitConfirm(false)}>
         <View style={[styles.exitOverlay, { backgroundColor: theme.overlay }]}>
           <Animated.View style={[styles.exitPopupWrapper, { transform: [{ scale: exitScaleAnim }] }]}>
-            <View style={styles.exitPopup}>
-              <ImageBackground source={require("../assets/images/bg_popup_confirm.png")} style={StyleSheet.absoluteFillObject} imageStyle={{ borderRadius: 24 }} resizeMode="cover">
-                <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.60)", borderRadius: 24 }]} />
-              </ImageBackground>
+            <LinearGradient
+              colors={["#0A0A1A", "#0E0E24", "#0A0A1A"]}
+              style={styles.exitPopup}
+            >
               {/* Warning icon */}
               <View style={styles.exitIconCircle}>
                 <Ionicons name="exit-outline" size={28} color={Colors.ruby} />
@@ -1453,7 +1440,7 @@ export default function GameScreen() {
                   <Text style={styles.exitBtnYesText}>نعم، اخرج</Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </LinearGradient>
           </Animated.View>
         </View>
       </Modal>

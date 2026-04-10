@@ -7,7 +7,6 @@ import {
   Animated,
   Easing,
   Platform,
-  ImageBackground,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -253,10 +252,11 @@ export default function SpinScreen() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-      <ImageBackground source={require("../assets/images/bg_spin.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.60)" }]} />
-      </ImageBackground>
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+      <LinearGradient
+        colors={[theme.background, theme.backgroundSecondary, theme.background]}
+        style={StyleSheet.absoluteFillObject}
+      />
 
       {/* Header */}
       <View style={styles.header}>

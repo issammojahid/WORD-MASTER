@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Platform,
   Animated,
-  ImageBackground,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
@@ -246,9 +245,7 @@ export default function LeaderboardScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-      <ImageBackground source={require("../assets/images/bg_leaderboard.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.60)" }]} />
-      </ImageBackground>
+      <LinearGradient colors={["#0A0A1A", "#0E0E24", "#0A0A1A"]} style={StyleSheet.absoluteFillObject} />
 
       <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
         <View style={[styles.blob, { top: -40, left: -60, width: 200, height: 200, backgroundColor: LOGO.purple + "14" }]} />

@@ -11,7 +11,6 @@ import {
   Platform,
   Animated,
   Modal,
-  ImageBackground,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -25,6 +24,9 @@ import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { WORD_CATEGORIES, type WordCategoryId } from "@/constants/i18n";
 import { getSocket } from "@/services/socket";
+import { LinearGradient } from "expo-linear-gradient";
+
+const LOBBY_BG: [string, string, string] = ["#00080F", "#000E1E", "#00080F"];
 
 type Player = {
   id: string;
@@ -548,7 +550,7 @@ export default function LobbyScreen() {
     const color = countColors[countdown] || Colors.gold;
     return (
       <View style={[styles.container, styles.countdownContainer, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
-        <ImageBackground source={require("../assets/images/bg_lobby.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover"><View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.62)" }]} /></ImageBackground>
+        <LinearGradient colors={LOBBY_BG} style={StyleSheet.absoluteFillObject} />
         {countdownPlayers.length >= 2 && (
           <View style={styles.vsRow}>
             {countdownPlayers.map((p, idx) => {
@@ -586,7 +588,7 @@ export default function LobbyScreen() {
 
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
-        <ImageBackground source={require("../assets/images/bg_lobby.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover"><View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.62)" }]} /></ImageBackground>
+        <LinearGradient colors={LOBBY_BG} style={StyleSheet.absoluteFillObject} />
         {/* ─── Invite Friend Modal ─── */}
         <Modal visible={showInviteModal} transparent animationType="slide" onRequestClose={() => setShowInviteModal(false)}>
           <View style={[styles.inviteOverlay, { backgroundColor: theme.overlay }]}>
@@ -861,7 +863,7 @@ export default function LobbyScreen() {
   if (tab === "matchmaking") {
     return (
       <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
-        <ImageBackground source={require("../assets/images/bg_lobby.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover"><View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.62)" }]} /></ImageBackground>
+        <LinearGradient colors={LOBBY_BG} style={StyleSheet.absoluteFillObject} />
         <View style={[styles.header, { borderBottomColor: theme.cardBorder }]}>
           <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={handleCancelMatchmaking}>
             <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
@@ -886,7 +888,7 @@ export default function LobbyScreen() {
   // Main select screen
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
-      <ImageBackground source={require("../assets/images/bg_lobby.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover"><View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.62)" }]} /></ImageBackground>
+      <LinearGradient colors={LOBBY_BG} style={StyleSheet.absoluteFillObject} />
       <View style={[styles.header, { borderBottomColor: theme.cardBorder }]}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />

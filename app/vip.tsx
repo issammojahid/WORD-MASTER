@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Dimensions, Animated, Easing, Alert, Platform, ImageBackground,
+  Dimensions, Animated, Easing, Alert, Platform,
 } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -115,9 +115,7 @@ export default function VipScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-      <ImageBackground source={require("../assets/images/bg_vip.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.58)" }]} />
-      </ImageBackground>
+      <LinearGradient colors={["#1A0A00", "#0A0A1A", "#0A0020"]} style={StyleSheet.absoluteFillObject} />
 
       <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
         {PARTICLES.map((sym, i) => (

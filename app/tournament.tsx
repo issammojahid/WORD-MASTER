@@ -10,7 +10,6 @@ import {
   RefreshControl,
   Alert,
   Modal,
-  ImageBackground,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,6 +21,9 @@ import Colors from "@/constants/colors";
 import { fetch } from "expo/fetch";
 import { getApiUrl } from "@/lib/query-client";
 import { getSocket } from "@/services/socket";
+import { LinearGradient } from "expo-linear-gradient";
+
+const TOURNAMENT_BG: [string, string, string] = ["#0F0B00", "#1A1200", "#0F0B00"];
 
 // ── Reliable fetch for APK builds ────────────────────────────────────────────
 // Uses expo/fetch (same as the rest of the app) and adds a timeout + retry
@@ -545,10 +547,8 @@ export default function TournamentScreen() {
     const currentRoundLabel = ROUND_LABELS[activeTournament.currentRound] || activeTournament.currentRound;
 
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-        <ImageBackground source={require("../assets/images/bg_tournament.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.62)" }]} />
-        </ImageBackground>
+      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+        <LinearGradient colors={TOURNAMENT_BG} style={StyleSheet.absoluteFillObject} />
         <View style={[styles.header, { borderBottomColor: theme.cardBorder }]}>
           <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => { setViewMode("list"); setActiveTournament(null); fetchTournaments(); }}>
             <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
@@ -681,10 +681,7 @@ export default function TournamentScreen() {
         {/* ── Leave Tournament Confirmation Modal ── */}
         <Modal visible={showLeaveModal} transparent animationType="fade" onRequestClose={() => setShowLeaveModal(false)}>
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalBox, { backgroundColor: theme.modalBg, overflow: "hidden" }]}>
-              <ImageBackground source={require("../assets/images/bg_popup_confirm.png")} style={StyleSheet.absoluteFillObject} imageStyle={{ borderRadius: 24 }} resizeMode="cover">
-                <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 24 }]} />
-              </ImageBackground>
+            <View style={[styles.modalBox, { backgroundColor: theme.modalBg }]}>
               <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>مغادرة البطولة؟</Text>
               <Text style={[styles.modalDesc, { color: theme.textSecondary }]}>
                 سيتم استرداد رسم الدخول (100 🪙) إلى رصيدك.{"\n"}
@@ -707,10 +704,8 @@ export default function TournamentScreen() {
 
   // ─── List View ───────────────────────────────────────────────────────────────
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-      <ImageBackground source={require("../assets/images/bg_tournament.png")} style={StyleSheet.absoluteFillObject} resizeMode="cover">
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.62)" }]} />
-      </ImageBackground>
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+      <LinearGradient colors={TOURNAMENT_BG} style={StyleSheet.absoluteFillObject} />
       <View style={[styles.header, { borderBottomColor: theme.cardBorder }]}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
@@ -848,10 +843,7 @@ export default function TournamentScreen() {
       {/* ── Create Room Modal ── */}
       <Modal visible={showCreateModal} transparent animationType="fade" onRequestClose={() => setShowCreateModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: theme.modalBg, borderColor: theme.cardBorder, overflow: "hidden" }]}>
-            <ImageBackground source={require("../assets/images/bg_popup.png")} style={StyleSheet.absoluteFillObject} imageStyle={{ borderRadius: 20 }} resizeMode="cover">
-              <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 20 }]} />
-            </ImageBackground>
+          <View style={[styles.modalCard, { backgroundColor: theme.modalBg, borderColor: theme.cardBorder }]}>
             <Ionicons name="add-circle" size={40} color={Colors.gold} style={{ marginBottom: 12 }} />
             <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>إنشاء غرفة بطولة</Text>
             <Text style={[styles.modalSub, { color: theme.textSecondary }]}>اختر حجم البطولة</Text>
@@ -894,10 +886,7 @@ export default function TournamentScreen() {
 
       <Modal visible={showConfirmModal} transparent animationType="fade" onRequestClose={() => setShowConfirmModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: theme.modalBg, borderColor: theme.cardBorder, overflow: "hidden" }]}>
-            <ImageBackground source={require("../assets/images/bg_popup.png")} style={StyleSheet.absoluteFillObject} imageStyle={{ borderRadius: 20 }} resizeMode="cover">
-              <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.55)", borderRadius: 20 }]} />
-            </ImageBackground>
+          <View style={[styles.modalCard, { backgroundColor: theme.modalBg, borderColor: theme.cardBorder }]}>
             <Ionicons name="trophy" size={40} color={Colors.gold} style={{ marginBottom: 12 }} />
             <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>الانضمام للبطولة</Text>
             <Text style={[styles.modalSub, { color: theme.textSecondary }]}>سيتم خصم 100 🪙 من رصيدك</Text>
