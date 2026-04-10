@@ -1337,6 +1337,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // ── Settle spectator bets via centralized helper ──────────────────
             settleBets(data.roomId, winnerPlayerIdForBets);
 
+            // Clean up bot room tracking on game end
+            botRooms.delete(data.roomId);
+
             cb?.({ isGameOver: true });
 
             // Background Elo update — only for 1v1 games with registered playerIds (skip bot matches)
@@ -2350,6 +2353,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (room) {
           io.to(roomId).emit("room_updated", sanitizeRoom(room));
           io.to(roomId).emit("player_left", { playerId: socket.id });
+        } else {
+          // Room was deleted (no players left) — clean up bot tracking
+          botRooms.delete(roomId);
         }
         // Settle bets if a game was interrupted by disconnect
         if (wasPlaying && remainingPlayer) {

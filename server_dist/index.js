@@ -1967,6 +1967,7 @@ async function registerRoutes(app2) {
             io.to(data.roomId).emit("game_over", gameOverPayload);
             io.to(`spectate:${data.roomId}`).emit("spectate_update", { type: "game_over", payload: gameOverPayload });
             settleBets(data.roomId, winnerPlayerIdForBets);
+            botRooms.delete(data.roomId);
             cb?.({ isGameOver: true });
             const isBotMatch = room.players.some((p) => p.id.startsWith("bot:"));
             if (room.players.length === 2 && !isBotMatch) {
@@ -2829,6 +2830,8 @@ async function registerRoutes(app2) {
         if (room) {
           io.to(roomId).emit("room_updated", sanitizeRoom(room));
           io.to(roomId).emit("player_left", { playerId: socket.id });
+        } else {
+          botRooms.delete(roomId);
         }
         if (wasPlaying && remainingPlayer) {
           const winnerPlayerId = socketPlayerIdMap.get(remainingPlayer.id) || null;
