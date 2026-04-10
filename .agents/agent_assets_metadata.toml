@@ -396,3 +396,27 @@ id = "qWSD735AkQ4PSKDsXRDbU"
 uri = "file://assets/home-popups/challenges.png"
 type = "image"
 title = "generated_image"
+
+[[generated]]
+id = "NYUVslxFHBJ4ZxHX8aLwk"
+uri = "file://assets/ai-difficulty/easy.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "R-u9pM1N5TOo0Zn16nfDL"
+uri = "file://assets/ai-difficulty/normal.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "dAkc7QKEabAOue3lxlRh6"
+uri = "file://assets/ai-difficulty/hard.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "wtZS73jbNVq8YlpQg56RJ"
+uri = "file://assets/ai-difficulty/legendary.png"
+type = "image"
+title = "generated_image"

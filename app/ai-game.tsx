@@ -32,6 +32,7 @@ const DIFFICULTY_CONFIG: Record<
   {
     label: string;
     emoji: string;
+    image?: number;
     desc: string;
     color: string;
     minDelay: number;
@@ -42,6 +43,7 @@ const DIFFICULTY_CONFIG: Record<
   easy: {
     label: "سهل",
     emoji: "🌱",
+    image: require("@/assets/ai-difficulty/easy.png"),
     desc: "استجابة بطيئة، كلمات بسيطة، يخطئ أحياناً",
     color: Colors.emerald,
     minDelay: 5000,
@@ -51,6 +53,7 @@ const DIFFICULTY_CONFIG: Record<
   normal: {
     label: "متوسط",
     emoji: "⚡",
+    image: require("@/assets/ai-difficulty/normal.png"),
     desc: "سرعة ومفردات معتدلة",
     color: Colors.gold,
     minDelay: 3000,
@@ -60,6 +63,7 @@ const DIFFICULTY_CONFIG: Record<
   hard: {
     label: "صعب",
     emoji: "🔥",
+    image: require("@/assets/ai-difficulty/hard.png"),
     desc: "استجابة سريعة ومفردات قوية",
     color: Colors.ruby,
     minDelay: 2000,
@@ -69,6 +73,7 @@ const DIFFICULTY_CONFIG: Record<
   legendary: {
     label: "أسطوري",
     emoji: "👑",
+    image: require("@/assets/ai-difficulty/legendary.png"),
     desc: "شبه مستحيل — ذكاء اصطناعي كامل",
     color: "#BF00FF",
     minDelay: 1000,
@@ -469,7 +474,11 @@ export default function AIGameScreen() {
               activeOpacity={0.85}
             >
               <View style={[styles.diffIcon, { backgroundColor: cfg.color + "18" }]}>
-                <Text style={styles.diffEmoji}>{cfg.emoji}</Text>
+                {cfg.image != null ? (
+                  <Image source={cfg.image} style={styles.diffImage} resizeMode="contain" />
+                ) : (
+                  <Text style={styles.diffEmoji}>{cfg.emoji}</Text>
+                )}
               </View>
               <View style={styles.diffText}>
                 <Text style={[styles.diffLabel, { color: cfg.color }]}>{cfg.label}</Text>
@@ -487,7 +496,7 @@ export default function AIGameScreen() {
     return (
       <View style={[styles.container, { alignItems: "center", justifyContent: "center", backgroundColor: theme.background }]}>
         <LinearGradient colors={AI_BG} style={StyleSheet.absoluteFillObject} />
-        <Text style={styles.loadingEmoji}>🤖</Text>
+        <Image source={require("@/assets/game-modes/ai-bot.png")} style={styles.loadingRobot} resizeMode="contain" />
         <Text style={styles.loadingText}>جاري التحضير...</Text>
       </View>
     );
@@ -501,7 +510,7 @@ export default function AIGameScreen() {
           <View style={styles.gameHeaderLeft}>
             <Text style={[styles.roundLabel, { color: theme.textSecondary }]}>جولة {currentRound}/{TOTAL_ROUNDS}</Text>
             <Text style={[styles.diffBadge, { color: diffConfig.color }]}>
-              {diffConfig.emoji} {diffConfig.label}
+              {diffConfig.label}
             </Text>
           </View>
 
@@ -794,6 +803,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   diffEmoji: { fontSize: 28 },
+  diffImage: { width: 38, height: 38 },
   diffText: { flex: 1 },
   diffLabel: {
     fontFamily: "Cairo_700Bold",
@@ -807,6 +817,7 @@ const styles = StyleSheet.create({
   },
 
   loadingEmoji: { fontSize: 56, textAlign: "center", marginBottom: 16 },
+  loadingRobot: { width: 80, height: 80, marginBottom: 16 },
   loadingText: {
     fontFamily: "Cairo_600SemiBold",
     fontSize: 18,
