@@ -379,11 +379,21 @@ export default function RootLayout() {
     Cairo_700Bold,
   });
 
+  const [forceReady, setForceReady] = useState(false);
   const [splashVisible, setSplashVisible] = useState(true);
   const splashOpacity = useRef(new Animated.Value(1)).current;
 
+  // Safety net: force render after 2.5s even if fonts haven't loaded yet
+  // (avoids the 6s fontfaceobserver timeout blocking the whole app on web)
   useEffect(() => {
-    if (fontsLoaded || fontError) {
+    const t = setTimeout(() => setForceReady(true), 2500);
+    return () => clearTimeout(t);
+  }, []);
+
+  const isReady = fontsLoaded || !!fontError || forceReady;
+
+  useEffect(() => {
+    if (isReady) {
       // Hide the native OS splash screen as soon as fonts are ready
       SplashScreen.hideAsync();
 
@@ -401,9 +411,9 @@ export default function RootLayout() {
 
       return () => clearTimeout(displayTimer);
     }
-  }, [fontsLoaded, fontError]);
+  }, [isReady]);
 
-  if (!fontsLoaded && !fontError) return null;
+  if (!isReady) return null;
 
   return (
     <ErrorBoundary>
