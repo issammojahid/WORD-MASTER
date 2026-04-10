@@ -832,7 +832,9 @@ export default function ShopScreen() {
 
                 <View style={[styles.avatarCircleOuter, { borderColor: rarityColor + "44", shadowColor: rarityColor, shadowOpacity: 0.25, shadowRadius: 10 }]}>
                   <LinearGradient colors={[effect.color + "28", effect.color + "08"]} style={styles.avatarCircleInner}>
-                    <Text style={styles.avatarEmoji}>{effect.emoji}</Text>
+                    {effect.image
+                      ? <Image source={effect.image} style={styles.effectImage} resizeMode="contain" />
+                      : <Text style={styles.avatarEmoji}>{effect.emoji}</Text>}
                   </LinearGradient>
                 </View>
 
@@ -1400,6 +1402,7 @@ const styles = StyleSheet.create({
   avatarCircleInner: { width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center" },
   skinAvatarImage: { width: 54, height: 54, borderRadius: 27 },
   avatarEmoji: { fontSize: 32 },
+  effectImage: { width: 52, height: 52 },
   lockOverlay: {
     position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
     borderRadius: 30, backgroundColor: "rgba(0,0,0,0.50)",

@@ -131,6 +131,7 @@ export type Effect = {
   id: EffectId;
   price: number;
   emoji: string;
+  image?: number;
   color: string;
   rarity: Rarity;
   nameAr: string;
@@ -139,10 +140,10 @@ export type Effect = {
 
 export const EFFECTS: Effect[] = [
   { id: "none",        price: 0,   emoji: "—",  color: "#5A5A88", rarity: "common",    nameAr: "بلا تأثير",     descAr: "لا يوجد تأثير خاص" },
-  { id: "confetti",    price: 200, emoji: "🎊", color: "#E040FB", rarity: "common",    nameAr: "كونفيتي",       descAr: "مطر من الألوان عند الفوز" },
-  { id: "fire_effect", price: 300, emoji: "🔥", color: "#FF6D00", rarity: "rare",      nameAr: "تأثير النار",   descAr: "ألسنة نيران عند الفوز" },
-  { id: "stars",       price: 250, emoji: "⭐", color: "#FFD600", rarity: "rare",      nameAr: "انفجار النجوم", descAr: "نجوم تتساقط عند الفوز" },
-  { id: "coins_burst", price: 400, emoji: "🪙", color: "#F5C842", rarity: "epic",      nameAr: "انفجار عملات", descAr: "أمطار من العملات الذهبية" },
+  { id: "confetti",    price: 200, emoji: "🎊", image: require("@/assets/effects/confetti.png"),    color: "#E040FB", rarity: "common",    nameAr: "كونفيتي",       descAr: "مطر من الألوان عند الفوز" },
+  { id: "fire_effect", price: 300, emoji: "🔥", image: require("@/assets/effects/fire.png"),        color: "#FF6D00", rarity: "rare",      nameAr: "تأثير النار",   descAr: "ألسنة نيران عند الفوز" },
+  { id: "stars",       price: 250, emoji: "⭐", image: require("@/assets/effects/stars.png"),       color: "#FFD600", rarity: "rare",      nameAr: "انفجار النجوم", descAr: "نجوم تتساقط عند الفوز" },
+  { id: "coins_burst", price: 400, emoji: "🪙", image: require("@/assets/effects/coins-burst.png"), color: "#F5C842", rarity: "epic",      nameAr: "انفجار عملات", descAr: "أمطار من العملات الذهبية" },
 ];
 
 // ── Titles ────────────────────────────────────────────────────────────────────

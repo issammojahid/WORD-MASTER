@@ -324,3 +324,27 @@ id = "Pc8XELjR6H7DJv3jmSaHD"
 uri = "file://assets/game-modes/word-chain.png"
 type = "image"
 title = "generated_image"
+
+[[generated]]
+id = "Ulj5gdI7IVI_XMFyEWCck"
+uri = "file://assets/effects/confetti.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "HjiORBU9bLB3actpYC5HK"
+uri = "file://assets/effects/fire.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "COe7WQapCdEJtZSHQErzX"
+uri = "file://assets/effects/stars.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "FlWTabHpHvlqHumayOPjz"
+uri = "file://assets/effects/coins-burst.png"
+type = "image"
+title = "generated_image"
