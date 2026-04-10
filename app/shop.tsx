@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, memo, useCallback } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Alert, Platform, Animated, Dimensions, Modal, Easing,
+  Alert, Platform, Animated, Dimensions, Modal, Easing, Image,
 } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -158,13 +158,13 @@ const COIN_PACKS = [
 ] as const;
 
 const TABS = [
-  { id: "daily",   label: "العروض",    emoji: "🛒",  color: "#10B981" },
-  { id: "spin",    label: "العجلة",    emoji: "🎡",  color: "#06B6D4" },
-  { id: "mystery", label: "صناديق",    emoji: "📦",  color: "#8B5CF6" },
-  { id: "avatars", label: "الأفاتار",  emoji: "🦁",  color: "#6C63FF" },
-  { id: "effects", label: "تأثيرات",   emoji: "✨",  color: "#EC4899" },
-  { id: "titles",  label: "ألقاب",     emoji: "🎖️", color: "#F59E0B" },
-  { id: "coins",   label: "حزم",       emoji: "💎",  color: "#F59E0B" },
+  { id: "daily",   label: "العروض",   emoji: "🛒",  color: "#10B981", icon: require("@/assets/shop-tabs/daily.png") },
+  { id: "spin",    label: "العجلة",   emoji: "🎡",  color: "#06B6D4", icon: require("@/assets/shop-tabs/spin.png") },
+  { id: "mystery", label: "صناديق",   emoji: "📦",  color: "#8B5CF6", icon: require("@/assets/shop-tabs/mystery.png") },
+  { id: "avatars", label: "الأفاتار", emoji: "🦁",  color: "#6C63FF", icon: require("@/assets/shop-tabs/avatars.png") },
+  { id: "effects", label: "تأثيرات",  emoji: "✨",  color: "#EC4899", icon: require("@/assets/shop-tabs/effects.png") },
+  { id: "titles",  label: "ألقاب",   emoji: "🎖️", color: "#F59E0B", icon: require("@/assets/shop-tabs/titles.png") },
+  { id: "coins",   label: "حزم",     emoji: "💎",  color: "#F59E0B", icon: require("@/assets/shop-tabs/coins.png") },
 ] as const;
 type TabId = typeof TABS[number]["id"];
 
@@ -1159,7 +1159,11 @@ export default function ShopScreen() {
               {active && (
                 <LinearGradient colors={[tab.color + "1A", tab.color + "06"]} style={[StyleSheet.absoluteFillObject, { borderRadius: 14 }]} />
               )}
-              <Text style={[styles.tabEmoji, active && { fontSize: 21 }]}>{tab.emoji}</Text>
+              <Image
+                source={tab.icon}
+                style={[styles.tabIcon, active && styles.tabIconActive]}
+                resizeMode="contain"
+              />
               <Text style={[styles.tabLabel, { color: active ? tab.color : L.textSub }, active && { fontFamily: "Cairo_700Bold" }]}>
                 {tab.label}
               </Text>
@@ -1266,6 +1270,8 @@ const styles = StyleSheet.create({
     borderRadius: 14, gap: 2, overflow: "hidden", position: "relative",
   },
   tabEmoji: { fontSize: 18 },
+  tabIcon: { width: 28, height: 28, marginBottom: 2, opacity: 0.75 },
+  tabIconActive: { width: 32, height: 32, opacity: 1.0 },
   tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: L.textSub },
   tabDot: { width: 22, height: 3, borderRadius: 2, marginTop: 2 },
 

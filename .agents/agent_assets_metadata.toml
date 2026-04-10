@@ -1,0 +1,44 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "xShIQfhypVLFDssi2OrP-"
+uri = "file://assets/shop-tabs/daily.png"
+type = "image"
+title = "neon green shopping bag icon"
+
+[[generated]]
+id = "WbnFWp99HuDrNfLd9ADjo"
+uri = "file://assets/shop-tabs/spin.png"
+type = "image"
+title = "neon cyan roulette wheel icon"
+
+[[generated]]
+id = "-oY72ALAg6Fxzh3i3WgIn"
+uri = "file://assets/shop-tabs/mystery.png"
+type = "image"
+title = "purple mystery chest icon"
+
+[[generated]]
+id = "rgBKHb4PH46fSwGppnQkj"
+uri = "file://assets/shop-tabs/avatars.png"
+type = "image"
+title = "purple neon lion avatar icon"
+
+[[generated]]
+id = "o1O_9kTQ43w62RfKOqXNR"
+uri = "file://assets/shop-tabs/effects.png"
+type = "image"
+title = "pink magenta magic sparkles icon"
+
+[[generated]]
+id = "xAoPGOjTmvdWT5jH2Ya0N"
+uri = "file://assets/shop-tabs/titles.png"
+type = "image"
+title = "gold crown titles icon"
+
+[[generated]]
+id = "uPG9NgGLUZ0umdUv4xhvX"
+uri = "file://assets/shop-tabs/coins.png"
+type = "image"
+title = "diamond gem gold coins icon"
