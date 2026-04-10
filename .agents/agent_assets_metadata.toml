@@ -282,3 +282,45 @@ id = "Gy3lpdR969IMl-6lWeK5Z"
 uri = "file://assets/banners/clan-wars.png"
 type = "image"
 title = "clan wars swords icon"
+
+[[generated]]
+id = "EvJp_z3O1Beoz0uLTmu7F"
+uri = "file://assets/game-modes/quick-match.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Fj7RTjgkxWC1ev36r41vd"
+uri = "file://assets/game-modes/rapid-mode.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "HGVimbxliFSl6DgD2mvrT"
+uri = "file://assets/game-modes/friends.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "oIbzDwm-DRV71H3M2i6jv"
+uri = "file://assets/game-modes/tournament.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "ikPa91cJ8qo_zsqrBUn1L"
+uri = "file://assets/game-modes/ai-bot.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "4up4MycsqPz5lnV05I48f"
+uri = "file://assets/game-modes/daily-challenge.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Pc8XELjR6H7DJv3jmSaHD"
+uri = "file://assets/game-modes/word-chain.png"
+type = "image"
+title = "generated_image"

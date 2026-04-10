@@ -675,6 +675,7 @@ type GameMode = {
   title: string;
   subtitle: string;
   emoji: string;
+  image: number;
   gradient: string[];
   accent: string;
   onPress: () => void;
@@ -1043,7 +1044,7 @@ const ModeCard = memo(({ item, index, isActive, isDark, theme }: {
 
         {/* Content */}
         <View style={cSt.inner}>
-          {/* Emoji pill */}
+          {/* Mode icon pill */}
           <View style={{
             backgroundColor: item.accent + "30",
             borderRadius: 22, paddingHorizontal: 18, paddingVertical: 10,
@@ -1052,7 +1053,7 @@ const ModeCard = memo(({ item, index, isActive, isDark, theme }: {
             marginBottom: 4,
             alignItems: "center", justifyContent: "center",
           }}>
-            <Text style={{ fontSize: 36 }}>{item.emoji}</Text>
+            <Image source={item.image} style={styles.modeCardImage} resizeMode="contain" />
           </View>
 
           <Text style={[styles.modeTitle, { color: "#fff", marginTop: 6 }]}>{item.title}</Text>
@@ -1229,6 +1230,7 @@ export default function HomeScreen() {
       title: "مباراة سريعة",
       subtitle: "العب فوراً وكسب العملات",
       emoji: "⚡",
+      image: require("@/assets/game-modes/quick-match.png"),
       gradient: [Colors.gold + "30", Colors.gold + "10"],
       accent: LOGO.yellow,
       onPress: handleQuickMatchPress,
@@ -1238,6 +1240,7 @@ export default function HomeScreen() {
       title: "الوضع السريع",
       subtitle: "أول كلمة صحيحة تربح — 10 ثوانٍ فقط!",
       emoji: "🚀",
+      image: require("@/assets/game-modes/rapid-mode.png"),
       gradient: [Colors.ruby + "30", Colors.ruby + "10"],
       accent: "#FF5733",
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/rapid"); },
@@ -1247,6 +1250,7 @@ export default function HomeScreen() {
       title: "مع الأصدقاء",
       subtitle: "أنشئ غرفة وادعُ أصدقاءك للمنافسة",
       emoji: "👥",
+      image: require("@/assets/game-modes/friends.png"),
       gradient: [Colors.emerald + "30", Colors.emerald + "10"],
       accent: "#22C55E",
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/lobby"); },
@@ -1256,6 +1260,7 @@ export default function HomeScreen() {
       title: "البطولات",
       subtitle: "8 لاعبين — جولات إقصائية وجوائز كبرى",
       emoji: "🏆",
+      image: require("@/assets/game-modes/tournament.png"),
       gradient: ["#7C3AED30", "#7C3AED10"],
       accent: LOGO.purple,
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/tournament"); },
@@ -1265,6 +1270,7 @@ export default function HomeScreen() {
       title: "ضد الذكاء الاصطناعي",
       subtitle: "تحدّى الذكاء الاصطناعي بمستويات متعددة",
       emoji: "🤖",
+      image: require("@/assets/game-modes/ai-bot.png"),
       gradient: ["#0EA5E930", "#0EA5E910"],
       accent: LOGO.cyan,
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/ai-game"); },
@@ -1274,6 +1280,7 @@ export default function HomeScreen() {
       title: "تحدي اليوم",
       subtitle: "6 محاولات لتخمين الكلمة — مع لاعبين حول العالم",
       emoji: "🌍",
+      image: require("@/assets/game-modes/daily-challenge.png"),
       gradient: ["#F59E0B30", "#10B98110"],
       accent: "#10B981",
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/daily-challenge"); },
@@ -1283,6 +1290,7 @@ export default function HomeScreen() {
       title: "سلسلة الكلمات",
       subtitle: "كل كلمة تبدأ من آخر حرف السابقة — من يتوقف يخسر!",
       emoji: "🔗",
+      image: require("@/assets/game-modes/word-chain.png"),
       gradient: ["#8B5CF630", "#8B5CF610"],
       accent: "#8B5CF6",
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/word-chain"); },
@@ -1735,6 +1743,7 @@ const styles = StyleSheet.create({
     marginBottom: 12, textAlign: "right", paddingHorizontal: 16,
   },
   carouselContent: { paddingHorizontal: Math.max(0, Math.round((width - CARD_WIDTH) / 2 - CARD_MARGIN)) },
+  modeCardImage: { width: 52, height: 52 },
   modeTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, textAlign: "center" },
   modeSubtitle: {
     fontFamily: "Cairo_400Regular", fontSize: 12,
