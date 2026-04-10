@@ -114,25 +114,27 @@ function getDailyItems(): DailyItem[] {
   return pool.slice(0, 4);
 }
 
+const COINS_PRIZE_IMAGE = require("@/assets/chests/coins-prize.png") as number;
+
 function rollMysteryBox(tier: "basic" | "rare" | "epic" | "legendary", profile: ReturnType<typeof usePlayer>["profile"]): MysteryBoxPrize {
   const r = Math.random();
   if (tier === "basic") {
-    if (r < 0.5) { const amt = Math.floor(Math.random() * 101) + 50; return { type: "coins", coins: amt, emoji: "🪙", nameAr: `${amt} عملة` }; }
-    if (r < 0.8) { const av = SKINS.filter(s => s.rarity === "common" && s.price > 0 && !profile.ownedSkins.includes(s.id)); if (av.length) { const s = av[Math.floor(Math.random()*av.length)]; return { type: "skin", id: s.id, emoji: s.emoji, nameAr: s.nameAr }; } return { type: "coins", coins: 80, emoji: "🪙", nameAr: "80 عملة" }; }
-    const av = EMOTES.filter(e => e.price > 0 && !profile.ownedEmotes.includes(e.id)); if (av.length) { const e = av[Math.floor(Math.random()*av.length)]; return { type: "emote", id: e.id, emoji: e.emoji, nameAr: e.nameAr }; } return { type: "coins", coins: 60, emoji: "🪙", nameAr: "60 عملة" };
+    if (r < 0.5) { const amt = Math.floor(Math.random() * 101) + 50; return { type: "coins", coins: amt, emoji: "🪙", image: COINS_PRIZE_IMAGE, nameAr: `${amt} عملة` }; }
+    if (r < 0.8) { const av = SKINS.filter(s => s.rarity === "common" && s.price > 0 && !profile.ownedSkins.includes(s.id)); if (av.length) { const s = av[Math.floor(Math.random()*av.length)]; return { type: "skin", id: s.id, emoji: s.emoji, image: s.image, nameAr: s.nameAr }; } return { type: "coins", coins: 80, emoji: "🪙", image: COINS_PRIZE_IMAGE, nameAr: "80 عملة" }; }
+    const av = EMOTES.filter(e => e.price > 0 && !profile.ownedEmotes.includes(e.id)); if (av.length) { const e = av[Math.floor(Math.random()*av.length)]; return { type: "emote", id: e.id, emoji: e.emoji, nameAr: e.nameAr }; } return { type: "coins", coins: 60, emoji: "🪙", image: COINS_PRIZE_IMAGE, nameAr: "60 عملة" };
   }
   if (tier === "rare") {
-    if (r < 0.3) { const amt = Math.floor(Math.random() * 201) + 150; return { type: "coins", coins: amt, emoji: "🪙", nameAr: `${amt} عملة` }; }
-    if (r < 0.65) { const av = SKINS.filter(s => (s.rarity === "rare" || s.rarity === "epic") && s.price > 0 && !profile.ownedSkins.includes(s.id)); if (av.length) { const s = av[Math.floor(Math.random()*av.length)]; return { type: "skin", id: s.id, emoji: s.emoji, nameAr: s.nameAr }; } return { type: "coins", coins: 200, emoji: "🪙", nameAr: "200 عملة" }; }
-    const av = EFFECTS.filter(e => e.price > 0 && !profile.ownedEffects.includes(e.id)); if (av.length) { const e = av[Math.floor(Math.random()*av.length)]; return { type: "effect", id: e.id, emoji: e.emoji, nameAr: e.nameAr }; } return { type: "coins", coins: 150, emoji: "🪙", nameAr: "150 عملة" };
+    if (r < 0.3) { const amt = Math.floor(Math.random() * 201) + 150; return { type: "coins", coins: amt, emoji: "🪙", image: COINS_PRIZE_IMAGE, nameAr: `${amt} عملة` }; }
+    if (r < 0.65) { const av = SKINS.filter(s => (s.rarity === "rare" || s.rarity === "epic") && s.price > 0 && !profile.ownedSkins.includes(s.id)); if (av.length) { const s = av[Math.floor(Math.random()*av.length)]; return { type: "skin", id: s.id, emoji: s.emoji, image: s.image, nameAr: s.nameAr }; } return { type: "coins", coins: 200, emoji: "🪙", image: COINS_PRIZE_IMAGE, nameAr: "200 عملة" }; }
+    const av = EFFECTS.filter(e => e.price > 0 && !profile.ownedEffects.includes(e.id)); if (av.length) { const e = av[Math.floor(Math.random()*av.length)]; return { type: "effect", id: e.id, emoji: e.emoji, image: e.image, nameAr: e.nameAr }; } return { type: "coins", coins: 150, emoji: "🪙", image: COINS_PRIZE_IMAGE, nameAr: "150 عملة" };
   }
   if (tier === "epic") {
-    if (r < 0.2) { const amt = Math.floor(Math.random() * 301) + 250; return { type: "coins", coins: amt, emoji: "🪙", nameAr: `${amt} عملة` }; }
-    if (r < 0.7) { const av = SKINS.filter(s => s.rarity === "epic" && s.price > 0 && !profile.ownedSkins.includes(s.id)); if (av.length) { const s = av[Math.floor(Math.random()*av.length)]; return { type: "skin", id: s.id, emoji: s.emoji, nameAr: s.nameAr }; } return { type: "coins", coins: 350, emoji: "🪙", nameAr: "350 عملة" }; }
-    const av = EFFECTS.filter(e => e.price > 0 && !profile.ownedEffects.includes(e.id)); if (av.length) { const e = av[Math.floor(Math.random()*av.length)]; return { type: "effect", id: e.id, emoji: e.emoji, nameAr: e.nameAr }; } return { type: "coins", coins: 280, emoji: "🪙", nameAr: "280 عملة" };
+    if (r < 0.2) { const amt = Math.floor(Math.random() * 301) + 250; return { type: "coins", coins: amt, emoji: "🪙", image: COINS_PRIZE_IMAGE, nameAr: `${amt} عملة` }; }
+    if (r < 0.7) { const av = SKINS.filter(s => s.rarity === "epic" && s.price > 0 && !profile.ownedSkins.includes(s.id)); if (av.length) { const s = av[Math.floor(Math.random()*av.length)]; return { type: "skin", id: s.id, emoji: s.emoji, image: s.image, nameAr: s.nameAr }; } return { type: "coins", coins: 350, emoji: "🪙", image: COINS_PRIZE_IMAGE, nameAr: "350 عملة" }; }
+    const av = EFFECTS.filter(e => e.price > 0 && !profile.ownedEffects.includes(e.id)); if (av.length) { const e = av[Math.floor(Math.random()*av.length)]; return { type: "effect", id: e.id, emoji: e.emoji, image: e.image, nameAr: e.nameAr }; } return { type: "coins", coins: 280, emoji: "🪙", image: COINS_PRIZE_IMAGE, nameAr: "280 عملة" };
   }
-  if (r < 0.2) { const amt = Math.floor(Math.random() * 401) + 300; return { type: "coins", coins: amt, emoji: "🪙", nameAr: `${amt} عملة` }; }
-  const av = SKINS.filter(s => (s.rarity === "epic" || s.rarity === "legendary") && !profile.ownedSkins.includes(s.id)); if (av.length) { const s = av[Math.floor(Math.random()*av.length)]; return { type: "skin", id: s.id, emoji: s.emoji, nameAr: s.nameAr }; } return { type: "coins", coins: 500, emoji: "🪙", nameAr: "500 عملة" };
+  if (r < 0.2) { const amt = Math.floor(Math.random() * 401) + 300; return { type: "coins", coins: amt, emoji: "🪙", image: COINS_PRIZE_IMAGE, nameAr: `${amt} عملة` }; }
+  const av = SKINS.filter(s => (s.rarity === "epic" || s.rarity === "legendary") && !profile.ownedSkins.includes(s.id)); if (av.length) { const s = av[Math.floor(Math.random()*av.length)]; return { type: "skin", id: s.id, emoji: s.emoji, image: s.image, nameAr: s.nameAr }; } return { type: "coins", coins: 500, emoji: "🪙", image: COINS_PRIZE_IMAGE, nameAr: "500 عملة" };
 }
 
 function getTimeUntilMidnight(): string {
@@ -144,10 +146,10 @@ function getTimeUntilMidnight(): string {
 }
 
 const BOX_TIERS = [
-  { id: "basic" as const,     nameAr: "صندوق أساسي",   emoji: "🎁", image: require("@/assets/chests/basic.png"),     price: 100, glowColor: "#9CA3AF", lightGlow: "#9CA3AF40", gradient: ["#14142E", "#0E0E24"] as [string,string], accentColor: "#9898CC", poolLabel: "عادي · نادر",    coinMin: 50,  coinMax: 150 },
-  { id: "rare" as const,      nameAr: "صندوق نادر",     emoji: "💜", image: require("@/assets/chests/rare.png"),      price: 300, glowColor: "#8B5CF6", lightGlow: "#8B5CF630", gradient: ["#2D1B69", "#1A1040"] as [string,string], accentColor: "#A78BFA", poolLabel: "نادر · ملحمي",  coinMin: 150, coinMax: 350 },
-  { id: "epic" as const,      nameAr: "صندوق ملحمي",   emoji: "🔥", image: require("@/assets/chests/epic.png"),      price: 500, glowColor: "#FF006E", lightGlow: "#FF006E30", gradient: ["#3A0020", "#5A0030"] as [string,string], accentColor: "#FF4D94", poolLabel: "ملحمي · أسطوري", coinMin: 250, coinMax: 550 },
-  { id: "legendary" as const, nameAr: "صندوق أسطوري",  emoji: "⭐", image: require("@/assets/chests/legendary.png"), price: 600, glowColor: "#F59E0B", lightGlow: "#F59E0B30", gradient: ["#3A2800", "#4A3200"] as [string,string], accentColor: "#F59E0B", poolLabel: "ملحمي · أسطوري", coinMin: 300, coinMax: 700 },
+  { id: "basic" as const,     nameAr: "صندوق أساسي",   emoji: "🎁", image: require("@/assets/chests/basic.png"),     openImage: require("@/assets/chests/basic-open.png"),     price: 100, glowColor: "#9CA3AF", lightGlow: "#9CA3AF40", gradient: ["#14142E", "#0E0E24"] as [string,string], accentColor: "#9898CC", poolLabel: "عادي · نادر",    coinMin: 50,  coinMax: 150 },
+  { id: "rare" as const,      nameAr: "صندوق نادر",     emoji: "💜", image: require("@/assets/chests/rare.png"),      openImage: require("@/assets/chests/rare-open.png"),      price: 300, glowColor: "#8B5CF6", lightGlow: "#8B5CF630", gradient: ["#2D1B69", "#1A1040"] as [string,string], accentColor: "#A78BFA", poolLabel: "نادر · ملحمي",  coinMin: 150, coinMax: 350 },
+  { id: "epic" as const,      nameAr: "صندوق ملحمي",   emoji: "🔥", image: require("@/assets/chests/epic.png"),      openImage: require("@/assets/chests/epic-open.png"),      price: 500, glowColor: "#FF006E", lightGlow: "#FF006E30", gradient: ["#3A0020", "#5A0030"] as [string,string], accentColor: "#FF4D94", poolLabel: "ملحمي · أسطوري", coinMin: 250, coinMax: 550 },
+  { id: "legendary" as const, nameAr: "صندوق أسطوري",  emoji: "⭐", image: require("@/assets/chests/legendary.png"), openImage: require("@/assets/chests/legendary-open.png"), price: 600, glowColor: "#F59E0B", lightGlow: "#F59E0B30", gradient: ["#3A2800", "#4A3200"] as [string,string], accentColor: "#F59E0B", poolLabel: "ملحمي · أسطوري", coinMin: 300, coinMax: 700 },
 ] as const;
 type BoxTierId = typeof BOX_TIERS[number]["id"];
 
@@ -254,15 +256,21 @@ function BoxOpeningModal({
   const [phase, setPhase] = useState<BoxPhase>("idle");
   const [prize, setPrize] = useState<MysteryBoxPrize | null>(null);
 
-  const boxScale    = useRef(new Animated.Value(0)).current;
-  const boxOpacity  = useRef(new Animated.Value(0)).current;
-  const shakeAnim   = useRef(new Animated.Value(0)).current;
-  const burstScale  = useRef(new Animated.Value(0)).current;
-  const burstOp     = useRef(new Animated.Value(0)).current;
-  const rewardScale = useRef(new Animated.Value(0)).current;
-  const rewardOp    = useRef(new Animated.Value(0)).current;
+  const boxScale        = useRef(new Animated.Value(0)).current;
+  const boxOpacity      = useRef(new Animated.Value(0)).current;
+  const shakeAnim       = useRef(new Animated.Value(0)).current;
+  const burstScale      = useRef(new Animated.Value(0)).current;
+  const burstOp         = useRef(new Animated.Value(0)).current;
+  const rewardScale     = useRef(new Animated.Value(0)).current;
+  const rewardOp        = useRef(new Animated.Value(0)).current;
+  const openChestScale  = useRef(new Animated.Value(0)).current;
+  const openChestOp     = useRef(new Animated.Value(0)).current;
+  const particleYAnims  = useRef(Array.from({ length: 6 }, () => new Animated.Value(0))).current;
+  const particleOpAnims = useRef(Array.from({ length: 6 }, () => new Animated.Value(0))).current;
 
-  const PARTICLES = ["✨","⭐","💫","🌟","✦","⭐","✨","💫","🌟","✦","⭐","💫"];
+  const PARTICLES      = ["✨","⭐","💫","🌟","✦","⭐","✨","💫","🌟","✦","⭐","💫"];
+  const FLY_PARTICLES  = ["✨","⭐","💫","🌟","✦","🎊"];
+  const PARTICLE_X_OFS = [-70, -42, -14, 14, 42, 70];
 
   useEffect(() => {
     if (visible) {
@@ -270,6 +278,9 @@ function BoxOpeningModal({
       boxScale.setValue(0); boxOpacity.setValue(0);
       burstScale.setValue(0); burstOp.setValue(0);
       rewardScale.setValue(0); rewardOp.setValue(0);
+      openChestScale.setValue(0); openChestOp.setValue(0);
+      particleYAnims.forEach(a => a.setValue(0));
+      particleOpAnims.forEach(a => a.setValue(0));
       Animated.parallel([
         Animated.spring(boxScale, { toValue: 1, tension: 120, friction: 7, useNativeDriver: true }),
         Animated.timing(boxOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
@@ -304,19 +315,36 @@ function BoxOpeningModal({
       playShopSound("unlock");
 
       Animated.parallel([
-        Animated.timing(boxScale, { toValue: 0.1, duration: 250, useNativeDriver: true }),
-        Animated.timing(boxOpacity, { toValue: 0, duration: 250, useNativeDriver: true }),
-        Animated.spring(burstScale, { toValue: 1.5, tension: 120, friction: 5, useNativeDriver: true }),
-        Animated.timing(burstOp, { toValue: 1, duration: 150, useNativeDriver: true }),
+        Animated.timing(boxScale,      { toValue: 0.1, duration: 200, useNativeDriver: true }),
+        Animated.timing(boxOpacity,    { toValue: 0,   duration: 200, useNativeDriver: true }),
+        Animated.spring(openChestScale, { toValue: 1,  tension: 100, friction: 7, useNativeDriver: true }),
+        Animated.timing(openChestOp,   { toValue: 1,   duration: 250, useNativeDriver: true }),
+        Animated.spring(burstScale,    { toValue: 1.5, tension: 120, friction: 5, useNativeDriver: true }),
+        Animated.timing(burstOp,       { toValue: 1,   duration: 150, useNativeDriver: true }),
+        ...particleYAnims.map((anim, i) =>
+          Animated.sequence([
+            Animated.delay(i * 60),
+            Animated.timing(anim, { toValue: -(80 + (i % 3) * 50), duration: 700, useNativeDriver: true }),
+          ])
+        ),
+        ...particleOpAnims.map((anim, i) =>
+          Animated.sequence([
+            Animated.delay(i * 60),
+            Animated.timing(anim, { toValue: 1, duration: 180, useNativeDriver: true }),
+          ])
+        ),
       ]).start(() => {
-        Animated.timing(burstOp, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+        Animated.timing(burstOp, { toValue: 0, duration: 300, useNativeDriver: true }).start();
+        particleOpAnims.forEach(a =>
+          Animated.timing(a, { toValue: 0, duration: 400, useNativeDriver: true }).start()
+        );
         setTimeout(() => {
           setPhase("reward");
           Animated.parallel([
             Animated.spring(rewardScale, { toValue: 1, tension: 100, friction: 7, useNativeDriver: true }),
             Animated.timing(rewardOp, { toValue: 1, duration: 300, useNativeDriver: true }),
           ]).start();
-        }, 200);
+        }, 450);
       });
     });
   };
@@ -352,7 +380,7 @@ function BoxOpeningModal({
                 }]}>
                   <LinearGradient colors={tier.gradient} style={styles.boxBigCard}>
                     <View style={[styles.boxGlowRing, { borderColor: tier.glowColor + "80", shadowColor: tier.glowColor }]}>
-                      <Text style={styles.boxBigEmoji}>{tier.emoji}</Text>
+                      <Image source={tier.image} style={styles.boxChestImage} resizeMode="contain" />
                     </View>
                     {phase === "idle" && (
                       <View style={styles.boxTapHint}>
@@ -375,11 +403,31 @@ function BoxOpeningModal({
           )}
 
           {phase === "burst" && (
-            <Animated.View style={[styles.burstCircle, {
-              backgroundColor: tier.glowColor + "30",
-              transform: [{ scale: burstScale }],
-              opacity: burstOp,
-            }]} />
+            <>
+              <Animated.View style={[styles.burstCircle, {
+                backgroundColor: tier.glowColor + "30",
+                transform: [{ scale: burstScale }],
+                opacity: burstOp,
+              }]} />
+
+              <Animated.View style={[styles.openChestContainer, {
+                transform: [{ scale: openChestScale }],
+                opacity: openChestOp,
+              }]}>
+                <Image source={tier.openImage as number} style={styles.boxOpenChestImage} resizeMode="contain" />
+              </Animated.View>
+
+              {particleYAnims.map((anim, i) => (
+                <Animated.Text key={i} style={[styles.flyParticle, {
+                  transform: [{ translateY: anim }],
+                  opacity: particleOpAnims[i],
+                  left: SW * 0.5 + PARTICLE_X_OFS[i] - 10,
+                  top: "45%" as any,
+                }]}>
+                  {FLY_PARTICLES[i]}
+                </Animated.Text>
+              ))}
+            </>
           )}
 
           {phase === "reward" && prize && (
@@ -388,13 +436,16 @@ function BoxOpeningModal({
 
               <LinearGradient colors={[tier.gradient[0], tier.gradient[1]]} style={styles.rewardCard}>
                 <View style={[styles.rewardGlow, { backgroundColor: tier.glowColor + "25", borderColor: tier.glowColor + "60" }]}>
-                  <Text style={styles.rewardEmoji}>{prize.emoji}</Text>
+                  {prize.image
+                    ? <Image source={prize.image} style={styles.prizeImage} resizeMode="contain" />
+                    : <Text style={styles.rewardEmoji}>{prize.emoji}</Text>
+                  }
                 </View>
                 <Text style={[styles.rewardName, { color: L.textMain }]}>{prize.nameAr}</Text>
                 <Text style={[styles.rewardType, { color: L.textSub }]}>
-                  {prize.type === "coins"  ? "🪙 أُضيفت لرصيدك" :
-                   prize.type === "skin"   ? "🦁 أفاتار جديد!" :
-                   prize.type === "emote"  ? "😂 تفاعل جديد!" : "✨ تأثير جديد!"}
+                  {prize.type === "coins"  ? "أُضيفت للرصيد" :
+                   prize.type === "skin"   ? "أفاتار جديد!" :
+                   prize.type === "emote"  ? "تفاعل جديد!" : "تأثير جديد!"}
                 </Text>
               </LinearGradient>
 
@@ -1529,6 +1580,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 0 }, elevation: 8,
   },
   boxBigEmoji: { fontSize: 52 },
+  boxChestImage: { width: 80, height: 80 },
+  openChestContainer: { alignItems: "center", justifyContent: "center" },
+  boxOpenChestImage: { width: 200, height: 200 },
+  flyParticle: { position: "absolute", fontSize: 22, zIndex: 20 },
+  prizeImage: { width: 74, height: 74 },
   boxTapHint: { paddingHorizontal: 16, paddingVertical: 6, backgroundColor: "rgba(255,255,255,0.7)", borderRadius: 10 },
   boxTapText: { fontFamily: "Cairo_700Bold", fontSize: 14 },
   boxTierBadge: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 6 },

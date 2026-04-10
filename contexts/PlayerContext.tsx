@@ -188,6 +188,7 @@ export type MysteryBoxPrize = {
   id?: string;
   coins?: number;
   emoji: string;
+  image?: number;
   nameAr: string;
 };
 

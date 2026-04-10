@@ -348,3 +348,33 @@ id = "FlWTabHpHvlqHumayOPjz"
 uri = "file://assets/effects/coins-burst.png"
 type = "image"
 title = "generated_image"
+
+[[generated]]
+id = "z2cvO9zuL41YjWlvcXctZ"
+uri = "file://assets/chests/basic-open.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "RJcPZ2N-4aEkbGjOhhaGE"
+uri = "file://assets/chests/rare-open.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "VKrqcOOdmXgG6zY-168Pm"
+uri = "file://assets/chests/epic-open.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "W0aehYcCmayfPFvnaQ6jf"
+uri = "file://assets/chests/legendary-open.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "BlDRF9xmsV1sPN_B62upo"
+uri = "file://assets/chests/coins-prize.png"
+type = "image"
+title = "generated_image"
