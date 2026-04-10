@@ -1,0 +1,60 @@
+Redesign my mobile app home screen to look and feel similar to Parchisi-style mobile game UI.
+
+Main goals:
+- Make the interface feel playful, clean, colorful, and premium
+- Use a game-like layout with clear hierarchy
+- Avoid overcrowding the screen
+- Make the UI feel fun and easy to navigate
+
+Design style:
+- Inspired by Parchisi mobile game UI
+- Rounded cards and rounded buttons
+- Bright colorful sections with soft glow
+- Clean dark background with vivid accent colors
+- Big central game mode card
+- Friendly, polished, casual game look
+- Modern Arabic mobile game style
+
+Layout changes:
+1. Top bar:
+- Keep profile icon
+- Add a Store icon next to the profile icon
+- Add smooth spacing between icons
+- Make top bar clean and balanced
+
+2. Main section:
+- Keep one large featured card for the selected game mode
+- Make it visually dominant like the main play card in Parchisi
+- Add a strong “Play Now” button
+- Use better spacing around the main card
+
+3. Lower sections:
+- Make the challenge / missions / season pass cards smaller and cleaner
+- Use horizontal cards or compact stacked cards
+- Add more spacing between cards
+- Prevent the screen from looking too full
+- Keep only the most important cards visible first
+
+4. Navigation:
+- Bottom navigation should look playful and premium
+- Icons should be cleaner and more balanced
+- Selected tab should stand out clearly
+
+5. Visual improvements:
+- Use more polished shadows and highlights
+- Reduce unnecessary glow if it makes the screen too busy
+- Improve alignment and padding
+- Improve readability of Arabic text
+- Make everything feel more game-like and less crowded
+
+6. UX improvements:
+- Add smooth scrolling
+- Keep the homepage breathable and organized
+- Prioritize the main play card and important actions
+- Make it visually similar to successful casual mobile games like Parchisi
+
+Important:
+- Do not copy Parchisi exactly
+- Only take inspiration from its layout style, spacing, hierarchy, and game feel
+- Keep my app branding and Arabic language
+- Make the result look original, polished, and production-ready
