@@ -144,17 +144,17 @@ function getTimeUntilMidnight(): string {
 }
 
 const BOX_TIERS = [
-  { id: "basic" as const,     nameAr: "صندوق أساسي",   emoji: "🎁", price: 100, glowColor: "#9CA3AF", lightGlow: "#9CA3AF40", gradient: ["#14142E", "#0E0E24"] as [string,string], accentColor: "#9898CC", poolLabel: "عادي · نادر",    coinMin: 50,  coinMax: 150 },
-  { id: "rare" as const,      nameAr: "صندوق نادر",     emoji: "💜", price: 300, glowColor: "#8B5CF6", lightGlow: "#8B5CF630", gradient: ["#2D1B69", "#1A1040"] as [string,string], accentColor: "#A78BFA", poolLabel: "نادر · ملحمي",  coinMin: 150, coinMax: 350 },
-  { id: "epic" as const,      nameAr: "صندوق ملحمي",   emoji: "🔥", price: 500, glowColor: "#FF006E", lightGlow: "#FF006E30", gradient: ["#3A0020", "#5A0030"] as [string,string], accentColor: "#FF4D94", poolLabel: "ملحمي · أسطوري", coinMin: 250, coinMax: 550 },
-  { id: "legendary" as const, nameAr: "صندوق أسطوري",  emoji: "⭐", price: 600, glowColor: "#F59E0B", lightGlow: "#F59E0B30", gradient: ["#3A2800", "#4A3200"] as [string,string], accentColor: "#F59E0B", poolLabel: "ملحمي · أسطوري", coinMin: 300, coinMax: 700 },
+  { id: "basic" as const,     nameAr: "صندوق أساسي",   emoji: "🎁", image: require("@/assets/chests/basic.png"),     price: 100, glowColor: "#9CA3AF", lightGlow: "#9CA3AF40", gradient: ["#14142E", "#0E0E24"] as [string,string], accentColor: "#9898CC", poolLabel: "عادي · نادر",    coinMin: 50,  coinMax: 150 },
+  { id: "rare" as const,      nameAr: "صندوق نادر",     emoji: "💜", image: require("@/assets/chests/rare.png"),      price: 300, glowColor: "#8B5CF6", lightGlow: "#8B5CF630", gradient: ["#2D1B69", "#1A1040"] as [string,string], accentColor: "#A78BFA", poolLabel: "نادر · ملحمي",  coinMin: 150, coinMax: 350 },
+  { id: "epic" as const,      nameAr: "صندوق ملحمي",   emoji: "🔥", image: require("@/assets/chests/epic.png"),      price: 500, glowColor: "#FF006E", lightGlow: "#FF006E30", gradient: ["#3A0020", "#5A0030"] as [string,string], accentColor: "#FF4D94", poolLabel: "ملحمي · أسطوري", coinMin: 250, coinMax: 550 },
+  { id: "legendary" as const, nameAr: "صندوق أسطوري",  emoji: "⭐", image: require("@/assets/chests/legendary.png"), price: 600, glowColor: "#F59E0B", lightGlow: "#F59E0B30", gradient: ["#3A2800", "#4A3200"] as [string,string], accentColor: "#F59E0B", poolLabel: "ملحمي · أسطوري", coinMin: 300, coinMax: 700 },
 ] as const;
 type BoxTierId = typeof BOX_TIERS[number]["id"];
 
 const COIN_PACKS = [
-  { id: "starter",  coins: 500,   bonus: 0,   price: "0.99€", priceCoins: 0,   emoji: "🪙", gradient: ["#1A1040","#2D1B69"] as [string,string], accent: "#7C5CFC", badge: null },
-  { id: "medium",   coins: 1200,  bonus: 200, price: "2.99€", priceCoins: 0,   emoji: "💰", gradient: ["#0A2918","#0D3320"] as [string,string], accent: "#10B981", badge: "الأكثر شراءً" },
-  { id: "premium",  coins: 3000,  bonus: 800, price: "5.99€", priceCoins: 0,   emoji: "💎", gradient: ["#3A2800","#4A3200"] as [string,string], accent: "#F59E0B", badge: "الأفضل قيمة" },
+  { id: "starter",  coins: 500,   bonus: 0,   price: "0.99€", priceCoins: 0,   emoji: "🪙", image: require("@/assets/coin-packs/starter.png"), gradient: ["#1A1040","#2D1B69"] as [string,string], accent: "#7C5CFC", badge: null },
+  { id: "medium",   coins: 1200,  bonus: 200, price: "2.99€", priceCoins: 0,   emoji: "💰", image: require("@/assets/coin-packs/medium.png"),  gradient: ["#0A2918","#0D3320"] as [string,string], accent: "#10B981", badge: "الأكثر شراءً" },
+  { id: "premium",  coins: 3000,  bonus: 800, price: "5.99€", priceCoins: 0,   emoji: "💎", image: require("@/assets/coin-packs/premium.png"), gradient: ["#3A2800","#4A3200"] as [string,string], accent: "#F59E0B", badge: "الأفضل قيمة" },
 ] as const;
 
 const TABS = [
@@ -931,7 +931,7 @@ export default function ShopScreen() {
 
                   <View style={[styles.avatarCircleOuter, { borderColor: rarityColor + "50", shadowColor: rarityColor, shadowOpacity: 0.25, shadowRadius: 10 }]}>
                     <LinearGradient colors={[title.color + "28", title.color + "08"]} style={styles.avatarCircleInner}>
-                      <Text style={styles.avatarEmoji}>{title.emoji}</Text>
+                      <Image source={title.image} style={styles.skinAvatarImage} resizeMode="contain" />
                     </LinearGradient>
                   </View>
 
@@ -989,7 +989,7 @@ export default function ShopScreen() {
             )}
 
             <View style={[styles.boxTierIcon, { borderColor: tier.glowColor + "60", shadowColor: tier.glowColor, backgroundColor: tier.gradient[0] }]}>
-              <Text style={styles.boxTierEmoji}>{tier.emoji}</Text>
+              <Image source={tier.image} style={styles.chestImage} resizeMode="contain" />
             </View>
 
             <View style={{ flex: 1 }}>
@@ -1060,7 +1060,7 @@ export default function ShopScreen() {
               <Text style={styles.packBadgeText}>{pack.badge}</Text>
             </View>
           )}
-          <Text style={styles.coinPackEmoji}>{pack.emoji}</Text>
+          <Image source={pack.image} style={styles.coinPackImage} resizeMode="contain" />
           <View style={{ flex: 1 }}>
             <Text style={[styles.coinPackAmount, { color: pack.accent }]}>{pack.coins.toLocaleString()} عملة</Text>
             {pack.bonus > 0 && (
@@ -1432,6 +1432,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 0 }, elevation: 6,
   },
   boxTierEmoji: { fontSize: 26 },
+  chestImage: { width: 48, height: 48 },
   boxTierName: { fontFamily: "Cairo_700Bold", fontSize: 16 },
   boxTierPool: { fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 1 },
   boxTierCoins: { fontFamily: "Cairo_400Regular", fontSize: 10, marginTop: 1 },
@@ -1485,6 +1486,7 @@ const styles = StyleSheet.create({
   },
   packBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 9, color: "#FFF" },
   coinPackEmoji: { fontSize: 40 },
+  coinPackImage: { width: 56, height: 56 },
   coinPackAmount: { fontFamily: "Cairo_700Bold", fontSize: 19 },
   bonusBadge: { alignSelf: "flex-start", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginTop: 3 },
   bonusText: { fontFamily: "Cairo_700Bold", fontSize: 11 },

@@ -156,3 +156,105 @@ id = "BYreHW8M9YbgknbsyRfTD"
 uri = "file://assets/avatars/vip_cyber.png"
 type = "image"
 title = "generated_image"
+
+[[generated]]
+id = "kqVn7VnFFpssuHX0EGeKA"
+uri = "file://assets/titles/beginner.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "tb9WLbA1hgoZbTTcDNTHG"
+uri = "file://assets/titles/eloquent.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "eqBlEGR6fFO1I1m1iV4y0"
+uri = "file://assets/titles/word_master.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "VVzfv7_GZJ91wVTtolksj"
+uri = "file://assets/titles/lightning.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "F5Db6XUAoJ4HUvzggiI65"
+uri = "file://assets/titles/genius.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "zx2-brRs-f7uN6B2B1xjl"
+uri = "file://assets/titles/letter_king.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "ketHGh8q6K1qCZpwWkbSu"
+uri = "file://assets/titles/streak_lord.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "CbhNTzbSklnSxlyTXb2Id"
+uri = "file://assets/titles/morocco_legend.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "BFeCDKPA4ivTxOeLt1UXg"
+uri = "file://assets/titles/champion_title.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "KI6RtgCGLVHxgz6GuUBsa"
+uri = "file://assets/titles/vip_gold.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "tdLYCW1LywyX1fPkEGpTl"
+uri = "file://assets/chests/basic.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "EvHHiEk9yxUtUxnBiSjqQ"
+uri = "file://assets/chests/rare.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "X8O20h4Afmav8AYzrvH5u"
+uri = "file://assets/chests/epic.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "E5yitEsLst_2kyglnxuvl"
+uri = "file://assets/chests/legendary.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "52m_e-BB5STevJLeT1gwt"
+uri = "file://assets/coin-packs/starter.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "lPauW1Z5ONsXUjPyrMYtd"
+uri = "file://assets/coin-packs/medium.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "-63_HwQc2pn_5lI5NFw_R"
+uri = "file://assets/coin-packs/premium.png"
+type = "image"
+title = "generated_image"

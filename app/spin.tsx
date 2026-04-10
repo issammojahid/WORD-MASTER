@@ -26,14 +26,18 @@ const LOGO = {
 };
 
 const WHEEL_SEGMENTS = [
-  { type: "coins",     amount: 50,   label: "50",         color: LOGO.yellow + "50", textColor: LOGO.yellow,  icon: "🪙" },
-  { type: "xp",        amount: 100,  label: "100 XP",     color: LOGO.cyan   + "50", textColor: LOGO.cyan,    icon: "⭐" },
-  { type: "coins",     amount: 100,  label: "100",        color: LOGO.pink   + "50", textColor: LOGO.pink,    icon: "🪙" },
-  { type: "powerCard", amount: 1,    label: "بطاقة قوة",  color: LOGO.purple + "50", textColor: LOGO.purple,  icon: "🃏" },
-  { type: "coins",     amount: 200,  label: "200",        color: LOGO.yellow + "50", textColor: LOGO.yellow,  icon: "🪙" },
-  { type: "xp",        amount: 200,  label: "XP مضاعف",  color: LOGO.cyan   + "50", textColor: LOGO.cyan,    icon: "🚀" },
-  { type: "coins",     amount: 500,  label: "500",        color: LOGO.pink   + "50", textColor: LOGO.pink,    icon: "💰" },
-  { type: "coins",     amount: 50,   label: "50",         color: LOGO.purple + "50", textColor: LOGO.purple,  icon: "🪙" },
+  { type: "coins",     amount: 50,   label: "50",        color: LOGO.yellow + "50", textColor: LOGO.yellow,  icon: "🪙" },
+  { type: "xp",        amount: 100,  label: "100 XP",    color: LOGO.cyan   + "50", textColor: LOGO.cyan,    icon: "⭐" },
+  { type: "coins",     amount: 50,   label: "50",        color: LOGO.pink   + "50", textColor: LOGO.pink,    icon: "🪙" },
+  { type: "coins",     amount: 100,  label: "100",       color: LOGO.purple + "50", textColor: LOGO.purple,  icon: "🪙" },
+  { type: "coins",     amount: 50,   label: "50",        color: LOGO.yellow + "50", textColor: LOGO.yellow,  icon: "🪙" },
+  { type: "powerCard", amount: 1,    label: "بطاقة قوة", color: LOGO.cyan   + "50", textColor: LOGO.cyan,    icon: "🃏" },
+  { type: "coins",     amount: 50,   label: "50",        color: LOGO.pink   + "50", textColor: LOGO.pink,    icon: "🪙" },
+  { type: "coins",     amount: 100,  label: "100",       color: LOGO.purple + "50", textColor: LOGO.purple,  icon: "🪙" },
+  { type: "coins",     amount: 200,  label: "200",       color: LOGO.yellow + "50", textColor: LOGO.yellow,  icon: "🪙" },
+  { type: "xp",        amount: 200,  label: "XP مضاعف", color: LOGO.cyan   + "50", textColor: LOGO.cyan,    icon: "🚀" },
+  { type: "coins",     amount: 100,  label: "100",       color: LOGO.pink   + "50", textColor: LOGO.pink,    icon: "🪙" },
+  { type: "coins",     amount: 500,  label: "500",       color: LOGO.purple + "50", textColor: LOGO.yellow,  icon: "💰" },
 ];
 
 const SEG_COUNT = WHEEL_SEGMENTS.length;
@@ -254,9 +258,20 @@ export default function SpinScreen() {
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
       <LinearGradient
-        colors={[theme.background, theme.backgroundSecondary, theme.background]}
+        colors={["#080018", "#0D0028", "#120035", "#0D0028", "#080018"]}
         style={StyleSheet.absoluteFillObject}
       />
+
+      {/* Ambient glow blobs */}
+      <View style={{ position: "absolute", top: 80, left: -60, width: 220, height: 220, borderRadius: 110, backgroundColor: LOGO.purple + "18" }} />
+      <View style={{ position: "absolute", bottom: 100, right: -80, width: 260, height: 260, borderRadius: 130, backgroundColor: LOGO.cyan + "10" }} />
+      <View style={{ position: "absolute", top: "40%", left: "30%", width: 140, height: 140, borderRadius: 70, backgroundColor: LOGO.yellow + "08" }} />
+
+      {/* Floating particles */}
+      {["✨","⭐","💫","✦","🌟","✨","💫","⭐"].map((sym, i) => (
+        <Text key={i} style={{ position: "absolute", fontSize: 14 + (i % 3) * 4, opacity: 0.15 + (i % 4) * 0.06,
+          top: 60 + (i * 55) % 400, left: (i * 73) % 340 }}>{sym}</Text>
+      ))}
 
       {/* Header */}
       <View style={styles.header}>
@@ -413,10 +428,10 @@ const styles = StyleSheet.create({
   wheel: {
     width: 280, height: 280, borderRadius: 140,
     backgroundColor: "rgba(255,255,255,0.04)",
-    borderWidth: 3, borderColor: LOGO.purple + "60",
+    borderWidth: 4, borderColor: LOGO.purple + "88",
     alignItems: "center", justifyContent: "center",
     shadowColor: LOGO.purple, shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5, shadowRadius: 20, elevation: 12,
+    shadowOpacity: 0.9, shadowRadius: 32, elevation: 20,
   },
   segment: {
     position: "absolute", width: 86, height: 42, borderRadius: 10,

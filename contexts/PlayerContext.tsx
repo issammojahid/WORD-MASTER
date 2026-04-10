@@ -155,6 +155,7 @@ export type Title = {
   id: TitleId;
   price: number;
   emoji: string;
+  image: number;
   color: string;
   rarity: Rarity;
   nameAr: string;
@@ -163,19 +164,19 @@ export type Title = {
 };
 
 export const TITLES: Title[] = [
-  { id: "beginner",       price: 0,   emoji: "🎓", color: "#9CA3AF", rarity: "common",    nameAr: "مبتدئ",             descAr: "لقبك الأول في رحلة الكلمات" },
-  { id: "eloquent",       price: 200, emoji: "🗣️", color: "#00F5FF", rarity: "common",    nameAr: "الفصيح",            descAr: "يتقن فن الكلام والبيان" },
-  { id: "word_master",    price: 350, emoji: "📖", color: "#BF00FF", rarity: "rare",      nameAr: "معلم الكلمات",      descAr: "خبير لا يُقهر في عالم المفردات" },
-  { id: "lightning",      price: 300, emoji: "⚡", color: "#00F5FF", rarity: "rare",      nameAr: "سريع البرق",        descAr: "أسرع من البرق في إيجاد الكلمات" },
-  { id: "genius",         price: 600, emoji: "🧠", color: "#BF00FF", rarity: "epic",      nameAr: "الذكاء الخارق",     descAr: "عقل استثنائي في عالم الحروف" },
-  { id: "letter_king",    price: 500, emoji: "👑", color: "#BF00FF", rarity: "epic",      nameAr: "ملك الحروف",        descAr: "حاكم مطلق على ممالك الكلمات" },
-  { id: "streak_lord",    price: 0,   emoji: "🔥", color: "#FF6D00", rarity: "epic",      nameAr: "سيد السلاسل",      descAr: "حقق سلسلة 5 انتصارات",
+  { id: "beginner",       price: 0,   emoji: "🎓", image: require("@/assets/titles/beginner.png"),       color: "#9CA3AF", rarity: "common",    nameAr: "مبتدئ",             descAr: "لقبك الأول في رحلة الكلمات" },
+  { id: "eloquent",       price: 200, emoji: "🗣️", image: require("@/assets/titles/eloquent.png"),       color: "#00F5FF", rarity: "common",    nameAr: "الفصيح",            descAr: "يتقن فن الكلام والبيان" },
+  { id: "word_master",    price: 350, emoji: "📖", image: require("@/assets/titles/word_master.png"),    color: "#BF00FF", rarity: "rare",      nameAr: "معلم الكلمات",      descAr: "خبير لا يُقهر في عالم المفردات" },
+  { id: "lightning",      price: 300, emoji: "⚡", image: require("@/assets/titles/lightning.png"),      color: "#00F5FF", rarity: "rare",      nameAr: "سريع البرق",        descAr: "أسرع من البرق في إيجاد الكلمات" },
+  { id: "genius",         price: 600, emoji: "🧠", image: require("@/assets/titles/genius.png"),         color: "#BF00FF", rarity: "epic",      nameAr: "الذكاء الخارق",     descAr: "عقل استثنائي في عالم الحروف" },
+  { id: "letter_king",    price: 500, emoji: "👑", image: require("@/assets/titles/letter_king.png"),    color: "#BF00FF", rarity: "epic",      nameAr: "ملك الحروف",        descAr: "حاكم مطلق على ممالك الكلمات" },
+  { id: "streak_lord",    price: 0,   emoji: "🔥", image: require("@/assets/titles/streak_lord.png"),    color: "#FF6D00", rarity: "epic",      nameAr: "سيد السلاسل",      descAr: "حقق سلسلة 5 انتصارات",
     unlockCondition: { type: "streak", value: 5, label: "سلسلة 5 انتصارات" } },
-  { id: "morocco_legend", price: 0,   emoji: "🌟", color: "#F5C842", rarity: "legendary", nameAr: "أسطورة المغرب",     descAr: "فز بـ 20 مباراة لتحمل هذا اللقب",
+  { id: "morocco_legend", price: 0,   emoji: "🌟", image: require("@/assets/titles/morocco_legend.png"), color: "#F5C842", rarity: "legendary", nameAr: "أسطورة المغرب",     descAr: "فز بـ 20 مباراة لتحمل هذا اللقب",
     unlockCondition: { type: "wins", value: 20, label: "فز بـ 20 مباراة" } },
-  { id: "champion_title", price: 0,   emoji: "🏅", color: "#F5C842", rarity: "legendary", nameAr: "البطل الأبدي",      descAr: "ابلغ المستوى 10 لتحمل هذا اللقب",
+  { id: "champion_title", price: 0,   emoji: "🏅", image: require("@/assets/titles/champion_title.png"), color: "#F5C842", rarity: "legendary", nameAr: "البطل الأبدي",      descAr: "ابلغ المستوى 10 لتحمل هذا اللقب",
     unlockCondition: { type: "level", value: 10, label: "ابلغ المستوى 10" } },
-  { id: "vip_gold",       price: 0,   emoji: "👑", color: "#F5C842", rarity: "legendary", nameAr: "عضو VIP",           descAr: "لقب حصري لأعضاء الاشتراك المميز" },
+  { id: "vip_gold",       price: 0,   emoji: "👑", image: require("@/assets/titles/vip_gold.png"),       color: "#F5C842", rarity: "legendary", nameAr: "عضو VIP",           descAr: "لقب حصري لأعضاء الاشتراك المميز" },
 ];
 
 // ── Mystery Box ───────────────────────────────────────────────────────────────
