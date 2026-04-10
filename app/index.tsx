@@ -299,6 +299,7 @@ const POPUP_PANELS = [
   {
     id: "road",
     icon: "📦",
+    image: require("@/assets/home-popups/treasure-road.png"),
     title: "طريق الكنز",
     subtitle: "أكمل المراحل واربح جوائز حصرية",
     reward: "🪙 حتى 500 عملة",
@@ -310,6 +311,7 @@ const POPUP_PANELS = [
   {
     id: "daily",
     icon: "🎁",
+    image: require("@/assets/home-popups/daily-reward.png"),
     title: "مكافأة يومية",
     subtitle: "العب يومياً واحصل على مكافأتك",
     reward: "🎁 مكافأة يومية مجانية",
@@ -321,6 +323,7 @@ const POPUP_PANELS = [
   {
     id: "challenges",
     icon: "🎯",
+    image: require("@/assets/home-popups/challenges.png"),
     title: "التحديات",
     subtitle: "أتمم تحديات اليوم واكسب المزيد",
     reward: "⭐ نقاط XP مضاعفة",
@@ -411,7 +414,7 @@ const POPUP_PARTICLE_DEFS: Record<string, PopupParticleProps[]> = {
 
 // ── Feature popup ─────────────────────────────────────────────────────────────
 type PopupPanel = {
-  id: string; icon: string; title: string; subtitle: string;
+  id: string; icon: string; image?: number; title: string; subtitle: string;
   reward: string; color: string; gradientFrom: string; gradientMid: string;
   onPress: () => void;
 };
@@ -529,9 +532,17 @@ function FeaturePopup({
               },
             ]}
           >
-            <Animated.Text style={[pStyles.iconEmoji, { transform: iconTransform }]}>
-              {panel.icon}
-            </Animated.Text>
+            {panel.image != null ? (
+              <Animated.Image
+                source={panel.image}
+                style={[pStyles.popupIconImage, { transform: iconTransform }]}
+                resizeMode="contain"
+              />
+            ) : (
+              <Animated.Text style={[pStyles.iconEmoji, { transform: iconTransform }]}>
+                {panel.icon}
+              </Animated.Text>
+            )}
           </View>
 
           <Text style={[pStyles.title, { color: panel.color }]}>{panel.title}</Text>
@@ -626,6 +637,7 @@ const pStyles = StyleSheet.create({
     elevation: 16,
   },
   iconEmoji: { fontSize: 56 },
+  popupIconImage: { width: 82, height: 82 },
   title: {
     fontFamily: "Cairo_700Bold", fontSize: 26,
     textAlign: "center", marginBottom: 8,
