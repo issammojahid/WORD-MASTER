@@ -521,7 +521,6 @@ export default function ShopScreen() {
   const [timeLeft, setTimeLeft] = useState(getTimeUntilMidnight());
   const [dailyItems] = useState<DailyItem[]>(() => getDailyItems());
   const [todayBought, setTodayBought] = useState<string[]>([]);
-  const [coinPackLoading, setCoinPackLoading] = useState<string | null>(null);
   const [showCoinMaintenance, setShowCoinMaintenance] = useState(false);
 
   const tabScrollRef = useRef<ScrollView>(null);
@@ -1046,7 +1045,7 @@ export default function ShopScreen() {
 
   const renderCoinPacks = () => (
     <>
-      <Text style={styles.sectionHint}>اشحن رصيدك واحصل على عملات إضافية مجانية! 💰</Text>
+      <Text style={styles.sectionHint}>اشحن عملاتك وانطلق! 💰</Text>
 
       {COIN_PACKS.map(pack => (
         <TouchableOpacity
@@ -1054,7 +1053,6 @@ export default function ShopScreen() {
           style={styles.coinPackCard}
           onPress={() => handleCoinPack(pack)}
           activeOpacity={0.88}
-          disabled={!!coinPackLoading}
         >
           <LinearGradient colors={pack.gradient} style={StyleSheet.absoluteFillObject} />
           {pack.badge && (
@@ -1072,15 +1070,15 @@ export default function ShopScreen() {
             )}
             <Text style={[styles.coinPackPrice, { color: L.textSub }]}>{pack.price}</Text>
           </View>
-          <View style={[styles.claimBtn, { backgroundColor: pack.accent, opacity: coinPackLoading === pack.id ? 0.6 : 1 }]}>
-            <Text style={styles.claimBtnText}>{coinPackLoading === pack.id ? "⏳" : "احصل عليه"}</Text>
+          <View style={[styles.claimBtn, { backgroundColor: pack.accent }]}>
+            <Text style={styles.claimBtnText}>احصل عليه</Text>
           </View>
         </TouchableOpacity>
       ))}
 
       <View style={styles.infoCard}>
         <Ionicons name="information-circle" size={20} color={L.purple} />
-        <Text style={styles.infoText}>الحزم الحالية تُضاف مباشرة لرصيدك. في المستقبل ستكون متاحة بالدفع الإلكتروني.</Text>
+        <Text style={styles.infoText}>سيتم إطلاق الدفع الإلكتروني قريباً. شكراً على صبرك 🙏</Text>
       </View>
     </>
   );
