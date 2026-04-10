@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   TouchableOpacity,
   TextInput,
@@ -816,7 +817,6 @@ const styles = StyleSheet.create({
     color: "#5A5A88",
   },
 
-  loadingEmoji: { fontSize: 56, textAlign: "center", marginBottom: 16 },
   loadingRobot: { width: 80, height: 80, marginBottom: 16 },
   loadingText: {
     fontFamily: "Cairo_600SemiBold",
