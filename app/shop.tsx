@@ -75,7 +75,7 @@ function playShopSound(type: "open" | "click" | "unlock" | "error" | "sparkle" |
 
 interface DailyItem {
   id: string; type: "skin" | "background" | "emote" | "effect";
-  emoji: string; nameAr: string;
+  emoji: string; image?: number; nameAr: string;
   originalPrice: number; discountedPrice: number;
   rarity: Rarity; color: string;
 }
@@ -92,7 +92,7 @@ function getDailyItems(): DailyItem[] {
   const rng = seededRng(seed);
   const pool: DailyItem[] = [
     ...SKINS.filter(s => s.price > 0 && !s.unlockCondition).map(s => ({
-      id: s.id, type: "skin" as const, emoji: s.emoji, nameAr: s.nameAr,
+      id: s.id, type: "skin" as const, emoji: s.emoji, image: s.image, nameAr: s.nameAr,
       originalPrice: s.price, discountedPrice: Math.floor(s.price * 0.7),
       rarity: s.rarity, color: s.color,
     })),
@@ -102,7 +102,7 @@ function getDailyItems(): DailyItem[] {
       rarity: "common" as Rarity, color: "#4CAF50",
     })),
     ...EFFECTS.filter(e => e.price > 0).map(e => ({
-      id: e.id, type: "effect" as const, emoji: e.emoji, nameAr: e.nameAr,
+      id: e.id, type: "effect" as const, emoji: e.emoji, image: e.image, nameAr: e.nameAr,
       originalPrice: e.price, discountedPrice: Math.floor(e.price * 0.7),
       rarity: e.rarity, color: e.color,
     })),
@@ -688,7 +688,11 @@ export default function ShopScreen() {
               <Text style={styles.discountText}>-{discount}%</Text>
             </View>
             <View style={[styles.dailyAvatarCircle, { backgroundColor: item.color + "18", borderColor: rarityColor + "40" }]}>
-              <Text style={styles.dailyAvatarEmoji}>{item.emoji}</Text>
+              {item.image != null ? (
+                <Image source={item.image} style={styles.dailyAvatarImage} resizeMode="contain" />
+              ) : (
+                <Text style={styles.dailyAvatarEmoji}>{item.emoji}</Text>
+              )}
             </View>
             <View style={styles.dailyItemMeta}>
               <View style={styles.dailyItemTopRow}>
@@ -922,7 +926,7 @@ export default function ShopScreen() {
         {activeTitleData && (
           <View style={[styles.activeTitleBanner, { borderColor: RARITY_COLORS[activeTitleData.rarity] + "40" }]}>
             <LinearGradient colors={[RARITY_COLORS[activeTitleData.rarity] + "10", "transparent"]} style={StyleSheet.absoluteFillObject} />
-            <Text style={{ fontSize: 28 }}>{activeTitleData.emoji}</Text>
+            <Image source={activeTitleData.image} style={{ width: 44, height: 44 }} resizeMode="contain" />
             <View style={{ flex: 1 }}>
               <Text style={styles.activeBannerLabel}>لقبك الحالي</Text>
               <Text style={[styles.activeBannerName, { color: RARITY_COLORS[activeTitleData.rarity] }]}>{activeTitleData.nameAr}</Text>
@@ -1365,6 +1369,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   dailyAvatarEmoji: { fontSize: 27 },
+  dailyAvatarImage: { width: 48, height: 48 },
   dailyItemMeta: { flex: 1, gap: 3 },
   dailyItemTopRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   dailyItemCat: { fontFamily: "Cairo_400Regular", fontSize: 10, color: L.textSub },
