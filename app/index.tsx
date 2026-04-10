@@ -5,8 +5,6 @@ import {
   Image,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
-  Modal,
   Dimensions,
   Platform,
   ScrollView,
@@ -22,7 +20,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { usePlayer, SKINS, TITLES } from "@/contexts/PlayerContext";
+import { usePlayer, SKINS, TITLES, getXpProgress } from "@/contexts/PlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getApiUrl } from "@/lib/query-client";
 import { fetch } from "expo/fetch";
@@ -1094,11 +1092,9 @@ const ModeCard = memo(({ item, index, isActive, isDark, theme }: {
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
-  const { profile, playerId, setPlayerName, claimLoginReward } = usePlayer();
+  const { profile, playerId, claimLoginReward } = usePlayer();
   const { theme, isDark } = useTheme();
   const [showLoginReward, setShowLoginReward] = useState(false);
-  const [showNameModal, setShowNameModal] = useState(false);
-  const [nameInput, setNameInput] = useState(profile.name);
   const [activeModeIdx, setActiveModeIdx] = useState(0);
   const [tournamentWins, setTournamentWins] = useState(0);
   const [currentPopupIdx, setCurrentPopupIdx] = useState<number | null>(null);
@@ -1132,7 +1128,8 @@ export default function HomeScreen() {
   }, [playerId]);
 
   const equippedSkin = SKINS.find((s) => s.id === profile.equippedSkin) || SKINS[0];
-  const xpProgress = (profile.xp % 100) / 100;
+  const xpData = getXpProgress(profile.xp);
+  const xpProgress = xpData.progress;
 
   const showPopupAt = (idx: number) => {
     popupOpacity.setValue(0);
@@ -1339,7 +1336,7 @@ export default function HomeScreen() {
         <View style={styles.topBar}>
           <TouchableOpacity
             style={styles.profileRow}
-            onPress={() => { setShowNameModal(true); setNameInput(profile.name); }}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/profile"); }}
             activeOpacity={0.8}
           >
             <LinearGradient
@@ -1395,7 +1392,7 @@ export default function HomeScreen() {
                     style={[styles.xpBar, { width: `${xpProgress * 100}%` as any }]}
                   />
                 </View>
-                <Text style={[styles.xpText, { color: theme.textMuted }]}>{profile.xp % 100}/100</Text>
+                <Text style={[styles.xpText, { color: theme.textMuted }]}>{xpData.current}/{xpData.needed} XP</Text>
               </View>
               {(() => {
                 const DIVISION_MAP: Record<string, { emoji: string; nameAr: string; color: string }> = {
@@ -1721,39 +1718,6 @@ export default function HomeScreen() {
           onDismiss={(nav) => dismissPopup(currentPopupIdx, nav)}
         />
       )}
-
-      {/* ── NAME MODAL ──────────────────────────────────── */}
-      <Modal visible={showNameModal} transparent animationType="fade" onRequestClose={() => setShowNameModal(false)}>
-        <View style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}>
-          <View style={[styles.modalCard, { backgroundColor: theme.modalBg }]}>
-            <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>اسم اللاعب</Text>
-            <TextInput
-              style={[styles.nameInput, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.inputText }]}
-              value={nameInput}
-              onChangeText={setNameInput}
-              maxLength={20}
-              textAlign="right"
-              autoFocus
-              selectTextOnFocus
-              placeholderTextColor={theme.inputPlaceholder}
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity style={[styles.modalCancel, { backgroundColor: theme.card }]} onPress={() => setShowNameModal(false)}>
-                <Text style={[styles.modalCancelText, { color: theme.textSecondary }]}>{t.cancel}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalConfirm}
-                onPress={() => {
-                  if (nameInput.trim()) setPlayerName(nameInput.trim());
-                  setShowNameModal(false);
-                }}
-              >
-                <Text style={styles.modalConfirmText}>{t.confirm}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       {/* Daily Login Reward Popup */}
       {showLoginReward && (

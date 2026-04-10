@@ -317,8 +317,29 @@ const defaultProfile: PlayerProfile = {
   seasonLosses: 0,
 };
 
+function xpForLevel(level: number): number {
+  return 100 + (level - 1) * 70;
+}
+
 function calculateLevel(xp: number): number {
-  return Math.floor(xp / 100) + 1;
+  let level = 1;
+  let remaining = xp;
+  while (remaining >= xpForLevel(level)) {
+    remaining -= xpForLevel(level);
+    level++;
+  }
+  return level;
+}
+
+export function getXpProgress(xp: number): { current: number; needed: number; progress: number } {
+  let level = 1;
+  let remaining = xp;
+  while (remaining >= xpForLevel(level)) {
+    remaining -= xpForLevel(level);
+    level++;
+  }
+  const needed = xpForLevel(level);
+  return { current: remaining, needed, progress: needed > 0 ? remaining / needed : 0 };
 }
 
 function generatePlayerId(): string {

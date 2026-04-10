@@ -357,6 +357,7 @@ function RootLayoutNav() {
         <Stack.Screen name="leaderboard" options={{ animation: "slide_from_bottom" }} />
         <Stack.Screen name="shop" options={{ animation: "slide_from_bottom" }} />
         <Stack.Screen name="settings" options={{ animation: "slide_from_bottom" }} />
+        <Stack.Screen name="profile" options={{ animation: "slide_from_bottom" }} />
         <Stack.Screen name="offline" options={{ animation: "fade" }} />
         <Stack.Screen name="friends" options={{ animation: "slide_from_right" }} />
         <Stack.Screen name="tasks" options={{ animation: "slide_from_bottom" }} />
