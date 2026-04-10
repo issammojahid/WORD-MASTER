@@ -22,9 +22,6 @@ import Colors from "@/constants/colors";
 import { fetch } from "expo/fetch";
 import { getApiUrl } from "@/lib/query-client";
 import { getSocket } from "@/services/socket";
-import { LinearGradient } from "expo-linear-gradient";
-
-const TOURNAMENT_BG: [string, string, string] = ["#0F0B00", "#1A1200", "#0F0B00"];
 
 // ── Reliable fetch for APK builds ────────────────────────────────────────────
 // Uses expo/fetch (same as the rest of the app) and adds a timeout + retry

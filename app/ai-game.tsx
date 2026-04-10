@@ -22,9 +22,6 @@ import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { GAME_CATEGORIES, type GameCategory, ARABIC_LETTERS } from "@/constants/i18n";
 import { playSound } from "@/lib/sound-manager";
-import { LinearGradient } from "expo-linear-gradient";
-
-const AI_BG: [string, string, string] = ["#010D07", "#011A0D", "#010D07"];
 
 type Difficulty = "easy" | "normal" | "hard" | "legendary";
 
