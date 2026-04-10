@@ -15,6 +15,7 @@ import {
   getActiveCategories,
   type PlayerAnswers,
   type WordCategoryId,
+  type GameCategory,
 } from "./gameLogic";
 import { validateWord, CATEGORY_MAP, getWordsForLetter, type WordCategory } from "./wordDatabase";
 import { ARABIC_LETTERS } from "./gameLogic";
@@ -631,6 +632,46 @@ function emitCountdownThenStart(
 // Global matchmaking queue
 type QueueEntry = { id: string; name: string; skin: string; coinEntry?: number; playerId?: string };
 let matchmakingQueue: QueueEntry[] = [];
+
+// Bot match tracking
+const botRooms = new Map<string, string>(); // roomId → botSocketId
+const matchmakingTimeouts = new Map<string, ReturnType<typeof setTimeout>>(); // humanSocketId → fallback timer
+
+const BOT_NAMES = ["المحترف", "الذكاء", "النجم", "العبقري", "الخبير", "الأستاذ", "البطل", "المتميز"];
+const BOT_SKINS = ["🤖", "👾", "🧠", "🎭"];
+
+function generateBotAnswers(letter: string, categories: GameCategory[]): PlayerAnswers {
+  const answers = {} as PlayerAnswers;
+  for (const cat of categories) {
+    const wordCat = CATEGORY_MAP[cat as keyof typeof CATEGORY_MAP];
+    const words = wordCat ? getWordsForLetter(wordCat, letter) : [];
+    answers[cat] = words.length > 0 ? words[Math.floor(Math.random() * Math.min(words.length, 10))] : "";
+  }
+  return answers;
+}
+
+function scheduleBotSubmission(io: SocketIOServer, roomId: string, botId: string, delay: number) {
+  setTimeout(() => {
+    const room = getRoom(roomId);
+    if (!room || room.state !== "playing") return;
+    const activeCategories = getActiveCategories(room.wordCategory as WordCategoryId);
+    const answers = generateBotAnswers(room.currentLetter, activeCategories);
+    const { allSubmitted } = submitAnswers(roomId, botId, answers);
+    io.to(roomId).emit("player_submitted", { playerId: botId });
+    if (allSubmitted) {
+      if (room.timer) { clearTimeout(room.timer); room.timer = null; }
+      const results = calculateRoundScores(roomId);
+      const updatedRoom = getRoom(roomId);
+      if (!updatedRoom) return;
+      io.to(roomId).emit("round_results", {
+        results,
+        round: updatedRoom.currentRound,
+        totalRounds: updatedRoom.totalRounds,
+        players: updatedRoom.players.map((p) => ({ id: p.id, name: p.name, score: p.score })),
+      });
+    }
+  }, delay);
+}
 
 const COIN_ENTRY_OPTIONS = [
   { entry: 50, reward: 100 },
@@ -1298,8 +1339,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             cb?.({ isGameOver: true });
 
-            // Background Elo update — only for 1v1 games with registered playerIds
-            if (room.players.length === 2) {
+            // Background Elo update — only for 1v1 games with registered playerIds (skip bot matches)
+            const isBotMatch = room.players.some((p) => p.id.startsWith("bot:"));
+            if (room.players.length === 2 && !isBotMatch) {
               const p1Id = socketPlayerIdMap.get(room.players[0].id);
               const p2Id = socketPlayerIdMap.get(room.players[1].id);
               if (p1Id && p2Id) {
@@ -1413,6 +1455,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             cb?.({ isGameOver: false, letter: room.currentLetter });
             // Restart spectate countdown timer for new round
             startSpectateTimer(data.roomId, io);
+            // If bot match, schedule bot submission for the new round
+            const nextRoundBotId = botRooms.get(data.roomId);
+            if (nextRoundBotId) {
+              const botDelay = 6000 + Math.random() * 6000;
+              scheduleBotSubmission(io, data.roomId, nextRoundBotId, botDelay);
+            }
 
             // Start new 50-second timer
             room.timer = setTimeout(() => {
@@ -1651,6 +1699,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (matchIdx !== -1) {
           const opponent = matchmakingQueue[matchIdx];
           matchmakingQueue = matchmakingQueue.filter((p) => p.id !== socket.id && p.id !== opponent.id);
+          // Cancel any pending bot-fallback timers for both players
+          const myPendingTimeout = matchmakingTimeouts.get(socket.id);
+          if (myPendingTimeout) { clearTimeout(myPendingTimeout); matchmakingTimeouts.delete(socket.id); }
+          const oppPendingTimeout = matchmakingTimeouts.get(opponent.id);
+          if (oppPendingTimeout) { clearTimeout(oppPendingTimeout); matchmakingTimeouts.delete(opponent.id); }
           const matched = [entry, opponent];
           console.log(`[findMatch] Match created: ${matched.map((p) => p.name).join(" vs ")} (entry: ${myCoinEntry})`);
 
@@ -1717,12 +1770,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
               });
             }, 51000);
           });
+        } else {
+          // No human opponent found — start a 15-second bot-fallback timer
+          const botFallbackTimer = setTimeout(async () => {
+            matchmakingTimeouts.delete(socket.id);
+            // Confirm the player is still in the queue (not yet matched)
+            const stillQueued = matchmakingQueue.find((p) => p.id === socket.id);
+            if (!stillQueued) return;
+            matchmakingQueue = matchmakingQueue.filter((p) => p.id !== socket.id);
+
+            // Refund any coin entry before starting the free bot match
+            if (entry.coinEntry && entry.coinEntry > 0 && entry.playerId) {
+              try {
+                const [updated] = await db.update(playerProfiles)
+                  .set({ coins: sql`coins + ${entry.coinEntry}`, updatedAt: new Date() })
+                  .where(eq(playerProfiles.id, entry.playerId))
+                  .returning({ coins: playerProfiles.coins });
+                socket.emit("coinRefunded", { amount: entry.coinEntry, newCoins: updated?.coins });
+              } catch (e) {
+                console.error("[bot-fallback] Failed to refund coins:", e);
+              }
+            }
+
+            // Create the bot and the room
+            const botId = `bot:${socket.id}`;
+            const botName = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
+            const botSkin = BOT_SKINS[Math.floor(Math.random() * BOT_SKINS.length)];
+            const botRoom = createRoom(socket.id, entry.name, entry.skin);
+            joinRoom(botRoom.id, botId, botName, botSkin);
+            botRooms.set(botRoom.id, botId);
+            socket.join(botRoom.id);
+            socketRoomMap.set(socket.id, botRoom.id);
+
+            const roomPlayers = botRoom.players.map((p) => ({ id: p.id, name: p.name, skin: p.skin }));
+            console.log(`[bot-fallback] Starting bot match for ${entry.name} in room ${botRoom.id}`);
+            emitCountdownThenStart(io, botRoom.id, roomPlayers, () => {
+              clearHintsForRoom(botRoom.id);
+              const gameResult = startGame(botRoom.id);
+              if (!gameResult.success || !gameResult.room) return;
+              const gameData = {
+                roomId: botRoom.id,
+                letter: gameResult.room.currentLetter,
+                round: gameResult.room.currentRound,
+                totalRounds: gameResult.room.totalRounds,
+                players: gameResult.room.players.map((p) => ({ id: p.id, name: p.name, skin: p.skin })),
+                coinEntry: 0,
+                wordCategory: gameResult.room.wordCategory || "general",
+              };
+              io.to(botRoom.id).emit("matchFound", gameData);
+              console.log(`[bot-fallback] matchFound emitted for room ${botRoom.id}, letter=${gameData.letter}`);
+
+              // Schedule bot submission after 6–12 seconds
+              const botDelay = 6000 + Math.random() * 6000;
+              scheduleBotSubmission(io, botRoom.id, botId, botDelay);
+
+              // 51-second round timer fallback
+              gameResult.room.timer = setTimeout(() => {
+                const results = calculateRoundScores(botRoom.id);
+                const updatedRoom = getRoom(botRoom.id);
+                if (!updatedRoom) return;
+                io.to(botRoom.id).emit("round_results", {
+                  results,
+                  round: updatedRoom.currentRound,
+                  totalRounds: updatedRoom.totalRounds,
+                  players: updatedRoom.players.map((p) => ({ id: p.id, name: p.name, score: p.score })),
+                });
+              }, 51000);
+            });
+          }, 15000);
+          matchmakingTimeouts.set(socket.id, botFallbackTimer);
         }
       }
     );
 
     // cancelMatch: remove from queue and refund coin entry server-side
     socket.on("cancelMatch", async () => {
+      // Clear any pending bot-fallback timer
+      const pendingBotTimer = matchmakingTimeouts.get(socket.id);
+      if (pendingBotTimer) { clearTimeout(pendingBotTimer); matchmakingTimeouts.delete(socket.id); }
+
       const queueEntry = matchmakingQueue.find((p) => p.id === socket.id);
       matchmakingQueue = matchmakingQueue.filter((p) => p.id !== socket.id);
       console.log(`[cancelMatch] Socket ${socket.id} removed from queue. Queue: ${matchmakingQueue.length}`);
@@ -2148,6 +2274,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       socketPlayerIdMap.delete(socket.id);
       // Note: reactionLastSentMap entries are kept until TTL expiry via periodic cleanup
       // to prevent reconnect-based cooldown bypass.
+
+      // Cancel any pending bot-fallback timer
+      const pendingBotTimerOnDisconnect = matchmakingTimeouts.get(socket.id);
+      if (pendingBotTimerOnDisconnect) { clearTimeout(pendingBotTimerOnDisconnect); matchmakingTimeouts.delete(socket.id); }
 
       // Refund coin entry for players who disconnect while in matchmaking queue
       const queueEntry = matchmakingQueue.find((p) => p.id === socket.id);

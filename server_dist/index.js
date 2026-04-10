@@ -82,7 +82,7 @@ function stripArticle(normWord) {
   if (normWord.startsWith("\u0627\u0644")) return normWord.slice(2);
   return normWord;
 }
-function validateWord(word, category, letter) {
+function validateWord(word, category, letter, strict = false) {
   if (!word || word.trim().length < 2) {
     return { valid: false, reason: "too_short" };
   }
@@ -108,10 +108,12 @@ function validateWord(word, category, letter) {
       return { valid: true };
     }
   }
-  const letterSet = letterNormalizedSets[normLetter];
-  if (letterSet) {
-    if (letterSet.has(normWord) || letterSet.has(stripped)) {
-      return { valid: true };
+  if (!strict) {
+    const letterSet = letterNormalizedSets[normLetter];
+    if (letterSet) {
+      if (letterSet.has(normWord) || letterSet.has(stripped)) {
+        return { valid: true };
+      }
     }
   }
   return { valid: false, reason: "not_in_database" };
@@ -132,6 +134,18 @@ var GAME_CATEGORIES = [
   "city",
   "country"
 ];
+var WORD_CATEGORY_MAP = {
+  general: [...GAME_CATEGORIES],
+  animals: ["animal"],
+  countries: ["country", "city"],
+  food: ["fruit", "vegetable"],
+  names: ["boyName", "girlName"],
+  objects: ["object"],
+  cities: ["city"]
+};
+function getActiveCategories(wordCategory) {
+  return WORD_CATEGORY_MAP[wordCategory] || GAME_CATEGORIES;
+}
 var ARABIC_LETTERS = [
   "\u0623",
   "\u0628",
@@ -186,7 +200,7 @@ function getNextLetter(room) {
   }
   return room.letterQueue[room.letterIndex++];
 }
-function createRoom(hostId, hostName, hostSkin) {
+function createRoom(hostId, hostName, hostSkin, wordCategory = "general") {
   let code = generateRoomCode();
   while (rooms.has(code)) {
     code = generateRoomCode();
@@ -215,7 +229,8 @@ function createRoom(hostId, hostName, hostSkin) {
     roundStartTime: 0,
     timer: null,
     letterQueue: initialQueue,
-    letterIndex: 1
+    letterIndex: 1,
+    wordCategory
   };
   rooms.set(code, room);
   return room;
@@ -292,12 +307,13 @@ function calculateRoundScores(roomId) {
   if (!room) return [];
   const letter = room.currentLetter;
   const results = [];
+  const activeCategories = getActiveCategories(room.wordCategory);
   const answersByCategory = {};
-  for (const cat of GAME_CATEGORIES) {
+  for (const cat of activeCategories) {
     answersByCategory[cat] = [];
   }
   for (const [, answers] of room.submittedAnswers) {
-    for (const cat of GAME_CATEGORIES) {
+    for (const cat of activeCategories) {
       const ans = answers[cat]?.trim().toLowerCase() || "";
       if (ans) {
         answersByCategory[cat].push(ans);
@@ -305,7 +321,7 @@ function calculateRoundScores(roomId) {
     }
   }
   const duplicateCounts = {};
-  for (const cat of GAME_CATEGORIES) {
+  for (const cat of activeCategories) {
     const counts = /* @__PURE__ */ new Map();
     for (const ans of answersByCategory[cat]) {
       counts.set(ans, (counts.get(ans) || 0) + 1);
@@ -317,14 +333,15 @@ function calculateRoundScores(roomId) {
     const scores = {};
     const status = {};
     let roundTotal = 0;
-    for (const cat of GAME_CATEGORIES) {
+    const useStrict = !!room.wordCategory && room.wordCategory !== "general";
+    for (const cat of activeCategories) {
       const ans = answers[cat]?.trim() || "";
       if (!ans) {
         scores[cat] = 0;
         status[cat] = "empty";
       } else {
         const dbCategory = CATEGORY_MAP[cat];
-        const validation = validateWord(ans, dbCategory, letter);
+        const validation = validateWord(ans, dbCategory, letter, useStrict);
         if (!validation.valid) {
           scores[cat] = 0;
           status[cat] = "invalid";
@@ -414,14 +431,24 @@ import pg from "pg";
 var schema_exports = {};
 __export(schema_exports, {
   achievementDefs: () => achievementDefs,
+  battlePassTiers: () => battlePassTiers,
+  clanMembers: () => clanMembers,
+  clans: () => clans,
+  coinGifts: () => coinGifts,
+  dailyChallengeEntries: () => dailyChallengeEntries,
+  dailyChallenges: () => dailyChallenges,
   dailySpins: () => dailySpins,
   dailyTaskDefs: () => dailyTaskDefs,
+  friendRequests: () => friendRequests,
   friends: () => friends,
   insertUserSchema: () => insertUserSchema,
   playerAchievements: () => playerAchievements,
+  playerBattlePass: () => playerBattlePass,
   playerDailyTasks: () => playerDailyTasks,
   playerProfiles: () => playerProfiles,
   roomInvites: () => roomInvites,
+  seasons: () => seasons,
+  spectatorBets: () => spectatorBets,
   tournamentMatches: () => tournamentMatches,
   tournamentPlayers: () => tournamentPlayers,
   tournaments: () => tournaments,
@@ -429,7 +456,7 @@ __export(schema_exports, {
   winStreaks: () => winStreaks
 });
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, jsonb, boolean, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 var users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -460,8 +487,37 @@ var playerProfiles = pgTable("player_profiles", {
   lastStreakReward: integer("last_streak_reward").notNull().default(0),
   lastSpinAt: timestamp("last_spin_at"),
   powerCards: jsonb("power_cards").$type().default(sql`'{"time":3,"freeze":3,"hint":3}'::jsonb`),
+  loginStreak: integer("login_streak").notNull().default(0),
+  lastLoginDate: text("last_login_date"),
+  longestLoginStreak: integer("longest_login_streak").notNull().default(0),
+  referralCode: text("referral_code").unique(),
+  referredBy: text("referred_by"),
+  referralCount: integer("referral_count").notNull().default(0),
+  expoPushToken: text("expo_push_token"),
+  notificationsEnabled: boolean("notifications_enabled").notNull().default(true),
+  isVip: boolean("is_vip").notNull().default(false),
+  vipExpiresAt: timestamp("vip_expires_at"),
+  vipSubscriptionId: text("vip_subscription_id"),
+  // ── Country ────────────────────────────────────────────────────────────────
+  country: text("country").default("MA"),
+  // ── Clan Wars ──────────────────────────────────────────────────────────────
+  clanId: varchar("clan_id"),
+  // ── Ranked Season System ───────────────────────────────────────────────────
+  elo: integer("elo").notNull().default(1e3),
+  division: text("division").notNull().default("silver"),
+  peakElo: integer("peak_elo").notNull().default(1e3),
+  seasonWins: integer("season_wins").notNull().default(0),
+  seasonLosses: integer("season_losses").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`)
+});
+var seasons = pgTable("seasons", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`)
 });
 var dailySpins = pgTable("daily_spins", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -519,12 +575,17 @@ var tournamentMatches = pgTable("tournament_matches", {
 });
 var friends = pgTable("friends", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  requesterId: varchar("requester_id").notNull(),
+  playerId: varchar("player_id").notNull(),
+  friendId: varchar("friend_id").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`)
+});
+var friendRequests = pgTable("friend_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  senderId: varchar("sender_id").notNull(),
   receiverId: varchar("receiver_id").notNull(),
   status: text("status").notNull().default("pending"),
-  // pending | accepted | rejected
-  createdAt: timestamp("created_at").notNull().default(sql`now()`),
-  updatedAt: timestamp("updated_at").notNull().default(sql`now()`)
+  // pending | accepted | declined
+  createdAt: timestamp("created_at").notNull().default(sql`now()`)
 });
 var dailyTaskDefs = pgTable("daily_tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -582,6 +643,90 @@ var roomInvites = pgTable("room_invites", {
   // pending | accepted | declined
   createdAt: timestamp("created_at").notNull().default(sql`now()`)
 });
+var coinGifts = pgTable("coin_gifts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fromPlayerId: varchar("from_player_id").notNull(),
+  toPlayerId: varchar("to_player_id").notNull(),
+  amount: integer("amount").notNull(),
+  seen: boolean("seen").notNull().default(false),
+  sentAt: timestamp("sent_at").notNull().default(sql`now()`)
+});
+var battlePassTiers = pgTable("battle_pass_tiers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  seasonId: varchar("season_id").notNull(),
+  tier: integer("tier").notNull(),
+  freeRewardType: text("free_reward_type").notNull(),
+  // "coins" | "skin" | "title" | "powerCard"
+  freeRewardId: text("free_reward_id"),
+  // skin/title id, null for coins/powerCard
+  freeRewardAmount: integer("free_reward_amount").notNull().default(0),
+  premiumRewardType: text("premium_reward_type").notNull(),
+  premiumRewardId: text("premium_reward_id"),
+  premiumRewardAmount: integer("premium_reward_amount").notNull().default(0)
+}, (t) => ({
+  uniqSeasonTier: uniqueIndex("battle_pass_tiers_season_tier_unique").on(t.seasonId, t.tier)
+}));
+var playerBattlePass = pgTable("player_battle_pass", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: varchar("player_id").notNull(),
+  seasonId: varchar("season_id").notNull(),
+  passXp: integer("pass_xp").notNull().default(0),
+  currentTier: integer("current_tier").notNull().default(0),
+  premiumUnlocked: boolean("premium_unlocked").notNull().default(false),
+  claimedTiers: jsonb("claimed_tiers").$type().notNull().default(sql`'[]'::jsonb`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`)
+}, (t) => ({
+  uniqPlayerSeason: uniqueIndex("player_battle_pass_player_season_unique").on(t.playerId, t.seasonId)
+}));
+var clans = pgTable("clans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  emoji: text("emoji").notNull().default("\u2694\uFE0F"),
+  leaderId: varchar("leader_id").notNull(),
+  totalWarScore: integer("total_war_score").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`)
+});
+var clanMembers = pgTable("clan_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clanId: varchar("clan_id").notNull(),
+  playerId: varchar("player_id").notNull(),
+  warScore: integer("war_score").notNull().default(0),
+  role: text("role").notNull().default("member"),
+  joinedAt: timestamp("joined_at").notNull().default(sql`now()`)
+}, (t) => ({
+  uniqMembership: uniqueIndex("clan_members_clan_player_unique").on(t.clanId, t.playerId)
+}));
+var spectatorBets = pgTable("spectator_bets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  roomId: varchar("room_id").notNull(),
+  spectatorId: varchar("spectator_id").notNull(),
+  betOnPlayerId: varchar("bet_on_player_id").notNull(),
+  amount: integer("amount").notNull(),
+  settled: boolean("settled").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`)
+});
+var dailyChallenges = pgTable("daily_challenges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  date: text("date").notNull().unique(),
+  word: text("word").notNull(),
+  letter: text("letter").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`)
+});
+var dailyChallengeEntries = pgTable("daily_challenge_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: varchar("player_id").notNull(),
+  date: text("date").notNull(),
+  guesses: jsonb("guesses").$type().notNull().default(sql`'[]'::jsonb`),
+  completed: boolean("completed").notNull().default(false),
+  won: boolean("won").notNull().default(false),
+  guessCount: integer("guess_count").notNull().default(0),
+  durationSeconds: integer("duration_seconds").notNull().default(0),
+  startedAt: timestamp("started_at").notNull().default(sql`now()`),
+  finishedAt: timestamp("finished_at"),
+  rank: integer("rank")
+}, (t) => ({
+  uniqPlayerDate: uniqueIndex("daily_challenge_entries_player_date_unique").on(t.playerId, t.date)
+}));
 
 // server/db.ts
 var pool = new pg.Pool({
@@ -590,7 +735,178 @@ var pool = new pg.Pool({
 var db = drizzle(pool, { schema: schema_exports });
 
 // server/routes.ts
-import { eq, and, desc, asc, or, ilike, ne, isNotNull, sql as sql2 } from "drizzle-orm";
+import { eq as eq2, and as and2, desc, asc, or, ilike, ne, isNotNull as isNotNull2, sql as sql3 } from "drizzle-orm";
+import cron from "node-cron";
+
+// server/notifications.ts
+import { eq, and, isNotNull, sql as sql2 } from "drizzle-orm";
+var EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
+async function sendPushNotification(playerId, body, title, data) {
+  try {
+    const [profile] = await db.select({
+      expoPushToken: playerProfiles.expoPushToken,
+      notificationsEnabled: playerProfiles.notificationsEnabled
+    }).from(playerProfiles).where(eq(playerProfiles.id, playerId)).limit(1);
+    if (!profile?.expoPushToken || !profile.notificationsEnabled) return false;
+    const message = {
+      to: profile.expoPushToken,
+      body,
+      sound: "default",
+      channelId: "default"
+    };
+    if (title) message.title = title;
+    if (data) message.data = data;
+    const res = await fetch(EXPO_PUSH_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json"
+      },
+      body: JSON.stringify(message)
+    });
+    if (!res.ok) {
+      console.error("[push] Expo API error:", res.status);
+      return false;
+    }
+    const result = await res.json();
+    if (result?.data?.status === "error") {
+      console.error("[push] Ticket error:", result.data.message);
+      if (result.data.details?.error === "DeviceNotRegistered") {
+        await db.update(playerProfiles).set({ expoPushToken: null }).where(eq(playerProfiles.id, playerId));
+        console.log("[push] Cleared stale token for player:", playerId);
+      }
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error("[push] Failed to send notification:", e);
+    return false;
+  }
+}
+async function sendBulkPushNotifications(messages) {
+  if (messages.length === 0) return;
+  const chunks = [];
+  for (let i = 0; i < messages.length; i += 100) {
+    chunks.push(messages.slice(i, i + 100));
+  }
+  for (const chunk of chunks) {
+    try {
+      await fetch(EXPO_PUSH_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json"
+        },
+        body: JSON.stringify(chunk)
+      });
+    } catch (e) {
+      console.error("[push] Bulk send error:", e);
+    }
+  }
+}
+async function sendDailyTaskReminders() {
+  try {
+    const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+    const players = await db.select({
+      expoPushToken: playerProfiles.expoPushToken,
+      lastLoginDate: playerProfiles.lastLoginDate,
+      notificationsEnabled: playerProfiles.notificationsEnabled
+    }).from(playerProfiles).where(
+      and(
+        isNotNull(playerProfiles.expoPushToken),
+        eq(playerProfiles.notificationsEnabled, true)
+      )
+    );
+    const messages = [];
+    for (const p of players) {
+      if (!p.expoPushToken || p.lastLoginDate === today) continue;
+      messages.push({
+        to: p.expoPushToken,
+        title: "\u062D\u0631\u0648\u0641 \u0627\u0644\u0645\u063A\u0631\u0628",
+        body: "\u0645\u0647\u0627\u0645\u0643 \u0627\u0644\u064A\u0648\u0645\u064A\u0629 \u062C\u0627\u0647\u0632\u0629! \u{1F3AF}",
+        sound: "default",
+        data: { type: "daily_tasks" }
+      });
+    }
+    if (messages.length > 0) {
+      await sendBulkPushNotifications(messages);
+      console.log(`[cron] Sent ${messages.length} daily task reminders`);
+    }
+  } catch (e) {
+    console.error("[cron] Daily task reminder error:", e);
+  }
+}
+async function sendStreakResetWarnings() {
+  try {
+    const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+    const players = await db.select({
+      expoPushToken: playerProfiles.expoPushToken,
+      lastLoginDate: playerProfiles.lastLoginDate,
+      loginStreak: playerProfiles.loginStreak,
+      notificationsEnabled: playerProfiles.notificationsEnabled
+    }).from(playerProfiles).where(
+      and(
+        isNotNull(playerProfiles.expoPushToken),
+        eq(playerProfiles.notificationsEnabled, true),
+        sql2`${playerProfiles.loginStreak} > 2`
+      )
+    );
+    const messages = [];
+    for (const p of players) {
+      if (!p.expoPushToken || p.lastLoginDate === today) continue;
+      messages.push({
+        to: p.expoPushToken,
+        title: "\u062D\u0631\u0648\u0641 \u0627\u0644\u0645\u063A\u0631\u0628",
+        body: "\u0633\u0644\u0633\u0644\u062A\u0643 \u0633\u062A\u0646\u062A\u0647\u064A \u0627\u0644\u064A\u0648\u0645! \u{1F525}",
+        sound: "default",
+        data: { type: "streak_warning" }
+      });
+    }
+    if (messages.length > 0) {
+      await sendBulkPushNotifications(messages);
+      console.log(`[cron] Sent ${messages.length} streak reset warnings`);
+    }
+  } catch (e) {
+    console.error("[cron] Streak reset warning error:", e);
+  }
+}
+async function sendSeasonEndingNotifications() {
+  try {
+    const now = /* @__PURE__ */ new Date();
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const daysLeft = lastDay - now.getDate();
+    if (daysLeft !== 3 && daysLeft !== 1) return;
+    const label = daysLeft === 3 ? "\u0627\u0644\u0645\u0648\u0633\u0645 \u064A\u0646\u062A\u0647\u064A \u062E\u0644\u0627\u0644 3 \u0623\u064A\u0627\u0645 \u23F3" : "\u0627\u0644\u0645\u0648\u0633\u0645 \u064A\u0646\u062A\u0647\u064A \u063A\u062F\u0627\u064B! \u23F3";
+    const players = await db.select({
+      expoPushToken: playerProfiles.expoPushToken,
+      notificationsEnabled: playerProfiles.notificationsEnabled
+    }).from(playerProfiles).where(
+      and(
+        isNotNull(playerProfiles.expoPushToken),
+        eq(playerProfiles.notificationsEnabled, true)
+      )
+    );
+    const messages = [];
+    for (const p of players) {
+      if (!p.expoPushToken) continue;
+      messages.push({
+        to: p.expoPushToken,
+        title: "\u062D\u0631\u0648\u0641 \u0627\u0644\u0645\u063A\u0631\u0628",
+        body: label,
+        sound: "default",
+        data: { type: "season_ending" }
+      });
+    }
+    if (messages.length > 0) {
+      await sendBulkPushNotifications(messages);
+      console.log(`[cron] Sent ${messages.length} season ending notifications`);
+    }
+  } catch (e) {
+    console.error("[cron] Season ending notification error:", e);
+  }
+}
+
+// server/routes.ts
 var TASK_POOL = [
   { key: "win_2", titleAr: "\u0627\u0631\u0628\u062D \u0645\u0628\u0627\u0631\u064A\u062A\u064A\u0646", descAr: "\u0641\u064F\u0632 \u0628\u0640 2 \u0645\u0628\u0627\u0631\u064A\u0627\u062A \u0627\u0644\u064A\u0648\u0645", icon: "\u{1F3C6}", target: 2, type: "wins", rewardCoins: 30, rewardXp: 15 },
   { key: "win_3", titleAr: "\u0627\u0631\u0628\u062D 3 \u0645\u0628\u0627\u0631\u064A\u0627\u062A", descAr: "\u0641\u064F\u0632 \u0628\u0640 3 \u0645\u0628\u0627\u0631\u064A\u0627\u062A \u0627\u0644\u064A\u0648\u0645", icon: "\u{1F3C6}", target: 3, type: "wins", rewardCoins: 50, rewardXp: 0 },
@@ -609,12 +925,24 @@ var DAILY_TASK_DEFS = TASK_POOL;
 var ACHIEVEMENT_DEFS = [
   { key: "first_win", titleAr: "\u0623\u0648\u0644 \u0627\u0646\u062A\u0635\u0627\u0631", descAr: "\u0641\u064F\u0632 \u0628\u0623\u0648\u0644 \u0645\u0628\u0627\u0631\u0627\u0629 \u0644\u0643", target: 1, type: "wins", rewardCoins: 50, rewardXp: 50, icon: "\u{1F947}" },
   { key: "win_10", titleAr: "10 \u0627\u0646\u062A\u0635\u0627\u0631\u0627\u062A", descAr: "\u0627\u0631\u0628\u062D 10 \u0645\u0628\u0627\u0631\u064A\u0627\u062A", target: 10, type: "wins", rewardCoins: 200, rewardXp: 100, icon: "\u{1F3C6}" },
+  { key: "win_25", titleAr: "25 \u0627\u0646\u062A\u0635\u0627\u0631\u0627\u064B", descAr: "\u0627\u0631\u0628\u062D 25 \u0645\u0628\u0627\u0631\u0627\u0629", target: 25, type: "wins", rewardCoins: 350, rewardXp: 200, icon: "\u{1F396}\uFE0F" },
   { key: "win_50", titleAr: "50 \u0627\u0646\u062A\u0635\u0627\u0631\u0627\u064B", descAr: "\u0627\u0631\u0628\u062D 50 \u0645\u0628\u0627\u0631\u0627\u0629", target: 50, type: "wins", rewardCoins: 500, rewardXp: 300, icon: "\u{1F451}" },
+  { key: "win_100", titleAr: "100 \u0627\u0646\u062A\u0635\u0627\u0631", descAr: "\u0627\u0631\u0628\u062D 100 \u0645\u0628\u0627\u0631\u0627\u0629", target: 100, type: "wins", rewardCoins: 1e3, rewardXp: 500, icon: "\u{1F48E}" },
   { key: "play_10", titleAr: "10 \u0645\u0628\u0627\u0631\u064A\u0627\u062A", descAr: "\u0634\u0627\u0631\u0643 \u0641\u064A 10 \u0645\u0628\u0627\u0631\u064A\u0627\u062A", target: 10, type: "games", rewardCoins: 100, rewardXp: 50, icon: "\u{1F3AE}" },
+  { key: "play_50", titleAr: "50 \u0645\u0628\u0627\u0631\u0627\u0629", descAr: "\u0634\u0627\u0631\u0643 \u0641\u064A 50 \u0645\u0628\u0627\u0631\u0627\u0629", target: 50, type: "games", rewardCoins: 200, rewardXp: 120, icon: "\u{1F579}\uFE0F" },
   { key: "play_100", titleAr: "100 \u0645\u0628\u0627\u0631\u0627\u0629", descAr: "\u0634\u0627\u0631\u0643 \u0641\u064A 100 \u0645\u0628\u0627\u0631\u0627\u0629", target: 100, type: "games", rewardCoins: 300, rewardXp: 200, icon: "\u{1F4AF}" },
+  { key: "play_500", titleAr: "500 \u0645\u0628\u0627\u0631\u0627\u0629", descAr: "\u0634\u0627\u0631\u0643 \u0641\u064A 500 \u0645\u0628\u0627\u0631\u0627\u0629", target: 500, type: "games", rewardCoins: 800, rewardXp: 400, icon: "\u{1F3AF}" },
   { key: "level_5", titleAr: "\u0627\u0644\u0645\u0633\u062A\u0648\u0649 5", descAr: "\u0627\u0628\u0644\u063A \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u062E\u0627\u0645\u0633", target: 5, type: "level", rewardCoins: 150, rewardXp: 0, icon: "\u26A1" },
   { key: "level_10", titleAr: "\u0627\u0644\u0645\u0633\u062A\u0648\u0649 10", descAr: "\u0627\u0628\u0644\u063A \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u0639\u0627\u0634\u0631", target: 10, type: "level", rewardCoins: 500, rewardXp: 0, icon: "\u{1F31F}" },
-  { key: "streak_3", titleAr: "3 \u0627\u0646\u062A\u0635\u0627\u0631\u0627\u062A \u0645\u062A\u062A\u0627\u0644\u064A\u0629", descAr: "\u0627\u0631\u0628\u062D 3 \u0645\u0628\u0627\u0631\u064A\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A", target: 3, type: "streak", rewardCoins: 100, rewardXp: 75, icon: "\u{1F525}" }
+  { key: "level_15", titleAr: "\u0627\u0644\u0645\u0633\u062A\u0648\u0649 15", descAr: "\u0627\u0628\u0644\u063A \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u062E\u0627\u0645\u0633 \u0639\u0634\u0631", target: 15, type: "level", rewardCoins: 750, rewardXp: 0, icon: "\u{1F52E}" },
+  { key: "level_20", titleAr: "\u0627\u0644\u0645\u0633\u062A\u0648\u0649 20", descAr: "\u0627\u0628\u0644\u063A \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u0639\u0634\u0631\u064A\u0646", target: 20, type: "level", rewardCoins: 1200, rewardXp: 0, icon: "\u{1F3F0}" },
+  { key: "streak_3", titleAr: "3 \u0627\u0646\u062A\u0635\u0627\u0631\u0627\u062A \u0645\u062A\u062A\u0627\u0644\u064A\u0629", descAr: "\u0627\u0631\u0628\u062D 3 \u0645\u0628\u0627\u0631\u064A\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A", target: 3, type: "streak", rewardCoins: 100, rewardXp: 75, icon: "\u{1F525}" },
+  { key: "streak_5", titleAr: "5 \u0627\u0646\u062A\u0635\u0627\u0631\u0627\u062A \u0645\u062A\u062A\u0627\u0644\u064A\u0629", descAr: "\u0627\u0631\u0628\u062D 5 \u0645\u0628\u0627\u0631\u064A\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A", target: 5, type: "streak", rewardCoins: 250, rewardXp: 150, icon: "\u26A1" },
+  { key: "streak_10", titleAr: "10 \u0627\u0646\u062A\u0635\u0627\u0631\u0627\u062A \u0645\u062A\u062A\u0627\u0644\u064A\u0629", descAr: "\u0627\u0631\u0628\u062D 10 \u0645\u0628\u0627\u0631\u064A\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A", target: 10, type: "streak", rewardCoins: 500, rewardXp: 300, icon: "\u{1F4A5}" },
+  { key: "login_7", titleAr: "7 \u0623\u064A\u0627\u0645 \u0645\u062A\u062A\u0627\u0644\u064A\u0629", descAr: "\u0633\u062C\u0644 \u062F\u062E\u0648\u0644\u0643 7 \u0623\u064A\u0627\u0645 \u0645\u062A\u062A\u0627\u0644\u064A\u0629", target: 7, type: "login_streak", rewardCoins: 200, rewardXp: 100, icon: "\u{1F4C5}" },
+  { key: "login_30", titleAr: "30 \u064A\u0648\u0645 \u0645\u062A\u062A\u0627\u0644\u064A", descAr: "\u0633\u062C\u0644 \u062F\u062E\u0648\u0644\u0643 30 \u064A\u0648\u0645 \u0645\u062A\u062A\u0627\u0644\u064A", target: 30, type: "login_streak", rewardCoins: 1e3, rewardXp: 500, icon: "\u{1F5D3}\uFE0F" },
+  { key: "score_5000", titleAr: "5000 \u0646\u0642\u0637\u0629", descAr: "\u0627\u062C\u0645\u0639 5000 \u0646\u0642\u0637\u0629 \u0625\u062C\u0645\u0627\u0644\u064A\u0629", target: 5e3, type: "total_score", rewardCoins: 500, rewardXp: 250, icon: "\u2B50" },
+  { key: "first_tournament", titleAr: "\u0623\u0648\u0644 \u0628\u0637\u0648\u0644\u0629", descAr: "\u0634\u0627\u0631\u0643 \u0641\u064A \u0628\u0637\u0648\u0644\u0629 \u0648\u0627\u062D\u062F\u0629", target: 1, type: "tournaments", rewardCoins: 150, rewardXp: 100, icon: "\u{1F3DF}\uFE0F" }
 ];
 var RANDOM_NAME_WORDS = [
   "Lion",
@@ -655,17 +983,33 @@ async function ensurePlayerCode(playerId) {
   let code = generatePlayerCode();
   let attempts = 0;
   while (attempts < 10) {
-    const existing = await db.select({ id: playerProfiles.id }).from(playerProfiles).where(eq(playerProfiles.playerCode, code));
+    const existing = await db.select({ id: playerProfiles.id }).from(playerProfiles).where(eq2(playerProfiles.playerCode, code));
     if (existing.length === 0) break;
     code = generatePlayerCode();
     attempts++;
   }
   return code;
 }
+async function generateUniqueReferralCode() {
+  let code = "WM-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const dup = await db.select({ id: playerProfiles.id }).from(playerProfiles).where(eq2(playerProfiles.referralCode, code));
+    if (dup.length === 0) break;
+    code = "WM-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+  }
+  return code;
+}
+async function ensureReferralCode(playerId) {
+  const [existing] = await db.select({ referralCode: playerProfiles.referralCode }).from(playerProfiles).where(eq2(playerProfiles.id, playerId));
+  if (existing?.referralCode) return existing.referralCode;
+  const code = await generateUniqueReferralCode();
+  await db.update(playerProfiles).set({ referralCode: code }).where(eq2(playerProfiles.id, playerId));
+  return code;
+}
 async function generateUniquePlayerTag() {
   for (let attempt = 0; attempt < 20; attempt++) {
     const tag = Math.floor(1e3 + Math.random() * 9e3);
-    const existing = await db.select({ id: playerProfiles.id }).from(playerProfiles).where(eq(playerProfiles.playerTag, tag)).limit(1);
+    const existing = await db.select({ id: playerProfiles.id }).from(playerProfiles).where(eq2(playerProfiles.playerTag, tag)).limit(1);
     if (existing.length === 0) return tag;
   }
   return Math.floor(1e3 + Math.random() * 9e3);
@@ -689,14 +1033,14 @@ function pickDailyTasks() {
 }
 async function fixMissingPlayerCodes() {
   try {
-    const missing = await db.select({ id: playerProfiles.id }).from(playerProfiles).where(sql2`player_code IS NULL OR player_tag IS NULL`);
+    const missing = await db.select({ id: playerProfiles.id }).from(playerProfiles).where(sql3`player_code IS NULL OR player_tag IS NULL`);
     if (missing.length === 0) return;
     console.log(`[fix] Assigning playerCode/playerTag to ${missing.length} players...`);
     for (const { id } of missing) {
       const updates = {};
       updates.playerCode = await ensurePlayerCode(id);
       updates.playerTag = await generateUniquePlayerTag();
-      await db.update(playerProfiles).set(updates).where(eq(playerProfiles.id, id));
+      await db.update(playerProfiles).set(updates).where(eq2(playerProfiles.id, id));
     }
     console.log(`[fix] Done assigning codes to ${missing.length} players.`);
   } catch (e) {
@@ -733,6 +1077,51 @@ async function seedTaskAndAchievementDefs() {
   }
 }
 var socketRoomMap = /* @__PURE__ */ new Map();
+var socketPlayerIdMap = /* @__PURE__ */ new Map();
+var reactionLastSentMap = /* @__PURE__ */ new Map();
+async function incrementEmojiTaskProgress(playerId) {
+  const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+  const emojiTaskDefs = TASK_POOL.filter((t) => t.type === "emojis");
+  for (const def of emojiTaskDefs) {
+    const rows = await db.select({ id: playerDailyTasks.id, progress: playerDailyTasks.progress, claimed: playerDailyTasks.claimed }).from(playerDailyTasks).where(and2(
+      eq2(playerDailyTasks.playerId, playerId),
+      eq2(playerDailyTasks.taskKey, def.key),
+      eq2(playerDailyTasks.assignedDate, today)
+    )).limit(1);
+    if (rows.length > 0 && !rows[0].claimed) {
+      const newProgress = Math.min((rows[0].progress ?? 0) + 1, def.target);
+      await db.update(playerDailyTasks).set({ progress: newProgress }).where(eq2(playerDailyTasks.id, rows[0].id));
+      console.log(`[emoji-task] player=${playerId} task=${def.key} progress=${newProgress}/${def.target}`);
+    }
+  }
+}
+var roomSpectators = /* @__PURE__ */ new Map();
+var MAX_SPECTATORS = 10;
+var MAIN_ROUND_SECONDS = 50;
+var spectateTimerIntervals = /* @__PURE__ */ new Map();
+function startSpectateTimer(roomId, ioRef) {
+  if (spectateTimerIntervals.has(roomId)) {
+    clearInterval(spectateTimerIntervals.get(roomId));
+    spectateTimerIntervals.delete(roomId);
+  }
+  let secondsLeft = MAIN_ROUND_SECONDS;
+  const interval = setInterval(() => {
+    secondsLeft--;
+    ioRef.to(`spectate:${roomId}`).emit("spectate_timer", { secondsLeft });
+    if (secondsLeft <= 0) {
+      clearInterval(interval);
+      spectateTimerIntervals.delete(roomId);
+    }
+  }, 1e3);
+  spectateTimerIntervals.set(roomId, interval);
+}
+function stopSpectateTimer(roomId) {
+  const interval = spectateTimerIntervals.get(roomId);
+  if (interval) {
+    clearInterval(interval);
+    spectateTimerIntervals.delete(roomId);
+  }
+}
 var RAPID_CATEGORIES = ["girlName", "boyName", "animal", "fruit", "vegetable", "object", "city", "country"];
 var RAPID_ROUND_TIME = 10;
 var RAPID_TOTAL_ROUNDS = 5;
@@ -742,6 +1131,10 @@ var RAPID_XP_WIN = 30;
 var RAPID_XP_LOSE = 10;
 var rapidQueue = [];
 var rapidRooms = /* @__PURE__ */ new Map();
+var WORD_CHAIN_TURN_TIME = 15;
+var WORD_CHAIN_ROUNDS_TO_WIN = 2;
+var wordChainRooms = /* @__PURE__ */ new Map();
+var wordChainQueue = [];
 function shuffleArr(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -853,7 +1246,7 @@ async function handleTournamentMatchResult(io, tournamentId, matchId, winnerId, 
     winnerName,
     status: "completed",
     completedAt: /* @__PURE__ */ new Date()
-  }).where(eq(tournamentMatches.id, matchId)).catch(() => {
+  }).where(eq2(tournamentMatches.id, matchId)).catch(() => {
   });
   if (match.roundName === "quarter" || match.roundName === "semi") {
     const nextRoundName = match.roundName === "quarter" ? "semi" : "final";
@@ -863,7 +1256,7 @@ async function handleTournamentMatchResult(io, tournamentId, matchId, winnerId, 
     if (nextMatch) {
       const p1Update = slot === "player1" ? { player1Id: winnerId, player1Name: winnerName } : {};
       const p2Update = slot === "player2" ? { player2Id: winnerId, player2Name: winnerName } : {};
-      await db.update(tournamentMatches).set({ ...p1Update, ...p2Update }).where(eq(tournamentMatches.id, nextMatch.id)).catch(() => {
+      await db.update(tournamentMatches).set({ ...p1Update, ...p2Update }).where(eq2(tournamentMatches.id, nextMatch.id)).catch(() => {
       });
     }
   }
@@ -873,7 +1266,7 @@ async function handleTournamentMatchResult(io, tournamentId, matchId, winnerId, 
       winnerId,
       winnerName,
       completedAt: /* @__PURE__ */ new Date()
-    }).where(eq(tournaments.id, tournamentId)).catch(() => {
+    }).where(eq2(tournaments.id, tournamentId)).catch(() => {
     });
     const finalMatch = active.matches.find((m) => m.roundName === "final");
     const finalLoserId = finalMatch ? finalMatch.player1Id === winnerId ? finalMatch.player2Id : finalMatch.player1Id : null;
@@ -891,19 +1284,19 @@ async function handleTournamentMatchResult(io, tournamentId, matchId, winnerId, 
       const prize = TOURNAMENT_PRIZES[rank] || 0;
       const xp = TOURNAMENT_XP[rank] || 0;
       try {
-        const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, pid));
+        const [profile] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, pid));
         if (profile) {
           await db.update(playerProfiles).set({
             coins: profile.coins + prize,
             xp: profile.xp + xp,
             level: Math.floor((profile.xp + xp) / 100) + 1,
             updatedAt: /* @__PURE__ */ new Date()
-          }).where(eq(playerProfiles.id, pid));
+          }).where(eq2(playerProfiles.id, pid));
         }
       } catch {
       }
       await db.update(tournamentPlayers).set({ placement: rank }).where(
-        and(eq(tournamentPlayers.tournamentId, tournamentId), eq(tournamentPlayers.playerId, pid))
+        and2(eq2(tournamentPlayers.tournamentId, tournamentId), eq2(tournamentPlayers.playerId, pid))
       ).catch(() => {
       });
     }
@@ -954,6 +1347,7 @@ function startTournamentRoundMatches(io, tournament) {
     }
     const roomPlayers = room.players.map((p) => ({ id: p.id, name: p.name, skin: p.skin }));
     emitCountdownThenStart(io, room.id, roomPlayers, () => {
+      clearHintsForRoom(room.id);
       const gameResult = startGame(room.id);
       if (!gameResult.success || !gameResult.room) return;
       const gameData = {
@@ -964,7 +1358,8 @@ function startTournamentRoundMatches(io, tournament) {
         players: gameResult.room.players.map((p) => ({ id: p.id, name: p.name, skin: p.skin })),
         coinEntry: 0,
         tournamentId: tournament.id,
-        tournamentRound: match.roundName
+        tournamentRound: match.roundName,
+        wordCategory: gameResult.room.wordCategory || "general"
       };
       io.to(room.id).emit("matchFound", gameData);
       gameResult.room.timer = setTimeout(() => {
@@ -995,6 +1390,44 @@ function emitCountdownThenStart(io, roomId, players, onStart) {
   }, 1e3);
 }
 var matchmakingQueue = [];
+var botRooms = /* @__PURE__ */ new Map();
+var matchmakingTimeouts = /* @__PURE__ */ new Map();
+var BOT_NAMES = ["\u0627\u0644\u0645\u062D\u062A\u0631\u0641", "\u0627\u0644\u0630\u0643\u0627\u0621", "\u0627\u0644\u0646\u062C\u0645", "\u0627\u0644\u0639\u0628\u0642\u0631\u064A", "\u0627\u0644\u062E\u0628\u064A\u0631", "\u0627\u0644\u0623\u0633\u062A\u0627\u0630", "\u0627\u0644\u0628\u0637\u0644", "\u0627\u0644\u0645\u062A\u0645\u064A\u0632"];
+var BOT_SKINS = ["\u{1F916}", "\u{1F47E}", "\u{1F9E0}", "\u{1F3AD}"];
+function generateBotAnswers(letter, categories) {
+  const answers = {};
+  for (const cat of categories) {
+    const wordCat = CATEGORY_MAP[cat];
+    const words = wordCat ? getWordsForLetter(wordCat, letter) : [];
+    answers[cat] = words.length > 0 ? words[Math.floor(Math.random() * Math.min(words.length, 10))] : "";
+  }
+  return answers;
+}
+function scheduleBotSubmission(io, roomId, botId, delay) {
+  setTimeout(() => {
+    const room = getRoom(roomId);
+    if (!room || room.state !== "playing") return;
+    const activeCategories = getActiveCategories(room.wordCategory);
+    const answers = generateBotAnswers(room.currentLetter, activeCategories);
+    const { allSubmitted } = submitAnswers(roomId, botId, answers);
+    io.to(roomId).emit("player_submitted", { playerId: botId });
+    if (allSubmitted) {
+      if (room.timer) {
+        clearTimeout(room.timer);
+        room.timer = null;
+      }
+      const results = calculateRoundScores(roomId);
+      const updatedRoom = getRoom(roomId);
+      if (!updatedRoom) return;
+      io.to(roomId).emit("round_results", {
+        results,
+        round: updatedRoom.currentRound,
+        totalRounds: updatedRoom.totalRounds,
+        players: updatedRoom.players.map((p) => ({ id: p.id, name: p.name, score: p.score }))
+      });
+    }
+  }, delay);
+}
 var COIN_ENTRY_OPTIONS = [
   { entry: 50, reward: 100 },
   { entry: 100, reward: 200 },
@@ -1026,10 +1459,202 @@ function pickSpinReward() {
 }
 var roomCoinEntries = /* @__PURE__ */ new Map();
 var roomPendingDeductions = /* @__PURE__ */ new Map();
+function calcDivision(elo) {
+  if (elo < 800) return "bronze";
+  if (elo < 1100) return "silver";
+  if (elo < 1400) return "gold";
+  if (elo < 1700) return "platinum";
+  return "diamond";
+}
+function calcElo(winnerElo, loserElo, K = 32) {
+  const expectedWinner = 1 / (1 + Math.pow(10, (loserElo - winnerElo) / 400));
+  const newWinner = Math.round(winnerElo + K * (1 - expectedWinner));
+  const newLoser = Math.max(100, Math.round(loserElo + K * (0 - (1 - expectedWinner))));
+  return { winner: newWinner, loser: newLoser };
+}
+async function seedCurrentSeason() {
+  try {
+    const existing = await db.select().from(seasons).where(eq2(seasons.status, "active")).limit(1);
+    if (existing.length > 0) return;
+    const now = /* @__PURE__ */ new Date();
+    const endDate = new Date(now);
+    endDate.setDate(endDate.getDate() + 30);
+    const monthNames = ["\u064A\u0646\u0627\u064A\u0631", "\u0641\u0628\u0631\u0627\u064A\u0631", "\u0645\u0627\u0631\u0633", "\u0623\u0628\u0631\u064A\u0644", "\u0645\u0627\u064A\u0648", "\u064A\u0648\u0646\u064A\u0648", "\u064A\u0648\u0644\u064A\u0648", "\u0623\u063A\u0633\u0637\u0633", "\u0633\u0628\u062A\u0645\u0628\u0631", "\u0623\u0643\u062A\u0648\u0628\u0631", "\u0646\u0648\u0641\u0645\u0628\u0631", "\u062F\u064A\u0633\u0645\u0628\u0631"];
+    const name = `\u0645\u0648\u0633\u0645 ${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+    await db.insert(seasons).values({ name, startDate: now, endDate, status: "active" });
+    console.log(`[ranked] Seeded new season: ${name}`);
+  } catch (e) {
+    console.error("[ranked] seedCurrentSeason error:", e);
+  }
+}
+async function handleSeasonEnd() {
+  try {
+    const activeSeason = await db.select().from(seasons).where(eq2(seasons.status, "active")).limit(1);
+    if (!activeSeason.length) return;
+    const season = activeSeason[0];
+    if (new Date(season.endDate) > /* @__PURE__ */ new Date()) return;
+    console.log(`[ranked] Season ${season.name} ended \u2014 distributing rewards...`);
+    const DIVISION_REWARDS = {
+      diamond: { coins: 1e3, title: "morocco_legend" },
+      platinum: { coins: 600, title: "champion_title" },
+      gold: { coins: 350, title: "letter_king" },
+      silver: { coins: 150, title: "word_master" },
+      bronze: { coins: 50, title: null }
+    };
+    const players = await db.select({
+      id: playerProfiles.id,
+      division: playerProfiles.division,
+      peakElo: playerProfiles.peakElo,
+      ownedTitles: playerProfiles.ownedTitles
+    }).from(playerProfiles);
+    for (const p of players) {
+      const reward = DIVISION_REWARDS[p.division ?? "bronze"] ?? DIVISION_REWARDS.bronze;
+      const newElo = Math.max(800, Math.floor((p.peakElo ?? 1e3) * 0.75));
+      const newDivision = calcDivision(newElo);
+      const currentTitles = Array.isArray(p.ownedTitles) ? p.ownedTitles : [];
+      const newTitles = reward.title && !currentTitles.includes(reward.title) ? [...currentTitles, reward.title] : currentTitles;
+      await db.update(playerProfiles).set({
+        coins: sql3`coins + ${reward.coins}`,
+        elo: newElo,
+        division: newDivision,
+        peakElo: newElo,
+        seasonWins: 0,
+        seasonLosses: 0,
+        ownedTitles: newTitles,
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq2(playerProfiles.id, p.id));
+    }
+    await db.update(seasons).set({ status: "completed" }).where(eq2(seasons.id, season.id));
+    const now = /* @__PURE__ */ new Date();
+    const endDate = new Date(now);
+    endDate.setDate(endDate.getDate() + 30);
+    const monthNames = ["\u064A\u0646\u0627\u064A\u0631", "\u0641\u0628\u0631\u0627\u064A\u0631", "\u0645\u0627\u0631\u0633", "\u0623\u0628\u0631\u064A\u0644", "\u0645\u0627\u064A\u0648", "\u064A\u0648\u0646\u064A\u0648", "\u064A\u0648\u0644\u064A\u0648", "\u0623\u063A\u0633\u0637\u0633", "\u0633\u0628\u062A\u0645\u0628\u0631", "\u0623\u0643\u062A\u0648\u0628\u0631", "\u0646\u0648\u0641\u0645\u0628\u0631", "\u062F\u064A\u0633\u0645\u0628\u0631"];
+    const name = `\u0645\u0648\u0633\u0645 ${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+    const [newSeason] = await db.insert(seasons).values({ name, startDate: now, endDate, status: "active" }).returning({ id: seasons.id });
+    console.log(`[ranked] New season created: ${name}`);
+    if (newSeason?.id) {
+      seedBattlePassTiers(newSeason.id).catch((e) => console.error("[battle-pass] season rollover seed error:", e));
+    }
+  } catch (e) {
+    console.error("[ranked] handleSeasonEnd error:", e);
+  }
+}
+var BP_XP_PER_TIER = 500;
+var BP_PREMIUM_COST = 1e3;
+var BP_XP_WIN = 20;
+var BP_XP_GAME = 10;
+var BP_TIER_DEFS = [
+  { freeRewardType: "coins", freeRewardId: null, freeRewardAmount: 50, premiumRewardType: "coins", premiumRewardId: null, premiumRewardAmount: 100 },
+  { freeRewardType: "powerCard", freeRewardId: "hint", freeRewardAmount: 1, premiumRewardType: "coins", premiumRewardId: null, premiumRewardAmount: 150 },
+  { freeRewardType: "coins", freeRewardId: null, freeRewardAmount: 75, premiumRewardType: "skin", premiumRewardId: "djellaba", premiumRewardAmount: 0 },
+  { freeRewardType: "coins", freeRewardId: null, freeRewardAmount: 100, premiumRewardType: "coins", premiumRewardId: null, premiumRewardAmount: 200 },
+  { freeRewardType: "powerCard", freeRewardId: "freeze", freeRewardAmount: 1, premiumRewardType: "coins", premiumRewardId: null, premiumRewardAmount: 250 },
+  { freeRewardType: "coins", freeRewardId: null, freeRewardAmount: 100, premiumRewardType: "powerCard", premiumRewardId: "time", premiumRewardAmount: 2 },
+  { freeRewardType: "coins", freeRewardId: null, freeRewardAmount: 125, premiumRewardType: "coins", premiumRewardId: null, premiumRewardAmount: 300 },
+  { freeRewardType: "powerCard", freeRewardId: "hint", freeRewardAmount: 2, premiumRewardType: "skin", premiumRewardId: "sport", premiumRewardAmount: 0 },
+  { freeRewardType: "coins", freeRewardId: null, freeRewardAmount: 150, premiumRewardType: "coins", premiumRewardId: null, premiumRewardAmount: 350 },
+  { freeRewardType: "coins", freeRewardId: null, freeRewardAmount: 150, premiumRewardType: "title", premiumRewardId: "eloquent", premiumRewardAmount: 0 },
+  { freeRewardType: "coins", freeRewardId: null, freeRewardAmount: 200, premiumRewardType: "coins", premiumRewardId: null, premiumRewardAmount: 400 },
+  { freeRewardType: "powerCard", freeRewardId: "freeze", freeRewardAmount: 2, premiumRewardType: "powerCard", premiumRewardId: "hint", premiumRewardAmount: 3 },
+  { freeRewardType: "coins", freeRewardId: null, freeRewardAmount: 200, premiumRewardType: "coins", premiumRewardId: null, premiumRewardAmount: 450 },
+  { freeRewardType: "coins", freeRewardId: null, freeRewardAmount: 225, premiumRewardType: "skin", premiumRewardId: "kaftan", premiumRewardAmount: 0 },
+  { freeRewardType: "powerCard", freeRewardId: "time", freeRewardAmount: 2, premiumRewardType: "coins", premiumRewardId: null, premiumRewardAmount: 500 },
+  { freeRewardType: "coins", freeRewardId: null, freeRewardAmount: 250, premiumRewardType: "coins", premiumRewardId: null, premiumRewardAmount: 550 },
+  { freeRewardType: "coins", freeRewardId: null, freeRewardAmount: 250, premiumRewardType: "powerCard", premiumRewardId: "freeze", premiumRewardAmount: 3 },
+  { freeRewardType: "powerCard", freeRewardId: "hint", freeRewardAmount: 3, premiumRewardType: "coins", premiumRewardId: null, premiumRewardAmount: 600 },
+  { freeRewardType: "coins", freeRewardId: null, freeRewardAmount: 300, premiumRewardType: "skin", premiumRewardId: "ninja", premiumRewardAmount: 0 },
+  { freeRewardType: "coins", freeRewardId: null, freeRewardAmount: 300, premiumRewardType: "title", premiumRewardId: "lightning", premiumRewardAmount: 0 },
+  { freeRewardType: "coins", freeRewardId: null, freeRewardAmount: 350, premiumRewardType: "coins", premiumRewardId: null, premiumRewardAmount: 700 },
+  { freeRewardType: "powerCard", freeRewardId: "time", freeRewardAmount: 3, premiumRewardType: "powerCard", premiumRewardId: "time", premiumRewardAmount: 3 },
+  { freeRewardType: "coins", freeRewardId: null, freeRewardAmount: 400, premiumRewardType: "coins", premiumRewardId: null, premiumRewardAmount: 750 },
+  { freeRewardType: "coins", freeRewardId: null, freeRewardAmount: 400, premiumRewardType: "skin", premiumRewardId: "sahrawi", premiumRewardAmount: 0 },
+  { freeRewardType: "powerCard", freeRewardId: "freeze", freeRewardAmount: 3, premiumRewardType: "coins", premiumRewardId: null, premiumRewardAmount: 800 },
+  { freeRewardType: "coins", freeRewardId: null, freeRewardAmount: 450, premiumRewardType: "title", premiumRewardId: "word_master", premiumRewardAmount: 0 },
+  { freeRewardType: "coins", freeRewardId: null, freeRewardAmount: 500, premiumRewardType: "coins", premiumRewardId: null, premiumRewardAmount: 900 },
+  { freeRewardType: "powerCard", freeRewardId: "hint", freeRewardAmount: 3, premiumRewardType: "skin", premiumRewardId: "hacker", premiumRewardAmount: 0 },
+  { freeRewardType: "coins", freeRewardId: null, freeRewardAmount: 500, premiumRewardType: "coins", premiumRewardId: null, premiumRewardAmount: 1e3 },
+  { freeRewardType: "skin", freeRewardId: "champion", freeRewardAmount: 0, premiumRewardType: "title", premiumRewardId: "letter_king", premiumRewardAmount: 0 }
+];
+async function seedBattlePassTiers(seasonId) {
+  try {
+    const existing = await db.select({ id: battlePassTiers.id }).from(battlePassTiers).where(eq2(battlePassTiers.seasonId, seasonId)).limit(1);
+    if (existing.length > 0) return;
+    const rows = BP_TIER_DEFS.map((def, i) => ({
+      seasonId,
+      tier: i + 1,
+      ...def
+    }));
+    await db.insert(battlePassTiers).values(rows);
+    console.log(`[battle-pass] Seeded 30 tiers for season ${seasonId}`);
+  } catch (e) {
+    console.error("[battle-pass] seedBattlePassTiers error:", e);
+  }
+}
+async function getOrCreatePlayerBattlePass(playerId, seasonId) {
+  await db.insert(playerBattlePass).values({
+    playerId,
+    seasonId,
+    passXp: 0,
+    currentTier: 0,
+    premiumUnlocked: false,
+    claimedTiers: []
+  }).onConflictDoNothing();
+  const [pass] = await db.select().from(playerBattlePass).where(and2(eq2(playerBattlePass.playerId, playerId), eq2(playerBattlePass.seasonId, seasonId))).limit(1);
+  return pass;
+}
+async function awardBattlePassXp(playerId, xpAmount) {
+  try {
+    const [activeSeason] = await db.select({ id: seasons.id }).from(seasons).where(eq2(seasons.status, "active")).limit(1);
+    if (!activeSeason) return;
+    await getOrCreatePlayerBattlePass(playerId, activeSeason.id);
+    await db.update(playerBattlePass).set({
+      passXp: sql3`pass_xp + ${xpAmount}`,
+      currentTier: sql3`LEAST(30, FLOOR((pass_xp + ${xpAmount}) / ${BP_XP_PER_TIER})::int)`,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(and2(eq2(playerBattlePass.playerId, playerId), eq2(playerBattlePass.seasonId, activeSeason.id)));
+  } catch (e) {
+    console.error("[battle-pass] awardBattlePassXp error:", e);
+  }
+}
+async function handleClanWarWeeklyEnd() {
+  try {
+    const allClans = await db.select().from(clans).orderBy(desc(clans.totalWarScore));
+    if (allClans.length === 0) return;
+    const rewardsByRank = { 1: 300, 2: 150, 3: 75 };
+    for (let i = 0; i < allClans.length; i++) {
+      const clan = allClans[i];
+      const rank = i + 1;
+      const rewardPerMember = rewardsByRank[rank] ?? 0;
+      const members = await db.select({ playerId: clanMembers.playerId }).from(clanMembers).where(eq2(clanMembers.clanId, clan.id));
+      if (rewardPerMember > 0) {
+        for (const m of members) {
+          const [prof] = await db.select({ coins: playerProfiles.coins }).from(playerProfiles).where(eq2(playerProfiles.id, m.playerId)).limit(1);
+          if (prof) {
+            await db.update(playerProfiles).set({ coins: prof.coins + rewardPerMember, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(playerProfiles.id, m.playerId));
+          }
+        }
+      }
+      await db.update(clanMembers).set({ warScore: 0 }).where(eq2(clanMembers.clanId, clan.id));
+      await db.update(clans).set({ totalWarScore: 0 }).where(eq2(clans.id, clan.id));
+    }
+    console.log(`[clan-war] Weekly rewards distributed to top ${Math.min(allClans.length, 3)} clans`);
+  } catch (e) {
+    console.error("[clan-war] handleClanWarWeeklyEnd error:", e);
+  }
+}
 async function registerRoutes(app2) {
   const httpServer = createServer(app2);
   seedTaskAndAchievementDefs();
   fixMissingPlayerCodes();
+  await seedCurrentSeason().catch(console.error);
+  (async () => {
+    try {
+      const [activeSeason] = await db.select({ id: seasons.id }).from(seasons).where(eq2(seasons.status, "active")).limit(1);
+      if (activeSeason) await seedBattlePassTiers(activeSeason.id);
+    } catch (e) {
+      console.error("[battle-pass] startup seed error:", e);
+    }
+  })();
   app2.get("/api/words", (req, res) => {
     const letter = req.query.letter;
     if (!letter) return res.status(400).json({ error: "letter required" });
@@ -1038,6 +1663,62 @@ async function registerRoutes(app2) {
       result[gameKey] = getWordsForLetter(dbCategory, letter);
     }
     return res.json(result);
+  });
+  const HINT_COST = 5;
+  const MAX_HINTS_PER_GAME = 3;
+  const hintUsage = /* @__PURE__ */ new Map();
+  function clearHintsForRoom2(roomId) {
+    for (const key of hintUsage.keys()) {
+      if (key.startsWith(`${roomId}:`)) hintUsage.delete(key);
+    }
+  }
+  function getPlayerHintsUsed(roomId, playerId) {
+    return hintUsage.get(`${roomId}:${playerId}`) || 0;
+  }
+  app2.post("/api/game/hint", async (req, res) => {
+    try {
+      const { roomId, playerId } = req.body;
+      if (!roomId || !playerId) return res.status(400).json({ error: "missing_params" });
+      const room = getRoom(roomId);
+      if (!room || room.state !== "playing") return res.status(400).json({ error: "no_active_game" });
+      const playerInRoom = room.players.find((p) => {
+        const mappedId = socketPlayerIdMap.get(p.id);
+        return mappedId === playerId;
+      });
+      if (!playerInRoom) return res.status(403).json({ error: "not_in_room" });
+      const globalKey = `${roomId}:${playerId}`;
+      const globalUsed = hintUsage.get(globalKey) || 0;
+      if (globalUsed >= MAX_HINTS_PER_GAME) return res.status(400).json({ error: "max_hints_reached" });
+      const [profile] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, playerId)).limit(1);
+      if (!profile || profile.coins < HINT_COST) return res.status(400).json({ error: "not_enough_coins" });
+      await db.update(playerProfiles).set({ coins: profile.coins - HINT_COST }).where(eq2(playerProfiles.id, playerId));
+      const activeCategories = getActiveCategories(room.wordCategory);
+      const letter = room.currentLetter;
+      const candidates = [];
+      for (const cat of activeCategories) {
+        const dbCat = CATEGORY_MAP[cat];
+        const words = getWordsForLetter(dbCat, letter);
+        for (const w of words.slice(0, 10)) {
+          candidates.push({ category: cat, word: w });
+        }
+      }
+      if (candidates.length === 0) {
+        await db.update(playerProfiles).set({ coins: profile.coins }).where(eq2(playerProfiles.id, playerId));
+        return res.status(400).json({ error: "no_hints_available" });
+      }
+      const hint = candidates[Math.floor(Math.random() * candidates.length)];
+      hintUsage.set(globalKey, globalUsed + 1);
+      return res.json({
+        category: hint.category,
+        word: hint.word,
+        hintsUsed: globalUsed + 1,
+        hintsRemaining: MAX_HINTS_PER_GAME - (globalUsed + 1),
+        newCoinBalance: profile.coins - HINT_COST
+      });
+    } catch (e) {
+      console.error("[hint] Error:", e);
+      return res.status(500).json({ error: "server_error" });
+    }
   });
   app2.post("/api/validate-round", (req, res) => {
     try {
@@ -1088,13 +1769,53 @@ async function registerRoutes(app2) {
     },
     transports: ["websocket", "polling"]
   });
+  async function settleBets(roomId, winnerPlayerId) {
+    try {
+      const unsettled = await db.select().from(spectatorBets).where(and2(eq2(spectatorBets.roomId, roomId), eq2(spectatorBets.settled, false)));
+      if (unsettled.length === 0) return;
+      const emitToPlayer = (pid, event, payload) => {
+        for (const [sid, mpid] of socketPlayerIdMap.entries()) {
+          if (mpid === pid) {
+            const s = io.sockets.sockets.get(sid);
+            if (s) s.emit(event, payload);
+          }
+        }
+      };
+      if (!winnerPlayerId) {
+        for (const bet of unsettled) {
+          await db.update(playerProfiles).set({ coins: sql3`coins + ${bet.amount}` }).where(eq2(playerProfiles.id, bet.spectatorId));
+          emitToPlayer(bet.spectatorId, "bet_settled", { result: "draw", refund: bet.amount });
+        }
+      } else {
+        const winners = unsettled.filter((b) => b.betOnPlayerId === winnerPlayerId);
+        const losers = unsettled.filter((b) => b.betOnPlayerId !== winnerPlayerId);
+        const loserPool = losers.reduce((acc, b) => acc + b.amount, 0);
+        const evenShare = winners.length > 0 ? Math.floor(loserPool / winners.length) : 0;
+        for (const bet of winners) {
+          const payout = bet.amount + evenShare;
+          await db.update(playerProfiles).set({ coins: sql3`coins + ${payout}` }).where(eq2(playerProfiles.id, bet.spectatorId));
+          emitToPlayer(bet.spectatorId, "bet_settled", { result: "win", payout });
+        }
+        for (const bet of losers) {
+          emitToPlayer(bet.spectatorId, "bet_settled", { result: "lose", payout: 0 });
+        }
+      }
+      await db.update(spectatorBets).set({ settled: true }).where(eq2(spectatorBets.roomId, roomId));
+      roomSpectators.delete(roomId);
+    } catch (err) {
+      console.error("[settleBets] error:", err);
+    }
+  }
   io.on("connection", (socket) => {
     console.log("Socket connected:", socket.id);
+    socket.on("register_player_id", (data) => {
+      if (data.playerId) socketPlayerIdMap.set(socket.id, data.playerId);
+    });
     socket.on(
       "create_room",
       (data, cb) => {
         try {
-          const room = createRoom(socket.id, data.playerName, data.playerSkin);
+          const room = createRoom(socket.id, data.playerName, data.playerSkin, data.wordCategory || "general");
           socket.join(room.id);
           socketRoomMap.set(socket.id, room.id);
           console.log(`[create_room] Socket ${socket.id} created room ${room.id}. Players: ${room.players.map((p) => p.name).join(", ")}`);
@@ -1133,6 +1854,7 @@ async function registerRoutes(app2) {
       "start_game",
       (data, cb) => {
         try {
+          clearHintsForRoom2(data.roomId);
           const result = startGame(data.roomId);
           if (!result.success || !result.room) {
             cb({ success: false, error: result.error });
@@ -1142,14 +1864,16 @@ async function registerRoutes(app2) {
           io.to(data.roomId).emit("game_started", {
             letter: result.room.currentLetter,
             round: result.room.currentRound,
-            totalRounds: result.room.totalRounds
+            totalRounds: result.room.totalRounds,
+            wordCategory: result.room.wordCategory || "general"
           });
+          startSpectateTimer(data.roomId, io);
           const room = result.room;
           room.timer = setTimeout(() => {
             const results = calculateRoundScores(data.roomId);
             const currentRoom = getRoom(data.roomId);
             if (!currentRoom) return;
-            io.to(data.roomId).emit("round_results", {
+            const timerRoundPayload = {
               results,
               round: currentRoom.currentRound,
               totalRounds: currentRoom.totalRounds,
@@ -1158,7 +1882,10 @@ async function registerRoutes(app2) {
                 name: p.name,
                 score: p.score
               }))
-            });
+            };
+            stopSpectateTimer(data.roomId);
+            io.to(data.roomId).emit("round_results", timerRoundPayload);
+            io.to(`spectate:${data.roomId}`).emit("spectate_update", { type: "round_results", payload: timerRoundPayload });
           }, 51e3);
         } catch (e) {
           cb({ success: false, error: "server_error" });
@@ -1175,14 +1902,26 @@ async function registerRoutes(app2) {
             data.answers
           );
           io.to(data.roomId).emit("player_submitted", { playerId: socket.id });
+          if (data.answers) {
+            const submitterName = room?.players.find((p) => p.id === socket.id)?.name || "";
+            const submittedWords = Object.values(data.answers).filter((w) => w && w.trim());
+            for (const word of submittedWords) {
+              io.to(`spectate:${data.roomId}`).emit("spectate_live_word", {
+                playerName: submitterName,
+                word,
+                playerId: socketPlayerIdMap.get(socket.id) || socket.id
+              });
+            }
+          }
           if (allSubmitted && room) {
             if (room.timer) {
               clearTimeout(room.timer);
               room.timer = null;
             }
+            stopSpectateTimer(data.roomId);
             const results = calculateRoundScores(data.roomId);
             const updatedRoom = getRoom(data.roomId);
-            io.to(data.roomId).emit("round_results", {
+            const roundResultsPayload = {
               results,
               round: updatedRoom?.currentRound || 0,
               totalRounds: updatedRoom?.totalRounds || 5,
@@ -1191,7 +1930,9 @@ async function registerRoutes(app2) {
                 name: p.name,
                 score: p.score
               })) || []
-            });
+            };
+            io.to(data.roomId).emit("round_results", roundResultsPayload);
+            io.to(`spectate:${data.roomId}`).emit("spectate_update", { type: "round_results", payload: roundResultsPayload });
           }
         } catch (e) {
           console.error("submit_answers error:", e);
@@ -1205,30 +1946,149 @@ async function registerRoutes(app2) {
           const { isGameOver, room } = nextRound(data.roomId);
           if (isGameOver && room) {
             const tournamentInfo = roomTournamentMap.get(data.roomId);
-            io.to(data.roomId).emit("game_over", {
-              players: room.players.map((p) => ({
-                id: p.id,
-                name: p.name,
-                score: p.score,
-                coins: p.coins,
-                skin: p.skin
-              })),
+            const sortedForBets = [...room.players].sort((a, b) => b.score - a.score);
+            const winnerSocketIdForBets = sortedForBets.length >= 2 && sortedForBets[0].score > sortedForBets[1].score ? sortedForBets[0].id : null;
+            const winnerPlayerIdForBets = winnerSocketIdForBets ? socketPlayerIdMap.get(winnerSocketIdForBets) || null : null;
+            const gameOverPayload = {
+              players: room.players.map((p) => {
+                const pid = socketPlayerIdMap.get(p.id) || "";
+                return {
+                  id: p.id,
+                  name: p.name,
+                  score: p.score,
+                  coins: p.coins,
+                  skin: p.skin,
+                  hintsUsed: getPlayerHintsUsed(data.roomId, pid)
+                };
+              }),
               tournamentId: tournamentInfo?.tournamentId || null,
               tournamentMatchId: tournamentInfo?.matchId || null
-            });
+            };
+            io.to(data.roomId).emit("game_over", gameOverPayload);
+            io.to(`spectate:${data.roomId}`).emit("spectate_update", { type: "game_over", payload: gameOverPayload });
+            settleBets(data.roomId, winnerPlayerIdForBets);
             cb?.({ isGameOver: true });
+            const isBotMatch = room.players.some((p) => p.id.startsWith("bot:"));
+            if (room.players.length === 2 && !isBotMatch) {
+              const p1Id = socketPlayerIdMap.get(room.players[0].id);
+              const p2Id = socketPlayerIdMap.get(room.players[1].id);
+              if (p1Id && p2Id) {
+                (async () => {
+                  try {
+                    const [prof1] = await db.select({ elo: playerProfiles.elo, peakElo: playerProfiles.peakElo, seasonWins: playerProfiles.seasonWins, seasonLosses: playerProfiles.seasonLosses }).from(playerProfiles).where(eq2(playerProfiles.id, p1Id));
+                    const [prof2] = await db.select({ elo: playerProfiles.elo, peakElo: playerProfiles.peakElo, seasonWins: playerProfiles.seasonWins, seasonLosses: playerProfiles.seasonLosses }).from(playerProfiles).where(eq2(playerProfiles.id, p2Id));
+                    if (!prof1 || !prof2) return;
+                    const score1 = room.players[0].score;
+                    const score2 = room.players[1].score;
+                    const isDraw = score1 === score2;
+                    let elo1 = prof1.elo ?? 1e3;
+                    let elo2 = prof2.elo ?? 1e3;
+                    let newElo1, newElo2;
+                    let wins1 = prof1.seasonWins ?? 0;
+                    let losses1 = prof1.seasonLosses ?? 0;
+                    let wins2 = prof2.seasonWins ?? 0;
+                    let losses2 = prof2.seasonLosses ?? 0;
+                    if (isDraw) {
+                      const K = 32;
+                      const expected1 = 1 / (1 + Math.pow(10, (elo2 - elo1) / 400));
+                      newElo1 = Math.round(elo1 + K * (0.5 - expected1));
+                      newElo2 = Math.round(elo2 + K * (0.5 - (1 - expected1)));
+                    } else if (score1 > score2) {
+                      const { winner, loser } = calcElo(elo1, elo2);
+                      newElo1 = winner;
+                      newElo2 = loser;
+                      wins1++;
+                      losses2++;
+                    } else {
+                      const { winner, loser } = calcElo(elo2, elo1);
+                      newElo2 = winner;
+                      newElo1 = loser;
+                      wins2++;
+                      losses1++;
+                    }
+                    const peak1 = Math.max(prof1.peakElo ?? 1e3, newElo1);
+                    const peak2 = Math.max(prof2.peakElo ?? 1e3, newElo2);
+                    await db.update(playerProfiles).set({
+                      elo: newElo1,
+                      division: calcDivision(newElo1),
+                      peakElo: peak1,
+                      seasonWins: wins1,
+                      seasonLosses: losses1,
+                      updatedAt: /* @__PURE__ */ new Date()
+                    }).where(eq2(playerProfiles.id, p1Id));
+                    await db.update(playerProfiles).set({
+                      elo: newElo2,
+                      division: calcDivision(newElo2),
+                      peakElo: peak2,
+                      seasonWins: wins2,
+                      seasonLosses: losses2,
+                      updatedAt: /* @__PURE__ */ new Date()
+                    }).where(eq2(playerProfiles.id, p2Id));
+                    const sock1 = io.sockets.sockets.get(room.players[0].id);
+                    const sock2 = io.sockets.sockets.get(room.players[1].id);
+                    if (sock1) sock1.emit("elo_updated", { elo: newElo1, division: calcDivision(newElo1), delta: newElo1 - elo1 });
+                    if (sock2) sock2.emit("elo_updated", { elo: newElo2, division: calcDivision(newElo2), delta: newElo2 - elo2 });
+                  } catch (err) {
+                    console.error("[ranked] Elo update error:", err);
+                  }
+                })();
+              }
+            }
+            if (room.players.length >= 2) {
+              const sortedByScore = [...room.players].sort((a, b) => b.score - a.score);
+              const topScore = sortedByScore[0].score;
+              const secondScore = sortedByScore[1].score;
+              const hasClearWinner = topScore > secondScore;
+              if (hasClearWinner) {
+                const winnerId = socketPlayerIdMap.get(sortedByScore[0].id);
+                if (winnerId) {
+                  (async () => {
+                    try {
+                      const [winnerProf] = await db.select({ clanId: playerProfiles.clanId }).from(playerProfiles).where(eq2(playerProfiles.id, winnerId)).limit(1);
+                      if (winnerProf?.clanId) {
+                        await db.update(clanMembers).set({ warScore: sql3`war_score + 1` }).where(and2(eq2(clanMembers.clanId, winnerProf.clanId), eq2(clanMembers.playerId, winnerId)));
+                        await db.update(clans).set({ totalWarScore: sql3`total_war_score + 1` }).where(eq2(clans.id, winnerProf.clanId));
+                      }
+                    } catch (err) {
+                      console.error("[clan-war] warScore update error:", err);
+                    }
+                  })();
+                }
+              }
+              (async () => {
+                try {
+                  const winnerSocketId = hasClearWinner ? sortedByScore[0].id : null;
+                  for (const player of room.players) {
+                    const pid = socketPlayerIdMap.get(player.id);
+                    if (!pid) continue;
+                    const xp = BP_XP_GAME + (hasClearWinner && player.id === winnerSocketId ? BP_XP_WIN - BP_XP_GAME : 0);
+                    await awardBattlePassXp(pid, xp);
+                  }
+                } catch (err) {
+                  console.error("[battle-pass] game xp award error:", err);
+                }
+              })();
+            }
           } else if (room) {
-            io.to(data.roomId).emit("new_round", {
+            const newRoundPayload = {
               letter: room.currentLetter,
               round: room.currentRound,
               totalRounds: room.totalRounds
-            });
+            };
+            io.to(data.roomId).emit("new_round", newRoundPayload);
+            io.to(`spectate:${data.roomId}`).emit("spectate_update", { type: "new_round", payload: newRoundPayload });
             cb?.({ isGameOver: false, letter: room.currentLetter });
+            startSpectateTimer(data.roomId, io);
+            const nextRoundBotId = botRooms.get(data.roomId);
+            if (nextRoundBotId) {
+              const botDelay = 6e3 + Math.random() * 6e3;
+              scheduleBotSubmission(io, data.roomId, nextRoundBotId, botDelay);
+            }
             room.timer = setTimeout(() => {
               const results = calculateRoundScores(data.roomId);
               const updatedRoom = getRoom(data.roomId);
               if (!updatedRoom) return;
-              io.to(data.roomId).emit("round_results", {
+              const nextTimerPayload = {
                 results,
                 round: updatedRoom.currentRound,
                 totalRounds: updatedRoom.totalRounds,
@@ -1237,7 +2097,10 @@ async function registerRoutes(app2) {
                   name: p.name,
                   score: p.score
                 }))
-              });
+              };
+              stopSpectateTimer(data.roomId);
+              io.to(data.roomId).emit("round_results", nextTimerPayload);
+              io.to(`spectate:${data.roomId}`).emit("spectate_update", { type: "round_results", payload: nextTimerPayload });
             }, 51e3);
           }
         } catch (e) {
@@ -1303,6 +2166,52 @@ async function registerRoutes(app2) {
         }
       }
     );
+    socket.on("request_hint", async (data, callback) => {
+      const respond = (resp) => {
+        if (callback) callback(resp);
+      };
+      try {
+        const { roomId } = data;
+        const playerId = socketPlayerIdMap.get(socket.id);
+        if (!roomId || !playerId) return respond({ error: "missing_params" });
+        const room = getRoom(roomId);
+        if (!room || room.state !== "playing") return respond({ error: "no_active_game" });
+        const isPlayerInRoom = room.players.some((p) => p.id === socket.id);
+        if (!isPlayerInRoom) return respond({ error: "not_in_room" });
+        const globalKey = `${roomId}:${playerId}`;
+        const globalUsed = hintUsage.get(globalKey) || 0;
+        if (globalUsed >= MAX_HINTS_PER_GAME) return respond({ error: "max_hints_reached" });
+        const [profile] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, playerId)).limit(1);
+        if (!profile || profile.coins < HINT_COST) return respond({ error: "not_enough_coins" });
+        await db.update(playerProfiles).set({ coins: profile.coins - HINT_COST }).where(eq2(playerProfiles.id, playerId));
+        const activeCategories = getActiveCategories(room.wordCategory);
+        const letter = room.currentLetter;
+        const candidates = [];
+        for (const cat of activeCategories) {
+          const dbCat = CATEGORY_MAP[cat];
+          const words = getWordsForLetter(dbCat, letter);
+          for (const w of words.slice(0, 10)) {
+            candidates.push({ category: cat, word: w });
+          }
+        }
+        if (candidates.length === 0) {
+          await db.update(playerProfiles).set({ coins: profile.coins }).where(eq2(playerProfiles.id, playerId));
+          return respond({ error: "no_hints_available" });
+        }
+        const hint = candidates[Math.floor(Math.random() * candidates.length)];
+        hintUsage.set(globalKey, globalUsed + 1);
+        return respond({
+          category: hint.category,
+          word: hint.word,
+          hintsUsed: globalUsed + 1,
+          hintsRemaining: MAX_HINTS_PER_GAME - (globalUsed + 1),
+          newCoinBalance: profile.coins - HINT_COST
+        });
+      } catch (e) {
+        console.error("[hint] Error:", e);
+        return respond({ error: "server_error" });
+      }
+    });
     socket.on("forfeit_match", (data) => {
       const room = getRoom(data.roomId);
       if (!room) return;
@@ -1315,7 +2224,11 @@ async function registerRoutes(app2) {
         skin: p.skin || "student",
         forfeited: p.id === socket.id
       }));
+      const winnerPlayer = room.players.find((p) => p.id !== socket.id);
+      const winnerPlayerId = winnerPlayer ? socketPlayerIdMap.get(winnerPlayer.id) || null : null;
       io.to(data.roomId).emit("game_over", { players: gameOverPlayers, forfeitedBy: socket.id });
+      io.to(`spectate:${data.roomId}`).emit("spectate_update", { type: "game_over", payload: { players: gameOverPlayers, forfeitedBy: socket.id } });
+      settleBets(data.roomId, winnerPlayerId);
       removePlayer(data.roomId, socket.id);
       socket.leave(data.roomId);
       socketRoomMap.delete(socket.id);
@@ -1354,7 +2267,7 @@ async function registerRoutes(app2) {
         const requestedEntry = data.coinEntry || 0;
         if (requestedEntry > 0 && data.playerId) {
           try {
-            const [p] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, data.playerId));
+            const [p] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, data.playerId));
             if (!p || p.coins < requestedEntry) {
               socket.emit("matchError", { error: "insufficient_coins" });
               return;
@@ -1370,6 +2283,16 @@ async function registerRoutes(app2) {
         if (matchIdx !== -1) {
           const opponent = matchmakingQueue[matchIdx];
           matchmakingQueue = matchmakingQueue.filter((p) => p.id !== socket.id && p.id !== opponent.id);
+          const myPendingTimeout = matchmakingTimeouts.get(socket.id);
+          if (myPendingTimeout) {
+            clearTimeout(myPendingTimeout);
+            matchmakingTimeouts.delete(socket.id);
+          }
+          const oppPendingTimeout = matchmakingTimeouts.get(opponent.id);
+          if (oppPendingTimeout) {
+            clearTimeout(oppPendingTimeout);
+            matchmakingTimeouts.delete(opponent.id);
+          }
           const matched = [entry, opponent];
           console.log(`[findMatch] Match created: ${matched.map((p) => p.name).join(" vs ")} (entry: ${myCoinEntry})`);
           const room = createRoom(matched[0].id, matched[0].name, matched[0].skin);
@@ -1392,15 +2315,16 @@ async function registerRoutes(app2) {
             if (pendingPlayerIds && myCoinEntry > 0) {
               for (const pid of pendingPlayerIds) {
                 try {
-                  const [p] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, pid));
+                  const [p] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, pid));
                   if (p) {
-                    await db.update(playerProfiles).set({ coins: Math.max(0, p.coins - myCoinEntry), updatedAt: /* @__PURE__ */ new Date() }).where(eq(playerProfiles.id, pid));
+                    await db.update(playerProfiles).set({ coins: Math.max(0, p.coins - myCoinEntry), updatedAt: /* @__PURE__ */ new Date() }).where(eq2(playerProfiles.id, pid));
                   }
                 } catch {
                 }
               }
               roomPendingDeductions.delete(room.id);
             }
+            clearHintsForRoom2(room.id);
             const gameResult = startGame(room.id);
             if (!gameResult.success || !gameResult.room) {
               console.error(`[findMatch] startGame failed for room ${room.id}`);
@@ -1412,7 +2336,8 @@ async function registerRoutes(app2) {
               round: gameResult.room.currentRound,
               totalRounds: gameResult.room.totalRounds,
               players: gameResult.room.players.map((p) => ({ id: p.id, name: p.name, skin: p.skin })),
-              coinEntry: myCoinEntry
+              coinEntry: myCoinEntry,
+              wordCategory: gameResult.room.wordCategory || "general"
             };
             io.to(room.id).emit("matchFound", gameData);
             console.log(`[findMatch] Room ${room.id}: matchFound emitted, letter=${gameData.letter}, coinEntry=${myCoinEntry}`);
@@ -1428,15 +2353,117 @@ async function registerRoutes(app2) {
               });
             }, 51e3);
           });
+        } else {
+          const botFallbackTimer = setTimeout(async () => {
+            matchmakingTimeouts.delete(socket.id);
+            const stillQueued = matchmakingQueue.find((p) => p.id === socket.id);
+            if (!stillQueued) return;
+            matchmakingQueue = matchmakingQueue.filter((p) => p.id !== socket.id);
+            if (entry.coinEntry && entry.coinEntry > 0 && entry.playerId) {
+              try {
+                const [updated] = await db.update(playerProfiles).set({ coins: sql3`coins + ${entry.coinEntry}`, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(playerProfiles.id, entry.playerId)).returning({ coins: playerProfiles.coins });
+                socket.emit("coinRefunded", { amount: entry.coinEntry, newCoins: updated?.coins });
+              } catch (e) {
+                console.error("[bot-fallback] Failed to refund coins:", e);
+              }
+            }
+            const botId = `bot:${socket.id}`;
+            const botName = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
+            const botSkin = BOT_SKINS[Math.floor(Math.random() * BOT_SKINS.length)];
+            const botRoom = createRoom(socket.id, entry.name, entry.skin);
+            joinRoom(botRoom.id, botId, botName, botSkin);
+            botRooms.set(botRoom.id, botId);
+            socket.join(botRoom.id);
+            socketRoomMap.set(socket.id, botRoom.id);
+            const roomPlayers = botRoom.players.map((p) => ({ id: p.id, name: p.name, skin: p.skin }));
+            console.log(`[bot-fallback] Starting bot match for ${entry.name} in room ${botRoom.id}`);
+            emitCountdownThenStart(io, botRoom.id, roomPlayers, () => {
+              clearHintsForRoom2(botRoom.id);
+              const gameResult = startGame(botRoom.id);
+              if (!gameResult.success || !gameResult.room) return;
+              const gameData = {
+                roomId: botRoom.id,
+                letter: gameResult.room.currentLetter,
+                round: gameResult.room.currentRound,
+                totalRounds: gameResult.room.totalRounds,
+                players: gameResult.room.players.map((p) => ({ id: p.id, name: p.name, skin: p.skin })),
+                coinEntry: 0,
+                wordCategory: gameResult.room.wordCategory || "general"
+              };
+              io.to(botRoom.id).emit("matchFound", gameData);
+              console.log(`[bot-fallback] matchFound emitted for room ${botRoom.id}, letter=${gameData.letter}`);
+              const botDelay = 6e3 + Math.random() * 6e3;
+              scheduleBotSubmission(io, botRoom.id, botId, botDelay);
+              gameResult.room.timer = setTimeout(() => {
+                const results = calculateRoundScores(botRoom.id);
+                const updatedRoom = getRoom(botRoom.id);
+                if (!updatedRoom) return;
+                io.to(botRoom.id).emit("round_results", {
+                  results,
+                  round: updatedRoom.currentRound,
+                  totalRounds: updatedRoom.totalRounds,
+                  players: updatedRoom.players.map((p) => ({ id: p.id, name: p.name, score: p.score }))
+                });
+              }, 51e3);
+            });
+          }, 15e3);
+          matchmakingTimeouts.set(socket.id, botFallbackTimer);
         }
       }
     );
-    socket.on("cancelMatch", () => {
+    socket.on("cancelMatch", async () => {
+      const pendingBotTimer = matchmakingTimeouts.get(socket.id);
+      if (pendingBotTimer) {
+        clearTimeout(pendingBotTimer);
+        matchmakingTimeouts.delete(socket.id);
+      }
+      const queueEntry = matchmakingQueue.find((p) => p.id === socket.id);
       matchmakingQueue = matchmakingQueue.filter((p) => p.id !== socket.id);
       console.log(`[cancelMatch] Socket ${socket.id} removed from queue. Queue: ${matchmakingQueue.length}`);
+      if (queueEntry?.coinEntry && queueEntry.coinEntry > 0 && queueEntry.playerId) {
+        try {
+          const [updated] = await db.update(playerProfiles).set({ coins: sql3`coins + ${queueEntry.coinEntry}`, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(playerProfiles.id, queueEntry.playerId)).returning({ coins: playerProfiles.coins });
+          socket.emit("coinRefunded", { amount: queueEntry.coinEntry, newCoins: updated?.coins });
+          console.log(`[cancelMatch] Refunded ${queueEntry.coinEntry} coins to ${queueEntry.playerId}`);
+        } catch (e) {
+          console.error("[cancelMatch] Failed to refund coins:", e);
+        }
+      }
     });
     socket.on("quick_chat", (data) => {
       socket.to(data.roomId).emit("quick_chat", { message: data.message, playerName: data.playerName });
+    });
+    socket.on("send_emote", (data) => {
+      socket.to(data.roomId).emit("receive_emote", { emote: data.emote, playerName: data.playerName });
+    });
+    const ALLOWED_REACTION_EMOJIS = /* @__PURE__ */ new Set(["\u{1F602}", "\u{1F525}", "\u{1F44F}", "\u{1F480}", "\u{1F91D}", "\u{1F624}", "\u2764\uFE0F", "\u{1F60E}"]);
+    socket.on("game_reaction", async (data) => {
+      const pid = socketPlayerIdMap.get(socket.id);
+      if (!pid || !data.roomId || !data.emoji) return;
+      if (!ALLOWED_REACTION_EMOJIS.has(data.emoji)) return;
+      const trackedRoomId = socketRoomMap.get(socket.id);
+      const inMainRoom = trackedRoomId === data.roomId;
+      const rapidRoom = rapidRooms.get(data.roomId);
+      const rapidPlayer = rapidRoom?.players.find((p) => p.socketId === socket.id);
+      const inRapidRoom = rapidPlayer != null;
+      if (!inMainRoom && !inRapidRoom) return;
+      let authoritativeName = null;
+      if (inMainRoom) {
+        const mainRoom = getRoom(data.roomId);
+        authoritativeName = mainRoom?.players.find((p) => p.id === socket.id)?.name ?? null;
+      } else if (rapidPlayer) {
+        authoritativeName = rapidPlayer.name;
+      }
+      if (!authoritativeName) return;
+      const now = Date.now();
+      const rateLimitKey = `${pid}:${data.roomId}`;
+      const lastSent = reactionLastSentMap.get(rateLimitKey) || 0;
+      if (now - lastSent < 5e3) return;
+      reactionLastSentMap.set(rateLimitKey, now);
+      socket.to(data.roomId).emit("game_reaction", { emoji: data.emoji, playerName: authoritativeName });
+      incrementEmojiTaskProgress(pid).catch((err) => {
+        console.error(`[emoji-task] Failed to update progress for player=${pid}:`, err);
+      });
     });
     socket.on("power_card", (data) => {
       socket.to(data.roomId).emit("power_card", { type: data.type, playerName: data.playerName });
@@ -1531,7 +2558,8 @@ async function registerRoutes(app2) {
         return;
       }
       room.lastAttempts[socket.id] = data.word;
-      const validation = validateWord(data.word, dbCategory, room.currentLetter);
+      const useStrict = !!room.wordCategory && room.wordCategory !== "general";
+      const validation = validateWord(data.word, dbCategory, room.currentLetter, useStrict);
       if (!validation.valid) {
         socket.emit("rapid_word_result", { valid: false, reason: validation.reason });
         return;
@@ -1575,10 +2603,199 @@ async function registerRoutes(app2) {
         rapidRooms.delete(data.rapidRoomId);
       }
     });
+    socket.on("spectate_join", (data, cb) => {
+      const room = getRoom(data.roomId);
+      if (!room || room.state === "waiting" || room.state === "finished") {
+        cb?.({ success: false, error: "room_not_active" });
+        return;
+      }
+      let specs = roomSpectators.get(data.roomId);
+      if (!specs) {
+        specs = /* @__PURE__ */ new Set();
+        roomSpectators.set(data.roomId, specs);
+      }
+      if (specs.size >= MAX_SPECTATORS) {
+        cb?.({ success: false, error: "spectators_full" });
+        return;
+      }
+      specs.add(socket.id);
+      socket.join(`spectate:${data.roomId}`);
+      const sanitized = sanitizeRoom(room);
+      cb?.({ success: true, state: sanitized, spectatorCount: specs.size });
+      socket.emit("spectate_state_sync", { state: sanitized, spectatorCount: specs.size });
+      const currentCount = specs.size;
+      io.to(data.roomId).emit("spectator_count", { count: currentCount });
+      io.to(`spectate:${data.roomId}`).emit("spectator_count", { count: currentCount });
+    });
+    socket.on("spectate_leave", (data) => {
+      const specs = roomSpectators.get(data.roomId);
+      if (specs) {
+        specs.delete(socket.id);
+        if (specs.size === 0) roomSpectators.delete(data.roomId);
+        const count = specs?.size ?? 0;
+        io.to(data.roomId).emit("spectator_count", { count });
+        io.to(`spectate:${data.roomId}`).emit("spectator_count", { count });
+      }
+      socket.leave(`spectate:${data.roomId}`);
+    });
+    socket.on("spectate_place_bet", async (data, callback) => {
+      try {
+        const spectatorId = socketPlayerIdMap.get(socket.id);
+        if (!spectatorId) return callback({ success: false, error: "unauthorized" });
+        const validAmounts = [50, 100, 200];
+        if (!validAmounts.includes(data.amount)) return callback({ success: false, error: "invalid_amount" });
+        const room = getRoom(data.roomId);
+        if (!room || room.state !== "playing") return callback({ success: false, error: "room_not_active" });
+        const targetPlayer = room.players.find((p) => p.id === data.betOnSocketId);
+        if (!targetPlayer) return callback({ success: false, error: "invalid_target" });
+        const betOnPlayerId = socketPlayerIdMap.get(data.betOnSocketId);
+        if (!betOnPlayerId) return callback({ success: false, error: "invalid_target" });
+        const isPlayerInRoom = room.players.some((p) => socketPlayerIdMap.get(p.id) === spectatorId);
+        if (isPlayerInRoom) return callback({ success: false, error: "players_cannot_bet" });
+        const spectateRoomSet = roomSpectators.get(data.roomId);
+        if (!spectateRoomSet || !spectateRoomSet.has(socket.id)) return callback({ success: false, error: "not_spectating" });
+        const existingBet = await db.select({ id: spectatorBets.id }).from(spectatorBets).where(and2(eq2(spectatorBets.roomId, data.roomId), eq2(spectatorBets.spectatorId, spectatorId))).limit(1);
+        if (existingBet.length > 0) return callback({ success: false, error: "already_bet" });
+        const updated = await db.update(playerProfiles).set({
+          coins: sql3`GREATEST(0, coins - ${data.amount})`,
+          updatedAt: /* @__PURE__ */ new Date()
+        }).where(and2(eq2(playerProfiles.id, spectatorId), sql3`coins >= ${data.amount}`)).returning({ coins: playerProfiles.coins });
+        if (updated.length === 0) return callback({ success: false, error: "insufficient_coins" });
+        await db.insert(spectatorBets).values({ roomId: data.roomId, spectatorId, betOnPlayerId, amount: data.amount });
+        const allBets = await db.select({
+          betOnPlayerId: spectatorBets.betOnPlayerId,
+          amount: spectatorBets.amount,
+          spectatorId: spectatorBets.spectatorId,
+          spectatorName: playerProfiles.name
+        }).from(spectatorBets).leftJoin(playerProfiles, eq2(spectatorBets.spectatorId, playerProfiles.id)).where(and2(eq2(spectatorBets.roomId, data.roomId), eq2(spectatorBets.settled, false)));
+        const playerIdToSocketId = /* @__PURE__ */ new Map();
+        for (const [sid, pid] of socketPlayerIdMap.entries()) playerIdToSocketId.set(pid, sid);
+        const betTotals = {};
+        const bettors = {};
+        for (const b of allBets) {
+          const sid = playerIdToSocketId.get(b.betOnPlayerId) || b.betOnPlayerId;
+          betTotals[sid] = (betTotals[sid] || 0) + b.amount;
+          if (!bettors[sid]) bettors[sid] = [];
+          bettors[sid].push({ id: b.spectatorId, name: b.spectatorName || b.spectatorId });
+        }
+        io.to(`spectate:${data.roomId}`).emit("bet_update", { betTotals, bettors, totalBets: allBets.length });
+        callback({ success: true, newCoins: updated[0].coins });
+      } catch (e) {
+        console.error("[spectate_place_bet]", e);
+        callback({ success: false, error: "server_error" });
+      }
+    });
+    socket.on("word_chain_join", (data, callback) => {
+      const pid = data.playerId;
+      const pendingEntry = wordChainQueue.find((e) => e.socketId !== socket.id);
+      if (pendingEntry) {
+        wordChainQueue = wordChainQueue.filter((e) => e.socketId !== pendingEntry.socketId);
+        const roomId = `wc_${Date.now()}`;
+        const room = {
+          id: roomId,
+          players: [
+            { socketId: pendingEntry.socketId, playerId: pendingEntry.playerId, name: pendingEntry.name, skin: pendingEntry.skin, roundWins: 0 },
+            { socketId: socket.id, playerId: pid, name: data.playerName, skin: data.skin, roundWins: 0 }
+          ],
+          chain: [],
+          currentTurnIdx: 0,
+          roundNum: 1,
+          requiredLetter: ARABIC_LETTERS[Math.floor(Math.random() * ARABIC_LETTERS.length)],
+          turnTimer: null,
+          usedWords: /* @__PURE__ */ new Set()
+        };
+        wordChainRooms.set(roomId, room);
+        socket.join(roomId);
+        const oppSocket = io.sockets.sockets.get(pendingEntry.socketId);
+        if (oppSocket) oppSocket.join(roomId);
+        const startData = {
+          roomId,
+          players: room.players.map((p) => ({ socketId: p.socketId, name: p.name, skin: p.skin, roundWins: p.roundWins })),
+          currentTurnSocketId: room.players[0].socketId,
+          requiredLetter: room.requiredLetter,
+          chain: [],
+          roundNum: 1
+        };
+        io.to(roomId).emit("word_chain_start", startData);
+        startWordChainTurn(roomId);
+        callback({ success: true, roomId });
+      } else {
+        wordChainQueue.push({ socketId: socket.id, playerId: pid, name: data.playerName, skin: data.skin });
+        callback({ success: true });
+      }
+    });
+    socket.on("word_chain_submit", (data, callback) => {
+      const room = wordChainRooms.get(data.roomId);
+      if (!room) return callback({ valid: false, error: "room_not_found" });
+      const currentPlayer = room.players[room.currentTurnIdx];
+      if (currentPlayer.socketId !== socket.id) return callback({ valid: false, error: "not_your_turn" });
+      const word = data.word.trim();
+      if (room.usedWords.has(word)) return callback({ valid: false, error: "already_used" });
+      const allCategories = ["animals", "fruits", "vegetables", "cities", "countries", "objects", "boy_names", "girl_names"];
+      let wordValid = false;
+      for (const cat of allCategories) {
+        const result = validateWord(word, cat, room.requiredLetter, false);
+        if (result.valid) {
+          wordValid = true;
+          break;
+        }
+      }
+      if (!wordValid) return callback({ valid: false, error: "invalid_word" });
+      if (room.turnTimer) {
+        clearTimeout(room.turnTimer);
+        room.turnTimer = null;
+      }
+      room.usedWords.add(word);
+      room.chain.push({ socketId: socket.id, playerName: currentPlayer.name, word });
+      const lastChar = [...word].at(-1) || "";
+      room.requiredLetter = lastChar || ARABIC_LETTERS[Math.floor(Math.random() * ARABIC_LETTERS.length)];
+      room.currentTurnIdx = (room.currentTurnIdx + 1) % room.players.length;
+      io.to(data.roomId).emit("word_chain_update", {
+        chain: room.chain,
+        currentTurnSocketId: room.players[room.currentTurnIdx].socketId,
+        requiredLetter: room.requiredLetter
+      });
+      startWordChainTurn(data.roomId);
+      callback({ valid: true });
+    });
+    socket.on("word_chain_leave", (data) => {
+      const room = wordChainRooms.get(data.roomId);
+      if (!room) return;
+      if (room.turnTimer) clearTimeout(room.turnTimer);
+      const opp = room.players.find((p) => p.socketId !== socket.id);
+      if (opp) {
+        io.to(opp.socketId).emit("word_chain_opponent_left");
+      }
+      wordChainRooms.delete(data.roomId);
+    });
     socket.on("disconnect", () => {
       console.log("Socket disconnected:", socket.id);
+      socketPlayerIdMap.delete(socket.id);
+      const pendingBotTimerOnDisconnect = matchmakingTimeouts.get(socket.id);
+      if (pendingBotTimerOnDisconnect) {
+        clearTimeout(pendingBotTimerOnDisconnect);
+        matchmakingTimeouts.delete(socket.id);
+      }
+      const queueEntry = matchmakingQueue.find((p) => p.id === socket.id);
+      if (queueEntry?.coinEntry && queueEntry.coinEntry > 0 && queueEntry.playerId) {
+        db.update(playerProfiles).set({ coins: sql3`coins + ${queueEntry.coinEntry}`, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(playerProfiles.id, queueEntry.playerId)).catch((e) => console.error("[disconnect] Failed to refund coins:", e));
+        console.log(`[disconnect] Refunded ${queueEntry.coinEntry} coins to ${queueEntry.playerId}`);
+      }
       matchmakingQueue = matchmakingQueue.filter((p) => p.id !== socket.id);
       rapidQueue = rapidQueue.filter((p) => p.id !== socket.id);
+      wordChainQueue = wordChainQueue.filter((p) => p.socketId !== socket.id);
+      for (const [wcRoomId, wcRoom] of wordChainRooms) {
+        const isInRoom = wcRoom.players.some((p) => p.socketId === socket.id);
+        if (isInRoom) {
+          if (wcRoom.turnTimer) clearTimeout(wcRoom.turnTimer);
+          const opp = wcRoom.players.find((p) => p.socketId !== socket.id);
+          if (opp) {
+            io.to(opp.socketId).emit("word_chain_opponent_left");
+          }
+          wordChainRooms.delete(wcRoomId);
+          break;
+        }
+      }
       for (const [roomId, room] of rapidRooms) {
         const isInRoom = room.players.some((p) => p.socketId === socket.id);
         if (isInRoom) {
@@ -1604,11 +2821,29 @@ async function registerRoutes(app2) {
         }
       }
       for (const roomId of roomsToUpdate) {
+        const roomBeforeRemove = getRoom(roomId);
+        const wasPlaying = roomBeforeRemove?.state === "playing";
+        const remainingPlayer = wasPlaying ? roomBeforeRemove?.players.find((p) => p.id !== socket.id) : void 0;
         const room = removePlayer(roomId, socket.id);
         console.log(`[disconnect] Removed socket ${socket.id} from room ${roomId}. Remaining: ${room ? room.players.map((p) => p.name).join(", ") : "room deleted"}`);
         if (room) {
           io.to(roomId).emit("room_updated", sanitizeRoom(room));
           io.to(roomId).emit("player_left", { playerId: socket.id });
+        }
+        if (wasPlaying && remainingPlayer) {
+          const winnerPlayerId = socketPlayerIdMap.get(remainingPlayer.id) || null;
+          settleBets(roomId, winnerPlayerId);
+        } else if (wasPlaying && !remainingPlayer) {
+          settleBets(roomId, null);
+        }
+      }
+      for (const [roomId, specs] of roomSpectators) {
+        if (specs.has(socket.id)) {
+          specs.delete(socket.id);
+          if (specs.size === 0) roomSpectators.delete(roomId);
+          const cnt = specs.size;
+          io.to(roomId).emit("spectator_count", { count: cnt });
+          io.to(`spectate:${roomId}`).emit("spectator_count", { count: cnt });
         }
       }
     });
@@ -1693,12 +2928,335 @@ async function registerRoutes(app2) {
     console.log(`[rapid] Game over in ${roomId}: winner=${winnerId || "draw"}`);
     rapidRooms.delete(roomId);
   }
+  function startWordChainTurn(roomId) {
+    const room = wordChainRooms.get(roomId);
+    if (!room) return;
+    if (room.turnTimer) clearTimeout(room.turnTimer);
+    room.turnTimer = setTimeout(() => {
+      const r = wordChainRooms.get(roomId);
+      if (!r) return;
+      const loser = r.players[r.currentTurnIdx];
+      const winner = r.players[(r.currentTurnIdx + 1) % r.players.length];
+      winner.roundWins++;
+      io.to(roomId).emit("word_chain_round_over", {
+        loserSocketId: loser.socketId,
+        winnerSocketId: winner.socketId,
+        chain: r.chain,
+        roundNum: r.roundNum,
+        roundWins: r.players.map((p) => ({ socketId: p.socketId, wins: p.roundWins })),
+        reason: "timeout"
+      });
+      checkWordChainGameOver(roomId);
+    }, WORD_CHAIN_TURN_TIME * 1e3);
+  }
+  function checkWordChainGameOver(roomId) {
+    const room = wordChainRooms.get(roomId);
+    if (!room) return;
+    const winner = room.players.find((p) => p.roundWins >= WORD_CHAIN_ROUNDS_TO_WIN);
+    if (winner) {
+      const loser = room.players.find((p) => p.socketId !== winner.socketId);
+      io.to(roomId).emit("word_chain_game_over", {
+        winnerSocketId: winner.socketId,
+        winnerPlayerId: winner.playerId,
+        loserSocketId: loser?.socketId,
+        chain: room.chain,
+        roundWins: room.players.map((p) => ({ socketId: p.socketId, wins: p.roundWins }))
+      });
+      db.update(playerProfiles).set({ coins: sql3`coins + 30`, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(playerProfiles.id, winner.playerId)).catch(() => {
+      });
+      wordChainRooms.delete(roomId);
+    } else {
+      room.roundNum++;
+      room.chain = [];
+      room.usedWords.clear();
+      room.requiredLetter = ARABIC_LETTERS[Math.floor(Math.random() * ARABIC_LETTERS.length)];
+      room.currentTurnIdx = room.roundNum % 2 === 0 ? 1 : 0;
+      io.to(roomId).emit("word_chain_new_round", {
+        roundNum: room.roundNum,
+        requiredLetter: room.requiredLetter,
+        currentTurnSocketId: room.players[room.currentTurnIdx].socketId,
+        roundWins: room.players.map((p) => ({ socketId: p.socketId, wins: p.roundWins }))
+      });
+      startWordChainTurn(roomId);
+    }
+  }
   app2.get("/api/room/:id", (req, res) => {
     const room = getRoom(req.params.id);
     if (!room) {
       return res.status(404).json({ error: "Room not found" });
     }
     res.json(sanitizeRoom(room));
+  });
+  app2.get("/api/spectate/active-rooms", (_req, res) => {
+    const result = [];
+    const seenRooms = /* @__PURE__ */ new Set();
+    for (const [, roomId] of socketRoomMap) {
+      if (seenRooms.has(roomId)) continue;
+      seenRooms.add(roomId);
+      const room = getRoom(roomId);
+      if (room && room.state === "playing") {
+        result.push({
+          roomId: room.id,
+          players: room.players.map((p) => ({ id: p.id, name: p.name, skin: p.skin, score: p.score }))
+        });
+      }
+    }
+    res.json(result);
+  });
+  app2.get("/api/spectate/:roomId/bets", async (req, res) => {
+    try {
+      const { roomId } = req.params;
+      const allBets = await db.select({
+        betOnPlayerId: spectatorBets.betOnPlayerId,
+        amount: spectatorBets.amount,
+        spectatorId: spectatorBets.spectatorId,
+        spectatorName: playerProfiles.name
+      }).from(spectatorBets).leftJoin(playerProfiles, eq2(spectatorBets.spectatorId, playerProfiles.id)).where(and2(eq2(spectatorBets.roomId, roomId), eq2(spectatorBets.settled, false)));
+      const playerIdToSocketId = /* @__PURE__ */ new Map();
+      for (const [sid, pid] of socketPlayerIdMap.entries()) playerIdToSocketId.set(pid, sid);
+      const betTotals = {};
+      const bettors = {};
+      for (const b of allBets) {
+        const sid = playerIdToSocketId.get(b.betOnPlayerId) || b.betOnPlayerId;
+        betTotals[sid] = (betTotals[sid] || 0) + b.amount;
+        if (!bettors[sid]) bettors[sid] = [];
+        bettors[sid].push({ id: b.spectatorId, name: b.spectatorName || b.spectatorId });
+      }
+      return res.json({ betTotals, bettors, totalBets: allBets.length });
+    } catch (e) {
+      console.error("[spectate-bets] error:", e);
+      return res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.post("/api/spectate/:roomId/bet", async (req, res) => {
+    try {
+      const { roomId } = req.params;
+      const { betOnSocketId, amount } = req.body;
+      const spectatorId = req.headers["x-player-id"];
+      if (!spectatorId) return res.status(401).json({ success: false, error: "unauthorized" });
+      const validAmounts = [50, 100, 200];
+      if (!validAmounts.includes(amount)) return res.status(400).json({ success: false, error: "invalid_amount" });
+      const room = getRoom(roomId);
+      if (!room || room.state !== "playing") return res.status(400).json({ success: false, error: "room_not_active" });
+      const targetPlayer = room.players.find((p) => p.id === betOnSocketId);
+      if (!targetPlayer) return res.status(400).json({ success: false, error: "invalid_target" });
+      const betOnPlayerId = socketPlayerIdMap.get(betOnSocketId);
+      if (!betOnPlayerId) return res.status(400).json({ success: false, error: "invalid_target" });
+      const isPlayerInRoom = room.players.some((p) => socketPlayerIdMap.get(p.id) === spectatorId);
+      if (isPlayerInRoom) return res.status(403).json({ success: false, error: "players_cannot_bet" });
+      const spectatorSocket = [...socketPlayerIdMap.entries()].find(([, pid]) => pid === spectatorId)?.[0];
+      const spectateRoomSet = roomSpectators.get(roomId);
+      if (!spectatorSocket || !spectateRoomSet || !spectateRoomSet.has(spectatorSocket)) {
+        return res.status(403).json({ success: false, error: "not_spectating" });
+      }
+      const existingBet = await db.select({ id: spectatorBets.id }).from(spectatorBets).where(and2(eq2(spectatorBets.roomId, roomId), eq2(spectatorBets.spectatorId, spectatorId))).limit(1);
+      if (existingBet.length > 0) return res.status(409).json({ success: false, error: "already_bet" });
+      const updated = await db.update(playerProfiles).set({
+        coins: sql3`GREATEST(0, coins - ${amount})`,
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(and2(eq2(playerProfiles.id, spectatorId), sql3`coins >= ${amount}`)).returning({ coins: playerProfiles.coins });
+      if (updated.length === 0) return res.status(402).json({ success: false, error: "insufficient_coins" });
+      await db.insert(spectatorBets).values({ roomId, spectatorId, betOnPlayerId, amount });
+      const allBets = await db.select({
+        betOnPlayerId: spectatorBets.betOnPlayerId,
+        amount: spectatorBets.amount,
+        spectatorId: spectatorBets.spectatorId,
+        spectatorName: playerProfiles.name
+      }).from(spectatorBets).leftJoin(playerProfiles, eq2(spectatorBets.spectatorId, playerProfiles.id)).where(and2(eq2(spectatorBets.roomId, roomId), eq2(spectatorBets.settled, false)));
+      const playerIdToSocketId = /* @__PURE__ */ new Map();
+      for (const [sid, pid] of socketPlayerIdMap.entries()) playerIdToSocketId.set(pid, sid);
+      const betTotals = {};
+      const bettors = {};
+      for (const b of allBets) {
+        const sid = playerIdToSocketId.get(b.betOnPlayerId) || b.betOnPlayerId;
+        betTotals[sid] = (betTotals[sid] || 0) + b.amount;
+        if (!bettors[sid]) bettors[sid] = [];
+        bettors[sid].push({ id: b.spectatorId, name: b.spectatorName || b.spectatorId });
+      }
+      io.to(`spectate:${roomId}`).emit("bet_update", { betTotals, bettors, totalBets: allBets.length });
+      return res.json({ success: true, newCoins: updated[0].coins, betTotals, bettors });
+    } catch (e) {
+      console.error("[spectate-bet] error:", e);
+      return res.status(500).json({ success: false, error: "server_error" });
+    }
+  });
+  app2.post("/api/word-chain/ai-turn", (req, res) => {
+    try {
+      const { requiredLetter, usedWords } = req.body;
+      if (!requiredLetter) return res.status(400).json({ error: "missing_params" });
+      const used = new Set(usedWords || []);
+      const allCategories = ["animals", "fruits", "vegetables", "cities", "countries", "objects", "boy_names", "girl_names"];
+      const candidates = [];
+      for (const cat of allCategories) {
+        const ws = getWordsForLetter(cat, requiredLetter);
+        for (const w of ws) {
+          if (!used.has(w)) candidates.push(w);
+        }
+      }
+      if (candidates.length === 0) {
+        return res.json({ word: null, concede: true });
+      }
+      const word = candidates[Math.floor(Math.random() * candidates.length)];
+      return res.json({ word, concede: false });
+    } catch (e) {
+      console.error("[word-chain-ai] error:", e);
+      return res.status(500).json({ error: "server_error" });
+    }
+  });
+  function getTodayDateString() {
+    return (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+  }
+  async function getOrCreateTodayChallenge() {
+    const today = getTodayDateString();
+    const existing = await db.select().from(dailyChallenges).where(eq2(dailyChallenges.date, today)).limit(1);
+    if (existing.length > 0) return existing[0];
+    const letter = ARABIC_LETTERS[Math.floor(Math.random() * ARABIC_LETTERS.length)];
+    const allCategories = ["animals", "fruits", "vegetables", "cities", "countries", "objects", "boy_names", "girl_names"];
+    const candidateWords = [];
+    for (const cat of allCategories) {
+      const ws = getWordsForLetter(cat, letter);
+      candidateWords.push(...ws);
+    }
+    const filtered = candidateWords.filter((w) => w.length >= 3 && w.length <= 7);
+    const pool2 = filtered.length > 0 ? filtered : candidateWords;
+    if (pool2.length === 0) {
+      return getOrCreateTodayChallenge();
+    }
+    const word = pool2[Math.floor(Math.random() * pool2.length)];
+    await db.insert(dailyChallenges).values({ date: today, word, letter }).onConflictDoNothing();
+    const fresh = await db.select().from(dailyChallenges).where(eq2(dailyChallenges.date, today)).limit(1);
+    return fresh[0] ?? { date: today, word, letter };
+  }
+  function applyWordleColoring(guess, target) {
+    const result = [];
+    const targetChars = [...target];
+    const guessChars = [...guess];
+    const used = new Array(targetChars.length).fill(false);
+    for (let i = 0; i < guessChars.length; i++) {
+      if (guessChars[i] === targetChars[i]) {
+        result.push({ letter: guessChars[i], status: "correct" });
+        used[i] = true;
+      } else {
+        result.push({ letter: guessChars[i], status: "absent" });
+      }
+    }
+    for (let i = 0; i < guessChars.length; i++) {
+      if (result[i].status === "correct") continue;
+      const foundIdx = targetChars.findIndex((ch, idx) => !used[idx] && ch === guessChars[i]);
+      if (foundIdx !== -1) {
+        result[i] = { letter: guessChars[i], status: "present" };
+        used[foundIdx] = true;
+      }
+    }
+    return result;
+  }
+  app2.get("/api/daily-challenge", async (req, res) => {
+    try {
+      const { playerId } = req.query;
+      const challenge = await getOrCreateTodayChallenge();
+      const wordLength = [...challenge.word].length;
+      let entry = null;
+      if (playerId) {
+        const rows = await db.select().from(dailyChallengeEntries).where(and2(eq2(dailyChallengeEntries.playerId, playerId), eq2(dailyChallengeEntries.date, challenge.date))).limit(1);
+        if (rows.length > 0) {
+          const r = rows[0];
+          entry = { guesses: r.guesses, completed: r.completed, won: r.won, guessCount: r.guessCount, startedAt: r.startedAt };
+        }
+      }
+      const revealedWord = entry?.completed ? challenge.word : null;
+      res.json({
+        date: challenge.date,
+        letter: challenge.letter,
+        wordLength,
+        entry,
+        word: revealedWord
+      });
+    } catch (e) {
+      console.error("[daily-challenge] GET error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.post("/api/daily-challenge/guess", async (req, res) => {
+    try {
+      const { playerId, guess } = req.body;
+      if (!playerId || !guess) return res.status(400).json({ error: "missing_params" });
+      const challenge = await getOrCreateTodayChallenge();
+      const today = challenge.date;
+      const MAX_GUESSES = 6;
+      let entryRows = await db.select().from(dailyChallengeEntries).where(and2(eq2(dailyChallengeEntries.playerId, playerId), eq2(dailyChallengeEntries.date, today))).limit(1);
+      let isNew = false;
+      if (entryRows.length === 0) {
+        await db.insert(dailyChallengeEntries).values({ playerId, date: today });
+        entryRows = await db.select().from(dailyChallengeEntries).where(and2(eq2(dailyChallengeEntries.playerId, playerId), eq2(dailyChallengeEntries.date, today))).limit(1);
+        isNew = true;
+      }
+      const entry = entryRows[0];
+      if (entry.completed) return res.status(400).json({ error: "already_completed" });
+      const currentGuesses = entry.guesses;
+      if (currentGuesses.length >= MAX_GUESSES) return res.status(400).json({ error: "max_guesses_reached" });
+      const guessChars = [...guess.trim()];
+      const targetChars = [...challenge.word];
+      if (guessChars.length !== targetChars.length) {
+        return res.status(400).json({ error: "wrong_length", expected: targetChars.length });
+      }
+      const coloring = applyWordleColoring(guess.trim(), challenge.word);
+      const newGuesses = [...currentGuesses, guess.trim()];
+      const won = guess.trim() === challenge.word;
+      const completed = won || newGuesses.length >= MAX_GUESSES;
+      const now = /* @__PURE__ */ new Date();
+      const durationSeconds = Math.round((now.getTime() - entry.startedAt.getTime()) / 1e3);
+      await db.update(dailyChallengeEntries).set({
+        guesses: newGuesses,
+        guessCount: newGuesses.length,
+        completed,
+        won,
+        finishedAt: completed ? now : null,
+        durationSeconds: completed ? durationSeconds : entry.durationSeconds
+      }).where(and2(eq2(dailyChallengeEntries.playerId, playerId), eq2(dailyChallengeEntries.date, today)));
+      let coinsAwarded = 0;
+      if (completed) {
+        if (won) {
+          coinsAwarded = Math.max(10, 60 - (newGuesses.length - 1) * 10);
+          await db.update(playerProfiles).set({ coins: sql3`coins + ${coinsAwarded}`, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(playerProfiles.id, playerId));
+        }
+        const allEntries = await db.select({ guessCount: dailyChallengeEntries.guessCount, durationSeconds: dailyChallengeEntries.durationSeconds, won: dailyChallengeEntries.won }).from(dailyChallengeEntries).where(and2(eq2(dailyChallengeEntries.date, today), eq2(dailyChallengeEntries.completed, true)));
+        const sorted = allEntries.filter((e) => e.won).sort((a, b) => a.guessCount - b.guessCount || a.durationSeconds - b.durationSeconds);
+        const rank = won ? sorted.findIndex((e) => e.guessCount === newGuesses.length && e.durationSeconds === durationSeconds) + 1 : null;
+        if (rank) {
+          await db.update(dailyChallengeEntries).set({ rank }).where(and2(eq2(dailyChallengeEntries.playerId, playerId), eq2(dailyChallengeEntries.date, today)));
+        }
+      }
+      return res.json({
+        coloring,
+        won,
+        completed,
+        guessCount: newGuesses.length,
+        word: completed ? challenge.word : null,
+        coinsAwarded: completed ? coinsAwarded : 0
+      });
+    } catch (e) {
+      console.error("[daily-challenge] POST guess error:", e);
+      return res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.get("/api/daily-challenge/leaderboard", async (_req, res) => {
+    try {
+      const today = getTodayDateString();
+      const rows = await db.select({
+        playerId: dailyChallengeEntries.playerId,
+        guessCount: dailyChallengeEntries.guessCount,
+        durationSeconds: dailyChallengeEntries.durationSeconds,
+        rank: dailyChallengeEntries.rank,
+        finishedAt: dailyChallengeEntries.finishedAt,
+        name: playerProfiles.name,
+        skin: playerProfiles.equippedSkin,
+        level: playerProfiles.level
+      }).from(dailyChallengeEntries).innerJoin(playerProfiles, eq2(dailyChallengeEntries.playerId, playerProfiles.id)).where(and2(eq2(dailyChallengeEntries.date, today), eq2(dailyChallengeEntries.completed, true), eq2(dailyChallengeEntries.won, true))).orderBy(asc(dailyChallengeEntries.guessCount), asc(dailyChallengeEntries.durationSeconds)).limit(20);
+      res.json(rows.map((r, idx) => ({ ...r, displayRank: idx + 1 })));
+    } catch (e) {
+      console.error("[daily-challenge] leaderboard error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
   });
   app2.get("/api/health", (_req, res) => {
     res.json({ status: "ok", timestamp: (/* @__PURE__ */ new Date()).toISOString() });
@@ -1733,26 +3291,29 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/player/:id", async (req, res) => {
     try {
-      let [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, req.params.id));
+      let [profile] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, req.params.id));
       if (!profile) {
         const playerCode = await ensurePlayerCode(req.params.id);
         const randomName = generateRandomPlayerName();
         const playerTag = await generateUniquePlayerTag();
+        const refCode = await generateUniqueReferralCode();
         [profile] = await db.insert(playerProfiles).values({
           id: req.params.id,
           playerCode,
           playerTag,
-          name: randomName
+          name: randomName,
+          referralCode: refCode
         }).returning();
       } else {
         const updates = {};
         if (!profile.playerCode) updates.playerCode = await ensurePlayerCode(req.params.id);
         if (!profile.playerTag) updates.playerTag = await generateUniquePlayerTag();
         if (Object.keys(updates).length > 0) {
-          [profile] = await db.update(playerProfiles).set(updates).where(eq(playerProfiles.id, req.params.id)).returning();
+          [profile] = await db.update(playerProfiles).set(updates).where(eq2(playerProfiles.id, req.params.id)).returning();
         }
       }
-      res.json(profile);
+      const displayId = profile.playerTag ? `WM-${profile.playerTag.toString().padStart(5, "0")}` : null;
+      res.json({ ...profile, displayId });
     } catch (e) {
       console.error("GET /api/player error:", e);
       res.status(500).json({ error: "server_error" });
@@ -1762,14 +3323,16 @@ async function registerRoutes(app2) {
     try {
       const id = req.params.id;
       const data = req.body;
-      const [existing] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, id));
+      const [existing] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, id));
       if (!existing) {
         const playerCode = await ensurePlayerCode(id);
         const playerTag = await generateUniquePlayerTag();
+        const refCode = await generateUniqueReferralCode();
         const [created] = await db.insert(playerProfiles).values({
           id,
           playerCode,
           playerTag,
+          referralCode: refCode,
           name: data.name || generateRandomPlayerName(),
           coins: data.coins ?? 100,
           xp: data.xp ?? 0,
@@ -1783,19 +3346,81 @@ async function registerRoutes(app2) {
           bestStreak: data.bestStreak ?? 0,
           lastStreakReward: data.lastStreakReward ?? 0
         }).returning();
+        try {
+          const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+          const chosenTasks = pickDailyTasks();
+          for (const def of chosenTasks) {
+            await db.insert(playerDailyTasks).values({
+              playerId: id,
+              taskKey: def.key,
+              assignedDate: today,
+              progress: 0,
+              baselineWins: 0,
+              baselineGames: 0,
+              baselineScore: 0
+            });
+          }
+        } catch (e) {
+          console.error("[init] Failed to seed daily tasks for new player:", e);
+        }
+        try {
+          for (const def of ACHIEVEMENT_DEFS) {
+            await db.insert(playerAchievements).values({
+              playerId: id,
+              achievementKey: def.key,
+              progress: 0,
+              unlocked: 0,
+              claimed: 0
+            });
+          }
+        } catch (e) {
+          console.error("[init] Failed to seed achievements for new player:", e);
+        }
         return res.json(created);
       }
       const updateData = { updatedAt: /* @__PURE__ */ new Date() };
       if (!existing.playerCode) updateData.playerCode = await ensurePlayerCode(id);
       if (!existing.playerTag) updateData.playerTag = await generateUniquePlayerTag();
-      const allowedFields = ["name", "coins", "xp", "level", "equippedSkin", "ownedSkins", "equippedTitle", "ownedTitles", "totalScore", "gamesPlayed", "wins", "winStreak", "bestStreak", "lastStreakReward", "powerCards"];
+      if (!existing.referralCode) updateData.referralCode = await generateUniqueReferralCode();
+      const allowedFields = ["name", "coins", "xp", "level", "equippedSkin", "ownedSkins", "equippedTitle", "ownedTitles", "totalScore", "gamesPlayed", "wins", "winStreak", "bestStreak", "lastStreakReward", "powerCards", "country"];
       for (const key of allowedFields) {
-        if (data[key] !== void 0) updateData[key] = data[key];
+        if (data[key] !== void 0) {
+          if (key === "country" && data[key] === null) continue;
+          updateData[key] = data[key];
+        }
       }
-      const [updated] = await db.update(playerProfiles).set(updateData).where(eq(playerProfiles.id, id)).returning();
+      const [updated] = await db.update(playerProfiles).set(updateData).where(eq2(playerProfiles.id, id)).returning();
       res.json(updated);
     } catch (e) {
       console.error("PUT /api/player error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.post("/api/player/:id/purchase", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const { itemType, itemId, price } = req.body;
+      if (!itemType || !itemId || typeof price !== "number" || price < 0) {
+        return res.status(400).json({ error: "invalid_params" });
+      }
+      const [profile] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, id));
+      if (!profile) return res.status(404).json({ error: "player_not_found" });
+      if (profile.coins < price) return res.status(402).json({ error: "insufficient_coins" });
+      const ownedSkins = Array.isArray(profile.ownedSkins) ? profile.ownedSkins : [];
+      const ownedTitles = Array.isArray(profile.ownedTitles) ? profile.ownedTitles : [];
+      if (itemType === "skin" && ownedSkins.includes(itemId)) {
+        return res.json({ profile, alreadyOwned: true });
+      }
+      if (itemType === "title" && ownedTitles.includes(itemId)) {
+        return res.json({ profile, alreadyOwned: true });
+      }
+      const updates = { coins: profile.coins - price, updatedAt: /* @__PURE__ */ new Date() };
+      if (itemType === "skin") updates.ownedSkins = [...ownedSkins, itemId];
+      if (itemType === "title") updates.ownedTitles = [...ownedTitles, itemId];
+      const [updated] = await db.update(playerProfiles).set(updates).where(eq2(playerProfiles.id, id)).returning();
+      return res.json({ profile: updated });
+    } catch (e) {
+      console.error("POST /api/player/:id/purchase error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });
@@ -1806,7 +3431,7 @@ async function registerRoutes(app2) {
         return res.status(400).json({ error: "missing_fields" });
       }
       const trimmed = new_name.trim();
-      const [updated] = await db.update(playerProfiles).set({ name: trimmed, updatedAt: /* @__PURE__ */ new Date() }).where(eq(playerProfiles.id, player_id)).returning();
+      const [updated] = await db.update(playerProfiles).set({ name: trimmed, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(playerProfiles.id, player_id)).returning();
       if (!updated) return res.status(404).json({ error: "player_not_found" });
       res.json({ success: true, name: updated.name });
     } catch (e) {
@@ -1817,7 +3442,7 @@ async function registerRoutes(app2) {
   app2.post("/api/player/:id/spin", async (req, res) => {
     try {
       const id = req.params.id;
-      let [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, id));
+      let [profile] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, id));
       if (!profile) {
         [profile] = await db.insert(playerProfiles).values({ id }).returning();
       }
@@ -1829,9 +3454,11 @@ async function registerRoutes(app2) {
         }
       }
       const reward = pickSpinReward();
+      const isVip = profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > /* @__PURE__ */ new Date());
+      const coinMultiplier = isVip ? 2 : 1;
       const updates = { lastSpinAt: /* @__PURE__ */ new Date(), updatedAt: /* @__PURE__ */ new Date() };
       if (reward.type === "coins") {
-        updates.coins = profile.coins + reward.amount;
+        updates.coins = profile.coins + reward.amount * coinMultiplier;
       } else if (reward.type === "xp") {
         updates.xp = profile.xp + reward.amount;
         updates.level = Math.floor((profile.xp + reward.amount) / 100) + 1;
@@ -1841,7 +3468,7 @@ async function registerRoutes(app2) {
         const randomCard = cardKeys[Math.floor(Math.random() * cardKeys.length)];
         updates.powerCards = { ...currentCards, [randomCard]: (currentCards[randomCard] || 0) + 1 };
       }
-      const [updated] = await db.update(playerProfiles).set(updates).where(eq(playerProfiles.id, id)).returning();
+      const [updated] = await db.update(playerProfiles).set(updates).where(eq2(playerProfiles.id, id)).returning();
       await db.insert(dailySpins).values({
         playerId: id,
         rewardType: reward.type,
@@ -1856,7 +3483,7 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/player/:id/streak", async (req, res) => {
     try {
-      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, req.params.id));
+      const [profile] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, req.params.id));
       if (!profile) {
         return res.json({ winStreak: 0, bestStreak: 0, lastStreakReward: 0, milestones: STREAK_MILESTONES });
       }
@@ -1878,7 +3505,7 @@ async function registerRoutes(app2) {
       const score = Number(req.body.score) || 0;
       const coinsEarned = Number(req.body.coinsEarned) || 0;
       const xpEarned = Number(req.body.xpEarned) || 0;
-      let [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, id));
+      let [profile] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, id));
       if (!profile) {
         [profile] = await db.insert(playerProfiles).values({ id }).returning();
       }
@@ -1906,7 +3533,9 @@ async function registerRoutes(app2) {
         });
       }
       const coinEntryReward = won && coinEntry ? COIN_ENTRY_OPTIONS.find((o) => o.entry === coinEntry)?.reward || 0 : 0;
-      const totalCoins = coinsEarned + streakBonus + coinEntryReward;
+      const isVip = profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > /* @__PURE__ */ new Date());
+      const vipMultiplier = isVip ? 2 : 1;
+      const totalCoins = (coinsEarned + streakBonus + coinEntryReward) * vipMultiplier;
       const [updated] = await db.update(playerProfiles).set({
         coins: profile.coins + totalCoins,
         xp: profile.xp + xpEarned,
@@ -1918,7 +3547,7 @@ async function registerRoutes(app2) {
         bestStreak: newBest,
         lastStreakReward: newLastReward,
         updatedAt: /* @__PURE__ */ new Date()
-      }).where(eq(playerProfiles.id, id)).returning();
+      }).where(eq2(playerProfiles.id, id)).returning();
       res.json({ profile: updated, streakBonus, coinEntryReward });
       Promise.all([
         syncTaskProgress(id, updated).catch(() => {
@@ -1932,6 +3561,40 @@ async function registerRoutes(app2) {
       res.status(500).json({ error: "server_error" });
     }
   });
+  app2.post("/api/player/:id/activate-vip", async (req, res) => {
+    try {
+      const id = req.params.id;
+      const { duration, subscriptionId } = req.body;
+      const durationDays = duration || 30;
+      const expiresAt = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1e3);
+      const [updated] = await db.update(playerProfiles).set({
+        isVip: true,
+        vipExpiresAt: expiresAt,
+        vipSubscriptionId: subscriptionId || null,
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq2(playerProfiles.id, id)).returning();
+      if (!updated) return res.status(404).json({ error: "player_not_found" });
+      res.json({ success: true, profile: updated });
+    } catch (e) {
+      console.error("POST /api/player/:id/activate-vip error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.get("/api/player/:id/vip-status", async (req, res) => {
+    try {
+      const [profile] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, req.params.id));
+      if (!profile) return res.status(404).json({ error: "player_not_found" });
+      const isActive = profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > /* @__PURE__ */ new Date());
+      res.json({
+        isVip: isActive,
+        vipExpiresAt: profile.vipExpiresAt,
+        vipSubscriptionId: profile.vipSubscriptionId
+      });
+    } catch (e) {
+      console.error("GET /api/player/:id/vip-status error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
   app2.get("/api/coin-entries", (_req, res) => {
     res.json(COIN_ENTRY_OPTIONS);
   });
@@ -1940,10 +3603,10 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/tournaments/open", async (_req, res) => {
     try {
-      const openTournaments = await db.select().from(tournaments).where(eq(tournaments.status, "open")).orderBy(desc(tournaments.createdAt));
+      const openTournaments = await db.select().from(tournaments).where(eq2(tournaments.status, "open")).orderBy(desc(tournaments.createdAt));
       const result = [];
       for (const t of openTournaments) {
-        const players = await db.select().from(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, t.id)).orderBy(asc(tournamentPlayers.joinedAt));
+        const players = await db.select().from(tournamentPlayers).where(eq2(tournamentPlayers.tournamentId, t.id)).orderBy(asc(tournamentPlayers.joinedAt));
         const maxP = t.maxPlayers ?? TOURNAMENT_SIZE;
         result.push({
           ...t,
@@ -1974,10 +3637,10 @@ async function registerRoutes(app2) {
           prizes: TOURNAMENT_PRIZES
         });
       }
-      const [t] = await db.select().from(tournaments).where(eq(tournaments.id, id));
+      const [t] = await db.select().from(tournaments).where(eq2(tournaments.id, id));
       if (!t) return res.status(404).json({ error: "not_found" });
-      const players = await db.select().from(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, id));
-      const matches = await db.select().from(tournamentMatches).where(eq(tournamentMatches.tournamentId, id));
+      const players = await db.select().from(tournamentPlayers).where(eq2(tournamentPlayers.tournamentId, id));
+      const matches = await db.select().from(tournamentMatches).where(eq2(tournamentMatches.tournamentId, id));
       res.json({
         ...t,
         players: players.map((p) => ({ playerId: p.playerId, name: p.playerName, skin: p.playerSkin, eliminated: p.eliminated === 1 })),
@@ -2031,25 +3694,25 @@ async function registerRoutes(app2) {
     try {
       const tournamentId = req.params.id;
       const { playerId, playerName, playerSkin, socketId } = req.body;
-      const [t] = await db.select().from(tournaments).where(eq(tournaments.id, tournamentId));
+      const [t] = await db.select().from(tournaments).where(eq2(tournaments.id, tournamentId));
       if (!t) return res.status(404).json({ error: "not_found" });
       if (t.status !== "open") return res.status(400).json({ error: "tournament_closed" });
-      const existingPlayers = await db.select().from(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, tournamentId));
+      const existingPlayers = await db.select().from(tournamentPlayers).where(eq2(tournamentPlayers.tournamentId, tournamentId));
       if (existingPlayers.some((p) => p.playerId === playerId)) return res.status(400).json({ error: "already_joined" });
       const maxCapacity = t.maxPlayers ?? TOURNAMENT_SIZE;
       if (existingPlayers.length >= maxCapacity) return res.status(400).json({ error: "tournament_full" });
-      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      const [profile] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, playerId));
       if (!profile || profile.coins < TOURNAMENT_ENTRY_FEE) return res.status(400).json({ error: "insufficient_coins" });
-      await db.update(playerProfiles).set({ coins: profile.coins - TOURNAMENT_ENTRY_FEE, updatedAt: /* @__PURE__ */ new Date() }).where(eq(playerProfiles.id, playerId));
+      await db.update(playerProfiles).set({ coins: profile.coins - TOURNAMENT_ENTRY_FEE, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(playerProfiles.id, playerId));
       const seed = existingPlayers.length + 1;
       await db.insert(tournamentPlayers).values({ tournamentId, playerId, playerName, playerSkin, seed });
       tournamentPlayerSocketMap.set(playerId, socketId);
       const newPrizePool = t.prizePool + TOURNAMENT_ENTRY_FEE;
-      await db.update(tournaments).set({ prizePool: newPrizePool }).where(eq(tournaments.id, tournamentId));
-      const allPlayers = await db.select().from(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, tournamentId));
+      await db.update(tournaments).set({ prizePool: newPrizePool }).where(eq2(tournaments.id, tournamentId));
+      const allPlayers = await db.select().from(tournamentPlayers).where(eq2(tournamentPlayers.tournamentId, tournamentId));
       const maxP = t.maxPlayers ?? TOURNAMENT_SIZE;
       if (allPlayers.length >= maxP) {
-        await db.update(tournaments).set({ status: "in_progress", startedAt: /* @__PURE__ */ new Date() }).where(eq(tournaments.id, tournamentId));
+        await db.update(tournaments).set({ status: "in_progress", startedAt: /* @__PURE__ */ new Date() }).where(eq2(tournaments.id, tournamentId));
         const bracket = generateTournamentBracket(tournamentId, allPlayers.map((p) => ({ playerId: p.playerId, name: p.playerName })), maxP);
         for (const m of bracket) {
           await db.insert(tournamentMatches).values({
@@ -2098,39 +3761,39 @@ async function registerRoutes(app2) {
     try {
       const tournamentId = req.params.id;
       const { playerId } = req.body;
-      const [t] = await db.select().from(tournaments).where(eq(tournaments.id, tournamentId));
+      const [t] = await db.select().from(tournaments).where(eq2(tournaments.id, tournamentId));
       if (!t) return res.status(404).json({ error: "not_found" });
       if (t.status !== "open") return res.status(400).json({ error: "tournament_already_started" });
       const [existing] = await db.select().from(tournamentPlayers).where(
-        and(eq(tournamentPlayers.tournamentId, tournamentId), eq(tournamentPlayers.playerId, playerId))
+        and2(eq2(tournamentPlayers.tournamentId, tournamentId), eq2(tournamentPlayers.playerId, playerId))
       );
       if (!existing) return res.status(400).json({ error: "not_in_tournament" });
       const playerName = existing.playerName;
       await db.delete(tournamentPlayers).where(
-        and(eq(tournamentPlayers.tournamentId, tournamentId), eq(tournamentPlayers.playerId, playerId))
+        and2(eq2(tournamentPlayers.tournamentId, tournamentId), eq2(tournamentPlayers.playerId, playerId))
       );
       tournamentPlayerSocketMap.delete(playerId);
-      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      const [profile] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, playerId));
       if (profile) {
         await db.update(playerProfiles).set({
           coins: profile.coins + TOURNAMENT_ENTRY_FEE,
           updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq(playerProfiles.id, playerId));
+        }).where(eq2(playerProfiles.id, playerId));
       }
-      const remainingPlayers = await db.select().from(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, tournamentId));
+      const remainingPlayers = await db.select().from(tournamentPlayers).where(eq2(tournamentPlayers.tournamentId, tournamentId));
       if (remainingPlayers.length === 0) {
-        await db.delete(tournamentMatches).where(eq(tournamentMatches.tournamentId, tournamentId)).catch(() => {
+        await db.delete(tournamentMatches).where(eq2(tournamentMatches.tournamentId, tournamentId)).catch(() => {
         });
-        await db.delete(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, tournamentId)).catch(() => {
+        await db.delete(tournamentPlayers).where(eq2(tournamentPlayers.tournamentId, tournamentId)).catch(() => {
         });
-        await db.delete(tournaments).where(eq(tournaments.id, tournamentId)).catch(() => {
+        await db.delete(tournaments).where(eq2(tournaments.id, tournamentId)).catch(() => {
         });
         activeTournaments.delete(tournamentId);
         io.emit("tournament_cancelled", { tournamentId });
         console.log(`[leave] Tournament ${tournamentId} deleted \u2014 no players remaining`);
       } else {
         const newPrizePool = Math.max(0, t.prizePool - TOURNAMENT_ENTRY_FEE);
-        await db.update(tournaments).set({ prizePool: newPrizePool }).where(eq(tournaments.id, tournamentId));
+        await db.update(tournaments).set({ prizePool: newPrizePool }).where(eq2(tournaments.id, tournamentId));
         io.emit("tournament_player_left", {
           tournamentId,
           playerCount: remainingPlayers.length,
@@ -2139,7 +3802,7 @@ async function registerRoutes(app2) {
         });
         console.log(`[leave] Player ${playerName} left tournament ${tournamentId} \u2014 ${remainingPlayers.length}/${t.maxPlayers ?? TOURNAMENT_SIZE} remaining`);
       }
-      const [updatedProfile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      const [updatedProfile] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, playerId));
       res.json({
         success: true,
         playerCount: remainingPlayers.length,
@@ -2173,10 +3836,10 @@ async function registerRoutes(app2) {
   app2.get("/api/player/:id/tournaments", async (req, res) => {
     try {
       const playerId = req.params.id;
-      const entries = await db.select().from(tournamentPlayers).where(eq(tournamentPlayers.playerId, playerId));
+      const entries = await db.select().from(tournamentPlayers).where(eq2(tournamentPlayers.playerId, playerId));
       const result = [];
       for (const entry of entries) {
-        const [t] = await db.select().from(tournaments).where(eq(tournaments.id, entry.tournamentId));
+        const [t] = await db.select().from(tournaments).where(eq2(tournaments.id, entry.tournamentId));
         if (t) {
           result.push({ ...t, placement: entry.placement, eliminated: entry.eliminated === 1 });
         }
@@ -2190,13 +3853,17 @@ async function registerRoutes(app2) {
   app2.get("/api/leaderboard", async (req, res) => {
     try {
       const type = req.query.type || "score";
+      const country = req.query.country || null;
+      const countryFilter = country ? eq2(playerProfiles.country, country) : void 0;
       let players;
       if (type === "wins") {
-        players = await db.select().from(playerProfiles).orderBy(desc(playerProfiles.wins)).limit(50);
+        players = await db.select().from(playerProfiles).where(countryFilter).orderBy(desc(playerProfiles.wins)).limit(50);
       } else if (type === "xp") {
-        players = await db.select().from(playerProfiles).orderBy(desc(playerProfiles.xp)).limit(50);
+        players = await db.select().from(playerProfiles).where(countryFilter).orderBy(desc(playerProfiles.xp)).limit(50);
+      } else if (type === "ranked") {
+        players = await db.select().from(playerProfiles).where(countryFilter).orderBy(desc(playerProfiles.elo)).limit(50);
       } else {
-        players = await db.select().from(playerProfiles).orderBy(desc(playerProfiles.totalScore)).limit(50);
+        players = await db.select().from(playerProfiles).where(countryFilter).orderBy(desc(playerProfiles.totalScore)).limit(50);
       }
       const result = players.map((p, idx) => ({
         rank: idx + 1,
@@ -2208,11 +3875,352 @@ async function registerRoutes(app2) {
         wins: p.wins,
         score: p.totalScore,
         xp: p.xp,
-        gamesPlayed: p.gamesPlayed
+        gamesPlayed: p.gamesPlayed,
+        isVip: p.isVip && (!p.vipExpiresAt || new Date(p.vipExpiresAt) > /* @__PURE__ */ new Date()),
+        elo: p.elo ?? 1e3,
+        division: p.division ?? "silver",
+        seasonWins: p.seasonWins ?? 0,
+        seasonLosses: p.seasonLosses ?? 0,
+        country: p.country ?? "MA"
       }));
       res.json(result);
     } catch (e) {
       console.error("GET /api/leaderboard error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.get("/api/ranked/season", async (_req, res) => {
+    try {
+      const [season] = await db.select().from(seasons).where(eq2(seasons.status, "active")).limit(1);
+      if (!season) return res.json({ season: null });
+      const now = /* @__PURE__ */ new Date();
+      const daysLeft = Math.max(0, Math.ceil((new Date(season.endDate).getTime() - now.getTime()) / (1e3 * 60 * 60 * 24)));
+      res.json({ season: { ...season, daysLeft } });
+    } catch (e) {
+      console.error("GET /api/ranked/season error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.get("/api/ranked/leaderboard", async (req, res) => {
+    try {
+      const country = req.query.country || null;
+      const countryFilter = country ? eq2(playerProfiles.country, country) : void 0;
+      const players = await db.select().from(playerProfiles).where(countryFilter).orderBy(desc(playerProfiles.elo)).limit(50);
+      const result = players.map((p, idx) => ({
+        rank: idx + 1,
+        id: p.id,
+        name: p.name,
+        skin: p.equippedSkin,
+        equippedTitle: p.equippedTitle || "beginner",
+        level: p.level,
+        wins: p.wins,
+        score: p.totalScore,
+        xp: p.xp,
+        gamesPlayed: p.gamesPlayed,
+        isVip: p.isVip && (!p.vipExpiresAt || new Date(p.vipExpiresAt) > /* @__PURE__ */ new Date()),
+        elo: p.elo ?? 1e3,
+        division: p.division ?? "silver",
+        seasonWins: p.seasonWins ?? 0,
+        seasonLosses: p.seasonLosses ?? 0,
+        country: p.country ?? "MA"
+      }));
+      res.json(result);
+    } catch (e) {
+      console.error("GET /api/ranked/leaderboard error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.get("/api/clans/leaderboard", async (_req, res) => {
+    try {
+      const top = await db.select().from(clans).orderBy(desc(clans.totalWarScore)).limit(10);
+      const result = await Promise.all(top.map(async (c, idx) => {
+        const memberCount = await db.select({ count: sql3`count(*)` }).from(clanMembers).where(eq2(clanMembers.clanId, c.id));
+        return { ...c, rank: idx + 1, memberCount: Number(memberCount[0]?.count ?? 0) };
+      }));
+      res.json(result);
+    } catch (e) {
+      console.error("GET /api/clans/leaderboard error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.get("/api/clans/search", async (req, res) => {
+    try {
+      const q = (req.query.q || "").trim();
+      if (q.length < 2) return res.json([]);
+      const results = await db.select().from(clans).where(ilike(clans.name, `%${q}%`)).limit(20);
+      const withCounts = await Promise.all(results.map(async (c) => {
+        const memberCount = await db.select({ count: sql3`count(*)` }).from(clanMembers).where(eq2(clanMembers.clanId, c.id));
+        return { ...c, memberCount: Number(memberCount[0]?.count ?? 0) };
+      }));
+      return res.json(withCounts);
+    } catch (e) {
+      console.error("GET /api/clans/search error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.get("/api/clans/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [clan] = await db.select().from(clans).where(eq2(clans.id, id)).limit(1);
+      if (!clan) return res.status(404).json({ error: "not_found" });
+      const members = await db.select({
+        id: clanMembers.id,
+        playerId: clanMembers.playerId,
+        warScore: clanMembers.warScore,
+        role: clanMembers.role,
+        joinedAt: clanMembers.joinedAt,
+        name: playerProfiles.name,
+        equippedSkin: playerProfiles.equippedSkin,
+        level: playerProfiles.level
+      }).from(clanMembers).innerJoin(playerProfiles, eq2(clanMembers.playerId, playerProfiles.id)).where(eq2(clanMembers.clanId, id)).orderBy(desc(clanMembers.warScore));
+      const leaderboardRank = await db.select({ count: sql3`count(*)` }).from(clans).where(sql3`total_war_score > ${clan.totalWarScore}`);
+      const rank = Number(leaderboardRank[0]?.count ?? 0) + 1;
+      res.json({ ...clan, members, rank });
+    } catch (e) {
+      console.error("GET /api/clans/:id error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.post("/api/clans/create", async (req, res) => {
+    try {
+      const { playerId, name, emoji } = req.body;
+      if (!playerId || !name?.trim() || !emoji) return res.status(400).json({ error: "missing_params" });
+      const [player] = await db.select({ coins: playerProfiles.coins, clanId: playerProfiles.clanId }).from(playerProfiles).where(eq2(playerProfiles.id, playerId)).limit(1);
+      if (!player) return res.status(404).json({ error: "player_not_found" });
+      if (player.clanId) return res.status(400).json({ error: "already_in_clan" });
+      if (player.coins < 500) return res.status(400).json({ error: "insufficient_coins" });
+      const [existing] = await db.select({ id: clans.id }).from(clans).where(ilike(clans.name, name.trim())).limit(1);
+      if (existing) return res.status(400).json({ error: "name_taken" });
+      const result = await db.transaction(async (tx) => {
+        const [newClan] = await tx.insert(clans).values({ name: name.trim(), emoji, leaderId: playerId }).returning();
+        await tx.insert(clanMembers).values({ clanId: newClan.id, playerId, role: "leader", warScore: 0 });
+        await tx.update(playerProfiles).set({ coins: player.coins - 500, clanId: newClan.id, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(playerProfiles.id, playerId));
+        return { clan: newClan, coins: player.coins - 500 };
+      });
+      res.json(result);
+    } catch (e) {
+      console.error("POST /api/clans/create error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.post("/api/clans/:id/join", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { playerId } = req.body;
+      if (!playerId) return res.status(400).json({ error: "missing_params" });
+      const [clan] = await db.select().from(clans).where(eq2(clans.id, id)).limit(1);
+      if (!clan) return res.status(404).json({ error: "not_found" });
+      const [player] = await db.select({ clanId: playerProfiles.clanId }).from(playerProfiles).where(eq2(playerProfiles.id, playerId)).limit(1);
+      if (!player) return res.status(404).json({ error: "player_not_found" });
+      if (player.clanId) return res.status(400).json({ error: "already_in_clan" });
+      const memberCount = await db.select({ count: sql3`count(*)` }).from(clanMembers).where(eq2(clanMembers.clanId, id));
+      if (Number(memberCount[0]?.count ?? 0) >= 20) return res.status(400).json({ error: "clan_full" });
+      await db.transaction(async (tx) => {
+        await tx.insert(clanMembers).values({ clanId: id, playerId, role: "member", warScore: 0 });
+        await tx.update(playerProfiles).set({ clanId: id, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(playerProfiles.id, playerId));
+      });
+      res.json({ ok: true });
+    } catch (e) {
+      console.error("POST /api/clans/:id/join error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.post("/api/clans/:id/leave", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { playerId } = req.body;
+      if (!playerId) return res.status(400).json({ error: "missing_params" });
+      const [clan] = await db.select().from(clans).where(eq2(clans.id, id)).limit(1);
+      if (!clan) return res.status(404).json({ error: "not_found" });
+      const [membership] = await db.select({ id: clanMembers.id }).from(clanMembers).where(and2(eq2(clanMembers.clanId, id), eq2(clanMembers.playerId, playerId))).limit(1);
+      if (!membership) return res.status(400).json({ error: "not_a_member" });
+      await db.transaction(async (tx) => {
+        await tx.delete(clanMembers).where(and2(eq2(clanMembers.clanId, id), eq2(clanMembers.playerId, playerId)));
+        await tx.update(playerProfiles).set({ clanId: null, updatedAt: /* @__PURE__ */ new Date() }).where(and2(eq2(playerProfiles.id, playerId), eq2(playerProfiles.clanId, id)));
+        const remaining = await tx.select({ warScore: clanMembers.warScore }).from(clanMembers).where(eq2(clanMembers.clanId, id));
+        const total = remaining.reduce((sum, m) => sum + (m.warScore ?? 0), 0);
+        await tx.update(clans).set({ totalWarScore: total }).where(eq2(clans.id, id));
+        if (clan.leaderId === playerId) {
+          const others = await tx.select().from(clanMembers).where(eq2(clanMembers.clanId, id)).orderBy(desc(clanMembers.warScore)).limit(1);
+          if (others.length > 0) {
+            await tx.update(clans).set({ leaderId: others[0].playerId }).where(eq2(clans.id, id));
+            await tx.update(clanMembers).set({ role: "leader" }).where(and2(eq2(clanMembers.clanId, id), eq2(clanMembers.playerId, others[0].playerId)));
+          } else {
+            await tx.delete(clans).where(eq2(clans.id, id));
+          }
+        }
+      });
+      res.json({ ok: true });
+    } catch (e) {
+      console.error("POST /api/clans/:id/leave error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.post("/api/clans/:id/kick", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { leaderId, targetPlayerId } = req.body;
+      if (!leaderId || !targetPlayerId) return res.status(400).json({ error: "missing_params" });
+      const [clan] = await db.select().from(clans).where(eq2(clans.id, id)).limit(1);
+      if (!clan) return res.status(404).json({ error: "not_found" });
+      if (clan.leaderId !== leaderId) return res.status(403).json({ error: "not_leader" });
+      if (targetPlayerId === leaderId) return res.status(400).json({ error: "cannot_kick_self" });
+      const [targetMembership] = await db.select({ id: clanMembers.id }).from(clanMembers).where(and2(eq2(clanMembers.clanId, id), eq2(clanMembers.playerId, targetPlayerId))).limit(1);
+      if (!targetMembership) return res.status(400).json({ error: "not_a_member" });
+      await db.transaction(async (tx) => {
+        await tx.delete(clanMembers).where(and2(eq2(clanMembers.clanId, id), eq2(clanMembers.playerId, targetPlayerId)));
+        await tx.update(playerProfiles).set({ clanId: null, updatedAt: /* @__PURE__ */ new Date() }).where(and2(eq2(playerProfiles.id, targetPlayerId), eq2(playerProfiles.clanId, id)));
+        const remaining = await tx.select({ warScore: clanMembers.warScore }).from(clanMembers).where(eq2(clanMembers.clanId, id));
+        const total = remaining.reduce((sum, m) => sum + (m.warScore ?? 0), 0);
+        await tx.update(clans).set({ totalWarScore: total }).where(eq2(clans.id, id));
+      });
+      res.json({ ok: true });
+    } catch (e) {
+      console.error("POST /api/clans/:id/kick error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.post("/api/clans/:id/rename", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { leaderId, name } = req.body;
+      if (!leaderId || !name?.trim()) return res.status(400).json({ error: "missing_params" });
+      const [clan] = await db.select().from(clans).where(eq2(clans.id, id)).limit(1);
+      if (!clan) return res.status(404).json({ error: "not_found" });
+      if (clan.leaderId !== leaderId) return res.status(403).json({ error: "not_leader" });
+      const trimmed = name.trim();
+      const [existing] = await db.select({ id: clans.id }).from(clans).where(and2(ilike(clans.name, trimmed), sql3`${clans.id} != ${id}`)).limit(1);
+      if (existing) return res.status(400).json({ error: "name_taken" });
+      await db.update(clans).set({ name: trimmed }).where(eq2(clans.id, id));
+      res.json({ ok: true });
+    } catch (e) {
+      console.error("POST /api/clans/:id/rename error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.get("/api/battle-pass/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const [activeSeason] = await db.select().from(seasons).where(eq2(seasons.status, "active")).limit(1);
+      if (!activeSeason) return res.status(404).json({ error: "no_active_season" });
+      const pass = await getOrCreatePlayerBattlePass(playerId, activeSeason.id);
+      const tiers = await db.select().from(battlePassTiers).where(eq2(battlePassTiers.seasonId, activeSeason.id)).orderBy(asc(battlePassTiers.tier));
+      res.json({
+        season: { id: activeSeason.id, name: activeSeason.name, endDate: activeSeason.endDate },
+        passXp: pass.passXp,
+        currentTier: pass.currentTier,
+        premiumUnlocked: pass.premiumUnlocked,
+        claimedTiers: Array.isArray(pass.claimedTiers) ? pass.claimedTiers : [],
+        xpPerTier: BP_XP_PER_TIER,
+        premiumCost: BP_PREMIUM_COST,
+        tiers
+      });
+    } catch (e) {
+      console.error("GET /api/battle-pass/:playerId error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.post("/api/battle-pass/:playerId/buy-premium", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const [activeSeason] = await db.select({ id: seasons.id }).from(seasons).where(eq2(seasons.status, "active")).limit(1);
+      if (!activeSeason) return res.status(404).json({ error: "no_active_season" });
+      await getOrCreatePlayerBattlePass(playerId, activeSeason.id);
+      let newCoins;
+      await db.transaction(async (tx) => {
+        const [profile] = await tx.select({ coins: playerProfiles.coins }).from(playerProfiles).where(eq2(playerProfiles.id, playerId)).limit(1);
+        if (!profile) throw Object.assign(new Error("player_not_found"), { statusCode: 404 });
+        if (profile.coins < BP_PREMIUM_COST) throw Object.assign(new Error("insufficient_coins"), { statusCode: 400 });
+        const updated = await tx.update(playerBattlePass).set({ premiumUnlocked: true, updatedAt: /* @__PURE__ */ new Date() }).where(and2(
+          eq2(playerBattlePass.playerId, playerId),
+          eq2(playerBattlePass.seasonId, activeSeason.id),
+          eq2(playerBattlePass.premiumUnlocked, false)
+        )).returning({ id: playerBattlePass.id });
+        if (updated.length === 0) throw Object.assign(new Error("already_premium"), { statusCode: 400 });
+        const [updatedProfile] = await tx.update(playerProfiles).set({ coins: sql3`coins - ${BP_PREMIUM_COST}`, updatedAt: /* @__PURE__ */ new Date() }).where(and2(eq2(playerProfiles.id, playerId), sql3`coins >= ${BP_PREMIUM_COST}`)).returning({ coins: playerProfiles.coins });
+        if (!updatedProfile) throw Object.assign(new Error("insufficient_coins"), { statusCode: 400 });
+        newCoins = updatedProfile.coins;
+      });
+      res.json({ ok: true, coins: newCoins });
+    } catch (e) {
+      const err = e;
+      if (err.statusCode && err.message) return res.status(err.statusCode).json({ error: err.message });
+      console.error("POST /api/battle-pass/:playerId/buy-premium error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.post("/api/battle-pass/:playerId/claim/:tier", async (req, res) => {
+    try {
+      const { playerId, tier: tierStr } = req.params;
+      const { track } = req.body;
+      const tierNum = parseInt(tierStr, 10);
+      if (isNaN(tierNum) || tierNum < 1 || tierNum > 30) return res.status(400).json({ error: "invalid_tier" });
+      if (track !== "free" && track !== "premium") return res.status(400).json({ error: "invalid_track" });
+      const [activeSeason] = await db.select({ id: seasons.id }).from(seasons).where(eq2(seasons.status, "active")).limit(1);
+      if (!activeSeason) return res.status(404).json({ error: "no_active_season" });
+      await getOrCreatePlayerBattlePass(playerId, activeSeason.id);
+      const [tierDef] = await db.select().from(battlePassTiers).where(and2(eq2(battlePassTiers.seasonId, activeSeason.id), eq2(battlePassTiers.tier, tierNum))).limit(1);
+      if (!tierDef) return res.status(404).json({ error: "tier_not_found" });
+      const rewardType = track === "free" ? tierDef.freeRewardType : tierDef.premiumRewardType;
+      const rewardId = track === "free" ? tierDef.freeRewardId : tierDef.premiumRewardId;
+      const rewardAmt = track === "free" ? tierDef.freeRewardAmount : tierDef.premiumRewardAmount;
+      const claimedKey = `${tierNum}_${track}`;
+      let resultNewCoins = 0;
+      const grantedLabel = [];
+      await db.transaction(async (tx) => {
+        const [pass] = await tx.select().from(playerBattlePass).where(and2(eq2(playerBattlePass.playerId, playerId), eq2(playerBattlePass.seasonId, activeSeason.id))).limit(1);
+        if (!pass) throw Object.assign(new Error("pass_not_found"), { statusCode: 404 });
+        if (pass.currentTier < tierNum) throw Object.assign(new Error("tier_not_reached"), { statusCode: 400 });
+        if (track === "premium" && !pass.premiumUnlocked) throw Object.assign(new Error("premium_not_unlocked"), { statusCode: 403 });
+        const claimedArr = Array.isArray(pass.claimedTiers) ? pass.claimedTiers : [];
+        if (claimedArr.includes(claimedKey)) throw Object.assign(new Error("already_claimed"), { statusCode: 400 });
+        const [profile] = await tx.select().from(playerProfiles).where(eq2(playerProfiles.id, playerId)).limit(1);
+        if (!profile) throw Object.assign(new Error("player_not_found"), { statusCode: 404 });
+        resultNewCoins = profile.coins;
+        if (rewardType === "coins") {
+          const [updProf] = await tx.update(playerProfiles).set({ coins: sql3`coins + ${rewardAmt}`, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(playerProfiles.id, playerId)).returning({ coins: playerProfiles.coins });
+          resultNewCoins = updProf?.coins ?? profile.coins + rewardAmt;
+          grantedLabel.push(`\u{1FA99} +${rewardAmt}`);
+        } else if (rewardType === "powerCard" && rewardId) {
+          const pc = profile.powerCards ?? { time: 0, freeze: 0, hint: 0 };
+          const newPc = { ...pc, [rewardId]: (pc[rewardId] ?? 0) + rewardAmt };
+          await tx.update(playerProfiles).set({ powerCards: newPc, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(playerProfiles.id, playerId));
+          grantedLabel.push(`\u{1F0CF} +${rewardAmt} ${rewardId}`);
+        } else if (rewardType === "skin" && rewardId) {
+          const owned = Array.isArray(profile.ownedSkins) ? profile.ownedSkins : [];
+          if (!owned.includes(rewardId)) {
+            await tx.update(playerProfiles).set({ ownedSkins: [...owned, rewardId], updatedAt: /* @__PURE__ */ new Date() }).where(eq2(playerProfiles.id, playerId));
+            grantedLabel.push(`\u{1F457} ${rewardId}`);
+          }
+        } else if (rewardType === "title" && rewardId) {
+          const owned = Array.isArray(profile.ownedTitles) ? profile.ownedTitles : [];
+          if (!owned.includes(rewardId)) {
+            await tx.update(playerProfiles).set({ ownedTitles: [...owned, rewardId], updatedAt: /* @__PURE__ */ new Date() }).where(eq2(playerProfiles.id, playerId));
+            grantedLabel.push(`\u{1F451} ${rewardId}`);
+          }
+        }
+        const updateResult = await tx.update(playerBattlePass).set({
+          claimedTiers: sql3`claimed_tiers || ${JSON.stringify([claimedKey])}::jsonb`,
+          updatedAt: /* @__PURE__ */ new Date()
+        }).where(and2(
+          eq2(playerBattlePass.playerId, playerId),
+          eq2(playerBattlePass.seasonId, activeSeason.id),
+          sql3`NOT (claimed_tiers @> ${JSON.stringify([claimedKey])}::jsonb)`
+        )).returning({ id: playerBattlePass.id });
+        if (updateResult.length === 0) throw Object.assign(new Error("already_claimed"), { statusCode: 400 });
+      });
+      res.json({
+        ok: true,
+        granted: grantedLabel,
+        rewardType,
+        rewardId: rewardId ?? null,
+        rewardAmount: rewardAmt,
+        newCoins: resultNewCoins
+      });
+    } catch (e) {
+      const err = e;
+      if (err.statusCode && err.message) return res.status(err.statusCode).json({ error: err.message });
+      console.error("POST /api/battle-pass/:playerId/claim/:tier error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });
@@ -2230,6 +4238,14 @@ async function registerRoutes(app2) {
         level: playerProfiles.level,
         wins: playerProfiles.wins
       };
+      const wmMatch = q.match(/^WM-?(\d+)$/i);
+      if (wmMatch) {
+        const tagNum = parseInt(wmMatch[1], 10);
+        if (isNaN(tagNum)) return res.json([]);
+        const whereClause2 = myId ? and2(eq2(playerProfiles.playerTag, tagNum), ne(playerProfiles.id, myId)) : eq2(playerProfiles.playerTag, tagNum);
+        const rows2 = await db.select(selectFields).from(playerProfiles).where(whereClause2).limit(5);
+        return res.json(rows2.map((r) => ({ ...r, displayId: r.playerTag ? `WM-${r.playerTag.toString().padStart(5, "0")}` : null })));
+      }
       if (q.includes("#")) {
         const hashIdx = q.lastIndexOf("#");
         const namePart = q.slice(0, hashIdx).trim();
@@ -2239,134 +4255,162 @@ async function registerRoutes(app2) {
         let whereClause2;
         if (namePart) {
           const nameCondition = ilike(playerProfiles.name, namePart);
-          const tagCondition = eq(playerProfiles.playerTag, tagNum);
-          whereClause2 = myId ? and(nameCondition, tagCondition, ne(playerProfiles.id, myId)) : and(nameCondition, tagCondition);
+          const tagCondition = eq2(playerProfiles.playerTag, tagNum);
+          whereClause2 = myId ? and2(nameCondition, tagCondition, ne(playerProfiles.id, myId)) : and2(nameCondition, tagCondition);
         } else {
-          const tagCondition = eq(playerProfiles.playerTag, tagNum);
-          whereClause2 = myId ? and(tagCondition, ne(playerProfiles.id, myId)) : tagCondition;
+          const tagCondition = eq2(playerProfiles.playerTag, tagNum);
+          whereClause2 = myId ? and2(tagCondition, ne(playerProfiles.id, myId)) : tagCondition;
         }
         const rows2 = await db.select(selectFields).from(playerProfiles).where(whereClause2).limit(10);
-        return res.json(rows2);
+        return res.json(rows2.map((r) => ({ ...r, displayId: r.playerTag ? `WM-${r.playerTag.toString().padStart(5, "0")}` : null })));
       }
       const searchCondition = or(
         ilike(playerProfiles.name, `%${q}%`),
-        and(isNotNull(playerProfiles.playerCode), ilike(playerProfiles.playerCode, `%${q}%`))
+        and2(isNotNull2(playerProfiles.playerCode), ilike(playerProfiles.playerCode, `%${q}%`))
       );
       const excludeSelf = myId ? ne(playerProfiles.id, myId) : void 0;
-      const whereClause = excludeSelf ? and(searchCondition, excludeSelf) : searchCondition;
+      const whereClause = excludeSelf ? and2(searchCondition, excludeSelf) : searchCondition;
       const rows = await db.select(selectFields).from(playerProfiles).where(whereClause).orderBy(desc(playerProfiles.wins)).limit(20);
       const missing = rows.filter((r) => !r.playerCode);
       if (missing.length > 0) {
         Promise.all(missing.map(async (r) => {
           const code = await ensurePlayerCode(r.id);
-          await db.update(playerProfiles).set({ playerCode: code }).where(eq(playerProfiles.id, r.id));
+          await db.update(playerProfiles).set({ playerCode: code }).where(eq2(playerProfiles.id, r.id));
         })).catch(() => {
         });
       }
-      res.json(rows);
+      const withDisplayId = rows.map((r) => ({
+        ...r,
+        displayId: r.playerTag ? `WM-${r.playerTag.toString().padStart(5, "0")}` : null
+      }));
+      res.json(withDisplayId);
     } catch (e) {
       console.error("GET /api/players/search error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });
-  app2.get("/api/friends/:playerId", async (req, res) => {
+  app2.get("/api/friends/list/:playerId", async (req, res) => {
     try {
-      const playerId = req.params.playerId;
+      const { playerId } = req.params;
       const rows = await db.select().from(friends).where(
-        or(eq(friends.requesterId, playerId), eq(friends.receiverId, playerId))
+        or(eq2(friends.playerId, playerId), eq2(friends.friendId, playerId))
       );
+      const profileFields = {
+        id: playerProfiles.id,
+        playerTag: playerProfiles.playerTag,
+        name: playerProfiles.name,
+        skin: playerProfiles.equippedSkin,
+        level: playerProfiles.level,
+        wins: playerProfiles.wins
+      };
+      const playerSocketMap = /* @__PURE__ */ new Map();
+      for (const [sockId, pid] of socketPlayerIdMap) {
+        playerSocketMap.set(pid, sockId);
+      }
       const result = [];
       for (const row of rows) {
-        const otherId = row.requesterId === playerId ? row.receiverId : row.requesterId;
-        const [profile] = await db.select({
-          id: playerProfiles.id,
-          playerCode: playerProfiles.playerCode,
-          playerTag: playerProfiles.playerTag,
-          name: playerProfiles.name,
-          skin: playerProfiles.equippedSkin,
-          level: playerProfiles.level,
-          wins: playerProfiles.wins
-        }).from(playerProfiles).where(eq(playerProfiles.id, otherId));
-        if (profile) {
-          result.push({
-            requestId: row.id,
-            status: row.status,
-            isSender: row.requesterId === playerId,
-            player: profile
-          });
+        const otherId = row.playerId === playerId ? row.friendId : row.playerId;
+        const [p] = await db.select(profileFields).from(playerProfiles).where(eq2(playerProfiles.id, otherId));
+        if (!p) continue;
+        const friendSocketId = playerSocketMap.get(otherId);
+        let activeRoomId = null;
+        if (friendSocketId) {
+          const rid = socketRoomMap.get(friendSocketId);
+          if (rid) {
+            const room = getRoom(rid);
+            if (room && room.state === "playing") activeRoomId = rid;
+          }
         }
+        result.push({ friendshipId: row.id, friend: p, since: row.createdAt, activeRoomId });
       }
       res.json(result);
     } catch (e) {
-      console.error("GET /api/friends error:", e);
+      console.error("GET /api/friends/list error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });
-  app2.post("/api/friends/:playerId/request/:targetId", async (req, res) => {
+  app2.get("/api/friends/requests/:playerId", async (req, res) => {
     try {
-      const { playerId, targetId } = req.params;
-      if (playerId === targetId) return res.status(400).json({ error: "cannot_add_self" });
-      const existing = await db.select().from(friends).where(
-        or(
-          and(eq(friends.requesterId, playerId), eq(friends.receiverId, targetId)),
-          and(eq(friends.requesterId, targetId), eq(friends.receiverId, playerId))
+      const { playerId } = req.params;
+      const rows = await db.select().from(friendRequests).where(
+        and2(
+          or(eq2(friendRequests.senderId, playerId), eq2(friendRequests.receiverId, playerId)),
+          eq2(friendRequests.status, "pending")
         )
-      );
-      if (existing.length > 0) {
-        const ex = existing[0];
-        if (ex.status === "rejected" && ex.requesterId === playerId) {
-          await db.update(friends).set({ status: "pending", updatedAt: /* @__PURE__ */ new Date() }).where(eq(friends.id, ex.id));
-          return res.json({ success: true, resent: true });
-        }
-        return res.json({ error: "already_exists", status: ex.status });
+      ).orderBy(desc(friendRequests.createdAt));
+      const profileFields = {
+        id: playerProfiles.id,
+        playerTag: playerProfiles.playerTag,
+        name: playerProfiles.name,
+        skin: playerProfiles.equippedSkin,
+        level: playerProfiles.level,
+        wins: playerProfiles.wins
+      };
+      const result = [];
+      for (const row of rows) {
+        const otherId = row.senderId === playerId ? row.receiverId : row.senderId;
+        const [p] = await db.select(profileFields).from(playerProfiles).where(eq2(playerProfiles.id, otherId));
+        if (p) result.push({ requestId: row.id, isSender: row.senderId === playerId, player: p, createdAt: row.createdAt });
       }
-      const [row] = await db.insert(friends).values({ requesterId: playerId, receiverId: targetId, status: "pending" }).returning();
+      res.json(result);
+    } catch (e) {
+      console.error("GET /api/friends/requests error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.post("/api/friends/request", async (req, res) => {
+    try {
+      const { senderId, receiverId } = req.body;
+      if (!senderId || !receiverId) return res.status(400).json({ error: "missing_fields" });
+      if (senderId === receiverId) return res.status(400).json({ error: "cannot_add_self" });
+      const alreadyFriends = await db.select({ id: friends.id }).from(friends).where(
+        or(
+          and2(eq2(friends.playerId, senderId), eq2(friends.friendId, receiverId)),
+          and2(eq2(friends.playerId, receiverId), eq2(friends.friendId, senderId))
+        )
+      ).limit(1);
+      if (alreadyFriends.length > 0) return res.status(400).json({ error: "already_friends" });
+      const existing = await db.select().from(friendRequests).where(
+        and2(
+          or(
+            and2(eq2(friendRequests.senderId, senderId), eq2(friendRequests.receiverId, receiverId)),
+            and2(eq2(friendRequests.senderId, receiverId), eq2(friendRequests.receiverId, senderId))
+          ),
+          eq2(friendRequests.status, "pending")
+        )
+      ).limit(1);
+      if (existing.length > 0) return res.status(400).json({ error: "request_exists", status: existing[0].status });
+      const [row] = await db.insert(friendRequests).values({ senderId, receiverId, status: "pending" }).returning();
       res.json({ success: true, requestId: row.id });
     } catch (e) {
       console.error("POST /api/friends/request error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });
-  app2.post("/api/friends/request", async (req, res) => {
-    try {
-      const { requesterId, receiverId } = req.body;
-      if (!requesterId || !receiverId) return res.status(400).json({ error: "missing_fields" });
-      if (requesterId === receiverId) return res.status(400).json({ error: "cannot_add_self" });
-      const existing = await db.select().from(friends).where(
-        or(
-          and(eq(friends.requesterId, requesterId), eq(friends.receiverId, receiverId)),
-          and(eq(friends.requesterId, receiverId), eq(friends.receiverId, requesterId))
-        )
-      );
-      if (existing.length > 0) return res.status(400).json({ error: "already_exists", status: existing[0].status });
-      const [row] = await db.insert(friends).values({ requesterId, receiverId, status: "pending" }).returning();
-      res.json({ success: true, requestId: row.id });
-    } catch (e) {
-      console.error("POST /api/friends/request (body) error:", e);
-      res.status(500).json({ error: "server_error" });
-    }
-  });
   app2.post("/api/friends/accept", async (req, res) => {
     try {
-      const { requester_id, receiver_id } = req.body;
-      if (!requester_id || !receiver_id) return res.status(400).json({ error: "missing_fields" });
-      const [updated] = await db.update(friends).set({ status: "accepted", updatedAt: /* @__PURE__ */ new Date() }).where(and(eq(friends.requesterId, requester_id), eq(friends.receiverId, receiver_id))).returning();
-      if (!updated) return res.status(404).json({ error: "request_not_found" });
+      const { requestId, playerId } = req.body;
+      if (!requestId || !playerId) return res.status(400).json({ error: "missing_fields" });
+      const [req_] = await db.select().from(friendRequests).where(and2(eq2(friendRequests.id, requestId), eq2(friendRequests.receiverId, playerId), eq2(friendRequests.status, "pending")));
+      if (!req_) return res.status(404).json({ error: "request_not_found" });
+      await db.transaction(async (tx) => {
+        await tx.update(friendRequests).set({ status: "accepted" }).where(eq2(friendRequests.id, requestId));
+        await tx.insert(friends).values({ playerId: req_.senderId, friendId: req_.receiverId });
+      });
       res.json({ success: true });
     } catch (e) {
       console.error("POST /api/friends/accept error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });
-  app2.put("/api/friends/request/:requestId/:action", async (req, res) => {
+  app2.post("/api/friends/decline", async (req, res) => {
     try {
-      const { requestId, action } = req.params;
-      if (action !== "accept" && action !== "reject") return res.status(400).json({ error: "invalid_action" });
-      const newStatus = action === "accept" ? "accepted" : "rejected";
-      await db.update(friends).set({ status: newStatus, updatedAt: /* @__PURE__ */ new Date() }).where(eq(friends.id, requestId));
+      const { requestId, playerId } = req.body;
+      if (!requestId || !playerId) return res.status(400).json({ error: "missing_fields" });
+      await db.update(friendRequests).set({ status: "declined" }).where(and2(eq2(friendRequests.id, requestId), eq2(friendRequests.receiverId, playerId)));
       res.json({ success: true });
     } catch (e) {
-      console.error("PUT /api/friends/request error:", e);
+      console.error("POST /api/friends/decline error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });
@@ -2375,8 +4419,8 @@ async function registerRoutes(app2) {
       const { playerId, friendId } = req.params;
       await db.delete(friends).where(
         or(
-          and(eq(friends.requesterId, playerId), eq(friends.receiverId, friendId)),
-          and(eq(friends.requesterId, friendId), eq(friends.receiverId, playerId))
+          and2(eq2(friends.playerId, playerId), eq2(friends.friendId, friendId)),
+          and2(eq2(friends.playerId, friendId), eq2(friends.friendId, playerId))
         )
       );
       res.json({ success: true });
@@ -2385,12 +4429,109 @@ async function registerRoutes(app2) {
       res.status(500).json({ error: "server_error" });
     }
   });
+  const LOGIN_STREAK_REWARDS = {
+    1: 15,
+    2: 20,
+    3: 30,
+    4: 25,
+    5: 35,
+    6: 50,
+    7: 100,
+    14: 150,
+    21: 200,
+    30: 500
+  };
+  function getLoginReward(day) {
+    if (LOGIN_STREAK_REWARDS[day]) return LOGIN_STREAK_REWARDS[day];
+    return 15;
+  }
+  app2.post("/api/player/:id/daily-login", async (req, res) => {
+    try {
+      const { id: playerId } = req.params;
+      const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+      const yesterday = /* @__PURE__ */ new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().slice(0, 10);
+      let [profile] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, playerId));
+      if (!profile) {
+        const playerCode = await ensurePlayerCode(playerId);
+        const randomName = generateRandomPlayerName();
+        [profile] = await db.insert(playerProfiles).values({ id: playerId, playerCode, playerTag: await generateUniquePlayerTag(), name: randomName }).returning();
+      }
+      if (profile.lastLoginDate === today) {
+        return res.json({
+          success: false,
+          error: "already_claimed",
+          streak: profile.loginStreak,
+          longestStreak: profile.longestLoginStreak,
+          lastLoginDate: profile.lastLoginDate
+        });
+      }
+      const continuesStreak = profile.lastLoginDate === yesterdayStr;
+      const newStreak = continuesStreak ? (profile.loginStreak ?? 0) + 1 : 1;
+      const longestStreak = Math.max(newStreak, profile.longestLoginStreak ?? 0);
+      const reward = getLoginReward(newStreak);
+      const updated = await db.update(playerProfiles).set({
+        loginStreak: newStreak,
+        lastLoginDate: today,
+        longestLoginStreak: longestStreak,
+        coins: sql3`coins + ${reward}`,
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(
+        and2(
+          eq2(playerProfiles.id, playerId),
+          sql3`${playerProfiles.lastLoginDate} IS DISTINCT FROM ${today}`
+        )
+      ).returning();
+      if (!updated.length) {
+        return res.json({ success: false, error: "already_claimed", streak: profile.loginStreak, longestStreak: profile.longestLoginStreak, lastLoginDate: profile.lastLoginDate });
+      }
+      syncAchievementProgress(playerId, updated[0]).catch(() => {
+      });
+      res.json({
+        success: true,
+        streak: newStreak,
+        longestStreak,
+        reward,
+        lastLoginDate: today
+      });
+    } catch (e) {
+      console.error("POST /api/player/daily-login error:", e);
+      res.json({ success: false, error: "server_error" });
+    }
+  });
+  const WEEKLY_TASK_POOL = [
+    { key: "weekly_win_20", titleAr: "\u0627\u0631\u0628\u062D 20 \u0645\u0628\u0627\u0631\u0627\u0629 \u0647\u0630\u0627 \u0627\u0644\u0623\u0633\u0628\u0648\u0639", descAr: "\u0641\u064F\u0632 \u0628\u0640 20 \u0645\u0628\u0627\u0631\u0627\u0629 \u062E\u0644\u0627\u0644 \u0647\u0630\u0627 \u0627\u0644\u0623\u0633\u0628\u0648\u0639", icon: "\u{1F3C6}", target: 20, type: "wins", rewardCoins: 200, rewardXp: 150 },
+    { key: "weekly_play_30", titleAr: "\u0627\u0644\u0639\u0628 30 \u0645\u0628\u0627\u0631\u0627\u0629 \u0647\u0630\u0627 \u0627\u0644\u0623\u0633\u0628\u0648\u0639", descAr: "\u0634\u0627\u0631\u0643 \u0641\u064A 30 \u0645\u0628\u0627\u0631\u0627\u0629 \u062E\u0644\u0627\u0644 \u0647\u0630\u0627 \u0627\u0644\u0623\u0633\u0628\u0648\u0639", icon: "\u{1F3AE}", target: 30, type: "games", rewardCoins: 150, rewardXp: 100 },
+    { key: "weekly_score_1000", titleAr: "\u0627\u062C\u0645\u0639 1000 \u0646\u0642\u0637\u0629 \u0647\u0630\u0627 \u0627\u0644\u0623\u0633\u0628\u0648\u0639", descAr: "\u062D\u0635\u0651\u0644 1000 \u0646\u0642\u0637\u0629 \u062E\u0644\u0627\u0644 \u0647\u0630\u0627 \u0627\u0644\u0623\u0633\u0628\u0648\u0639", icon: "\u2B50", target: 1e3, type: "score", rewardCoins: 250, rewardXp: 200 },
+    { key: "weekly_win_10", titleAr: "\u0627\u0631\u0628\u062D 10 \u0645\u0628\u0627\u0631\u064A\u0627\u062A \u0647\u0630\u0627 \u0627\u0644\u0623\u0633\u0628\u0648\u0639", descAr: "\u0641\u064F\u0632 \u0628\u0640 10 \u0645\u0628\u0627\u0631\u064A\u0627\u062A \u062E\u0644\u0627\u0644 \u0647\u0630\u0627 \u0627\u0644\u0623\u0633\u0628\u0648\u0639", icon: "\u{1F396}\uFE0F", target: 10, type: "wins", rewardCoins: 120, rewardXp: 80 }
+  ];
+  function getWeekId() {
+    const now = /* @__PURE__ */ new Date();
+    const day = now.getDay();
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    const monday = new Date(now);
+    monday.setDate(monday.getDate() + mondayOffset);
+    const jan1 = new Date(monday.getFullYear(), 0, 1);
+    const days = Math.floor((monday.getTime() - jan1.getTime()) / 864e5);
+    const weekNum = Math.ceil((days + 1) / 7);
+    return `${monday.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+  }
+  function pickWeeklyTask() {
+    const weekId = getWeekId();
+    let hash = 0;
+    for (let i = 0; i < weekId.length; i++) {
+      hash = (hash << 5) - hash + weekId.charCodeAt(i);
+      hash |= 0;
+    }
+    return WEEKLY_TASK_POOL[Math.abs(hash) % WEEKLY_TASK_POOL.length];
+  }
   function getTodayDate() {
     return (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   }
   async function syncTaskProgress(playerId, profile) {
     const today = getTodayDate();
-    const rows = await db.select().from(playerDailyTasks).where(and(eq(playerDailyTasks.playerId, playerId), eq(playerDailyTasks.assignedDate, today)));
+    const rows = await db.select().from(playerDailyTasks).where(and2(eq2(playerDailyTasks.playerId, playerId), eq2(playerDailyTasks.assignedDate, today)));
     for (const row of rows) {
       if (row.claimed === 1) continue;
       const def = TASK_POOL.find((d) => d.key === row.taskKey);
@@ -2400,26 +4541,36 @@ async function registerRoutes(app2) {
       if (def.type === "games") newProgress = Math.max(newProgress, Math.min(Math.max(0, profile.gamesPlayed - (row.baselineGames ?? 0)), def.target));
       if (def.type === "score") newProgress = Math.max(newProgress, Math.min(Math.max(0, profile.totalScore - (row.baselineScore ?? 0)), def.target));
       if (newProgress !== (row.progress ?? 0)) {
-        await db.update(playerDailyTasks).set({ progress: newProgress }).where(eq(playerDailyTasks.id, row.id));
+        await db.update(playerDailyTasks).set({ progress: newProgress }).where(eq2(playerDailyTasks.id, row.id));
       }
     }
   }
   async function syncAchievementProgress(playerId, profile) {
+    let tournamentsPlayed = null;
     for (const def of ACHIEVEMENT_DEFS) {
       let progress = 0;
       if (def.type === "wins") progress = Math.min(profile.wins, def.target);
       if (def.type === "games") progress = Math.min(profile.gamesPlayed, def.target);
       if (def.type === "level") progress = Math.min(profile.level, def.target);
       if (def.type === "streak") progress = Math.min(profile.bestStreak, def.target);
+      if (def.type === "login_streak") progress = Math.min(profile.longestLoginStreak ?? 0, def.target);
+      if (def.type === "total_score") progress = Math.min(profile.totalScore ?? 0, def.target);
+      if (def.type === "tournaments") {
+        if (tournamentsPlayed === null) {
+          const result = await db.select({ count: sql3`count(*)` }).from(tournamentPlayers).where(eq2(tournamentPlayers.playerId, playerId));
+          tournamentsPlayed = Number(result[0]?.count ?? 0);
+        }
+        progress = Math.min(tournamentsPlayed, def.target);
+      }
       const unlocked = progress >= def.target;
-      const [existing] = await db.select().from(playerAchievements).where(and(eq(playerAchievements.playerId, playerId), eq(playerAchievements.achievementKey, def.key)));
+      const [existing] = await db.select().from(playerAchievements).where(and2(eq2(playerAchievements.playerId, playerId), eq2(playerAchievements.achievementKey, def.key)));
       if (existing) {
         if (existing.progress !== progress || existing.unlocked !== (unlocked ? 1 : 0)) {
           await db.update(playerAchievements).set({
             progress,
             unlocked: unlocked ? 1 : 0,
             unlockedAt: unlocked && !existing.unlockedAt ? /* @__PURE__ */ new Date() : existing.unlockedAt
-          }).where(eq(playerAchievements.id, existing.id));
+          }).where(eq2(playerAchievements.id, existing.id));
         }
       } else {
         await db.insert(playerAchievements).values({
@@ -2436,13 +4587,13 @@ async function registerRoutes(app2) {
     try {
       const { playerId } = req.params;
       const today = getTodayDate();
-      let [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      let [profile] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, playerId));
       if (!profile) {
         const playerCode = await ensurePlayerCode(playerId);
         const randomName = generateRandomPlayerName();
         [profile] = await db.insert(playerProfiles).values({ id: playerId, playerCode, playerTag: await generateUniquePlayerTag(), name: randomName }).returning();
       }
-      let todayRows = await db.select().from(playerDailyTasks).where(and(eq(playerDailyTasks.playerId, playerId), eq(playerDailyTasks.assignedDate, today)));
+      let todayRows = await db.select().from(playerDailyTasks).where(and2(eq2(playerDailyTasks.playerId, playerId), eq2(playerDailyTasks.assignedDate, today)));
       if (todayRows.length === 0) {
         const chosen = pickDailyTasks();
         for (const def of chosen) {
@@ -2456,9 +4607,9 @@ async function registerRoutes(app2) {
             baselineScore: profile.totalScore
           });
         }
-        todayRows = await db.select().from(playerDailyTasks).where(and(eq(playerDailyTasks.playerId, playerId), eq(playerDailyTasks.assignedDate, today)));
+        todayRows = await db.select().from(playerDailyTasks).where(and2(eq2(playerDailyTasks.playerId, playerId), eq2(playerDailyTasks.assignedDate, today)));
       }
-      const result = todayRows.map((row) => {
+      const dailyResult = todayRows.map((row) => {
         const def = TASK_POOL.find((d) => d.key === row.taskKey);
         if (!def) return null;
         let progress = row.progress ?? 0;
@@ -2470,10 +4621,39 @@ async function registerRoutes(app2) {
           rowId: row.id,
           progress,
           completed: progress >= def.target,
-          claimed: row.claimed === 1
+          claimed: row.claimed === 1,
+          isWeekly: false
         };
       }).filter(Boolean);
-      res.json(result);
+      const weekId = getWeekId();
+      const weeklyDef = pickWeeklyTask();
+      const weeklyTaskKey = `${weeklyDef.key}_${weekId}`;
+      let [weeklyRow] = await db.select().from(playerDailyTasks).where(and2(eq2(playerDailyTasks.playerId, playerId), eq2(playerDailyTasks.taskKey, weeklyTaskKey)));
+      if (!weeklyRow) {
+        [weeklyRow] = await db.insert(playerDailyTasks).values({
+          playerId,
+          taskKey: weeklyTaskKey,
+          assignedDate: weekId,
+          progress: 0,
+          baselineWins: profile.wins,
+          baselineGames: profile.gamesPlayed,
+          baselineScore: profile.totalScore
+        }).returning();
+      }
+      let weeklyProgress = weeklyRow.progress ?? 0;
+      if (weeklyDef.type === "wins") weeklyProgress = Math.max(weeklyProgress, Math.min(Math.max(0, profile.wins - (weeklyRow.baselineWins ?? 0)), weeklyDef.target));
+      if (weeklyDef.type === "games") weeklyProgress = Math.max(weeklyProgress, Math.min(Math.max(0, profile.gamesPlayed - (weeklyRow.baselineGames ?? 0)), weeklyDef.target));
+      if (weeklyDef.type === "score") weeklyProgress = Math.max(weeklyProgress, Math.min(Math.max(0, profile.totalScore - (weeklyRow.baselineScore ?? 0)), weeklyDef.target));
+      const weeklyResult = {
+        ...weeklyDef,
+        key: weeklyTaskKey,
+        rowId: weeklyRow.id,
+        progress: weeklyProgress,
+        completed: weeklyProgress >= weeklyDef.target,
+        claimed: weeklyRow.claimed === 1,
+        isWeekly: true
+      };
+      res.json([weeklyResult, ...dailyResult]);
     } catch (e) {
       console.error("GET /api/tasks error:", e);
       res.status(500).json({ error: "server_error" });
@@ -2483,20 +4663,28 @@ async function registerRoutes(app2) {
     try {
       const { playerId, taskKey } = req.params;
       const today = getTodayDate();
-      const def = DAILY_TASK_DEFS.find((d) => d.key === taskKey);
+      const isWeekly = taskKey.startsWith("weekly_");
+      let def;
+      if (isWeekly) {
+        const baseKey = taskKey.replace(/_\d{4}-W\d{2}$/, "");
+        def = WEEKLY_TASK_POOL.find((d) => d.key === baseKey);
+      } else {
+        def = DAILY_TASK_DEFS.find((d) => d.key === taskKey);
+      }
       if (!def) return res.json({ success: false, error: "unknown_task" });
-      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      const [profile] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, playerId));
       if (!profile) return res.json({ success: false, error: "player_not_found" });
-      let [row] = await db.select().from(playerDailyTasks).where(and(
-        eq(playerDailyTasks.playerId, playerId),
-        eq(playerDailyTasks.taskKey, taskKey),
-        eq(playerDailyTasks.assignedDate, today)
+      const assignedDate = isWeekly ? getWeekId() : today;
+      let [row] = await db.select().from(playerDailyTasks).where(and2(
+        eq2(playerDailyTasks.playerId, playerId),
+        eq2(playerDailyTasks.taskKey, taskKey),
+        eq2(playerDailyTasks.assignedDate, assignedDate)
       ));
       if (!row) {
         const [inserted] = await db.insert(playerDailyTasks).values({
           playerId,
           taskKey,
-          assignedDate: today,
+          assignedDate,
           progress: 0,
           baselineWins: profile.wins,
           baselineGames: profile.gamesPlayed,
@@ -2510,13 +4698,35 @@ async function registerRoutes(app2) {
       if (def.type === "games") progress = Math.max(progress, Math.min(Math.max(0, profile.gamesPlayed - (row.baselineGames ?? 0)), def.target));
       if (def.type === "score") progress = Math.max(progress, Math.min(Math.max(0, profile.totalScore - (row.baselineScore ?? 0)), def.target));
       if (progress < def.target) return res.json({ success: false, error: "not_completed" });
-      await db.update(playerDailyTasks).set({ claimed: 1, claimedAt: /* @__PURE__ */ new Date(), progress }).where(eq(playerDailyTasks.id, row.id));
+      await db.update(playerDailyTasks).set({ claimed: 1, claimedAt: /* @__PURE__ */ new Date(), progress }).where(eq2(playerDailyTasks.id, row.id));
       await db.update(playerProfiles).set({
-        coins: sql2`coins + ${def.rewardCoins}`,
-        xp: sql2`xp + ${def.rewardXp}`,
+        coins: sql3`coins + ${def.rewardCoins}`,
+        xp: sql3`xp + ${def.rewardXp}`,
         updatedAt: /* @__PURE__ */ new Date()
-      }).where(eq(playerProfiles.id, playerId));
-      res.json({ success: true, coinsEarned: def.rewardCoins, xpEarned: def.rewardXp });
+      }).where(eq2(playerProfiles.id, playerId));
+      let titleAwarded = null;
+      if (isWeekly) {
+        const WEEKLY_TITLE_POOL = ["word_master", "lightning", "streak_lord"];
+        const weekId = getWeekId();
+        let titleHash = 0;
+        for (let i = 0; i < weekId.length; i++) {
+          titleHash = (titleHash << 5) - titleHash + weekId.charCodeAt(i);
+          titleHash |= 0;
+        }
+        titleAwarded = WEEKLY_TITLE_POOL[Math.abs(titleHash) % WEEKLY_TITLE_POOL.length];
+        const freshProfile = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, playerId));
+        if (freshProfile.length > 0) {
+          const currentTitles = Array.isArray(freshProfile[0].ownedTitles) ? freshProfile[0].ownedTitles : [];
+          if (!currentTitles.includes(titleAwarded)) {
+            await db.update(playerProfiles).set({
+              ownedTitles: [...currentTitles, titleAwarded],
+              updatedAt: /* @__PURE__ */ new Date()
+            }).where(eq2(playerProfiles.id, playerId));
+          }
+        }
+      }
+      awardBattlePassXp(playerId, BP_XP_GAME).catch((e) => console.error("[battle-pass] daily task xp error:", e));
+      res.json({ success: true, coinsEarned: def.rewardCoins, xpEarned: def.rewardXp, titleAwarded });
     } catch (e) {
       console.error("POST /api/tasks/claim error:", e);
       res.json({ success: false, error: "server_error" });
@@ -2525,13 +4735,15 @@ async function registerRoutes(app2) {
   app2.get("/api/achievements/:playerId", async (req, res) => {
     try {
       const { playerId } = req.params;
-      let [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      let [profile] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, playerId));
       if (!profile) {
         const playerCode = await ensurePlayerCode(playerId);
         const randomName = generateRandomPlayerName();
         [profile] = await db.insert(playerProfiles).values({ id: playerId, playerCode, playerTag: await generateUniquePlayerTag(), name: randomName }).returning();
       }
-      const rows = await db.select().from(playerAchievements).where(eq(playerAchievements.playerId, playerId));
+      const rows = await db.select().from(playerAchievements).where(eq2(playerAchievements.playerId, playerId));
+      const tournamentCount = await db.select({ count: sql3`count(*)` }).from(tournamentPlayers).where(eq2(tournamentPlayers.playerId, playerId));
+      const tournamentsPlayed = Number(tournamentCount[0]?.count ?? 0);
       const result = ACHIEVEMENT_DEFS.map((def) => {
         const row = rows.find((r) => r.achievementKey === def.key);
         let progress = 0;
@@ -2539,6 +4751,9 @@ async function registerRoutes(app2) {
         if (def.type === "games") progress = Math.min(profile.gamesPlayed, def.target);
         if (def.type === "level") progress = Math.min(profile.level, def.target);
         if (def.type === "streak") progress = Math.min(profile.bestStreak, def.target);
+        if (def.type === "login_streak") progress = Math.min(profile.longestLoginStreak ?? 0, def.target);
+        if (def.type === "total_score") progress = Math.min(profile.totalScore, def.target);
+        if (def.type === "tournaments") progress = Math.min(tournamentsPlayed, def.target);
         const unlocked = progress >= def.target;
         return {
           ...def,
@@ -2557,15 +4772,21 @@ async function registerRoutes(app2) {
   async function processAchievementClaim(playerId, key) {
     const def = ACHIEVEMENT_DEFS.find((d) => d.key === key);
     if (!def) return { success: false, error: "unknown_achievement" };
-    const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+    const [profile] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, playerId));
     if (!profile) return { success: false, error: "player_not_found" };
-    const [existing] = await db.select().from(playerAchievements).where(and(eq(playerAchievements.playerId, playerId), eq(playerAchievements.achievementKey, key)));
+    const [existing] = await db.select().from(playerAchievements).where(and2(eq2(playerAchievements.playerId, playerId), eq2(playerAchievements.achievementKey, key)));
     if (existing?.claimed === 1) return { success: false, error: "already_claimed" };
     let liveProgress = 0;
     if (def.type === "wins") liveProgress = profile.wins;
     if (def.type === "games") liveProgress = profile.gamesPlayed;
     if (def.type === "level") liveProgress = profile.level;
     if (def.type === "streak") liveProgress = profile.bestStreak;
+    if (def.type === "login_streak") liveProgress = profile.longestLoginStreak ?? 0;
+    if (def.type === "total_score") liveProgress = profile.totalScore;
+    if (def.type === "tournaments") {
+      const tc = await db.select({ count: sql3`count(*)` }).from(tournamentPlayers).where(eq2(tournamentPlayers.playerId, playerId));
+      liveProgress = Number(tc[0]?.count ?? 0);
+    }
     const storedUnlocked = existing?.unlocked === 1;
     const liveUnlocked = liveProgress >= def.target;
     if (!storedUnlocked && !liveUnlocked) return { success: false, error: "not_unlocked" };
@@ -2577,7 +4798,7 @@ async function registerRoutes(app2) {
         unlocked: 1,
         unlockedAt: existing.unlockedAt ?? /* @__PURE__ */ new Date(),
         progress: finalProgress
-      }).where(eq(playerAchievements.id, existing.id));
+      }).where(eq2(playerAchievements.id, existing.id));
     } else {
       await db.insert(playerAchievements).values({
         playerId,
@@ -2590,10 +4811,10 @@ async function registerRoutes(app2) {
       });
     }
     await db.update(playerProfiles).set({
-      coins: sql2`coins + ${def.rewardCoins}`,
-      xp: sql2`xp + ${def.rewardXp}`,
+      coins: sql3`coins + ${def.rewardCoins}`,
+      xp: sql3`xp + ${def.rewardXp}`,
       updatedAt: /* @__PURE__ */ new Date()
-    }).where(eq(playerProfiles.id, playerId));
+    }).where(eq2(playerProfiles.id, playerId));
     return { success: true, coinsEarned: def.rewardCoins, xpEarned: def.rewardXp };
   }
   app2.post("/api/achievements/:playerId/claim/:key", async (req, res) => {
@@ -2621,9 +4842,9 @@ async function registerRoutes(app2) {
       const { playerId, taskType, increment = 1 } = req.body;
       if (!playerId || !taskType) return res.status(400).json({ error: "missing_fields" });
       const today = getTodayDate();
-      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      const [profile] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, playerId));
       if (!profile) return res.status(404).json({ error: "player_not_found" });
-      const todayRows = await db.select().from(playerDailyTasks).where(and(eq(playerDailyTasks.playerId, playerId), eq(playerDailyTasks.assignedDate, today)));
+      const todayRows = await db.select().from(playerDailyTasks).where(and2(eq2(playerDailyTasks.playerId, playerId), eq2(playerDailyTasks.assignedDate, today)));
       const updated = [];
       for (const row of todayRows) {
         const def = TASK_POOL.find((d) => d.key === row.taskKey && d.type === taskType);
@@ -2633,7 +4854,7 @@ async function registerRoutes(app2) {
         if (def.type === "games") newProgress = Math.max(newProgress, Math.min(Math.max(0, profile.gamesPlayed - (row.baselineGames ?? 0)), def.target));
         if (def.type === "score") newProgress = Math.max(newProgress, Math.min(Math.max(0, profile.totalScore - (row.baselineScore ?? 0)), def.target));
         if (def.type === "emojis") newProgress = Math.min(newProgress + increment, def.target);
-        await db.update(playerDailyTasks).set({ progress: newProgress }).where(eq(playerDailyTasks.id, row.id));
+        await db.update(playerDailyTasks).set({ progress: newProgress }).where(eq2(playerDailyTasks.id, row.id));
         updated.push({ taskKey: row.taskKey, progress: newProgress, completed: newProgress >= def.target });
       }
       res.json({ updated });
@@ -2646,7 +4867,7 @@ async function registerRoutes(app2) {
     try {
       const { playerId, achievementType } = req.body;
       if (!playerId || !achievementType) return res.status(400).json({ error: "missing_fields" });
-      const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, playerId));
+      const [profile] = await db.select().from(playerProfiles).where(eq2(playerProfiles.id, playerId));
       if (!profile) return res.status(404).json({ error: "player_not_found" });
       const relevantDefs = ACHIEVEMENT_DEFS.filter((d) => d.type === achievementType);
       const updated = [];
@@ -2657,14 +4878,14 @@ async function registerRoutes(app2) {
         if (def.type === "level") progress = Math.min(profile.level, def.target);
         if (def.type === "streak") progress = Math.min(profile.bestStreak, def.target);
         const unlocked = progress >= def.target;
-        const [existing] = await db.select().from(playerAchievements).where(and(eq(playerAchievements.playerId, playerId), eq(playerAchievements.achievementKey, def.key)));
+        const [existing] = await db.select().from(playerAchievements).where(and2(eq2(playerAchievements.playerId, playerId), eq2(playerAchievements.achievementKey, def.key)));
         if (existing) {
           if (existing.progress !== progress || existing.unlocked !== (unlocked ? 1 : 0)) {
             await db.update(playerAchievements).set({
               progress,
               unlocked: unlocked ? 1 : 0,
               unlockedAt: unlocked && !existing.unlockedAt ? /* @__PURE__ */ new Date() : existing.unlockedAt
-            }).where(eq(playerAchievements.id, existing.id));
+            }).where(eq2(playerAchievements.id, existing.id));
           }
         } else {
           await db.insert(playerAchievements).values({
@@ -2689,8 +4910,15 @@ async function registerRoutes(app2) {
       if (!fromPlayerId || !toPlayerId || !roomId || !fromPlayerName) {
         return res.status(400).json({ error: "missing_fields" });
       }
-      await db.update(roomInvites).set({ status: "cancelled" }).where(and(eq(roomInvites.fromPlayerId, fromPlayerId), eq(roomInvites.toPlayerId, toPlayerId), eq(roomInvites.status, "pending")));
+      await db.update(roomInvites).set({ status: "cancelled" }).where(and2(eq2(roomInvites.fromPlayerId, fromPlayerId), eq2(roomInvites.toPlayerId, toPlayerId), eq2(roomInvites.status, "pending")));
       const [invite] = await db.insert(roomInvites).values({ fromPlayerId, toPlayerId, roomId, fromPlayerName, status: "pending" }).returning();
+      sendPushNotification(
+        toPlayerId,
+        `\u0635\u062F\u064A\u0642\u0643 ${fromPlayerName} \u064A\u062A\u062D\u062F\u0627\u0643! \u{1F3AE}`,
+        "\u062F\u0639\u0648\u0629 \u0644\u0644\u0639\u0628!",
+        { type: "room_invite", roomId }
+      ).catch(() => {
+      });
       res.json({ success: true, inviteId: invite.id });
     } catch (e) {
       console.error("POST /api/room-invites error:", e);
@@ -2700,7 +4928,7 @@ async function registerRoutes(app2) {
   app2.get("/api/room-invites/:playerId", async (req, res) => {
     try {
       const { playerId } = req.params;
-      const pending = await db.select().from(roomInvites).where(and(eq(roomInvites.toPlayerId, playerId), eq(roomInvites.status, "pending"))).orderBy(desc(roomInvites.createdAt)).limit(5);
+      const pending = await db.select().from(roomInvites).where(and2(eq2(roomInvites.toPlayerId, playerId), eq2(roomInvites.status, "pending"))).orderBy(desc(roomInvites.createdAt)).limit(5);
       const fiveMinutesAgo = Date.now() - 5 * 60 * 1e3;
       const fresh = pending.filter((i) => new Date(i.createdAt).getTime() > fiveMinutesAgo);
       res.json(fresh);
@@ -2714,7 +4942,7 @@ async function registerRoutes(app2) {
       const { inviteId } = req.params;
       const { action } = req.body;
       const status = action === "accept" ? "accepted" : "declined";
-      const [invite] = await db.update(roomInvites).set({ status }).where(eq(roomInvites.id, inviteId)).returning();
+      const [invite] = await db.update(roomInvites).set({ status }).where(eq2(roomInvites.id, inviteId)).returning();
       if (!invite) return res.status(404).json({ error: "not_found" });
       res.json({ success: true, roomId: invite.roomId, action });
     } catch (e) {
@@ -2722,20 +4950,151 @@ async function registerRoutes(app2) {
       res.status(500).json({ error: "server_error" });
     }
   });
+  app2.post("/api/friends/gift", async (req, res) => {
+    try {
+      const { fromPlayerId, toPlayerId, amount } = req.body;
+      if (!fromPlayerId || !toPlayerId || !amount) return res.status(400).json({ error: "missing_fields" });
+      const validAmounts = [50, 100, 200];
+      if (!validAmounts.includes(amount)) return res.status(400).json({ error: "invalid_amount" });
+      const friendship = await db.select({ id: friends.id }).from(friends).where(
+        or(
+          and2(eq2(friends.playerId, fromPlayerId), eq2(friends.friendId, toPlayerId)),
+          and2(eq2(friends.playerId, toPlayerId), eq2(friends.friendId, fromPlayerId))
+        )
+      ).limit(1);
+      if (friendship.length === 0) return res.json({ error: "not_friends" });
+      const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+      const recentGifts = await db.select().from(coinGifts).where(
+        and2(
+          eq2(coinGifts.fromPlayerId, fromPlayerId),
+          eq2(coinGifts.toPlayerId, toPlayerId),
+          sql3`DATE(${coinGifts.sentAt}) = ${today}`
+        )
+      );
+      if (recentGifts.length > 0) return res.json({ error: "already_gifted_today" });
+      const [sender] = await db.select({ coins: playerProfiles.coins }).from(playerProfiles).where(eq2(playerProfiles.id, fromPlayerId));
+      if (!sender || sender.coins < amount) return res.json({ error: "insufficient_coins" });
+      await db.transaction(async (tx) => {
+        await tx.update(playerProfiles).set({ coins: sql3`coins - ${amount}` }).where(eq2(playerProfiles.id, fromPlayerId));
+        await tx.update(playerProfiles).set({ coins: sql3`coins + ${amount}` }).where(eq2(playerProfiles.id, toPlayerId));
+        await tx.insert(coinGifts).values({ fromPlayerId, toPlayerId, amount });
+      });
+      const [senderProfile] = await db.select({ name: playerProfiles.name }).from(playerProfiles).where(eq2(playerProfiles.id, fromPlayerId));
+      sendPushNotification(
+        toPlayerId,
+        `${senderProfile?.name || "\u0644\u0627\u0639\u0628"} \u0623\u0631\u0633\u0644 \u0644\u0643 ${amount} \u0639\u0645\u0644\u0629 \u{1F381}`,
+        "\u0647\u062F\u064A\u0629!",
+        { type: "gift", amount }
+      ).catch(() => {
+      });
+      res.json({ success: true });
+    } catch (e) {
+      console.error("POST /api/friends/gift error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.get("/api/friends/gifts/pending/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const pending = await db.select().from(coinGifts).where(
+        and2(eq2(coinGifts.toPlayerId, playerId), eq2(coinGifts.seen, false))
+      ).orderBy(desc(coinGifts.sentAt));
+      const enriched = [];
+      for (const g of pending) {
+        const [sender] = await db.select({ name: playerProfiles.name }).from(playerProfiles).where(eq2(playerProfiles.id, g.fromPlayerId));
+        enriched.push({ ...g, fromPlayerName: sender?.name || "\u0644\u0627\u0639\u0628" });
+      }
+      res.json(enriched);
+    } catch (e) {
+      console.error("GET /api/friends/gifts/pending error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.put("/api/friends/gifts/seen/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      await db.update(coinGifts).set({ seen: true }).where(and2(eq2(coinGifts.toPlayerId, playerId), eq2(coinGifts.seen, false)));
+      res.json({ success: true });
+    } catch (e) {
+      console.error("PUT /api/friends/gifts/seen error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.get("/api/friends/gifts/history/:playerId", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      const sent = await db.select().from(coinGifts).where(eq2(coinGifts.fromPlayerId, playerId)).orderBy(desc(coinGifts.sentAt)).limit(20);
+      const received = await db.select().from(coinGifts).where(eq2(coinGifts.toPlayerId, playerId)).orderBy(desc(coinGifts.sentAt)).limit(20);
+      const enrichSent = [];
+      for (const g of sent) {
+        const [recipient] = await db.select({ name: playerProfiles.name }).from(playerProfiles).where(eq2(playerProfiles.id, g.toPlayerId));
+        enrichSent.push({ ...g, playerName: recipient?.name || "\u0644\u0627\u0639\u0628", type: "sent" });
+      }
+      const enrichReceived = [];
+      for (const g of received) {
+        const [sender] = await db.select({ name: playerProfiles.name }).from(playerProfiles).where(eq2(playerProfiles.id, g.fromPlayerId));
+        enrichReceived.push({ ...g, playerName: sender?.name || "\u0644\u0627\u0639\u0628", type: "received" });
+      }
+      const all = [...enrichSent, ...enrichReceived].sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime()).slice(0, 30);
+      res.json(all);
+    } catch (e) {
+      console.error("GET /api/friends/gifts/history error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.get("/api/referral/:playerId", async (req, res) => {
+    try {
+      const code = await ensureReferralCode(req.params.playerId);
+      const [profile] = await db.select({ referralCount: playerProfiles.referralCount, referredBy: playerProfiles.referredBy, createdAt: playerProfiles.createdAt }).from(playerProfiles).where(eq2(playerProfiles.id, req.params.playerId));
+      const accountAgeHours = profile ? (Date.now() - new Date(profile.createdAt).getTime()) / (1e3 * 60 * 60) : 9999;
+      const referralEligible = !profile?.referredBy && accountAgeHours <= 24;
+      res.json({ referralCode: code, referralCount: profile?.referralCount || 0, referredBy: profile?.referredBy || null, referralEligible });
+    } catch (e) {
+      console.error("GET /api/referral error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.post("/api/referral/claim", async (req, res) => {
+    try {
+      const { playerId, referralCode } = req.body;
+      if (!playerId || !referralCode) return res.status(400).json({ error: "missing_fields" });
+      const [player] = await db.select({ referredBy: playerProfiles.referredBy, createdAt: playerProfiles.createdAt }).from(playerProfiles).where(eq2(playerProfiles.id, playerId));
+      if (!player) return res.status(404).json({ error: "not_found" });
+      if (player.referredBy) return res.json({ error: "already_claimed" });
+      const accountAgeHours = (Date.now() - new Date(player.createdAt).getTime()) / (1e3 * 60 * 60);
+      if (accountAgeHours > 24) return res.json({ error: "expired" });
+      const [referrer] = await db.select({ id: playerProfiles.id, referralCode: playerProfiles.referralCode }).from(playerProfiles).where(eq2(playerProfiles.referralCode, referralCode.toUpperCase()));
+      if (!referrer) return res.json({ error: "invalid_code" });
+      if (referrer.id === playerId) return res.json({ error: "self_referral" });
+      const REFERRAL_REWARD = 100;
+      await db.transaction(async (tx) => {
+        const result = await tx.update(playerProfiles).set({ referredBy: referralCode.toUpperCase() }).where(and2(eq2(playerProfiles.id, playerId), sql3`referred_by IS NULL`));
+        await tx.update(playerProfiles).set({
+          referralCount: sql3`referral_count + 1`,
+          coins: sql3`coins + ${REFERRAL_REWARD}`
+        }).where(eq2(playerProfiles.id, referrer.id));
+        await tx.update(playerProfiles).set({ coins: sql3`coins + ${REFERRAL_REWARD}` }).where(eq2(playerProfiles.id, playerId));
+      });
+      res.json({ success: true, reward: REFERRAL_REWARD });
+    } catch (e) {
+      console.error("POST /api/referral/claim error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
   async function cleanupAbandonedTournaments() {
     try {
-      const openTournaments = await db.select().from(tournaments).where(eq(tournaments.status, "open"));
+      const openTournaments = await db.select().from(tournaments).where(eq2(tournaments.status, "open"));
       const now = Date.now();
       for (const t of openTournaments) {
-        const players = await db.select().from(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, t.id));
+        const players = await db.select().from(tournamentPlayers).where(eq2(tournamentPlayers.tournamentId, t.id));
         const ageMs = now - new Date(t.createdAt).getTime();
         const shouldDelete = players.length === 0 && ageMs >= 2e4 || players.length < 2 && ageMs >= 6e4;
         if (shouldDelete) {
-          await db.delete(tournamentMatches).where(eq(tournamentMatches.tournamentId, t.id)).catch(() => {
+          await db.delete(tournamentMatches).where(eq2(tournamentMatches.tournamentId, t.id)).catch(() => {
           });
-          await db.delete(tournamentPlayers).where(eq(tournamentPlayers.tournamentId, t.id)).catch(() => {
+          await db.delete(tournamentPlayers).where(eq2(tournamentPlayers.tournamentId, t.id)).catch(() => {
           });
-          await db.delete(tournaments).where(eq(tournaments.id, t.id)).catch(() => {
+          await db.delete(tournaments).where(eq2(tournaments.id, t.id)).catch(() => {
           });
           activeTournaments.delete(t.id);
           console.log(`[cleanup] Deleted abandoned tournament ${t.id} (players: ${players.length}, age: ${Math.round(ageMs / 1e3)}s)`);
@@ -2748,6 +5107,98 @@ async function registerRoutes(app2) {
   }
   cleanupAbandonedTournaments();
   setInterval(() => cleanupAbandonedTournaments(), 3e4);
+  app2.post("/api/player/:id/push-token", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { token } = req.body;
+      if (!token) return res.status(400).json({ error: "missing_token" });
+      await db.update(playerProfiles).set({ expoPushToken: token, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(playerProfiles.id, id));
+      res.json({ success: true });
+    } catch (e) {
+      console.error("POST /api/player/:id/push-token error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.put("/api/player/:id/notifications", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { enabled } = req.body;
+      if (typeof enabled !== "boolean") return res.status(400).json({ error: "invalid_value" });
+      await db.update(playerProfiles).set({ notificationsEnabled: enabled, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(playerProfiles.id, id));
+      res.json({ success: true, enabled });
+    } catch (e) {
+      console.error("PUT /api/player/:id/notifications error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  app2.get("/api/player/:id/notifications", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [profile] = await db.select({
+        notificationsEnabled: playerProfiles.notificationsEnabled,
+        expoPushToken: playerProfiles.expoPushToken
+      }).from(playerProfiles).where(eq2(playerProfiles.id, id));
+      if (!profile) return res.status(404).json({ error: "not_found" });
+      res.json({
+        enabled: profile.notificationsEnabled,
+        tokenRegistered: !!profile.expoPushToken
+      });
+    } catch (e) {
+      console.error("GET /api/player/:id/notifications error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+  cron.schedule("0 9 * * *", () => {
+    console.log("[cron] Running daily task reminders (9:00 AM)");
+    sendDailyTaskReminders().catch(console.error);
+  });
+  cron.schedule("0 20 * * *", () => {
+    console.log("[cron] Running streak reset warnings (8:00 PM)");
+    sendStreakResetWarnings().catch(console.error);
+  });
+  cron.schedule("0 12 * * *", () => {
+    console.log("[cron] Running season ending notifications (12:00 PM)");
+    sendSeasonEndingNotifications().catch(console.error);
+  });
+  cron.schedule("0 0 * * *", () => {
+    console.log("[cron] Checking season end (midnight)");
+    handleSeasonEnd().catch(console.error);
+  });
+  cron.schedule("5 0 * * 1", () => {
+    console.log("[cron] Clan war weekly payout (Monday 00:05)");
+    handleClanWarWeeklyEnd().catch(console.error);
+  });
+  cron.schedule("55 23 * * *", async () => {
+    try {
+      const tomorrow = /* @__PURE__ */ new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const dateStr = tomorrow.toISOString().slice(0, 10);
+      const existing = await db.select({ id: dailyChallenges.id }).from(dailyChallenges).where(eq2(dailyChallenges.date, dateStr)).limit(1);
+      if (existing.length > 0) return;
+      const letter = ARABIC_LETTERS[Math.floor(Math.random() * ARABIC_LETTERS.length)];
+      const allCategories = ["animals", "fruits", "vegetables", "cities", "countries", "objects", "boy_names", "girl_names"];
+      const candidateWords = [];
+      for (const cat of allCategories) {
+        const ws = getWordsForLetter(cat, letter);
+        candidateWords.push(...ws);
+      }
+      const filtered = candidateWords.filter((w) => w.length >= 3 && w.length <= 7);
+      const pool2 = filtered.length > 0 ? filtered : candidateWords;
+      if (pool2.length === 0) return;
+      const word = pool2[Math.floor(Math.random() * pool2.length)];
+      await db.insert(dailyChallenges).values({ date: dateStr, word, letter }).onConflictDoNothing();
+      console.log(`[cron] Daily challenge pre-seeded for ${dateStr}: ${word} (${letter})`);
+    } catch (e) {
+      console.error("[cron] daily challenge pre-seed error:", e);
+    }
+  });
+  setInterval(() => {
+    const cutoff = Date.now() - 1e4;
+    for (const [key, ts] of reactionLastSentMap.entries()) {
+      if (ts < cutoff) reactionLastSentMap.delete(key);
+    }
+  }, 6e4);
+  console.log("[cron] Push notification cron jobs scheduled");
   return httpServer;
 }
 function sanitizeRoom(room) {
@@ -2758,6 +5209,7 @@ function sanitizeRoom(room) {
     currentLetter: room.currentLetter,
     currentRound: room.currentRound,
     totalRounds: room.totalRounds,
+    wordCategory: room.wordCategory || "general",
     players: room.players.map((p) => ({
       id: p.id,
       name: p.name,
