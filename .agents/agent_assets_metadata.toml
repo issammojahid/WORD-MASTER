@@ -258,3 +258,63 @@ id = "-63_HwQc2pn_5lI5NFw_R"
 uri = "file://assets/coin-packs/premium.png"
 type = "image"
 title = "generated_image"
+
+[[generated]]
+id = "3lAaNY6EQjU6tlQ9FCHHj"
+uri = "file://assets/game-modes/quick-match.png"
+type = "image"
+title = "quick match lightning icon"
+
+[[generated]]
+id = "XXOKWB-H2gipdgiyZty3t"
+uri = "file://assets/game-modes/rapid-mode.png"
+type = "image"
+title = "rapid mode rocket icon"
+
+[[generated]]
+id = "PXyXZufF4l4AQPFXyGbyv"
+uri = "file://assets/game-modes/friends.png"
+type = "image"
+title = "friends players icon"
+
+[[generated]]
+id = "QsfCcyYGEDc-8zoIm8PWg"
+uri = "file://assets/game-modes/tournament.png"
+type = "image"
+title = "tournament trophy icon"
+
+[[generated]]
+id = "3igRpwuC1OmLuTgWjADKw"
+uri = "file://assets/game-modes/ai-bot.png"
+type = "image"
+title = "AI robot icon"
+
+[[generated]]
+id = "iiKJusCxDWAsdQAzLYDsF"
+uri = "file://assets/game-modes/daily-challenge.png"
+type = "image"
+title = "daily challenge globe icon"
+
+[[generated]]
+id = "9Jtst7E77pVlda78MujvZ"
+uri = "file://assets/game-modes/word-chain.png"
+type = "image"
+title = "word chain links icon"
+
+[[generated]]
+id = "OpU1hCf_6dezHGSwOw2Vg"
+uri = "file://assets/features/treasure-road.png"
+type = "image"
+title = "treasure road chest icon"
+
+[[generated]]
+id = "03j8b0oYW4WcKBG7WVDjD"
+uri = "file://assets/features/daily-reward.png"
+type = "image"
+title = "daily reward gift icon"
+
+[[generated]]
+id = "Q7FJQiH261GL1332V7ib2"
+uri = "file://assets/features/challenges.png"
+type = "image"
+title = "challenges target icon"

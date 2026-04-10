@@ -299,6 +299,7 @@ const POPUP_PANELS = [
   {
     id: "road",
     icon: "📦",
+    image: require("@/assets/features/treasure-road.png") as number,
     title: "طريق الكنز",
     subtitle: "أكمل المراحل واربح جوائز حصرية",
     reward: "🪙 حتى 500 عملة",
@@ -310,6 +311,7 @@ const POPUP_PANELS = [
   {
     id: "daily",
     icon: "🎁",
+    image: require("@/assets/features/daily-reward.png") as number,
     title: "مكافأة يومية",
     subtitle: "العب يومياً واحصل على مكافأتك",
     reward: "🎁 مكافأة يومية مجانية",
@@ -321,6 +323,7 @@ const POPUP_PANELS = [
   {
     id: "challenges",
     icon: "🎯",
+    image: require("@/assets/features/challenges.png") as number,
     title: "التحديات",
     subtitle: "أتمم تحديات اليوم واكسب المزيد",
     reward: "⭐ نقاط XP مضاعفة",
@@ -411,7 +414,7 @@ const POPUP_PARTICLE_DEFS: Record<string, PopupParticleProps[]> = {
 
 // ── Feature popup ─────────────────────────────────────────────────────────────
 type PopupPanel = {
-  id: string; icon: string; title: string; subtitle: string;
+  id: string; icon: string; image: number; title: string; subtitle: string;
   reward: string; color: string; gradientFrom: string; gradientMid: string;
   onPress: () => void;
 };
@@ -529,9 +532,7 @@ function FeaturePopup({
               },
             ]}
           >
-            <Animated.Text style={[pStyles.iconEmoji, { transform: iconTransform }]}>
-              {panel.icon}
-            </Animated.Text>
+            <Animated.Image source={panel.image} style={[pStyles.iconImage, { transform: iconTransform }]} resizeMode="contain" />
           </View>
 
           <Text style={[pStyles.title, { color: panel.color }]}>{panel.title}</Text>
@@ -626,6 +627,7 @@ const pStyles = StyleSheet.create({
     elevation: 16,
   },
   iconEmoji: { fontSize: 56 },
+  iconImage: { width: 56, height: 56 },
   title: {
     fontFamily: "Cairo_700Bold", fontSize: 26,
     textAlign: "center", marginBottom: 8,
@@ -675,6 +677,7 @@ type GameMode = {
   title: string;
   subtitle: string;
   emoji: string;
+  image: number;
   gradient: string[];
   accent: string;
   onPress: () => void;
@@ -1043,7 +1046,7 @@ const ModeCard = memo(({ item, index, isActive, isDark, theme }: {
 
         {/* Content */}
         <View style={cSt.inner}>
-          {/* Emoji pill */}
+          {/* Mode icon */}
           <View style={{
             backgroundColor: item.accent + "30",
             borderRadius: 22, paddingHorizontal: 18, paddingVertical: 10,
@@ -1052,7 +1055,7 @@ const ModeCard = memo(({ item, index, isActive, isDark, theme }: {
             marginBottom: 4,
             alignItems: "center", justifyContent: "center",
           }}>
-            <Text style={{ fontSize: 36 }}>{item.emoji}</Text>
+            <Image source={item.image} style={{ width: 52, height: 52 }} resizeMode="contain" />
           </View>
 
           <Text style={[styles.modeTitle, { color: "#fff", marginTop: 6 }]}>{item.title}</Text>
@@ -1229,6 +1232,7 @@ export default function HomeScreen() {
       title: "مباراة سريعة",
       subtitle: "العب فوراً وكسب العملات",
       emoji: "⚡",
+      image: require("@/assets/game-modes/quick-match.png"),
       gradient: [Colors.gold + "30", Colors.gold + "10"],
       accent: LOGO.yellow,
       onPress: handleQuickMatchPress,
@@ -1238,6 +1242,7 @@ export default function HomeScreen() {
       title: "الوضع السريع",
       subtitle: "أول كلمة صحيحة تربح — 10 ثوانٍ فقط!",
       emoji: "🚀",
+      image: require("@/assets/game-modes/rapid-mode.png"),
       gradient: [Colors.ruby + "30", Colors.ruby + "10"],
       accent: "#FF5733",
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/rapid"); },
@@ -1247,6 +1252,7 @@ export default function HomeScreen() {
       title: "مع الأصدقاء",
       subtitle: "أنشئ غرفة وادعُ أصدقاءك للمنافسة",
       emoji: "👥",
+      image: require("@/assets/game-modes/friends.png"),
       gradient: [Colors.emerald + "30", Colors.emerald + "10"],
       accent: "#22C55E",
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/lobby"); },
@@ -1256,6 +1262,7 @@ export default function HomeScreen() {
       title: "البطولات",
       subtitle: "8 لاعبين — جولات إقصائية وجوائز كبرى",
       emoji: "🏆",
+      image: require("@/assets/game-modes/tournament.png"),
       gradient: ["#7C3AED30", "#7C3AED10"],
       accent: LOGO.purple,
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/tournament"); },
@@ -1265,6 +1272,7 @@ export default function HomeScreen() {
       title: "ضد الذكاء الاصطناعي",
       subtitle: "تحدّى الذكاء الاصطناعي بمستويات متعددة",
       emoji: "🤖",
+      image: require("@/assets/game-modes/ai-bot.png"),
       gradient: ["#0EA5E930", "#0EA5E910"],
       accent: LOGO.cyan,
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/ai-game"); },
@@ -1274,6 +1282,7 @@ export default function HomeScreen() {
       title: "تحدي اليوم",
       subtitle: "6 محاولات لتخمين الكلمة — مع لاعبين حول العالم",
       emoji: "🌍",
+      image: require("@/assets/game-modes/daily-challenge.png"),
       gradient: ["#F59E0B30", "#10B98110"],
       accent: "#10B981",
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/daily-challenge"); },
@@ -1283,6 +1292,7 @@ export default function HomeScreen() {
       title: "سلسلة الكلمات",
       subtitle: "كل كلمة تبدأ من آخر حرف السابقة — من يتوقف يخسر!",
       emoji: "🔗",
+      image: require("@/assets/game-modes/word-chain.png"),
       gradient: ["#8B5CF630", "#8B5CF610"],
       accent: "#8B5CF6",
       onPress: () => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy); router.push("/word-chain"); },
