@@ -131,8 +131,8 @@ import Colors from "@/constants/colors";
 
 const { width, height } = Dimensions.get("window");
 
-// Reduced card size by ~23%
-const CARD_WIDTH = width * 0.63;
+// Main game mode card
+const CARD_WIDTH = width * 0.72;
 const CARD_MARGIN = 10;
 
 const LOGO = {
@@ -1332,30 +1332,41 @@ export default function HomeScreen() {
       >
         {/* ── TOP BAR ─────────────────────────────────────── */}
         <View style={styles.topBar}>
-          <TouchableOpacity
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/profile"); }}
-            activeOpacity={0.8}
-          >
-            {(() => {
-              const skinRarityColors: Record<string, string> = { common: "#00F5FF", rare: "#BF00FF", epic: "#FF006E", legendary: "#F5C842" };
-              const skinRingColor = skinRarityColors[equippedSkin.rarity] || "#00F5FF";
-              const isSpecialRarity = equippedSkin.rarity !== "common";
-              return (
-                <View style={[styles.avatarCircle, {
-                  borderWidth: isSpecialRarity ? 2 : 1.5,
-                  borderColor: skinRingColor + (equippedSkin.rarity === "legendary" ? "CC" : equippedSkin.rarity === "epic" ? "99" : "60"),
-                  shadowColor: skinRingColor,
-                  shadowOpacity: equippedSkin.rarity === "legendary" ? 0.55 : equippedSkin.rarity === "epic" ? 0.35 : equippedSkin.rarity === "rare" ? 0.20 : 0,
-                  shadowRadius: equippedSkin.rarity === "legendary" ? 12 : equippedSkin.rarity === "epic" ? 8 : 4,
-                  shadowOffset: { width: 0, height: 0 }, elevation: isSpecialRarity ? 6 : 1,
-                  backgroundColor: equippedSkin.color + "33",
-                }]}>
-                  <Text style={styles.avatarEmoji}>{equippedSkin.emoji}</Text>
-                </View>
-              );
-            })()}
-          </TouchableOpacity>
+          {/* Left cluster: avatar + store */}
+          <View style={styles.topLeft}>
+            <TouchableOpacity
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/profile"); }}
+              activeOpacity={0.8}
+            >
+              {(() => {
+                const skinRarityColors: Record<string, string> = { common: "#00F5FF", rare: "#BF00FF", epic: "#FF006E", legendary: "#F5C842" };
+                const skinRingColor = skinRarityColors[equippedSkin.rarity] || "#00F5FF";
+                const isSpecialRarity = equippedSkin.rarity !== "common";
+                return (
+                  <View style={[styles.avatarCircle, {
+                    borderWidth: isSpecialRarity ? 2 : 1.5,
+                    borderColor: skinRingColor + (equippedSkin.rarity === "legendary" ? "CC" : equippedSkin.rarity === "epic" ? "99" : "60"),
+                    shadowColor: skinRingColor,
+                    shadowOpacity: equippedSkin.rarity === "legendary" ? 0.55 : equippedSkin.rarity === "epic" ? 0.35 : equippedSkin.rarity === "rare" ? 0.20 : 0,
+                    shadowRadius: equippedSkin.rarity === "legendary" ? 12 : equippedSkin.rarity === "epic" ? 8 : 4,
+                    shadowOffset: { width: 0, height: 0 }, elevation: isSpecialRarity ? 6 : 1,
+                    backgroundColor: equippedSkin.color + "33",
+                  }]}>
+                    <Text style={styles.avatarEmoji}>{equippedSkin.emoji}</Text>
+                  </View>
+                );
+              })()}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/shop"); }}
+              activeOpacity={0.8}
+              style={styles.storeBtn}
+            >
+              <Ionicons name="storefront-outline" size={20} color={LOGO.yellow} />
+            </TouchableOpacity>
+          </View>
 
+          {/* Right cluster: coins + settings */}
           <View style={styles.topRight}>
             <TouchableOpacity
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/shop"); }}
@@ -1392,11 +1403,8 @@ export default function HomeScreen() {
 
         {/* ── LOGO ────────────────────────────────────────── */}
         <Animated.View style={[styles.logoContainer, { transform: [{ translateY: floatAnim }] }]}>
-          {/* Sparkles near letter */}
           {LOGO_SPARKLES.map((s, i) => <LogoSparkle key={i} {...s} />)}
-          {/* Glow ring behind letter */}
           <View style={styles.logoGlowRing} />
-          {/* The "ح" letter */}
           <Text style={styles.logoLetter}>ح</Text>
           <Text style={styles.appSubtitle}>{t.homeSubtitle}</Text>
         </Animated.View>
@@ -1441,29 +1449,29 @@ export default function HomeScreen() {
           style={styles.statsRow}
         >
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.textPrimary }]}>{profile.gamesPlayed}</Text>
+            <Text style={[styles.statValue, { color: theme.textPrimary }]}>🎮 {profile.gamesPlayed}</Text>
             <Text style={[styles.statLabel, { color: theme.textMuted }]}>مباريات</Text>
           </View>
           <View style={[styles.statDivider, { backgroundColor: theme.cardBorder }]} />
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.textPrimary }]}>{profile.wins}</Text>
+            <Text style={[styles.statValue, { color: theme.textPrimary }]}>🏆 {profile.wins}</Text>
             <Text style={[styles.statLabel, { color: theme.textMuted }]}>انتصارات</Text>
           </View>
           <View style={[styles.statDivider, { backgroundColor: theme.cardBorder }]} />
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.textPrimary }]}>{profile.totalScore}</Text>
+            <Text style={[styles.statValue, { color: theme.textPrimary }]}>⭐ {profile.totalScore}</Text>
             <Text style={[styles.statLabel, { color: theme.textMuted }]}>نقاط</Text>
           </View>
           <View style={[styles.statDivider, { backgroundColor: theme.cardBorder }]} />
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: theme.textPrimary }]}>{profile.bestStreak}</Text>
+            <Text style={[styles.statValue, { color: theme.textPrimary }]}>🔥 {profile.bestStreak}</Text>
             <Text style={[styles.statLabel, { color: theme.textMuted }]}>سلسلة</Text>
           </View>
           {tournamentWins > 0 && (
             <>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={[styles.statValue, { color: Colors.gold }]}>🏆 {tournamentWins}</Text>
+                <Text style={[styles.statValue, { color: Colors.gold }]}>🏅 {tournamentWins}</Text>
                 <Text style={[styles.statLabel, { color: theme.textMuted }]}>بطولات</Text>
               </View>
             </>
@@ -1477,36 +1485,36 @@ export default function HomeScreen() {
           style={{ marginHorizontal: 16, marginTop: 14, marginBottom: 6 }}
         >
           <View style={{
-            position: "absolute", bottom: -5, left: 8, right: 8, height: 12,
-            borderRadius: 16, backgroundColor: "#10B98135",
+            position: "absolute", bottom: -4, left: 8, right: 8, height: 10,
+            borderRadius: 16, backgroundColor: "#10B98130",
           }} />
           <LinearGradient
             colors={["#002A18", "#005030", "#002A18"]}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             style={{
-              flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16,
-              borderRadius: 22, borderWidth: 3, borderColor: "#10B98165",
-              borderBottomWidth: 5, borderBottomColor: "#10B98190",
+              flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 14,
+              borderRadius: 20, borderWidth: 2.5, borderColor: "#10B98165",
+              borderBottomWidth: 4, borderBottomColor: "#10B98190",
               gap: 12,
             }}
           >
             <View style={{
-              width: 52, height: 52, borderRadius: 16, backgroundColor: "#10B98125",
-              borderWidth: 2, borderColor: "#10B98155", alignItems: "center", justifyContent: "center",
+              width: 44, height: 44, borderRadius: 13, backgroundColor: "#10B98125",
+              borderWidth: 1.5, borderColor: "#10B98155", alignItems: "center", justifyContent: "center",
             }}>
-              <Text style={{ fontSize: 28 }}>🌍</Text>
+              <Text style={{ fontSize: 24 }}>🌍</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" }}>🗓 تحدي اليوم</Text>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>🗓 تحدي اليوم</Text>
               <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>
                 6 محاولات لتخمين الكلمة العربية
               </Text>
             </View>
             <View style={{ alignItems: "flex-end", gap: 3 }}>
               <View style={{ backgroundColor: "#10B98130", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: "#10B98155" }}>
-                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 12, color: "#10B981" }}>⏱ {dailyCountdown}</Text>
+                <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 11, color: "#10B981" }}>⏱ {dailyCountdown}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#10B981" />
+              <Ionicons name="chevron-forward" size={16} color="#10B981" />
             </View>
           </LinearGradient>
         </TouchableOpacity>
@@ -1515,38 +1523,33 @@ export default function HomeScreen() {
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/battle-pass"); }}
-          style={{ marginHorizontal: 16, marginTop: 10, marginBottom: 6 }}
+          style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 6 }}
         >
           <View style={{
-            position: "absolute", bottom: -5, left: 8, right: 8, height: 12,
-            borderRadius: 16, backgroundColor: "#00CFFF30",
+            position: "absolute", bottom: -4, left: 8, right: 8, height: 10,
+            borderRadius: 16, backgroundColor: "#00CFFF25",
           }} />
           <LinearGradient
             colors={["#00243F", "#004A80", "#00243F"]}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             style={{
-              flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16,
-              borderRadius: 22, borderWidth: 3, borderColor: "#00CFFF65",
-              borderBottomWidth: 5, borderBottomColor: "#00CFFF90",
+              flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 14,
+              borderRadius: 20, borderWidth: 2.5, borderColor: "#00CFFF65",
+              borderBottomWidth: 4, borderBottomColor: "#00CFFF90",
               gap: 12,
             }}
           >
             <View style={{
-              width: 52, height: 52, borderRadius: 16, backgroundColor: "#00CFFF20",
+              width: 44, height: 44, borderRadius: 13, backgroundColor: "#00CFFF20",
               borderWidth: 2, borderColor: "#00CFFF55", alignItems: "center", justifyContent: "center",
             }}>
-              <Text style={{ fontSize: 28 }}>🎫</Text>
+              <Text style={{ fontSize: 24 }}>🎫</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" }}>🎯 باس الموسم</Text>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>🎯 باس الموسم</Text>
               <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>30 مكافأة • العب واكسب XP</Text>
             </View>
-            <View style={{
-              backgroundColor: "#00CFFF25", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6,
-              borderWidth: 1.5, borderColor: "#00CFFF55", alignItems: "center",
-            }}>
-              <Ionicons name="chevron-forward" size={20} color="#00CFFF" />
-            </View>
+            <Ionicons name="chevron-forward" size={18} color="#00CFFF" />
           </LinearGradient>
         </TouchableOpacity>
 
@@ -1554,34 +1557,34 @@ export default function HomeScreen() {
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/clans"); }}
-          style={{ marginHorizontal: 16, marginTop: 10, marginBottom: 10 }}
+          style={{ marginHorizontal: 16, marginTop: 8, marginBottom: 12 }}
         >
           <View style={{
-            position: "absolute", bottom: -5, left: 8, right: 8, height: 12,
-            borderRadius: 16, backgroundColor: "#BF00FF30",
+            position: "absolute", bottom: -4, left: 8, right: 8, height: 10,
+            borderRadius: 16, backgroundColor: "#BF00FF25",
           }} />
           <LinearGradient
             colors={["#250050", "#4A0099", "#250050"]}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
             style={{
-              flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 16,
-              borderRadius: 22, borderWidth: 3, borderColor: "#BF00FF65",
-              borderBottomWidth: 5, borderBottomColor: "#BF00FF90",
+              flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 14,
+              borderRadius: 20, borderWidth: 2.5, borderColor: "#BF00FF65",
+              borderBottomWidth: 4, borderBottomColor: "#BF00FF90",
               gap: 12,
             }}
           >
             <View style={{
-              width: 52, height: 52, borderRadius: 16, backgroundColor: "#BF00FF20",
-              borderWidth: 2, borderColor: "#BF00FF55", alignItems: "center", justifyContent: "center",
+              width: 44, height: 44, borderRadius: 13, backgroundColor: "#BF00FF20",
+              borderWidth: 1.5, borderColor: "#BF00FF55", alignItems: "center", justifyContent: "center",
             }}>
-              <Text style={{ fontSize: 28 }}>⚔️</Text>
+              <Text style={{ fontSize: 24 }}>⚔️</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 16, color: "#fff" }}>⚡ حروب العصابات</Text>
+              <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>⚡ حروب العصابات</Text>
               <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>انضم أو أنشئ عصابة وتنافس أسبوعياً</Text>
             </View>
             <View style={{
-              backgroundColor: "#BF00FF25", borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6,
+              backgroundColor: "#BF00FF25", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 5,
               borderWidth: 1.5, borderColor: "#BF00FF55", alignItems: "center",
             }}>
               <Ionicons name="chevron-forward" size={20} color="#BF00FF" />
@@ -1592,18 +1595,16 @@ export default function HomeScreen() {
 
       {/* ── BOTTOM NAVIGATION ───────────────────────────── */}
       <LinearGradient
-        colors={isDark ? ["rgba(12,10,30,0.97)", "rgba(18,11,42,0.99)"] : [theme.card + "FA", theme.backgroundSecondary + "FA"]}
+        colors={isDark ? ["rgba(10,8,26,0.98)", "rgba(16,10,38,1.0)"] : [theme.card + "FA", theme.backgroundSecondary + "FA"]}
         style={[styles.bottomNav, { paddingBottom: bottomInset, height: NAV_BAR_HEIGHT }]}
       >
         <TouchableOpacity style={styles.navItem} onPress={() => router.push("/leaderboard")} activeOpacity={0.7}>
-          <View style={styles.navIconWrap}>
-            <Ionicons name="podium" size={22} color={LOGO.green} />
-          </View>
+          <Ionicons name="podium" size={24} color={LOGO.green} />
           <Text style={[styles.navLabel, { color: LOGO.green }]}>المتصدرون</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push("/friends")} activeOpacity={0.7}>
-          <View style={styles.navIconWrap}>
-            <Ionicons name="people" size={22} color={LOGO.pink} />
+          <View style={{ position: "relative" }}>
+            <Ionicons name="people" size={24} color={LOGO.pink} />
             {pendingGiftsCount > 0 && (
               <View style={styles.navBadge}>
                 <Text style={styles.navBadgeText}>{pendingGiftsCount}</Text>
@@ -1622,15 +1623,11 @@ export default function HomeScreen() {
           <Text style={[styles.navLabel, { color: LOGO.yellow }]}>الرئيسية</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push("/tasks")} activeOpacity={0.7}>
-          <View style={styles.navIconWrap}>
-            <Ionicons name="star" size={22} color={LOGO.purple} />
-          </View>
+          <Ionicons name="star" size={24} color={LOGO.purple} />
           <Text style={[styles.navLabel, { color: LOGO.purple }]}>المهام</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push("/achievements")} activeOpacity={0.7}>
-          <View style={styles.navIconWrap}>
-            <Ionicons name="trophy" size={22} color={LOGO.yellow} />
-          </View>
+          <Ionicons name="trophy" size={24} color={LOGO.yellow} />
           <Text style={[styles.navLabel, { color: LOGO.yellow }]}>الإنجازات</Text>
         </TouchableOpacity>
       </LinearGradient>
@@ -1666,13 +1663,20 @@ const styles = StyleSheet.create({
 
   topBar: {
     width: "100%", flexDirection: "row", alignItems: "center",
-    justifyContent: "space-between", marginBottom: 12, gap: 10,
+    justifyContent: "space-between", marginBottom: 12,
   },
+  topLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
   avatarCircle: {
-    width: 38, height: 38, borderRadius: 19,
+    width: 40, height: 40, borderRadius: 20,
     justifyContent: "center", alignItems: "center",
   },
-  avatarEmoji: { fontSize: 20 },
+  avatarEmoji: { fontSize: 21 },
+  storeBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: "rgba(245,200,66,0.12)", justifyContent: "center", alignItems: "center",
+    borderWidth: 1.5, borderColor: "rgba(245,200,66,0.35)",
+    borderBottomWidth: 3, borderBottomColor: "rgba(245,200,66,0.15)",
+  },
 
   topRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   coinsBadge: {
@@ -1703,22 +1707,22 @@ const styles = StyleSheet.create({
   },
   streakRewardHintText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: Colors.ruby },
 
-  logoContainer: { alignItems: "center", marginBottom: 6, position: "relative", paddingHorizontal: 20 },
+  logoContainer: { alignItems: "center", marginBottom: 2, position: "relative", paddingHorizontal: 20 },
   logoGlowRing: {
     position: "absolute",
-    width: 96, height: 96, borderRadius: 48,
+    width: 72, height: 72, borderRadius: 36,
     backgroundColor: LOGO.cyan + "1E",
   },
   logoLetter: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 88,
+    fontSize: 64,
     color: LOGO.cyan,
     textAlign: "center",
-    lineHeight: 100,
+    lineHeight: 74,
   },
   appSubtitle: {
-    fontFamily: "Cairo_600SemiBold", fontSize: 15,
-    color: LOGO.cyan, textAlign: "center", marginTop: 4,
+    fontFamily: "Cairo_600SemiBold", fontSize: 13,
+    color: LOGO.cyan, textAlign: "center", marginTop: 2,
     letterSpacing: 0.5, opacity: 0.9,
   },
 
@@ -1737,7 +1741,7 @@ const styles = StyleSheet.create({
   },
   modePlayBtn: {
     flexDirection: "row", alignItems: "center", gap: 7,
-    paddingHorizontal: 20, paddingVertical: 13, borderRadius: 20,
+    paddingHorizontal: 20, paddingVertical: 16, borderRadius: 20,
     borderBottomWidth: 4,
     borderWidth: 2, borderColor: "rgba(255,255,255,0.20)",
   },
@@ -1748,33 +1752,26 @@ const styles = StyleSheet.create({
   dotActive: { width: 20, borderRadius: 3 },
 
   statsRow: {
-    flexDirection: "row", borderRadius: 22,
-    paddingVertical: 14, paddingHorizontal: 10, width: "100%",
-    borderWidth: 3, borderColor: LOGO.cyan + "50",
-    borderBottomWidth: 5, borderBottomColor: LOGO.cyan + "70",
+    flexDirection: "row", borderRadius: 20,
+    paddingVertical: 10, paddingHorizontal: 8, width: "100%",
+    borderWidth: 2.5, borderColor: LOGO.cyan + "45",
+    borderBottomWidth: 4, borderBottomColor: LOGO.cyan + "65",
   },
   statItem: { flex: 1, alignItems: "center" },
-  statValue: { fontFamily: "Cairo_700Bold", fontSize: 17, color: "#E8E8FF" },
-  statLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#8888CC", marginTop: 2 },
+  statValue: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#E8E8FF" },
+  statLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: "#8888CC", marginTop: 1 },
   statDivider: { width: 2, backgroundColor: "rgba(255,255,255,0.12)", marginVertical: 4, borderRadius: 1 },
 
   bottomNav: {
     position: "absolute", bottom: 0, left: 0, right: 0,
     flexDirection: "row", alignItems: "flex-start", justifyContent: "space-around",
-    borderTopWidth: 1, borderTopColor: LOGO.purple + "28",
-    paddingTop: 10,
+    borderTopWidth: 1, borderTopColor: LOGO.purple + "22",
+    paddingTop: 8,
     shadowColor: "#000", shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.25, shadowRadius: 14, elevation: 24,
+    shadowOpacity: 0.30, shadowRadius: 18, elevation: 28,
   },
-  navItem: { alignItems: "center", gap: 4, flex: 1 },
-  navItemCenter: { alignItems: "center", gap: 4, flex: 1, marginTop: -20 },
-  navIconWrap: {
-    width: 42, height: 38, borderRadius: 16,
-    justifyContent: "center", alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.09)",
-    borderWidth: 1.5, borderColor: "rgba(255,255,255,0.12)",
-    borderBottomWidth: 3, borderBottomColor: "rgba(0,0,0,0.25)",
-  },
+  navItem: { alignItems: "center", gap: 3, flex: 1 },
+  navItemCenter: { alignItems: "center", gap: 3, flex: 1, marginTop: -20 },
   navBadge: {
     position: "absolute", top: -4, right: -6,
     minWidth: 16, height: 16, borderRadius: 8,
