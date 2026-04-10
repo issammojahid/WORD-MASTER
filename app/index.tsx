@@ -1352,7 +1352,7 @@ export default function HomeScreen() {
                     shadowOffset: { width: 0, height: 0 }, elevation: isSpecialRarity ? 6 : 1,
                     backgroundColor: equippedSkin.color + "33",
                   }]}>
-                    <Text style={styles.avatarEmoji}>{equippedSkin.emoji}</Text>
+                    <Image source={equippedSkin.image} style={styles.avatarImage} resizeMode="contain" />
                   </View>
                 );
               })()}
@@ -1362,7 +1362,7 @@ export default function HomeScreen() {
               activeOpacity={0.8}
               style={styles.storeBtn}
             >
-              <Ionicons name="storefront-outline" size={20} color={LOGO.yellow} />
+              <Image source={require("@/assets/shop-tabs/store.png")} style={{ width: 24, height: 24 }} resizeMode="contain" />
             </TouchableOpacity>
           </View>
 
@@ -1502,7 +1502,7 @@ export default function HomeScreen() {
               width: 44, height: 44, borderRadius: 13, backgroundColor: "#10B98125",
               borderWidth: 1.5, borderColor: "#10B98155", alignItems: "center", justifyContent: "center",
             }}>
-              <Text style={{ fontSize: 24 }}>🌍</Text>
+              <Image source={require("@/assets/banners/daily-challenge.png")} style={{ width: 30, height: 30 }} resizeMode="contain" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>🗓 تحدي اليوم</Text>
@@ -1543,7 +1543,7 @@ export default function HomeScreen() {
               width: 44, height: 44, borderRadius: 13, backgroundColor: "#00CFFF20",
               borderWidth: 2, borderColor: "#00CFFF55", alignItems: "center", justifyContent: "center",
             }}>
-              <Text style={{ fontSize: 24 }}>🎫</Text>
+              <Image source={require("@/assets/banners/battle-pass.png")} style={{ width: 30, height: 30 }} resizeMode="contain" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>🎯 باس الموسم</Text>
@@ -1577,7 +1577,7 @@ export default function HomeScreen() {
               width: 44, height: 44, borderRadius: 13, backgroundColor: "#BF00FF20",
               borderWidth: 1.5, borderColor: "#BF00FF55", alignItems: "center", justifyContent: "center",
             }}>
-              <Text style={{ fontSize: 24 }}>⚔️</Text>
+              <Image source={require("@/assets/banners/clan-wars.png")} style={{ width: 30, height: 30 }} resizeMode="contain" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" }}>⚡ حروب العصابات</Text>
@@ -1673,6 +1673,7 @@ const styles = StyleSheet.create({
     justifyContent: "center", alignItems: "center",
   },
   avatarEmoji: { fontSize: 21 },
+  avatarImage: { width: 36, height: 36, borderRadius: 18 },
   storeBtn: {
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: "rgba(245,200,66,0.12)", justifyContent: "center", alignItems: "center",

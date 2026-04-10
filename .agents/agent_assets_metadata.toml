@@ -258,3 +258,27 @@ id = "-63_HwQc2pn_5lI5NFw_R"
 uri = "file://assets/coin-packs/premium.png"
 type = "image"
 title = "generated_image"
+
+[[generated]]
+id = "kRps_QFR2y7DaWQLCnOfS"
+uri = "file://assets/shop-tabs/store.png"
+type = "image"
+title = "store icon"
+
+[[generated]]
+id = "St0pVsBBG7kn3w5OB8V1P"
+uri = "file://assets/banners/daily-challenge.png"
+type = "image"
+title = "daily challenge globe icon"
+
+[[generated]]
+id = "mvyCrGxOgqqP5TdOEY-HP"
+uri = "file://assets/banners/battle-pass.png"
+type = "image"
+title = "battle pass ticket icon"
+
+[[generated]]
+id = "Gy3lpdR969IMl-6lWeK5Z"
+uri = "file://assets/banners/clan-wars.png"
+type = "image"
+title = "clan wars swords icon"
