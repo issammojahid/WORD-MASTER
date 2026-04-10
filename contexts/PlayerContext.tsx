@@ -37,6 +37,7 @@ export type Skin = {
   id: SkinId;
   price: number;
   emoji: string;
+  image: number;
   color: string;
   rarity: Rarity;
   category: "moroccan" | "global" | "exclusive";
@@ -47,41 +48,41 @@ export type Skin = {
 
 export const SKINS: Skin[] = [
   // ── Existing ──────────────────────────────────────────────────────────────
-  { id: "student",   price: 0,   emoji: "🎓", color: "#3498DB", rarity: "common",    category: "global",    nameAr: "الطالب",          descAr: "الزي الكلاسيكي المجاني" },
-  { id: "djellaba",  price: 150, emoji: "👘", color: "#8B2500", rarity: "common",    category: "moroccan",  nameAr: "الجلابة",         descAr: "الزي المغربي التقليدي" },
-  { id: "sport",     price: 200, emoji: "⚽", color: "#27AE60", rarity: "common",    category: "global",    nameAr: "الرياضي",         descAr: "الزي الرياضي العصري" },
-  { id: "champion",  price: 500, emoji: "🏆", color: "#F5A623", rarity: "epic",      category: "global",    nameAr: "البطل",           descAr: "زي البطل المنتصر" },
+  { id: "student",   price: 0,   emoji: "🎓", image: require("@/assets/avatars/student.png"),   color: "#3498DB", rarity: "common",    category: "global",    nameAr: "الطالب",          descAr: "الزي الكلاسيكي المجاني" },
+  { id: "djellaba",  price: 150, emoji: "👘", image: require("@/assets/avatars/djellaba.png"),  color: "#8B2500", rarity: "common",    category: "moroccan",  nameAr: "الجلابة",         descAr: "الزي المغربي التقليدي" },
+  { id: "sport",     price: 200, emoji: "⚽", image: require("@/assets/avatars/sport.png"),     color: "#27AE60", rarity: "common",    category: "global",    nameAr: "الرياضي",         descAr: "الزي الرياضي العصري" },
+  { id: "champion",  price: 500, emoji: "🏆", image: require("@/assets/avatars/champion.png"),  color: "#F5A623", rarity: "epic",      category: "global",    nameAr: "البطل",           descAr: "زي البطل المنتصر" },
   // ── New Moroccan ──────────────────────────────────────────────────────────
-  { id: "kaftan",    price: 180, emoji: "👗", color: "#C2185B", rarity: "common",    category: "moroccan",  nameAr: "القفطان",         descAr: "القفطان المغربي الأنيق" },
-  { id: "fassi",     price: 320, emoji: "🎭", color: "#7B1FA2", rarity: "rare",      category: "moroccan",  nameAr: "الزي الفاسي",     descAr: "الزي الفاسي الملكي" },
-  { id: "sahrawi",   price: 130, emoji: "🌵", color: "#F57F17", rarity: "common",    category: "moroccan",  nameAr: "الصحراوي",        descAr: "زي الصحراء المغربية" },
-  { id: "amazigh",   price: 380, emoji: "⚡", color: "#1565C0", rarity: "rare",      category: "moroccan",  nameAr: "الأمازيغي",       descAr: "الزي الأمازيغي التراثي" },
+  { id: "kaftan",    price: 180, emoji: "👗", image: require("@/assets/avatars/kaftan.png"),    color: "#C2185B", rarity: "common",    category: "moroccan",  nameAr: "القفطان",         descAr: "القفطان المغربي الأنيق" },
+  { id: "fassi",     price: 320, emoji: "🎭", image: require("@/assets/avatars/fassi.png"),     color: "#7B1FA2", rarity: "rare",      category: "moroccan",  nameAr: "الزي الفاسي",     descAr: "الزي الفاسي الملكي" },
+  { id: "sahrawi",   price: 130, emoji: "🌵", image: require("@/assets/avatars/sahrawi.png"),   color: "#F57F17", rarity: "common",    category: "moroccan",  nameAr: "الصحراوي",        descAr: "زي الصحراء المغربية" },
+  { id: "amazigh",   price: 380, emoji: "⚡", image: require("@/assets/avatars/amazigh.png"),   color: "#1565C0", rarity: "rare",      category: "moroccan",  nameAr: "الأمازيغي",       descAr: "الزي الأمازيغي التراثي" },
   // ── New Global ────────────────────────────────────────────────────────────
-  { id: "ninja",     price: 350, emoji: "🥷", color: "#37474F", rarity: "rare",      category: "global",    nameAr: "النينجا",         descAr: "المقاتل الصامت الخفي" },
-  { id: "astronaut", price: 450, emoji: "👨‍🚀", color: "#3F51B5", rarity: "epic",      category: "global",    nameAr: "رائد الفضاء",     descAr: "مستكشف الفضاء الخارجي" },
-  { id: "king",      price: 700, emoji: "👑", color: "#FFB300", rarity: "legendary", category: "global",    nameAr: "الملك",           descAr: "حاكم المملكة العظيم" },
-  { id: "hacker",    price: 380, emoji: "💻", color: "#00BCD4", rarity: "rare",      category: "global",    nameAr: "الهاكر",          descAr: "خبير البرمجة والأكواد" },
-  { id: "superhero", price: 550, emoji: "🦸", color: "#E53935", rarity: "epic",      category: "global",    nameAr: "البطل الخارق",    descAr: "منقذ المدينة الشجاع" },
+  { id: "ninja",     price: 350, emoji: "🥷", image: require("@/assets/avatars/ninja.png"),     color: "#37474F", rarity: "rare",      category: "global",    nameAr: "النينجا",         descAr: "المقاتل الصامت الخفي" },
+  { id: "astronaut", price: 450, emoji: "👨‍🚀", image: require("@/assets/avatars/astronaut.png"), color: "#3F51B5", rarity: "epic",      category: "global",    nameAr: "رائد الفضاء",     descAr: "مستكشف الفضاء الخارجي" },
+  { id: "king",      price: 700, emoji: "👑", image: require("@/assets/avatars/king.png"),      color: "#FFB300", rarity: "legendary", category: "global",    nameAr: "الملك",           descAr: "حاكم المملكة العظيم" },
+  { id: "hacker",    price: 380, emoji: "💻", image: require("@/assets/avatars/hacker.png"),    color: "#00BCD4", rarity: "rare",      category: "global",    nameAr: "الهاكر",          descAr: "خبير البرمجة والأكواد" },
+  { id: "superhero", price: 550, emoji: "🦸", image: require("@/assets/avatars/superhero.png"), color: "#E53935", rarity: "epic",      category: "global",    nameAr: "البطل الخارق",    descAr: "منقذ المدينة الشجاع" },
   // ── Exclusive (achievement-locked) ───────────────────────────────────────
   {
-    id: "legend", price: 0, emoji: "🌟", color: "#FF6B35", rarity: "legendary", category: "exclusive",
+    id: "legend", price: 0, emoji: "🌟", image: require("@/assets/avatars/legend.png"), color: "#FF6B35", rarity: "legendary", category: "exclusive",
     nameAr: "الأسطورة", descAr: "حقق 20 انتصاراً لتفتح هذا الزي",
     unlockCondition: { type: "wins", value: 20, label: "فز بـ 20 مباراة" },
   },
   {
-    id: "elite", price: 0, emoji: "💎", color: "#00E5FF", rarity: "epic", category: "exclusive",
+    id: "elite", price: 0, emoji: "💎", image: require("@/assets/avatars/elite.png"), color: "#00E5FF", rarity: "epic", category: "exclusive",
     nameAr: "النخبة", descAr: "ابلغ المستوى 10 لتفتح هذا الزي",
     unlockCondition: { type: "level", value: 10, label: "ابلغ المستوى 10" },
   },
   {
-    id: "tourChamp", price: 0, emoji: "🏅", color: "#FFD600", rarity: "legendary", category: "exclusive",
+    id: "tourChamp", price: 0, emoji: "🏅", image: require("@/assets/avatars/tourChamp.png"), color: "#FFD600", rarity: "legendary", category: "exclusive",
     nameAr: "بطل البطولات", descAr: "حقق سلسلة 5 انتصارات لتفتح هذا الزي",
     unlockCondition: { type: "streak", value: 5, label: "سلسلة 5 انتصارات" },
   },
   // ── VIP Exclusive ───────────────────────────────────────────────────────────
-  { id: "vip_phoenix", price: 0, emoji: "🔥", color: "#FF6B00", rarity: "legendary", category: "exclusive", nameAr: "العنقاء", descAr: "حصري لأعضاء VIP" },
-  { id: "vip_sultan",  price: 0, emoji: "👑", color: "#F5C842", rarity: "legendary", category: "exclusive", nameAr: "السلطان", descAr: "حصري لأعضاء VIP" },
-  { id: "vip_cyber",   price: 0, emoji: "🤖", color: "#00F5FF", rarity: "legendary", category: "exclusive", nameAr: "السايبر", descAr: "حصري لأعضاء VIP" },
+  { id: "vip_phoenix", price: 0, emoji: "🔥", image: require("@/assets/avatars/vip_phoenix.png"), color: "#FF6B00", rarity: "legendary", category: "exclusive", nameAr: "العنقاء", descAr: "حصري لأعضاء VIP" },
+  { id: "vip_sultan",  price: 0, emoji: "👑", image: require("@/assets/avatars/vip_sultan.png"),  color: "#F5C842", rarity: "legendary", category: "exclusive", nameAr: "السلطان", descAr: "حصري لأعضاء VIP" },
+  { id: "vip_cyber",   price: 0, emoji: "🤖", image: require("@/assets/avatars/vip_cyber.png"),   color: "#00F5FF", rarity: "legendary", category: "exclusive", nameAr: "السايبر", descAr: "حصري لأعضاء VIP" },
 ];
 
 // ── Backgrounds ───────────────────────────────────────────────────────────────

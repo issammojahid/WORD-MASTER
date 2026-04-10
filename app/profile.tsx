@@ -9,6 +9,7 @@ import {
   Modal,
   TextInput,
   Alert,
+  Image,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -132,7 +133,7 @@ export default function ProfileScreen() {
               colors={[ringColor + "22", equippedSkin.color + "33"]}
               style={s.avatarInner}
             >
-              <Text style={s.avatarEmoji}>{equippedSkin.emoji}</Text>
+              <Image source={equippedSkin.image} style={s.avatarImage} resizeMode="contain" />
             </LinearGradient>
           </View>
 
@@ -305,7 +306,7 @@ const s = StyleSheet.create({
     width: 88, height: 88, borderRadius: 44,
     justifyContent: "center", alignItems: "center",
   },
-  avatarEmoji: { fontSize: 44 },
+  avatarImage: { width: 76, height: 76, borderRadius: 38 },
   nameRow: {
     flexDirection: "row", alignItems: "center",
     paddingHorizontal: 14, paddingVertical: 6,

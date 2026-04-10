@@ -771,7 +771,7 @@ export default function ShopScreen() {
                     shadowRadius: skin.rarity === "legendary" ? 18 : skin.rarity === "epic" ? 12 : 6,
                   }]}>
                     <LinearGradient colors={[skin.color + "30", skin.color + "0A"]} style={styles.avatarCircleInner}>
-                      <Text style={[styles.avatarEmoji, locked && { opacity: 0.45 }]}>{skin.emoji}</Text>
+                      <Image source={skin.image} style={[styles.skinAvatarImage, locked && { opacity: 0.45 }]} resizeMode="contain" />
                       {locked && (
                         <View style={styles.lockOverlay}>
                           <Ionicons name="lock-closed" size={18} color="#FFF" />
@@ -1398,6 +1398,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 }, elevation: 6,
   },
   avatarCircleInner: { width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center" },
+  skinAvatarImage: { width: 54, height: 54, borderRadius: 27 },
   avatarEmoji: { fontSize: 32 },
   lockOverlay: {
     position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
