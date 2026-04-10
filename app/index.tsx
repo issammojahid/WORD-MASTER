@@ -20,7 +20,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { usePlayer, SKINS, TITLES, getXpProgress } from "@/contexts/PlayerContext";
+import { usePlayer, SKINS, TITLES } from "@/contexts/PlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getApiUrl } from "@/lib/query-client";
 import { fetch } from "expo/fetch";
@@ -1128,8 +1128,6 @@ export default function HomeScreen() {
   }, [playerId]);
 
   const equippedSkin = SKINS.find((s) => s.id === profile.equippedSkin) || SKINS[0];
-  const xpData = getXpProgress(profile.xp);
-  const xpProgress = xpData.progress;
 
   const showPopupAt = (idx: number) => {
     popupOpacity.setValue(0);
@@ -1335,15 +1333,9 @@ export default function HomeScreen() {
         {/* ── TOP BAR ─────────────────────────────────────── */}
         <View style={styles.topBar}>
           <TouchableOpacity
-            style={styles.profileRow}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push("/profile"); }}
             activeOpacity={0.8}
           >
-            <LinearGradient
-              colors={[LOGO.cyan + "18", LOGO.purple + "14"]}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
-            />
             {(() => {
               const skinRarityColors: Record<string, string> = { common: "#00F5FF", rare: "#BF00FF", epic: "#FF006E", legendary: "#F5C842" };
               const skinRingColor = skinRarityColors[equippedSkin.rarity] || "#00F5FF";
@@ -1362,28 +1354,6 @@ export default function HomeScreen() {
                 </View>
               );
             })()}
-            <View style={styles.profileMeta}>
-              <View style={styles.nameEditRow}>
-                {profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > new Date()) && (
-                  <Text style={{ fontSize: 14, marginRight: 4 }}>👑</Text>
-                )}
-                <Text style={[styles.playerName, { color: theme.textPrimary }]} numberOfLines={1}>{profile.name}</Text>
-                <Ionicons name="pencil" size={11} color={theme.textMuted} style={{ marginLeft: 4 }} />
-              </View>
-              <View style={styles.levelRow}>
-                <View style={styles.levelBadge}>
-                  <Text style={styles.levelText}>Lv.{profile.level}</Text>
-                </View>
-                <View style={styles.xpBarContainer}>
-                  <LinearGradient
-                    colors={[LOGO.cyan, LOGO.purple]}
-                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                    style={[styles.xpBar, { width: `${xpProgress * 100}%` as any }]}
-                  />
-                </View>
-                <Text style={[styles.xpText, { color: theme.textMuted }]}>{xpData.current}/{xpData.needed} XP</Text>
-              </View>
-            </View>
           </TouchableOpacity>
 
           <View style={styles.topRight}>
@@ -1698,32 +1668,11 @@ const styles = StyleSheet.create({
     width: "100%", flexDirection: "row", alignItems: "center",
     justifyContent: "space-between", marginBottom: 12, gap: 10,
   },
-  profileRow: {
-    flex: 1, flexDirection: "row", alignItems: "center",
-    borderRadius: 16, padding: 5, gap: 8,
-    overflow: "hidden",
-    borderWidth: 3, borderColor: LOGO.cyan + "55",
-    borderBottomWidth: 4, borderBottomColor: LOGO.cyan + "88",
-  },
   avatarCircle: {
-    width: 28, height: 28, borderRadius: 14,
+    width: 38, height: 38, borderRadius: 19,
     justifyContent: "center", alignItems: "center",
   },
-  avatarEmoji: { fontSize: 14 },
-  profileMeta: { flex: 1 },
-  nameEditRow: { flexDirection: "row", alignItems: "center", marginBottom: 2 },
-  playerName: { fontFamily: "Cairo_700Bold", fontSize: 12, color: "#E8E8FF", flex: 1 },
-  equippedTitleBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, alignSelf: "flex-start", marginTop: 1 },
-  equippedTitleText: { fontFamily: "Cairo_700Bold", fontSize: 9 },
-  levelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  levelBadge: {
-    backgroundColor: LOGO.yellow + "28", paddingHorizontal: 6,
-    paddingVertical: 0, borderRadius: 6,
-  },
-  levelText: { fontFamily: "Cairo_600SemiBold", fontSize: 10, color: LOGO.yellow },
-  xpBarContainer: { flex: 1, height: 4, backgroundColor: "rgba(255,255,255,0.10)", borderRadius: 2, overflow: "hidden" },
-  xpBar: { height: "100%", borderRadius: 2 },
-  xpText: { fontFamily: "Cairo_400Regular", fontSize: 9, color: "#5A5A88" },
+  avatarEmoji: { fontSize: 20 },
 
   topRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   coinsBadge: {
