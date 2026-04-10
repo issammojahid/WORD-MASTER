@@ -414,7 +414,7 @@ function BoxOpeningModal({
                 transform: [{ scale: openChestScale }],
                 opacity: openChestOp,
               }]}>
-                <Image source={tier.openImage as number} style={styles.boxOpenChestImage} resizeMode="contain" />
+                <Image source={tier.openImage} style={styles.boxOpenChestImage} resizeMode="contain" />
               </Animated.View>
 
               {particleYAnims.map((anim, i) => (
@@ -422,7 +422,7 @@ function BoxOpeningModal({
                   transform: [{ translateY: anim }],
                   opacity: particleOpAnims[i],
                   left: SW * 0.5 + PARTICLE_X_OFS[i] - 10,
-                  top: "45%" as any,
+                  top: SH * 0.45,
                 }]}>
                   {FLY_PARTICLES[i]}
                 </Animated.Text>
