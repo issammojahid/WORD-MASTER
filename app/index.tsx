@@ -1621,6 +1621,7 @@ export default function HomeScreen() {
             <Ionicons name="home" size={26} color="#000" />
           </LinearGradient>
           <Text style={[styles.navLabel, { color: LOGO.yellow }]}>الرئيسية</Text>
+          <View style={[styles.navActiveIndicator, { backgroundColor: LOGO.yellow }]} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => router.push("/tasks")} activeOpacity={0.7}>
           <Ionicons name="star" size={24} color={LOGO.purple} />
@@ -1664,6 +1665,7 @@ const styles = StyleSheet.create({
   topBar: {
     width: "100%", flexDirection: "row", alignItems: "center",
     justifyContent: "space-between", marginBottom: 12,
+    paddingVertical: 4,
   },
   topLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
   avatarCircle: {
@@ -1788,6 +1790,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.65, shadowRadius: 14, elevation: 16,
   },
   navLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 10 },
+  navActiveIndicator: {
+    width: 20, height: 2, borderRadius: 1, marginTop: 2,
+    opacity: 0.85,
+  },
 
   modalOverlay: {
     flex: 1, backgroundColor: "rgba(0,0,0,0.65)",
