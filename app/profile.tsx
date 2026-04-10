@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -44,6 +44,13 @@ export default function ProfileScreen() {
   const [codeCopied, setCodeCopied] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [nameInput, setNameInput] = useState(profile.name);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    };
+  }, []);
 
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
@@ -64,7 +71,8 @@ export default function ProfileScreen() {
     await Clipboard.setStringAsync(displayId || displayCode);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCodeCopied(true);
-    setTimeout(() => setCodeCopied(false), 2000);
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => setCodeCopied(false), 2000);
   };
 
   const handleSaveName = () => {
@@ -149,7 +157,7 @@ export default function ProfileScreen() {
         <View style={[s.idCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
           <View style={s.idRow}>
             <Ionicons name="id-card" size={18} color={LOGO.cyan} />
-            <Text style={[s.idLabel, { color: theme.textMuted }]}>معرّف اللاعب</Text>
+            <Text style={[s.idLabel, { color: theme.textMuted }]}>كود اللاعب</Text>
           </View>
           <View style={s.idValueRow}>
             <Text style={s.idValue}>{displayId || displayCode}</Text>
