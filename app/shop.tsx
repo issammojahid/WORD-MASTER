@@ -152,9 +152,9 @@ const BOX_TIERS = [
 type BoxTierId = typeof BOX_TIERS[number]["id"];
 
 const COIN_PACKS = [
-  { id: "starter",  coins: 500,   bonus: 0,   price: "مجاناً مع الإعلان", priceCoins: 0,   emoji: "🪙", gradient: ["#1A1040","#2D1B69"] as [string,string], accent: "#7C5CFC", badge: null },
-  { id: "medium",   coins: 1200,  bonus: 200, price: "عرض خاص",           priceCoins: 0,   emoji: "💰", gradient: ["#0A2918","#0D3320"] as [string,string], accent: "#10B981", badge: "الأكثر شراءً" },
-  { id: "premium",  coins: 3000,  bonus: 800, price: "قيمة مضاعفة",       priceCoins: 0,   emoji: "💎", gradient: ["#3A2800","#4A3200"] as [string,string], accent: "#F59E0B", badge: "الأفضل قيمة" },
+  { id: "starter",  coins: 500,   bonus: 0,   price: "0.99€", priceCoins: 0,   emoji: "🪙", gradient: ["#1A1040","#2D1B69"] as [string,string], accent: "#7C5CFC", badge: null },
+  { id: "medium",   coins: 1200,  bonus: 200, price: "2.99€", priceCoins: 0,   emoji: "💰", gradient: ["#0A2918","#0D3320"] as [string,string], accent: "#10B981", badge: "الأكثر شراءً" },
+  { id: "premium",  coins: 3000,  bonus: 800, price: "5.99€", priceCoins: 0,   emoji: "💎", gradient: ["#3A2800","#4A3200"] as [string,string], accent: "#F59E0B", badge: "الأفضل قيمة" },
 ] as const;
 
 const TABS = [
@@ -522,6 +522,7 @@ export default function ShopScreen() {
   const [dailyItems] = useState<DailyItem[]>(() => getDailyItems());
   const [todayBought, setTodayBought] = useState<string[]>([]);
   const [coinPackLoading, setCoinPackLoading] = useState<string | null>(null);
+  const [showCoinMaintenance, setShowCoinMaintenance] = useState(false);
 
   const tabScrollRef = useRef<ScrollView>(null);
   const contentScrollRef = useRef<ScrollView>(null);
@@ -533,16 +534,9 @@ export default function ShopScreen() {
 
   const activeTier = BOX_TIERS.find(t => t.id === selectedBoxTier) || BOX_TIERS[0];
 
-  const handleCoinPack = (pack: typeof COIN_PACKS[number]) => {
-    if (coinPackLoading) return;
-    setCoinPackLoading(pack.id);
-    playShopSound("open");
-    setTimeout(() => {
-      addCoins(pack.coins + pack.bonus);
-      setBurstEmoji("💰");
-      setCoinPackLoading(null);
-      Alert.alert("✅ تمت الإضافة", `حصلت على ${pack.coins + pack.bonus} عملة!`);
-    }, 1200);
+  const handleCoinPack = (_pack: typeof COIN_PACKS[number]) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowCoinMaintenance(true);
   };
 
   const handleSkinAction = (id: SkinId) => {
@@ -1199,6 +1193,36 @@ export default function ShopScreen() {
         visible={spinModalVisible}
         onClose={() => setSpinModalVisible(false)}
       />
+
+      {/* ── Coin Pack Maintenance Modal ─────────────────────── */}
+      <Modal
+        visible={showCoinMaintenance}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCoinMaintenance(false)}
+      >
+        <View style={styles.maintOverlay}>
+          <View style={styles.maintCard}>
+            <LinearGradient
+              colors={["#1A1200", "#0A0A1A", "#1A0020"]}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <Text style={styles.maintEmoji}>🔧</Text>
+            <Text style={styles.maintTitle}>نظام الدفع قيد الإعداد</Text>
+            <Text style={styles.maintBody}>
+              سيتم دعم الدفع الإلكتروني قريباً.{"\n"}شكراً على صبرك 🙏
+            </Text>
+            <TouchableOpacity
+              style={styles.maintBtn}
+              onPress={() => setShowCoinMaintenance(false)}
+              activeOpacity={0.8}
+            >
+              <LinearGradient colors={[L.gold, "#D4A017"]} style={StyleSheet.absoluteFillObject} />
+              <Text style={styles.maintBtnText}>حسناً</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1527,4 +1551,30 @@ const styles = StyleSheet.create({
   },
   rewardCloseBtnText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#FFF" },
   boxCloseX: { position: "absolute", top: 14, right: 14, zIndex: 100 },
+
+  maintOverlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.75)",
+    justifyContent: "center", alignItems: "center", padding: 32,
+  },
+  maintCard: {
+    width: "100%", borderRadius: 22, padding: 28,
+    alignItems: "center", overflow: "hidden",
+    borderWidth: 1, borderColor: "#F5C84240",
+  },
+  maintEmoji: { fontSize: 52, marginBottom: 12 },
+  maintTitle: {
+    fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F5C842",
+    textAlign: "center", marginBottom: 10,
+  },
+  maintBody: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#C8C8E8",
+    textAlign: "center", lineHeight: 22, marginBottom: 24,
+  },
+  maintBtn: {
+    borderRadius: 14, overflow: "hidden", alignSelf: "stretch",
+  },
+  maintBtnText: {
+    fontFamily: "Cairo_700Bold", fontSize: 16, color: "#000",
+    textAlign: "center", paddingVertical: 14,
+  },
 });

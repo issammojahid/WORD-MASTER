@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Dimensions, Animated, Easing, Alert, Platform,
+  Dimensions, Animated, Easing, Platform, Modal,
 } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -9,7 +9,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { usePlayer } from "@/contexts/PlayerContext";
-import { getApiUrl } from "@/lib/query-client";
 
 const { width: SW } = Dimensions.get("window");
 
@@ -40,8 +39,8 @@ const PARTICLES = ["👑", "⭐", "✨", "💎", "🪙", "👑", "⭐", "✨"];
 
 export default function VipScreen() {
   const insets = useSafeAreaInsets();
-  const { playerId, profile, updateProfile } = usePlayer();
-  const [loading, setLoading] = useState(false);
+  const { profile } = usePlayer();
+  const [showMaintenance, setShowMaintenance] = useState(false);
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
@@ -76,37 +75,10 @@ export default function VipScreen() {
     });
   }, []);
 
-  const handleSubscribe = async () => {
+  const handleSubscribe = () => {
     if (isActive) return;
-    setLoading(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-
-    try {
-      const baseUrl = getApiUrl();
-      const res = await fetch(new URL(`/api/player/${playerId}/activate-vip`, baseUrl).toString(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ duration: 30 }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          updateProfile({
-            isVip: true,
-            vipExpiresAt: data.profile.vipExpiresAt,
-            ownedSkins: [...new Set([...profile.ownedSkins, "vip_phoenix", "vip_sultan", "vip_cyber"])] as any,
-            ownedTitles: [...new Set([...profile.ownedTitles, "vip_gold"])] as any,
-          });
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          Alert.alert("🎉 مبروك!", "تم تفعيل اشتراك VIP بنجاح!\nاستمتع بالمزايا الحصرية.");
-        }
-      } else {
-        Alert.alert("خطأ", "تعذر تفعيل الاشتراك، حاول مرة أخرى.");
-      }
-    } catch {
-      Alert.alert("خطأ", "تحقق من اتصال الإنترنت وحاول مرة أخرى.");
-    }
-    setLoading(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowMaintenance(true);
   };
 
   const expiryText = isActive && profile.vipExpiresAt
@@ -194,16 +166,16 @@ export default function VipScreen() {
             <View style={styles.priceBadge}>
               <Text style={styles.priceLabel}>شهري</Text>
             </View>
-            <Text style={styles.priceAmount}>100 درهم</Text>
+            <Text style={styles.priceAmount}>1.99€</Text>
             <Text style={styles.pricePerMonth}>/ شهر</Text>
-            <Text style={styles.priceSub}>يتجدد تلقائياً · إلغاء في أي وقت</Text>
+            <Text style={styles.priceSub}>اشتراك شهري متجدد · إلغاء في أي وقت</Text>
           </LinearGradient>
         </View>
 
         <TouchableOpacity
           style={[styles.subscribeBtn, isActive && styles.subscribeBtnActive]}
           onPress={handleSubscribe}
-          disabled={loading || isActive}
+          disabled={isActive}
           activeOpacity={0.85}
         >
           <LinearGradient
@@ -219,17 +191,46 @@ export default function VipScreen() {
           ) : (
             <View style={styles.subscribeBtnContent}>
               <Text style={styles.subscribeBtnEmoji}>👑</Text>
-              <Text style={styles.subscribeBtnText}>
-                {loading ? "جاري التفعيل..." : "اشترك الآن"}
-              </Text>
+              <Text style={styles.subscribeBtnText}>اشترك الآن — 1.99€</Text>
             </View>
           )}
         </TouchableOpacity>
 
         <Text style={styles.disclaimer}>
-          سيتم الخصم من حسابك في Google Play. يتجدد الاشتراك تلقائياً ما لم يتم إلغاؤه قبل 24 ساعة من تاريخ التجديد.
+          سيتم إطلاق نظام الدفع قريباً. شكراً على صبرك.
         </Text>
       </ScrollView>
+
+      {/* ── Maintenance Modal ─────────────────────────────────── */}
+      <Modal
+        visible={showMaintenance}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMaintenance(false)}
+      >
+        <View style={styles.maintOverlay}>
+          <View style={styles.maintCard}>
+            <LinearGradient
+              colors={["#1A1200", "#0A0A1A", "#1A0020"]}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <View style={[styles.maintBorder, { borderColor: C.gold + "50" }]} />
+            <Text style={styles.maintEmoji}>🔧</Text>
+            <Text style={styles.maintTitle}>نظام الدفع قيد الإعداد</Text>
+            <Text style={styles.maintBody}>
+              نحن نعمل على دمج خدمة الدفع الإلكتروني.{"\n"}شكراً على صبرك 🙏
+            </Text>
+            <TouchableOpacity
+              style={styles.maintBtn}
+              onPress={() => setShowMaintenance(false)}
+              activeOpacity={0.8}
+            >
+              <LinearGradient colors={[C.gold, "#D4A017"]} style={StyleSheet.absoluteFillObject} />
+              <Text style={styles.maintBtnText}>حسناً</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -314,5 +315,34 @@ const styles = StyleSheet.create({
   disclaimer: {
     fontFamily: "Cairo_600SemiBold", fontSize: 10, color: C.textSub + "60",
     textAlign: "center", lineHeight: 16,
+  },
+
+  maintOverlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.75)",
+    justifyContent: "center", alignItems: "center", padding: 32,
+  },
+  maintCard: {
+    width: "100%", borderRadius: 22, padding: 28,
+    alignItems: "center", overflow: "hidden",
+    borderWidth: 1, borderColor: "#F5C84240",
+  },
+  maintBorder: {
+    position: "absolute", inset: 0, borderRadius: 22, borderWidth: 1,
+  },
+  maintEmoji: { fontSize: 52, marginBottom: 12 },
+  maintTitle: {
+    fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F5C842",
+    textAlign: "center", marginBottom: 10,
+  },
+  maintBody: {
+    fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#C8C8E8",
+    textAlign: "center", lineHeight: 22, marginBottom: 24,
+  },
+  maintBtn: {
+    borderRadius: 14, overflow: "hidden", alignSelf: "stretch",
+  },
+  maintBtnText: {
+    fontFamily: "Cairo_700Bold", fontSize: 16, color: "#000",
+    textAlign: "center", paddingVertical: 14,
   },
 });
