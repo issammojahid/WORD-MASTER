@@ -813,7 +813,7 @@ export default function ShopScreen() {
     <>
       <Text style={styles.sectionHint}>تأثيرات بصرية رائعة تظهر عند الفوز بمباراة ✨</Text>
       <View style={styles.avatarGrid}>
-        {EFFECTS.map(effect => {
+        {EFFECTS.filter(effect => effect.image !== undefined).map(effect => {
           const owned = profile.ownedEffects.includes(effect.id);
           const equipped = profile.equippedEffect === effect.id;
           const canAfford = profile.coins >= effect.price;
@@ -832,9 +832,7 @@ export default function ShopScreen() {
 
                 <View style={[styles.avatarCircleOuter, { borderColor: rarityColor + "44", shadowColor: rarityColor, shadowOpacity: 0.25, shadowRadius: 10 }]}>
                   <LinearGradient colors={[effect.color + "28", effect.color + "08"]} style={styles.avatarCircleInner}>
-                    {effect.image
-                      ? <Image source={effect.image} style={styles.effectImage} resizeMode="contain" />
-                      : <Text style={styles.avatarEmoji}>{effect.emoji}</Text>}
+                    <Image source={effect.image!} style={styles.effectImage} resizeMode="contain" />
                   </LinearGradient>
                 </View>
 
