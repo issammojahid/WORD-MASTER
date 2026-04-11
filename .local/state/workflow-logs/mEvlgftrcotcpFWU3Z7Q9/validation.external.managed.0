@@ -1,0 +1,39 @@
+VERDICT: REJECTED
+The diff partially implements the task (screen-level backgrounds) but misses a core requirement: themed AI backgrounds were not integrated into key popups/modals.
+
+Critical findings:
+- ✅ 23 image assets were added under `assets/iVERDICT: REJECTED
+mages/` (including `bg_popup*` files), and most target screens were wrapped with `ImageBackgThe diff partially implements the task (screen-level backgrounds) but misses a core requirement: themed AI backgrounds were not integrated into key popups/modals.
+round` plus dark overlays.
+- ❌ Popup/modal integra
+tion is incomplete across required files. The task eCritical findings:
+xplicitly requires modal/card-level `ImageBackground` usag- ✅ 23 image assets were added under `assets/images/` (including `bg_popup*` files), and most target screens were wrapped with `ImageBackground` plus dark overlays.
+e and themed mapping (`bg_popup_reward`, `bg_popup_confirm`, `bg_popup`).
+- Evidence from changed code:
+  - `app/index.tsx`: `LoginRewardPopup` and `FeaturePopup` cards still use plain `View`/`LinearGradient` (no popup background images).
+  - `app/game.tsx`: quick chat panel and exit confirmation modal remain plain themed cards/gradients.
+  - `app/tournament.tsx`: leave/create/join modals remain plain `View` cards.
+  - `app/shop.tsx`: maintenance modal and likely box/spin modal cards are not switched to popup backgrounds.
+- Because “all screens & popups” is the stated objective and popup integration is explicitly in Definition of Done, this is a blocking functional miss, not a minor comment.
+
+Security:
+- None observed (no serious auth/injection/secrets regressions in this diff).
+
+Next actions:
+1. Update all key modal/card containers in the specified screens to `ImageBackground` with rounded `imageStyle` and dark inner overlay (`rgba(0,0,0,0.50)`), matching the required pattern.
+2. Apply required popup image mapping consistently: reward/login popups → `bg_popup_reward.png`; confirm/leave dialogs → `bg_popup_confirm.png`; generic/name-edit/box-opening/chat/etc. → `bg_popup.png`.
+3. Run a full TS/build pass and smoke test each updated screen/modal to ensure no layout regressions (especially border radius clipping and touch handling in modals).- ❌ Popup/modal integration is incomplete across required files. The task explicitly requires modal/card-level `ImageBackground` usage and themed mapping (`bg_popup_reward`, `bg_popup_confirm`, `bg_popup`).
+- Evidence from changed code:
+  - `app/index.tsx`: `LoginRewardPopup` and `FeaturePopup` cards still use plain `View`/`LinearGradient` (no popup background images).
+  - `app/game.tsx`: quick chat panel and exit confirmation modal remain plain themed cards/gradients.
+  - `app/tournament.tsx`: leave/create/join modals remain plain `View` cards.
+  - `app/shop.tsx`: maintenance modal and likely box/spin modal cards are not switched to popup backgrounds.
+- Because “all screens & popups” is the stated objective and popup integration is explicitly in Definition of Done, this is a blocking functional miss, not a minor comment.
+
+Security:
+- None observed (no serious auth/injection/secrets regressions in this diff).
+
+Next actions:
+1. Update all key modal/card containers in the specified screens to `ImageBackground` with rounded `imageStyle` and dark inner overlay (`rgba(0,0,0,0.50)`), matching the required pattern.
+2. Apply required popup image mapping consistently: reward/login popups → `bg_popup_reward.png`; confirm/leave dialogs → `bg_popup_confirm.png`; generic/name-edit/box-opening/chat/etc. → `bg_popup.png`.
+3. Run a full TS/build pass and smoke test each updated screen/modal to ensure no layout regressions (especially border radius clipping and touch handling in modals).

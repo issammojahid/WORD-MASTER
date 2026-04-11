@@ -1,0 +1,72 @@
+[90mStarting project at /home/runner/workspace[39m
+[90mReact Compiler enabled[39m
+[2mStarting Metro Bundler[22m
+[33mThe following packages should be updated for best compatibility with the installed [1mexpo[22m version:[39m
+[33m  [1mexpo-notifications[22m[36m@[39m[33m[31m55.0.12[39m[33m - expected version: [32m~0.32.16[39m[33m[39m
+[33mYour project may not work correctly until you install the expected versions of the packages.[39m
+▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+█ ▄▄▄▄▄ █▀ █▀▀▀ ▀▄█▀▄▀▄▄▄ █ ▄▄▄▄▄ █
+█ █   █ █▀ ▄ ▀▀ █▄▀ ▀▄▄██▄█ █   █ █
+█ █▄▄▄█ █▀█ █  ▀▀▀█▀▄█▄ ▄▄█ █▄▄▄█ █
+█▄▄▄▄▄▄▄█▄█▄▀▄█ █▄█ █ ▀▄█ █▄▄▄▄▄▄▄█
+█▄   ▄█▄ ▄ ▄▀█▄ █▀  ▀▀██ ▀ ▀ █ █▄▀█
+█▄█▄▀█▀▄▄  ▀██▄█  ██▀   ██▄██▀▄▀█▀█
+█ ▀▄▄▄▄▄▀▀ ▀▀▄▄▄▄▀ ▀▀▄█▀  ▄▀ ▄▀█▀ █
+█▄ ▄▀ ▄▄▀▄▄▄█▄▄▄▄██ ▀  ██▄▀▀▀█ ▀███
+█▀▀ ▀ ▄▄▀▀  ▀▄ ██ ▄▀▀▄▀▄▀▄▄▀▄▄▀▀▀▀█
+█▄▀▄▄▄ ▄▀█ ▀▀▄▄▄ ▄▄█▀█ ▀█▀▀▀▀▄█ ▄██
+█▀▀▀ █ ▄▄▄▀▀  ▄ ▄▀ ▄▀▄▀▀▀▄▀▀▄▄▄█▀ █
+█ █▀██ ▄▄ ███▄▄█ ▀█▄█▄▀▀▀██▀▄▄▄  ██
+█▄██▄██▄▄▀ ▄▀█▄▄▄▄▄▄▀▄▀▄▀ ▄▄▄  ▀▄▀█
+█ ▄▄▄▄▄ █▄█▀█▀█ ▄▀▄██▄  ▄ █▄█  ▀▄▀█
+█ █   █ █ █▄ ▄▄ ▄▀▄▀▀▀▀▀█ ▄▄  ▀▀█▄█
+█ █▄▄▄█ █  ██▄██ ▄▄ █▀ █ ▄▀ ▀▀█ ▄██
+█▄▄▄▄▄▄▄█▄▄█▄▄▄▄█▄▄██▄███▄▄█▄█▄█▄██
+
+› Metro waiting on
+[4mexp://d97d2fca-4cc2-47ad-9026-8a3e04a1277d-00-hg97byf4azek.worf.replit.dev[24m
+› Scan the QR code above with Expo Go (Android) or the Camera app (iOS)
+
+› Web is waiting on [4mhttp://localhost:8081[24m
+
+› Using [36mExpo Go[39m
+› Press [1ms[22m [2m│[22m switch to development build
+
+› Press [1ma[22m [2m│[22m open Android
+› Press [1mw[22m [2m│[22m open web
+
+› Press [1mj[22m [2m│[22m open debugger
+› Press [1mr[22m [2m│[22m reload app
+› Press [1mm[22m [2m│[22m toggle menu
+› [1mshift+m[22m [2m│[22m more tools
+› Press [1mo[22m [2m│[22m open project code in your editor
+
+› Press [1m?[22m [2m│[22m show all commands
+
+Logs for your project will appear below.[2m Press Ctrl+C to exit.[22m
+[1mWeb[22m [0m[2mnode_modules/expo-router/[22m[0m[1mentry.js[22m [47m[37m░░░░░░░░░░░░░░░░[39m[49m[1m  0.0% [22m[2m(0/1)[22m
+[80D[1A[0J[1mWeb[22m [0m[2mnode_modules/expo-router/[22m[0m[1mentry.js[22m [32m[42m▓[49m[39m[47m[37m░░░░░░░░░░░░░░░[39m[49m[1m  8.8% [22m[2m( 73/246)[22m
+[80D[1A[0J[1mWeb[22m [0m[2mnode_modules/expo-router/[22m[0m[1mentry.js[22m [32m[42m▓▓[49m[39m[47m[37m░░░░░░░░░░░░░░[39m[49m[1m 17.1% [22m[2m(134/324)[22m
+[80D[1A[0J[1mWeb[22m [0m[2mnode_modules/expo-router/[22m[0m[1mentry.js[22m [32m[42m▓▓▓▓▓[49m[39m[47m[37m░░░░░░░░░░░[39m[49m[1m 37.0% [22m[2m(284/467)[22m
+[80D[1A[0J[1mWeb[22m [0m[2mnode_modules/expo-router/[22m[0m[1mentry.js[22m [32m[42m▓▓▓▓▓[49m[39m[47m[37m░░░░░░░░░░░[39m[49m[1m 37.0% [22m[2m(433/734)[22m
+[80D[1A[0J[1mWeb[22m [0m[2mnode_modules/expo-router/[22m[0m[1mentry.js[22m [32m[42m▓▓▓▓▓▓▓▓[49m[39m[47m[37m░░░░░░░░[39m[49m[1m 52.8% [22m[2m(718/988)[22m
+[80D[1A[0J[1mWeb[22m [0m[2mnode_modules/expo-router/[22m[0m[1mentry.js[22m [32m[42m▓▓▓▓▓▓▓▓▓[49m[39m[47m[37m░░░░░░░[39m[49m[1m 60.4% [22m[2m( 846/1089)[22m
+[80D[1A[0J[1mWeb[22m [0m[2mnode_modules/expo-router/[22m[0m[1mentry.js[22m [32m[42m▓▓▓▓▓▓▓▓▓▓▓[49m[39m[47m[37m░░░░░[39m[49m[1m 74.8% [22m[2m(1069/1236)[22m
+[80D[1A[0J[1mWeb[22m [0m[2mnode_modules/expo-router/[22m[0m[1mentry.js[22m [32m[42m▓▓▓▓▓▓▓▓▓▓▓▓[49m[39m[47m[37m░░░░[39m[49m[1m 79.0% [22m[2m(1238/1393)[22m
+[80D[1A[0J[1mWeb[22m [0m[2mnode_modules/expo-router/[22m[0m[1mentry.js[22m [32m[42m▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓[49m[39m[47m[37m░[39m[49m[1m 95.2% [22m[2m(1491/1528)[22m
+[80D[1A[0J[32m[1mWeb[22m Bundled [39m[2m1094ms[22m[0m[2m node_modules/expo-router/entry.js (1528 modules)[22m[0m
+[1mWeb[22m [0m[2mnode_modules/expo-router/[22m[0m[1mentry.js[22m [32m[42m▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓[49m[39m[47m[37m░[39m[49m[1m 95.2% [22m[2m(1491/1528)[22m
+[80D[1A[0J[?25l[36m?[39m [1m
+
+It is recommended to log in with your Expo account before proceeding. 
+[2m[2mLearn more: [4mhttps://expo.fyi/unverified-app-expo-go[24m[22m[1m[2m[22m[1m
+[22m [90m›[39m [90m- Use arrow-keys. Return to submit.[39m
+[36m❯[39m   [36m[4mLog in[39m[24m[90m[39m
+    Proceed anonymously[90m[39m
+[?25l[36m?[39m [1m
+
+It is recommended to log in with your Expo account before proceeding. 
+[2m[2mLearn more: [4mhttps://expo.fyi/unverified-app-expo-go[24m[22m[1m[2m[22m[1m
+[22m [90m›[39m [90m- Use arrow-keys. Return to submit.[39m
+[36m❯[39m   [36m[4mLog in[39m[24m[90m[39m
+    Proceed anonymously[90m[39m
