@@ -9,7 +9,9 @@ import {
   Platform,
   ActivityIndicator,
   Modal,
+  ImageBackground,
 } from "react-native";
+const BG_DC = require("@/assets/images/bg_daily.png");
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -19,7 +21,7 @@ import { usePlayer, SKINS } from "@/contexts/PlayerContext";
 import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 
-const DC_BG: [string, string, string] = ["#001A10", "#002818", "#001A10"];
+const DC_BG: [string, string, string] = ["rgba(0,0,0,0.72)", "rgba(0,0,0,0.58)", "rgba(0,0,0,0.72)"];
 
 const ARABIC_KEYBOARD: string[][] = [
   ["ض", "ص", "ث", "ق", "ف", "غ", "ع", "ه", "خ", "ح"],
@@ -339,16 +341,16 @@ export default function DailyChallengeScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centerContent, { paddingTop: topInset }]}>
+      <ImageBackground source={BG_DC} style={[styles.container, styles.centerContent, { paddingTop: topInset }]} resizeMode="cover">
         <LinearGradient colors={DC_BG} style={StyleSheet.absoluteFillObject} />
         <ActivityIndicator size="large" color={Colors.emerald} />
         <Text style={styles.loadingText}>جاري تحميل تحدي اليوم...</Text>
-      </View>
+      </ImageBackground>
     );
   }
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+    <ImageBackground source={BG_DC} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
       <LinearGradient colors={DC_BG} style={StyleSheet.absoluteFillObject} />
 
       {/* Header */}
@@ -529,12 +531,12 @@ export default function DailyChallengeScreen() {
           </Animated.View>
         </View>
       </Modal>
-    </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#001A10" },
+  container: { flex: 1, backgroundColor: "transparent" },
   centerContent: { justifyContent: "center", alignItems: "center" },
   loadingText: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#9898CC", marginTop: 12 },
   header: {

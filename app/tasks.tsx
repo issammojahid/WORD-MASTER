@@ -10,7 +10,9 @@ import {
   Platform,
   Animated,
   Easing,
+  ImageBackground,
 } from "react-native";
+const BG_TASKS = require("@/assets/images/bg_tasks.png");
 import { router, useFocusEffect } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -281,9 +283,9 @@ function TasksScreenInner() {
   const totalPct = tasks.length > 0 ? claimedCount / tasks.length : 0;
 
   return (
-    <View style={{ flex: 1 }}>
+    <ImageBackground source={BG_TASKS} style={{ flex: 1 }} resizeMode="cover">
       <LinearGradient
-        colors={["#0A0A1A", "#0E0E24", "#0A0A1A"]}
+        colors={["rgba(0,0,0,0.72)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.72)"]}
         style={StyleSheet.absoluteFillObject}
       />
 
@@ -377,7 +379,7 @@ function TasksScreenInner() {
           </ScrollView>
         )}
       </View>
-    </View>
+    </ImageBackground>
   );
 }
 

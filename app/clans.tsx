@@ -11,7 +11,9 @@ import {
   Animated,
   FlatList,
   Alert,
+  ImageBackground,
 } from "react-native";
+const BG_CLANS = require("@/assets/images/bg_clans.png");
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -326,7 +328,8 @@ export default function ClansScreen() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <ImageBackground source={BG_CLANS} style={[styles.container]} resizeMode="cover">
+      <LinearGradient colors={["rgba(0,0,0,0.72)", "rgba(0,0,0,0.58)", "rgba(0,0,0,0.72)"]} style={StyleSheet.absoluteFillObject} />
       {/* Header */}
       <LinearGradient
         colors={isDark ? ["#0F0A2E", "#1A0A3E"] : ["#1A1040", "#2D1060"]}
@@ -516,7 +519,7 @@ export default function ClansScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </ImageBackground>
   );
 }
 

@@ -8,7 +8,9 @@ import {
   Dimensions,
   Platform,
   Alert,
+  ImageBackground,
 } from "react-native";
+const BG_LEAGUE = require("@/assets/images/bg_league.png");
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -203,9 +205,9 @@ export default function LeagueScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+    <ImageBackground source={BG_LEAGUE} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
       <LinearGradient
-        colors={["#0A0E1A", "#0D1526", "#0A0E1A"]}
+        colors={["rgba(0,0,0,0.72)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.72)"]}
         style={StyleSheet.absoluteFillObject}
       />
 
@@ -288,7 +290,7 @@ export default function LeagueScreen() {
           </TouchableOpacity>
         ))}
       </View>
-    </View>
+    </ImageBackground>
   );
 }
 

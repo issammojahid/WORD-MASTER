@@ -13,7 +13,9 @@ import {
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  ImageBackground,
 } from "react-native";
+const BG_HOME = require("@/assets/images/bg_home.png");
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -1318,10 +1320,10 @@ export default function HomeScreen() {
   const streakIcon = profile.winStreak >= 10 ? "🔥🔥🔥" : profile.winStreak >= 5 ? "🔥🔥" : profile.winStreak >= 3 ? "🔥" : "";
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <ImageBackground source={BG_HOME} style={styles.container} resizeMode="cover">
       {/* Colorful gradient background */}
       <LinearGradient
-        colors={["#0A0A1A", "#0E0E24", "#0A0A1A"]}
+        colors={["rgba(0,0,0,0.72)", "rgba(0,0,0,0.58)", "rgba(0,0,0,0.72)"]}
         start={{ x: 0, y: 0 }} end={{ x: 0.6, y: 1 }}
         style={StyleSheet.absoluteFillObject}
       />
@@ -1674,7 +1676,7 @@ export default function HomeScreen() {
           }}
         />
       )}
-    </View>
+    </ImageBackground>
   );
 }
 

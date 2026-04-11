@@ -10,7 +10,9 @@ import {
   RefreshControl,
   Alert,
   Modal,
+  ImageBackground,
 } from "react-native";
+const BG_TOURNAMENT = require("@/assets/images/bg_tournament.png");
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,7 +25,7 @@ import { getApiUrl } from "@/lib/query-client";
 import { getSocket } from "@/services/socket";
 import { LinearGradient } from "expo-linear-gradient";
 
-const TOURNAMENT_BG: [string, string, string] = ["#0F0B00", "#1A1200", "#0F0B00"];
+const TOURNAMENT_BG: [string, string, string] = ["rgba(0,0,0,0.72)", "rgba(0,0,0,0.58)", "rgba(0,0,0,0.72)"];
 
 // ── Reliable fetch for APK builds ────────────────────────────────────────────
 // Uses expo/fetch (same as the rest of the app) and adds a timeout + retry
@@ -547,7 +549,7 @@ export default function TournamentScreen() {
     const currentRoundLabel = ROUND_LABELS[activeTournament.currentRound] || activeTournament.currentRound;
 
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+      <ImageBackground source={BG_TOURNAMENT} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
         <LinearGradient colors={TOURNAMENT_BG} style={StyleSheet.absoluteFillObject} />
         <View style={[styles.header, { borderBottomColor: theme.cardBorder }]}>
           <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => { setViewMode("list"); setActiveTournament(null); fetchTournaments(); }}>
@@ -698,13 +700,13 @@ export default function TournamentScreen() {
             </View>
           </View>
         </Modal>
-      </View>
+      </ImageBackground>
     );
   }
 
   // ─── List View ───────────────────────────────────────────────────────────────
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+    <ImageBackground source={BG_TOURNAMENT} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
       <LinearGradient colors={TOURNAMENT_BG} style={StyleSheet.absoluteFillObject} />
       <View style={[styles.header, { borderBottomColor: theme.cardBorder }]}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
@@ -915,7 +917,7 @@ export default function TournamentScreen() {
           <ActivityIndicator size="large" color={Colors.gold} />
         </View>
       )}
-    </View>
+    </ImageBackground>
   );
 }
 
@@ -1124,7 +1126,7 @@ const bk = StyleSheet.create({
 
 // ─── Main StyleSheet ──────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0A0A1A" },
+  container: { flex: 1, backgroundColor: "transparent" },
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 16, paddingVertical: 12,

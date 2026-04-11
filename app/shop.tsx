@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, memo, useCallback } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Alert, Platform, Animated, Dimensions, Modal, Easing, Image,
+  Alert, Platform, Animated, Dimensions, Modal, Easing, Image, ImageBackground,
 } from "react-native";
+const BG_SHOP = require("@/assets/images/bg_shop.png");
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -1151,8 +1152,8 @@ export default function ShopScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: topInset }]}>
-      <LinearGradient colors={["#0A0A1A", "#0D0D26", "#0A0A1A"]} style={StyleSheet.absoluteFillObject} />
+    <ImageBackground source={BG_SHOP} style={[styles.container, { paddingTop: topInset }]} resizeMode="cover">
+      <LinearGradient colors={["rgba(0,0,0,0.72)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.72)"]} style={StyleSheet.absoluteFillObject} />
       <ShopParticles />
 
       <View style={styles.header}>
@@ -1280,12 +1281,12 @@ export default function ShopScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: L.bg },
+  container: { flex: 1, backgroundColor: "transparent" },
 
   header: {
     flexDirection: "row", alignItems: "center",

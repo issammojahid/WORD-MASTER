@@ -10,7 +10,9 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  ImageBackground,
 } from "react-native";
+const BG_WC = require("@/assets/images/bg_word_chain.png");
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,7 +23,7 @@ import Colors from "@/constants/colors";
 import { getSocket } from "@/services/socket";
 import { getApiUrl } from "@/lib/query-client";
 
-const WC_BG: [string, string, string] = ["#0D0021", "#1A003A", "#0D0021"];
+const WC_BG: [string, string, string] = ["rgba(0,0,0,0.72)", "rgba(0,0,0,0.58)", "rgba(0,0,0,0.72)"];
 const TURN_TIME = 15;
 const ROUNDS_TO_WIN = 2;
 
@@ -398,7 +400,7 @@ export default function WordChainScreen() {
 
   if (phase === "waiting") {
     return (
-      <View style={[styles.container, styles.centerContent, { paddingTop: topInset }]}>
+      <ImageBackground source={BG_WC} style={[styles.container, styles.centerContent, { paddingTop: topInset }]} resizeMode="cover">
         <LinearGradient colors={WC_BG} style={StyleSheet.absoluteFillObject} />
         <TouchableOpacity style={[styles.backBtn, { position: "absolute", top: topInset + 8, left: 16 }]} onPress={() => { setPhase("mode_select"); socket.emit("word_chain_cancel"); }}>
           <Ionicons name="arrow-back" size={22} color="#E8E8FF" />
@@ -406,14 +408,14 @@ export default function WordChainScreen() {
         <ActivityIndicator size="large" color="#8B5CF6" />
         <Text style={styles.waitingText}>جاري البحث عن منافس...</Text>
         <Text style={styles.waitingSub}>انتظر قليلاً</Text>
-      </View>
+      </ImageBackground>
     );
   }
 
   if (phase === "game_over" && gameOverData) {
     const iWon = gameOverData.winnerSocketId === (isAiMode ? "me" : mySocketId);
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+      <ImageBackground source={BG_WC} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
         <LinearGradient colors={WC_BG} style={StyleSheet.absoluteFillObject} />
         <ScrollView contentContainerStyle={styles.gameOverContent}>
           <Text style={styles.gameOverEmoji}>{iWon ? "🏆" : "😔"}</Text>
@@ -445,7 +447,7 @@ export default function WordChainScreen() {
             <Text style={styles.homeBtnText}>رجوع</Text>
           </TouchableOpacity>
         </ScrollView>
-      </View>
+      </ImageBackground>
     );
   }
 
@@ -454,7 +456,7 @@ export default function WordChainScreen() {
     const meWins = roundWins.find(r => r.socketId === (isAiMode ? "me" : mySocketId))?.wins || 0;
     const oppWins = roundWins.find(r => r.socketId !== (isAiMode ? "me" : mySocketId))?.wins || 0;
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+      <ImageBackground source={BG_WC} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
         <LinearGradient colors={WC_BG} style={StyleSheet.absoluteFillObject} />
         <View style={styles.roundOverContent}>
           <Text style={styles.roundOverEmoji}>{iWon ? "✅" : "❌"}</Text>
@@ -482,12 +484,12 @@ export default function WordChainScreen() {
             <Text style={[styles.waitingSub, { marginTop: 12 }]}>في انتظار الجولة التالية...</Text>
           )}
         </View>
-      </View>
+      </ImageBackground>
     );
   }
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+    <ImageBackground source={BG_WC} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
       <LinearGradient colors={WC_BG} style={StyleSheet.absoluteFillObject} />
 
       {/* Header */}
@@ -571,12 +573,12 @@ export default function WordChainScreen() {
           </TouchableOpacity>
         </Animated.View>
       </View>
-    </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0D0021" },
+  container: { flex: 1, backgroundColor: "transparent" },
   centerContent: { justifyContent: "center", alignItems: "center" },
   backBtn: {
     position: "absolute", top: 16, left: 16, zIndex: 10,

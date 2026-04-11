@@ -10,7 +10,9 @@ import {
   Animated,
   Easing,
   Alert,
+  ImageBackground,
 } from "react-native";
+const BG_ACHIEVEMENTS = require("@/assets/images/bg_achievements.png");
 import { router, useFocusEffect } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -290,9 +292,9 @@ function AchievementsScreenInner() {
   const FILTER_LABELS = { all: "الكل", unlocked: "مفتوحة", locked: "مقفلة" } as const;
 
   return (
-    <View style={{ flex: 1 }}>
+    <ImageBackground source={BG_ACHIEVEMENTS} style={{ flex: 1 }} resizeMode="cover">
       <LinearGradient
-        colors={["#0A0A1A", "#0E0E24", "#0A0A1A"]}
+        colors={["rgba(0,0,0,0.72)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.72)"]}
         style={StyleSheet.absoluteFillObject}
       />
 
@@ -382,7 +384,7 @@ function AchievementsScreenInner() {
           </ScrollView>
         )}
       </View>
-    </View>
+    </ImageBackground>
   );
 }
 

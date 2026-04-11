@@ -9,7 +9,9 @@ import {
   ActivityIndicator,
   Platform,
   Alert,
+  ImageBackground,
 } from "react-native";
+const BG_FRIENDS = require("@/assets/images/bg_friends.png");
 import { fetch } from "expo/fetch";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
@@ -25,7 +27,7 @@ import { ScreenErrorBoundary } from "@/components/ScreenErrorBoundary";
 import { getPlayerDisplayId } from "@/lib/player-code";
 import { LinearGradient } from "expo-linear-gradient";
 
-const FRIENDS_BG: [string, string, string] = ["#080015", "#0F0025", "#080015"];
+const FRIENDS_BG: [string, string, string] = ["rgba(0,0,0,0.72)", "rgba(0,0,0,0.58)", "rgba(0,0,0,0.72)"];
 
 type PlayerResult = {
   id: string;
@@ -279,7 +281,7 @@ function FriendsScreenInner() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+    <ImageBackground source={BG_FRIENDS} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
       <LinearGradient colors={FRIENDS_BG} style={StyleSheet.absoluteFillObject} />
       <View style={styles.header}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
@@ -601,12 +603,12 @@ function FriendsScreenInner() {
           </View>
         </View>
       )}
-    </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0A0A1A" },
+  container: { flex: 1, backgroundColor: "transparent" },
   header: {
     flexDirection: "row", alignItems: "center",
     paddingHorizontal: 16, paddingVertical: 12, justifyContent: "space-between",

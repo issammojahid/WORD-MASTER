@@ -8,7 +8,9 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  ImageBackground,
 } from "react-native";
+const BG_BP = require("@/assets/images/bg_battle_pass.png");
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -178,24 +180,28 @@ export default function BattlePassScreen() {
 
   if (loading) {
     return (
-      <LinearGradient colors={isDark ? ["#0c0a1e", "#120b2a"] : ["#f0f4ff", "#e8f0ff"]} style={{ flex: 1 }}>
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <ActivityIndicator color="#00CFFF" size="large" />
-        </View>
-      </LinearGradient>
+      <ImageBackground source={BG_BP} style={{ flex: 1 }} resizeMode="cover">
+        <LinearGradient colors={["rgba(0,0,0,0.72)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.72)"]} style={{ flex: 1 }}>
+          <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+            <ActivityIndicator color="#00CFFF" size="large" />
+          </View>
+        </LinearGradient>
+      </ImageBackground>
     );
   }
 
   if (!bpState) {
     return (
-      <LinearGradient colors={isDark ? ["#0c0a1e", "#120b2a"] : ["#f0f4ff", "#e8f0ff"]} style={{ flex: 1 }}>
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", gap: 16 }}>
-          <Text style={{ color: theme.textPrimary, fontFamily: "Cairo_700Bold", fontSize: 16 }}>لا يوجد موسم نشط</Text>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Text style={{ color: "#00CFFF", fontFamily: "Cairo_400Regular" }}>العودة</Text>
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
+      <ImageBackground source={BG_BP} style={{ flex: 1 }} resizeMode="cover">
+        <LinearGradient colors={["rgba(0,0,0,0.72)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.72)"]} style={{ flex: 1 }}>
+          <View style={{ flex: 1, justifyContent: "center", alignItems: "center", gap: 16 }}>
+            <Text style={{ color: theme.textPrimary, fontFamily: "Cairo_700Bold", fontSize: 16 }}>لا يوجد موسم نشط</Text>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Text style={{ color: "#00CFFF", fontFamily: "Cairo_400Regular" }}>العودة</Text>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+      </ImageBackground>
     );
   }
 
@@ -204,8 +210,9 @@ export default function BattlePassScreen() {
   const xpProgressPct = Math.min(1, xpInCurrentTier / xpPerTier);
 
   return (
+    <ImageBackground source={BG_BP} style={{ flex: 1 }} resizeMode="cover">
     <LinearGradient
-      colors={isDark ? ["#000c1a", "#001830", "#000c1a"] : ["#e8f4ff", "#d0e8ff", "#e8f4ff"]}
+      colors={["rgba(0,0,0,0.72)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.72)"]}
       style={{ flex: 1 }}
     >
       {/* Header */}
@@ -364,6 +371,7 @@ export default function BattlePassScreen() {
         })}
       </ScrollView>
     </LinearGradient>
+    </ImageBackground>
   );
 }
 

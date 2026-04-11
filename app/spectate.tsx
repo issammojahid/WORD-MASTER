@@ -8,7 +8,9 @@ import {
   Animated,
   Platform,
   Alert,
+  ImageBackground,
 } from "react-native";
+const BG_SPECTATE = require("@/assets/images/bg_spectate.png");
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -20,7 +22,7 @@ import Colors from "@/constants/colors";
 import { getSocket } from "@/services/socket";
 import { getApiUrl } from "@/lib/query-client";
 
-const SPECTATE_BG: [string, string, string] = ["#050010", "#0A0020", "#050010"];
+const SPECTATE_BG: [string, string, string] = ["rgba(0,0,0,0.72)", "rgba(0,0,0,0.58)", "rgba(0,0,0,0.72)"];
 
 type PlayerState = {
   id: string;
@@ -268,7 +270,7 @@ export default function SpectateScreen() {
 
   if (error) {
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+      <ImageBackground source={BG_SPECTATE} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
         <LinearGradient colors={SPECTATE_BG} style={StyleSheet.absoluteFillObject} />
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color="#E8E8FF" />
@@ -280,12 +282,12 @@ export default function SpectateScreen() {
             <Text style={styles.errorBtnText}>رجوع</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ImageBackground>
     );
   }
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+    <ImageBackground source={BG_SPECTATE} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
       <LinearGradient colors={SPECTATE_BG} style={StyleSheet.absoluteFillObject} />
 
       {/* Header */}
@@ -477,12 +479,12 @@ export default function SpectateScreen() {
           </TouchableOpacity>
         )}
       </ScrollView>
-    </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#050010" },
+  container: { flex: 1, backgroundColor: "transparent" },
   header: {
     flexDirection: "row", alignItems: "center",
     paddingHorizontal: 16, paddingVertical: 12, justifyContent: "space-between",

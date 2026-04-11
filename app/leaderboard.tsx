@@ -8,7 +8,9 @@ import {
   ActivityIndicator,
   Platform,
   Animated,
+  ImageBackground,
 } from "react-native";
+const BG_LEADERBOARD = require("@/assets/images/bg_leaderboard.png");
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
@@ -244,8 +246,8 @@ export default function LeaderboardScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-      <LinearGradient colors={["#0A0A1A", "#0E0E24", "#0A0A1A"]} style={StyleSheet.absoluteFillObject} />
+    <ImageBackground source={BG_LEADERBOARD} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
+      <LinearGradient colors={["rgba(0,0,0,0.72)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.72)"]} style={StyleSheet.absoluteFillObject} />
 
       <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
         <View style={[styles.blob, { top: -40, left: -60, width: 200, height: 200, backgroundColor: LOGO.purple + "14" }]} />
@@ -442,7 +444,7 @@ export default function LeaderboardScreen() {
         onSelect={handleSelectCountry}
         currentCode={resolvedCountry}
       />
-    </View>
+    </ImageBackground>
   );
 }
 

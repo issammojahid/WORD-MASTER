@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Dimensions, Animated, Easing, Platform, Modal,
+  Dimensions, Animated, Easing, Platform, Modal, ImageBackground,
 } from "react-native";
+const BG_VIP = require("@/assets/images/bg_vip.png");
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -86,8 +87,8 @@ export default function VipScreen() {
     : null;
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-      <LinearGradient colors={["#1A0A00", "#0A0A1A", "#0A0020"]} style={StyleSheet.absoluteFillObject} />
+    <ImageBackground source={BG_VIP} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
+      <LinearGradient colors={["rgba(0,0,0,0.72)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.72)"]} style={StyleSheet.absoluteFillObject} />
 
       <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
         {PARTICLES.map((sym, i) => (
@@ -231,7 +232,7 @@ export default function VipScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </ImageBackground>
   );
 }
 

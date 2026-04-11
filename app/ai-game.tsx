@@ -9,7 +9,9 @@ import {
   ScrollView,
   Animated,
   Platform,
+  ImageBackground,
 } from "react-native";
+const BG_AI = require("@/assets/images/bg_ai.png");
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -24,7 +26,7 @@ import { GAME_CATEGORIES, type GameCategory, ARABIC_LETTERS } from "@/constants/
 import { playSound } from "@/lib/sound-manager";
 import { LinearGradient } from "expo-linear-gradient";
 
-const AI_BG: [string, string, string] = ["#010D07", "#011A0D", "#010D07"];
+const AI_BG: [string, string, string] = ["rgba(0,0,0,0.72)", "rgba(0,0,0,0.58)", "rgba(0,0,0,0.72)"];
 
 type Difficulty = "easy" | "normal" | "hard" | "legendary";
 
@@ -440,7 +442,7 @@ export default function AIGameScreen() {
 
   if (phase === "difficulty") {
     return (
-      <View style={[styles.container, { paddingTop: topInset, backgroundColor: theme.background }]}>
+      <ImageBackground source={BG_AI} style={[styles.container, { paddingTop: topInset }]} resizeMode="cover">
         <LinearGradient colors={AI_BG} style={StyleSheet.absoluteFillObject} />
         <View style={[styles.header, { borderBottomColor: theme.cardBorder }]}>
           <TouchableOpacity onPress={() => router.back()} style={[styles.backBtn, { backgroundColor: theme.card }]}>
@@ -489,23 +491,23 @@ export default function AIGameScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
-      </View>
+      </ImageBackground>
     );
   }
 
   if (phase === "loading") {
     return (
-      <View style={[styles.container, { alignItems: "center", justifyContent: "center", backgroundColor: theme.background }]}>
+      <ImageBackground source={BG_AI} style={[styles.container, { alignItems: "center", justifyContent: "center" }]} resizeMode="cover">
         <LinearGradient colors={AI_BG} style={StyleSheet.absoluteFillObject} />
         <Image source={require("@/assets/game-modes/ai-bot.png")} style={styles.loadingRobot} resizeMode="contain" />
         <Text style={styles.loadingText}>جاري التحضير...</Text>
-      </View>
+      </ImageBackground>
     );
   }
 
   if (phase === "playing") {
     return (
-      <View style={[styles.container, { paddingTop: topInset, backgroundColor: theme.background }]}>
+      <ImageBackground source={BG_AI} style={[styles.container, { paddingTop: topInset }]} resizeMode="cover">
         <LinearGradient colors={AI_BG} style={StyleSheet.absoluteFillObject} />
         <View style={[styles.gameHeader, { backgroundColor: theme.backgroundSecondary, borderBottomColor: theme.cardBorder }]}>
           <View style={styles.gameHeaderLeft}>
@@ -602,7 +604,7 @@ export default function AIGameScreen() {
             </View>
           </View>
         )}
-      </View>
+      </ImageBackground>
     );
   }
 
@@ -612,7 +614,7 @@ export default function AIGameScreen() {
     const isLastRound = currentRound >= TOTAL_ROUNDS;
 
     return (
-      <View style={[styles.container, { paddingTop: topInset, backgroundColor: theme.background }]}>
+      <ImageBackground source={BG_AI} style={[styles.container, { paddingTop: topInset }]} resizeMode="cover">
         <LinearGradient colors={AI_BG} style={StyleSheet.absoluteFillObject} />
         <View style={[styles.resultsHeader, { backgroundColor: theme.backgroundSecondary, borderBottomColor: theme.cardBorder }]}>
           <Text style={[styles.resultsTitle, { color: theme.textPrimary }]}>نتائج الجولة {currentRound}</Text>
@@ -674,7 +676,7 @@ export default function AIGameScreen() {
             <Ionicons name="arrow-forward" size={18} color="#fff" />
           </TouchableOpacity>
         </View>
-      </View>
+      </ImageBackground>
     );
   }
 
@@ -683,7 +685,7 @@ export default function AIGameScreen() {
     const draw = playerTotalScore === aiTotalScore;
     const xpGain = Math.max(10, Math.floor(playerTotalScore / 2));
     return (
-      <View style={[styles.container, styles.gameOverContainer, { paddingTop: topInset, backgroundColor: theme.background }]}>
+      <ImageBackground source={BG_AI} style={[styles.container, styles.gameOverContainer, { paddingTop: topInset }]} resizeMode="cover">
         <LinearGradient colors={AI_BG} style={StyleSheet.absoluteFillObject} />
         <View style={[styles.gameOverCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
           <Text style={styles.gameOverEmoji}>{won ? "🏆" : draw ? "🤝" : "😔"}</Text>
@@ -726,7 +728,7 @@ export default function AIGameScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </ImageBackground>
     );
   }
 
@@ -736,7 +738,7 @@ export default function AIGameScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0A0A1A",
+    backgroundColor: "transparent",
   },
 
   header: {

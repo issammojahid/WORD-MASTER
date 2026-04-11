@@ -9,7 +9,9 @@ import {
   Animated,
   Easing,
   Dimensions,
+  ImageBackground,
 } from "react-native";
+const BG_RAPID = require("@/assets/images/bg_rapid.png");
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,7 +23,7 @@ import { getSocket } from "@/services/socket";
 import { playSound } from "@/lib/sound-manager";
 import { LinearGradient } from "expo-linear-gradient";
 
-const RAPID_BG: [string, string, string] = ["#120200", "#1E0400", "#120200"];
+const RAPID_BG: [string, string, string] = ["rgba(0,0,0,0.72)", "rgba(0,0,0,0.58)", "rgba(0,0,0,0.72)"];
 
 const { width } = Dimensions.get("window");
 const ROUND_TIME = 10;
@@ -441,7 +443,7 @@ export default function RapidScreen() {
     const color = countColors[countdownNum] || Colors.gold;
     const opponentSkin = opponent ? (SKINS.find((s) => s.id === opponent.skin) || SKINS[0]) : SKINS[0];
     return (
-      <View style={[styles.container, styles.countdownContainer, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+      <ImageBackground source={BG_RAPID} style={[styles.container, styles.countdownContainer, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
         <LinearGradient colors={RAPID_BG} style={StyleSheet.absoluteFillObject} />
         <View style={styles.vsRow}>
           <View style={styles.vsPlayer}>
@@ -470,7 +472,7 @@ export default function RapidScreen() {
           <Text style={[styles.countdownNumber, { color }]}>{countdownNum}</Text>
         </View>
         <Text style={styles.rapidBadge}>⚡ الوضع السريع</Text>
-      </View>
+      </ImageBackground>
     );
   }
 
@@ -480,7 +482,7 @@ export default function RapidScreen() {
     const myAttempt = socketIdRef.current && roundResult?.attempts ? roundResult.attempts[socketIdRef.current] : null;
     const oppAttempt = opponent && roundResult?.attempts ? roundResult.attempts[Object.keys(roundResult.attempts).find((k) => k !== socketIdRef.current) || ""] : null;
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+      <ImageBackground source={BG_RAPID} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
         <LinearGradient colors={RAPID_BG} style={StyleSheet.absoluteFillObject} />
         <View style={styles.roundResultContent}>
           <Text style={styles.roundResultRound}>الجولة {roundResult?.round || currentRound} / {TOTAL_ROUNDS}</Text>
@@ -533,7 +535,7 @@ export default function RapidScreen() {
             ) : null}
           </View>
         </View>
-      </View>
+      </ImageBackground>
     );
   }
 
@@ -541,7 +543,7 @@ export default function RapidScreen() {
     const gameEmoji = gameOverData.isDraw ? "🤝" : gameOverData.won ? "🏆" : "😞";
     const gameTitle = gameOverData.isDraw ? "تعادل!" : gameOverData.won ? "فزت!" : "خسرت";
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+      <ImageBackground source={BG_RAPID} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
         <LinearGradient colors={RAPID_BG} style={StyleSheet.absoluteFillObject} />
         <View style={styles.gameOverContent}>
           <Text style={styles.gameOverEmoji}>{gameEmoji}</Text>
@@ -578,12 +580,12 @@ export default function RapidScreen() {
             <Text style={styles.homeBtnText}>الرئيسية</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ImageBackground>
     );
   }
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+    <ImageBackground source={BG_RAPID} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
       <LinearGradient colors={RAPID_BG} style={StyleSheet.absoluteFillObject} />
       <View style={styles.playHeader}>
         <View style={styles.roundInfo}>
@@ -700,14 +702,14 @@ export default function RapidScreen() {
           <Text style={styles.submitBtnText}>{wordSubmitted ? "تم الإرسال" : "أرسل"}</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0A0A1A",
+    backgroundColor: "transparent",
   },
   backBtn: {
     position: "absolute",

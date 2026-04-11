@@ -7,7 +7,9 @@ import {
   Animated,
   Easing,
   Platform,
+  ImageBackground,
 } from "react-native";
+const BG_SPIN = require("@/assets/images/bg_spin.png");
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -256,9 +258,9 @@ export default function SpinScreen() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+    <ImageBackground source={BG_SPIN} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
       <LinearGradient
-        colors={["#080018", "#0D0028", "#120035", "#0D0028", "#080018"]}
+        colors={["rgba(0,0,0,0.72)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.72)"]}
         style={StyleSheet.absoluteFillObject}
       />
 
@@ -400,7 +402,7 @@ export default function SpinScreen() {
         </View>
 
       </View>
-    </View>
+    </ImageBackground>
   );
 }
 

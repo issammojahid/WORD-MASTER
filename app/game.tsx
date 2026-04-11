@@ -14,7 +14,9 @@ import {
   Dimensions,
   BackHandler,
   Share,
+  ImageBackground,
 } from "react-native";
+const BG_GAME = require("@/assets/images/bg_game.png");
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -805,7 +807,8 @@ export default function GameScreen() {
     const podiumBorderColors = [Colors.gold + "80", "#9EB3C4" + "80", "#CD8042" + "80"];
 
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+      <ImageBackground source={BG_GAME} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(5,5,20,0.68)" }]} />
         <Animated.View style={{ flex: 1, opacity: gameOverOpacity, transform: [{ translateY: gameOverSlide }] }}>
         <ScrollView contentContainerStyle={styles.gameOverContent} showsVerticalScrollIndicator={false}>
           {/* Title with winner bounce */}
@@ -1024,7 +1027,7 @@ export default function GameScreen() {
           </View>
         </ScrollView>
         </Animated.View>
-      </View>
+      </ImageBackground>
     );
   }
 
@@ -1032,7 +1035,8 @@ export default function GameScreen() {
   if (roundResults) {
     const isHost = socketId && gamePlayers.length > 0 && gamePlayers[0].id === socketId;
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+      <ImageBackground source={BG_GAME} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(5,5,20,0.68)" }]} />
         <View style={[styles.roundResultsHeader, { backgroundColor: theme.backgroundSecondary, borderBottomColor: theme.cardBorder }]}>
           <Text style={[styles.roundResultsTitle, { color: theme.textPrimary }]}>{t.results} - {t.round} {currentRound}/{numTotalRounds}</Text>
         </View>
@@ -1086,13 +1090,14 @@ export default function GameScreen() {
             <Text style={[styles.waitingNextRoundText, { color: theme.textSecondary }]}>في انتظار المضيف...</Text>
           </View>
         )}
-      </View>
+      </ImageBackground>
     );
   }
 
   // Game play screen
   return (
-    <View style={[styles.container, { paddingTop: topInset, backgroundColor: theme.background }]}>
+    <ImageBackground source={BG_GAME} style={[styles.container, { paddingTop: topInset }]} resizeMode="cover">
+      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(5,5,20,0.68)" }]} />
 
       {/* ─── CHAT BUBBLES OVERLAY ─── */}
       {chatBubbles.length > 0 && (
@@ -1444,7 +1449,7 @@ export default function GameScreen() {
           </Animated.View>
         </View>
       </Modal>
-    </View>
+    </ImageBackground>
   );
 }
 
@@ -1478,7 +1483,7 @@ function ChatBubbleView({ bubble }: { bubble: ChatBubble }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0A0A1A" },
+  container: { flex: 1, backgroundColor: "transparent" },
 
   // Chat bubbles overlay
   bubblesOverlay: {

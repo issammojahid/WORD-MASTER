@@ -11,7 +11,9 @@ import {
   Platform,
   Animated,
   Modal,
+  ImageBackground,
 } from "react-native";
+const BG_LOBBY = require("@/assets/images/bg_lobby.png");
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,7 +28,7 @@ import { WORD_CATEGORIES, type WordCategoryId } from "@/constants/i18n";
 import { getSocket } from "@/services/socket";
 import { LinearGradient } from "expo-linear-gradient";
 
-const LOBBY_BG: [string, string, string] = ["#00080F", "#000E1E", "#00080F"];
+const LOBBY_BG: [string, string, string] = ["rgba(0,0,0,0.72)", "rgba(0,0,0,0.58)", "rgba(0,0,0,0.72)"];
 
 type Player = {
   id: string;
@@ -549,7 +551,7 @@ export default function LobbyScreen() {
     const countColors: Record<number, string> = { 3: Colors.emerald, 2: Colors.gold, 1: Colors.ruby };
     const color = countColors[countdown] || Colors.gold;
     return (
-      <View style={[styles.container, styles.countdownContainer, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+      <ImageBackground source={BG_LOBBY} style={[styles.container, styles.countdownContainer, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
         <LinearGradient colors={LOBBY_BG} style={StyleSheet.absoluteFillObject} />
         {countdownPlayers.length >= 2 && (
           <View style={styles.vsRow}>
@@ -575,7 +577,7 @@ export default function LobbyScreen() {
           <Text style={[styles.countdownNumber, { color }]}>{countdown}</Text>
         </View>
         <Text style={styles.countdownSub}>استعد!</Text>
-      </View>
+      </ImageBackground>
     );
   }
 
@@ -587,7 +589,7 @@ export default function LobbyScreen() {
     const emptySlots = Math.max(0, 2 - filledSlots.length);
 
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+      <ImageBackground source={BG_LOBBY} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
         <LinearGradient colors={LOBBY_BG} style={StyleSheet.absoluteFillObject} />
         {/* ─── Invite Friend Modal ─── */}
         <Modal visible={showInviteModal} transparent animationType="slide" onRequestClose={() => setShowInviteModal(false)}>
@@ -855,14 +857,14 @@ export default function LobbyScreen() {
             <Text style={styles.waitingText}>في انتظار المضيف لبدء اللعبة...</Text>
           </View>
         )}
-      </View>
+      </ImageBackground>
     );
   }
 
   // Matchmaking searching screen
   if (tab === "matchmaking") {
     return (
-      <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+      <ImageBackground source={BG_LOBBY} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
         <LinearGradient colors={LOBBY_BG} style={StyleSheet.absoluteFillObject} />
         <View style={[styles.header, { borderBottomColor: theme.cardBorder }]}>
           <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={handleCancelMatchmaking}>
@@ -881,13 +883,13 @@ export default function LobbyScreen() {
             <Text style={styles.cancelBtnText}>{t.cancel}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ImageBackground>
     );
   }
 
   // Main select screen
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+    <ImageBackground source={BG_LOBBY} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
       <LinearGradient colors={LOBBY_BG} style={StyleSheet.absoluteFillObject} />
       <View style={[styles.header, { borderBottomColor: theme.cardBorder }]}>
         <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
@@ -1011,12 +1013,12 @@ export default function LobbyScreen() {
 
         {error && tab !== "join" && <Text style={styles.errorText}>{error}</Text>}
       </ScrollView>
-    </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0A0A1A" },
+  container: { flex: 1, backgroundColor: "transparent" },
   header: {
     flexDirection: "row", alignItems: "center", paddingHorizontal: 16,
     paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#1E1E3A",

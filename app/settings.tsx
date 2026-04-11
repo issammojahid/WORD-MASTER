@@ -13,7 +13,9 @@ import {
   TextInput,
   Share,
   ActivityIndicator,
+  ImageBackground,
 } from "react-native";
+const BG_SETTINGS = require("@/assets/images/bg_settings.png");
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -156,9 +158,9 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
+    <ImageBackground source={BG_SETTINGS} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
       <LinearGradient
-        colors={["#0A0E1A", "#0D1526", "#0A0E1A"]}
+        colors={["rgba(0,0,0,0.72)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.72)"]}
         style={StyleSheet.absoluteFillObject}
       />
       {/* Header */}
@@ -504,7 +506,7 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </ImageBackground>
   );
 }
 
