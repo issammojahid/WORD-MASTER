@@ -13,6 +13,8 @@ import {
   ImageBackground,
 } from "react-native";
 const BG_TOURNAMENT = require("@/assets/images/bg_tournament.png");
+const BG_POPUP_CONFIRM = require("@/assets/images/bg_popup_confirm.png");
+const BG_POPUP = require("@/assets/images/bg_popup.png");
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -683,7 +685,10 @@ export default function TournamentScreen() {
         {/* ── Leave Tournament Confirmation Modal ── */}
         <Modal visible={showLeaveModal} transparent animationType="fade" onRequestClose={() => setShowLeaveModal(false)}>
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalBox, { backgroundColor: theme.modalBg }]}>
+            <View style={[styles.modalBox, { backgroundColor: "transparent", overflow: "hidden" }]}>
+              <ImageBackground source={BG_POPUP_CONFIRM} style={StyleSheet.absoluteFillObject} resizeMode="cover">
+                <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.52)" }]} />
+              </ImageBackground>
               <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>مغادرة البطولة؟</Text>
               <Text style={[styles.modalDesc, { color: theme.textSecondary }]}>
                 سيتم استرداد رسم الدخول (100 🪙) إلى رصيدك.{"\n"}
@@ -845,7 +850,10 @@ export default function TournamentScreen() {
       {/* ── Create Room Modal ── */}
       <Modal visible={showCreateModal} transparent animationType="fade" onRequestClose={() => setShowCreateModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: theme.modalBg, borderColor: theme.cardBorder }]}>
+          <View style={[styles.modalCard, { backgroundColor: "transparent", borderColor: theme.cardBorder, overflow: "hidden" }]}>
+              <ImageBackground source={BG_POPUP} style={StyleSheet.absoluteFillObject} resizeMode="cover">
+                <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.52)" }]} />
+              </ImageBackground>
             <Ionicons name="add-circle" size={40} color={Colors.gold} style={{ marginBottom: 12 }} />
             <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>إنشاء غرفة بطولة</Text>
             <Text style={[styles.modalSub, { color: theme.textSecondary }]}>اختر حجم البطولة</Text>
@@ -888,7 +896,10 @@ export default function TournamentScreen() {
 
       <Modal visible={showConfirmModal} transparent animationType="fade" onRequestClose={() => setShowConfirmModal(false)}>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: theme.modalBg, borderColor: theme.cardBorder }]}>
+          <View style={[styles.modalCard, { backgroundColor: "transparent", borderColor: theme.cardBorder, overflow: "hidden" }]}>
+              <ImageBackground source={BG_POPUP_CONFIRM} style={StyleSheet.absoluteFillObject} resizeMode="cover">
+                <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.52)" }]} />
+              </ImageBackground>
             <Ionicons name="trophy" size={40} color={Colors.gold} style={{ marginBottom: 12 }} />
             <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>الانضمام للبطولة</Text>
             <Text style={[styles.modalSub, { color: theme.textSecondary }]}>سيتم خصم 100 🪙 من رصيدك</Text>

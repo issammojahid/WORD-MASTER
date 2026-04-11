@@ -17,6 +17,8 @@ import {
   ImageBackground,
 } from "react-native";
 const BG_GAME = require("@/assets/images/bg_game.png");
+const BG_POPUP = require("@/assets/images/bg_popup.png");
+const BG_POPUP_CONFIRM = require("@/assets/images/bg_popup_confirm.png");
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams, useNavigation } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -1389,7 +1391,10 @@ export default function GameScreen() {
       {/* ─── QUICK CHAT PANEL ─── */}
       <Modal visible={showChatPanel} transparent animationType="slide" onRequestClose={() => setShowChatPanel(false)}>
         <TouchableOpacity style={[styles.chatPanelOverlay, { backgroundColor: theme.overlay }]} activeOpacity={1} onPress={() => setShowChatPanel(false)}>
-          <View style={[styles.chatPanel, { backgroundColor: theme.backgroundSecondary, borderColor: theme.cardBorder }]}>
+          <View style={[styles.chatPanel, { backgroundColor: "transparent", borderColor: theme.cardBorder, overflow: "hidden" }]}>
+            <ImageBackground source={BG_POPUP} style={StyleSheet.absoluteFillObject} resizeMode="cover">
+              <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.55)" }]} />
+            </ImageBackground>
             <Text style={[styles.chatPanelTitle, { color: theme.textPrimary }]}>رسالة سريعة</Text>
             <View style={styles.chatMessagesGrid}>
               {QUICK_MESSAGES.map((msg) => (
@@ -1405,9 +1410,12 @@ export default function GameScreen() {
       {/* ─── EXIT CONFIRMATION POPUP ─── */}
       <Modal visible={showExitConfirm} transparent animationType="none" onRequestClose={() => setShowExitConfirm(false)}>
         <View style={[styles.exitOverlay, { backgroundColor: theme.overlay }]}>
-          <Animated.View style={[styles.exitPopupWrapper, { transform: [{ scale: exitScaleAnim }] }]}>
+          <Animated.View style={[styles.exitPopupWrapper, { transform: [{ scale: exitScaleAnim }], overflow: "hidden" }]}>
+            <ImageBackground source={BG_POPUP_CONFIRM} style={StyleSheet.absoluteFillObject} resizeMode="cover">
+              <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.54)" }]} />
+            </ImageBackground>
             <LinearGradient
-              colors={["#0A0A1A", "#0E0E24", "#0A0A1A"]}
+              colors={["rgba(10,10,26,0.72)", "rgba(14,14,36,0.60)", "rgba(10,10,26,0.72)"]}
               style={styles.exitPopup}
             >
               {/* Warning icon */}

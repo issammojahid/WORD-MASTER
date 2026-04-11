@@ -4,6 +4,7 @@ import {
   Alert, Platform, Animated, Dimensions, Modal, Easing, Image, ImageBackground,
 } from "react-native";
 const BG_SHOP = require("@/assets/images/bg_shop.png");
+const BG_POPUP = require("@/assets/images/bg_popup.png");
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -356,7 +357,10 @@ function BoxOpeningModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.boxModalOverlay}>
         <View style={styles.boxModalContent}>
-          <LinearGradient colors={["#1A1040", "#0A0A1A", "#0E0E24"]} style={StyleSheet.absoluteFillObject} />
+          <ImageBackground source={BG_POPUP} style={StyleSheet.absoluteFillObject} resizeMode="cover">
+            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.52)" }]} />
+          </ImageBackground>
+          <LinearGradient colors={["rgba(26,16,64,0.70)", "rgba(10,10,26,0.55)", "rgba(14,14,36,0.60)"]} style={StyleSheet.absoluteFillObject} />
 
           <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
             {PARTICLES.map((sym, i) => (
@@ -496,7 +500,10 @@ function SpinModal({ visible, onClose }: { visible: boolean; onClose: () => void
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableOpacity style={{ flex: 1, backgroundColor: "#000000AA", justifyContent: "center", alignItems: "center" }} activeOpacity={1} onPress={onClose}>
         <Animated.View style={{ transform: [{ scale }], width: SW * 0.88, borderRadius: 24, overflow: "hidden" }}>
-          <LinearGradient colors={["#1E0050", "#0D0025", "#070014"]} style={{ padding: 28, alignItems: "center" }}>
+          <ImageBackground source={BG_POPUP} style={StyleSheet.absoluteFillObject} resizeMode="cover">
+            <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.52)" }]} />
+          </ImageBackground>
+          <LinearGradient colors={["rgba(30,0,80,0.72)", "rgba(13,0,37,0.60)", "rgba(7,0,20,0.70)"]} style={{ padding: 28, alignItems: "center" }}>
             <Text style={{ fontSize: 60, marginBottom: 8 }}>🎡</Text>
             <Text style={{ fontFamily: "Cairo_700Bold", fontSize: 22, color: "#FFF", marginBottom: 6, textAlign: "center" }}>عجلة الحظ</Text>
             <Text style={{ fontFamily: "Cairo_400Regular", fontSize: 14, color: "#B0B0D0", textAlign: "center", marginBottom: 18, lineHeight: 22 }}>

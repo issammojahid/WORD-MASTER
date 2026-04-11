@@ -16,6 +16,8 @@ import {
   ImageBackground,
 } from "react-native";
 const BG_HOME = require("@/assets/images/bg_home.png");
+const BG_POPUP_REWARD = require("@/assets/images/bg_popup_reward.png");
+const BG_POPUP = require("@/assets/images/bg_popup.png");
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -62,14 +64,18 @@ function LoginRewardPopup({ onClaim }: { onClaim: () => void }) {
       opacity: popOp,
     }}>
       <Animated.View style={{
-        width: "100%", backgroundColor: "#130B2B",
+        width: "100%", backgroundColor: "transparent",
         borderRadius: 30, padding: 28, alignItems: "center",
         borderWidth: 4, borderColor: "#F5C842" + "80",
         borderBottomWidth: 6, borderBottomColor: "#C4A010",
         shadowColor: "#F5C842", shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.7, shadowRadius: 35, elevation: 35,
         transform: [{ scale: popScale }],
+        overflow: "hidden",
       }}>
+        <ImageBackground source={BG_POPUP_REWARD} style={StyleSheet.absoluteFillObject} resizeMode="cover">
+          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.52)" }]} />
+        </ImageBackground>
         {/* Corner decorations */}
         <Text style={{ position: "absolute", top: 12, left: 16, fontSize: 18, opacity: 0.7 }}>✦</Text>
         <Text style={{ position: "absolute", top: 12, right: 16, fontSize: 18, opacity: 0.7 }}>✦</Text>
@@ -502,11 +508,14 @@ function FeaturePopup({
       <Animated.View
         style={[
           pStyles.cardWrapper,
-          { transform: [{ scale: popupScale }], shadowColor: panel.color },
+          { transform: [{ scale: popupScale }], shadowColor: panel.color, borderRadius: 30, overflow: "hidden" },
         ]}
       >
+        <ImageBackground source={BG_POPUP} style={StyleSheet.absoluteFillObject} resizeMode="cover">
+          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(0,0,0,0.48)" }]} />
+        </ImageBackground>
         <LinearGradient
-          colors={[panel.gradientFrom, panel.gradientMid, theme.card]}
+          colors={[panel.gradientFrom + "AA", panel.gradientMid + "88", "rgba(0,0,0,0.65)"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[pStyles.card, { borderColor: panel.color + "80", borderBottomColor: panel.color + "CC" }]}
