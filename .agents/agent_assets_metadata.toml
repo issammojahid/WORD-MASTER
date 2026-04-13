@@ -559,3 +559,8 @@ uri = "file://assets/images/bg_popup_confirm.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "OV4M0s4EadP-3VrMEhxte"
+uri = "file://assets/shop-tabs/store_v3.png"
+type = "image"
+title = "generated_image"
