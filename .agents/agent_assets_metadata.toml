@@ -263,7 +263,7 @@ title = "generated_image"
 id = "kRps_QFR2y7DaWQLCnOfS"
 uri = "file://assets/shop-tabs/store.png"
 type = "image"
-title = "generated_image"
+title = "premium store shop tab icon"
 
 [[generated]]
 id = "St0pVsBBG7kn3w5OB8V1P"
@@ -558,3 +558,4 @@ id = "cUukKolH0jcPA7bj-kH_b"
 uri = "file://assets/images/bg_popup_confirm.png"
 type = "image"
 title = "generated_image"
+
