@@ -9,21 +9,21 @@
       "distribution": "internal",
       "channel": "development",
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "word-master-production.up.railway.app"
+        "EXPO_PUBLIC_DOMAIN": "word-master-production-6928.up.railway.app"
       }
     },
     "preview": {
       "distribution": "internal",
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "word-master-production.up.railway.app"
+        "EXPO_PUBLIC_DOMAIN": "word-master-production-6928.up.railway.app"
       }
     },
     "production": {
       "autoIncrement": true,
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "word-master-production.up.railway.app"
+        "EXPO_PUBLIC_DOMAIN": "word-master-production-6928.up.railway.app"
       }
     }
   },
