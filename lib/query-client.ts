@@ -9,7 +9,7 @@ export function getApiUrl(): string {
   let host = process.env.EXPO_PUBLIC_DOMAIN;
 
   if (!host) {
-    host = "word-master-production.up.railway.app";
+    host = "word-master-production-6928.up.railway.app";
   }
 
   let url = new URL(`https://${host}`);
