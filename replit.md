@@ -232,3 +232,4 @@ npx eas-cli build --platform android --profile production --non-interactive --no
 |------|---------|---------|-------------|------|-----|
 | #7 | preview | 2.5.0 | 7 | APK | https://expo.dev/accounts/aissam09s-organization/projects/huroof-al-maghrib/builds/ba0fa31b-c17d-4467-aa49-348fe5365449 |
 | #8 | production | 2.6.0 | 8 | AAB (Play Store) | https://expo.dev/accounts/aissam09s-organization/projects/huroof-al-maghrib/builds/8444cddb-6d73-49b5-8202-367953d64236 |
+| #10 | preview | 2.6.0 | 9 | APK | https://expo.dev/accounts/aissam09s-organization/projects/huroof-al-maghrib/builds/ab981c54-9211-4989-8356-06fde0ffe0e4 |
