@@ -227,9 +227,8 @@ npx eas-cli build --platform android --profile preview --non-interactive --no-wa
 npx eas-cli build --platform android --profile production --non-interactive --no-wait
 ```
 
-### Latest Build (Task #7)
-- **Build ID**: `ba0fa31b-c17d-4467-aa49-348fe5365449`
-- **Profile**: preview (internal APK)
-- **Version**: 2.5.0 (versionCode 7)
-- **Status**: triggered 2026-04-16
-- **URL**: https://expo.dev/accounts/aissam09s-organization/projects/huroof-al-maghrib/builds/ba0fa31b-c17d-4467-aa49-348fe5365449
+### Latest Builds
+| Task | Profile | Version | versionCode | Type | URL |
+|------|---------|---------|-------------|------|-----|
+| #7 | preview | 2.5.0 | 7 | APK | https://expo.dev/accounts/aissam09s-organization/projects/huroof-al-maghrib/builds/ba0fa31b-c17d-4467-aa49-348fe5365449 |
+| #8 | production | 2.6.0 | 8 | AAB (Play Store) | https://expo.dev/accounts/aissam09s-organization/projects/huroof-al-maghrib/builds/8444cddb-6d73-49b5-8202-367953d64236 |
