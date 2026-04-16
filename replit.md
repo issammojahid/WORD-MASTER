@@ -217,19 +217,19 @@ Babel and Metro both support `.cjs` config files automatically.
 
 ## Building Android APK
 
+Uses EAS Build (Expo Application Services) with EXPO_TOKEN for CI authentication.
+
 ```bash
-# Install EAS CLI
-npm install -g eas-cli
+# Build APK (preview profile = internal APK distribution)
+npx eas-cli build --platform android --profile preview --non-interactive --no-wait
 
-# Login to Expo
-eas login
-
-# Configure EAS
-eas build:configure
-
-# Build APK (development)
-eas build --platform android --profile preview
-
-# Or build release APK
-eas build --platform android --profile production
+# Build release AAB (for Play Store)
+npx eas-cli build --platform android --profile production --non-interactive --no-wait
 ```
+
+### Latest Build (Task #7)
+- **Build ID**: `ba0fa31b-c17d-4467-aa49-348fe5365449`
+- **Profile**: preview (internal APK)
+- **Version**: 2.5.0 (versionCode 7)
+- **Status**: triggered 2026-04-16
+- **URL**: https://expo.dev/accounts/aissam09s-organization/projects/huroof-al-maghrib/builds/ba0fa31b-c17d-4467-aa49-348fe5365449
