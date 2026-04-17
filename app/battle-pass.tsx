@@ -435,18 +435,20 @@ export default function BattlePassScreen() {
                 {/* Center tier number with connecting line */}
                 <View style={S.centerCol}>
                   <View style={[S.connectorLine, { opacity: tier.tier === 1 ? 0 : 1 }]} />
-                  <LinearGradient
-                    colors={
-                      reached
-                        ? ["#FFD24A", "#FF9500"]
-                        : ["#2a2a3e", "#1a1a2a"]
-                    }
-                    style={[S.tierBadge, reached && S.tierBadgeReached, { transform: [{ scale: tier.tier === currentTier + 1 ? claimAnim : 1 }] }]}
-                  >
-                    <Animated.Text style={[S.tierBadgeText, { color: reached ? "#1a0d2e" : "#666" }]}>
-                      {tier.tier}
-                    </Animated.Text>
-                  </LinearGradient>
+                  <Animated.View style={{ transform: [{ scale: tier.tier === currentTier + 1 ? claimAnim : 1 }] }}>
+                    <LinearGradient
+                      colors={
+                        reached
+                          ? ["#FFD24A", "#FF9500"]
+                          : ["#2a2a3e", "#1a1a2a"]
+                      }
+                      style={[S.tierBadge, reached && S.tierBadgeReached]}
+                    >
+                      <Text style={[S.tierBadgeText, { color: reached ? "#1a0d2e" : "#666" }]}>
+                        {tier.tier}
+                      </Text>
+                    </LinearGradient>
+                  </Animated.View>
                   <View style={[S.connectorLine, { opacity: tier.tier === 30 ? 0 : 1 }]} />
                 </View>
 
