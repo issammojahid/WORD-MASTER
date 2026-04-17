@@ -6,9 +6,9 @@ channel = "stable-24_05"
 packages = ["flutter316"]
 
 [deployment]
-deploymentTarget = "autoscale"
-build = ["sh", "-c", "npm run expo:static:build && npm run server:build"]
-run = ["npm", "run", "server:dev"]
+deploymentTarget = "vm"
+build = ["sh", "-c", "npm run server:build && npm run expo:static:build"]
+run = ["npm", "run", "server:prod"]
 
 [[ports]]
 localPort = 5000
