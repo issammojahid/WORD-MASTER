@@ -813,7 +813,7 @@ async function handleSeasonEnd() {
 // ── BATTLE PASS: 30-tier seed per season ─────────────────────────────────────
 
 const BP_XP_PER_TIER = 500; // XP needed per tier
-const BP_PREMIUM_COST = 1000; // Legacy coin cost (kept for old APKs / fallback)
+const BP_PREMIUM_COST = 900; // Coin cost for premium Battle Pass unlock
 const BP_XP_WIN = 20;
 const BP_XP_GAME = 10;
 
@@ -3970,15 +3970,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/battle-pass/:playerId/buy-premium — DEPRECATED.
-  // The legacy 1000-coin unlock has been retired in favor of real-money IAP via
-  // POST /unlock-premium-iap. Old APKs hitting this endpoint will fail loudly with 410.
-  app.post("/api/battle-pass/:playerId/buy-premium", async (_req, res) => {
-    return res.status(410).json({
-      error: "endpoint_deprecated",
-      message: "Coin-based premium unlock has been removed. Please update the app to purchase the Battle Pass.",
-      replacement: "POST /api/battle-pass/:playerId/unlock-premium-iap",
-    });
+  // POST /api/battle-pass/:playerId/buy-premium — unlock premium with in-game coins.
+  // Deducts BP_PREMIUM_COST coins from the player's balance atomically, then sets
+  // premium_unlocked = true for the active season. Returns 402 if insufficient coins.
+  app.post("/api/battle-pass/:playerId/buy-premium", async (req, res) => {
+    try {
+      const { playerId } = req.params;
+      if (!playerId) return res.status(400).json({ error: "missing_player_id" });
+
+      const [activeSeason] = await db.select({ id: seasons.id }).from(seasons).where(eq(seasons.status, "active")).limit(1);
+      if (!activeSeason) return res.status(404).json({ error: "no_active_season" });
+
+      const [player] = await db.select({ coins: playerProfiles.coins }).from(playerProfiles).where(eq(playerProfiles.id, playerId)).limit(1);
+      if (!player) return res.status(404).json({ error: "player_not_found" });
+
+      if ((player.coins ?? 0) < BP_PREMIUM_COST) {
+        return res.status(402).json({ error: "insufficient_coins", required: BP_PREMIUM_COST, current: player.coins ?? 0 });
+      }
+
+      await db.update(playerProfiles)
+        .set({ coins: sql`coins - ${BP_PREMIUM_COST}`, updatedAt: new Date() })
+        .where(and(eq(playerProfiles.id, playerId), sql`coins >= ${BP_PREMIUM_COST}`));
+
+      await getOrCreatePlayerBattlePass(playerId, activeSeason.id);
+      await db.update(playerBattlePass)
+        .set({ premiumUnlocked: true, updatedAt: new Date() })
+        .where(and(eq(playerBattlePass.playerId, playerId), eq(playerBattlePass.seasonId, activeSeason.id)));
+
+      const [updated] = await db.select({ coins: playerProfiles.coins }).from(playerProfiles).where(eq(playerProfiles.id, playerId)).limit(1);
+      res.json({ ok: true, newCoins: updated?.coins ?? 0 });
+    } catch (e) {
+      console.error("POST /api/battle-pass/:playerId/buy-premium error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
   });
 
   // POST /api/battle-pass/:playerId/claim/:tier — validate & grant reward

@@ -49,6 +49,7 @@ type BpState = {
   premiumUnlocked: boolean;
   claimedTiers: string[];
   xpPerTier: number;
+  premiumCost?: number;
   iap?: BpIap;
   tiers: BpTier[];
 };
@@ -248,6 +249,54 @@ export default function BattlePassScreen() {
     );
   };
 
+  const buyWithCoins = async () => {
+    if (!playerId || !bpState || buying) return;
+    const cost = bpState.premiumCost ?? 900;
+    const playerCoins = profile.coins ?? 0;
+
+    if (playerCoins < cost) {
+      Alert.alert("ما عندكش كافي 🪙", `محتاج ${cost} 🪙 باش تفعّل الباس المميز.\nعندك ${playerCoins} 🪙 فقط.`, [{ text: "حسناً" }]);
+      return;
+    }
+
+    Alert.alert(
+      "شراء الباس المميز",
+      `هل تريد شراء الباس المميز مقابل ${cost} 🪙؟`,
+      [
+        { text: "إلغاء", style: "cancel" },
+        {
+          text: "شراء",
+          onPress: async () => {
+            setBuying(true);
+            try {
+              const res = await fetch(`${getApiUrl()}/api/battle-pass/${playerId}/buy-premium`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+              });
+              const data = await res.json();
+              if (!res.ok) {
+                if (data.error === "insufficient_coins") {
+                  Alert.alert("ما عندكش كافي 🪙", `محتاج ${data.required} 🪙. عندك ${data.current} 🪙.`);
+                } else {
+                  Alert.alert("خطأ", "فشل الشراء. حاول مرة أخرى.");
+                }
+              } else {
+                if (typeof data.newCoins === "number") updateProfile({ coins: data.newCoins });
+                await load();
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                Alert.alert("مبروك! 🎉", "تم تفعيل الباس المميز بنجاح");
+              }
+            } catch {
+              Alert.alert("خطأ", "فشل الاتصال بالخادم");
+            } finally {
+              setBuying(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const claimReward = async (tierNum: number, track: "free" | "premium") => {
     if (!playerId || !bpState) return;
     const key = `${tierNum}_${track}`;
@@ -393,7 +442,7 @@ export default function BattlePassScreen() {
 
         {/* ── Tier path ─────────────────────────────────────────────────── */}
         <ScrollView
-          contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: insets.bottom + (premiumUnlocked ? 24 : 110) }}
+          contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: insets.bottom + (premiumUnlocked ? 24 : 160) }}
           showsVerticalScrollIndicator={false}
         >
           {/* Track headers */}
@@ -474,6 +523,7 @@ export default function BattlePassScreen() {
         {/* ── Sticky Premium CTA ────────────────────────────────────────── */}
         {!premiumUnlocked && (
           <View style={[S.stickyWrap, { paddingBottom: insets.bottom + 10 }]}>
+            {/* Gold IAP button */}
             <Animated.View
               style={{
                 shadowColor: "#FFD24A",
@@ -507,6 +557,17 @@ export default function BattlePassScreen() {
                 </LinearGradient>
               </TouchableOpacity>
             </Animated.View>
+
+            {/* Coin purchase button */}
+            <TouchableOpacity
+              activeOpacity={0.82}
+              onPress={buyWithCoins}
+              disabled={buying}
+              style={S.coinCtaBtn}
+            >
+              <Text style={S.coinCtaIcon}>🪙</Text>
+              <Text style={S.coinCtaText}>شراء بـ {bpState.premiumCost ?? 900} عملة</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -930,5 +991,27 @@ const S = StyleSheet.create({
     fontFamily: "Cairo_700Bold",
     fontSize: 14,
     color: "#fff",
+  },
+
+  coinCtaBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 8,
+    paddingVertical: 11,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderWidth: 1,
+    borderColor: "rgba(255,210,74,0.3)",
+  },
+  coinCtaIcon: {
+    fontSize: 18,
+  },
+  coinCtaText: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 14,
+    color: "#FFD24A",
   },
 });
