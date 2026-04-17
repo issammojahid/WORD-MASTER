@@ -50,8 +50,41 @@ export type PurchaseResult =
   | { ok: false; cancelled?: boolean; error: string };
 
 /**
+ * Match only the exact Battle Pass premium product. Android product ids may appear
+ * either as the bare product id or as `<product_id>:<base_plan_id>` (Play Billing v5+),
+ * so we accept either of those exact forms — never any other package.
+ */
+function matchesBattlePassProduct(productIdentifier: string): boolean {
+  if (productIdentifier === PRODUCT_ID) return true;
+  if (productIdentifier.startsWith(`${PRODUCT_ID}:`)) return true;
+  return false;
+}
+
+/**
+ * Fetch localized price string for the Battle Pass premium product from RevenueCat
+ * offerings. Returns null if the SDK is unavailable, no offering is configured, or
+ * the expected product id is not in the current offering. NEVER falls back to a
+ * different product to avoid charging users the wrong amount.
+ */
+export async function getLocalizedBattlePassPrice(playerId: string | null): Promise<string | null> {
+  const Purchases = await loadPurchases();
+  if (!Purchases || !RC_API_KEY) return null;
+  try {
+    if (playerId) await initIAP(playerId);
+    const offerings = await Purchases.getOfferings();
+    const current = offerings.current;
+    if (!current) return null;
+    const pkg = current.availablePackages.find((p) => matchesBattlePassProduct(p.product.identifier));
+    return pkg?.product.priceString ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Open the Google Play / App Store billing sheet for the Battle Pass premium product.
  * Returns success only after the user completes the purchase AND the entitlement is active.
+ * STRICT: only purchases the exact `battle_pass_premium_s1` product — no fallback.
  */
 export async function purchaseBattlePassPremium(playerId: string): Promise<PurchaseResult> {
   const Purchases = await loadPurchases();
@@ -64,11 +97,8 @@ export async function purchaseBattlePassPremium(playerId: string): Promise<Purch
     const current = offerings.current;
     if (!current) return { ok: false, error: "no_offerings" };
 
-    // Find the package whose product id matches our expected product.
-    const pkg =
-      current.availablePackages.find(
-        (p) => p.product.identifier === PRODUCT_ID || p.product.identifier === `${PRODUCT_ID}:${PRODUCT_ID}`
-      ) || current.lifetime || current.availablePackages[0];
+    // STRICT match — never fall back to lifetime/availablePackages[0] (would charge wrong product).
+    const pkg = current.availablePackages.find((p) => matchesBattlePassProduct(p.product.identifier));
     if (!pkg) return { ok: false, error: "no_package" };
 
     const { customerInfo } = await Purchases.purchasePackage(pkg);

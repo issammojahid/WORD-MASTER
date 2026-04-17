@@ -3922,9 +3922,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Product check: ensure entitlement was granted by our expected product id
-      if (ent.product_identifier && ent.product_identifier !== BP_IAP_PRODUCT_ID) {
-        console.warn("[battle-pass IAP] product mismatch:", ent.product_identifier, "expected", BP_IAP_PRODUCT_ID);
+      // Product check (FAIL CLOSED): entitlement MUST declare a product_identifier
+      // that matches our expected SKU. Reject if missing or different — we never
+      // grant premium based on entitlement existence alone.
+      const prodId = ent.product_identifier;
+      const productMatches =
+        !!prodId && (prodId === BP_IAP_PRODUCT_ID || prodId.startsWith(`${BP_IAP_PRODUCT_ID}:`));
+      if (!productMatches) {
+        console.warn("[battle-pass IAP] product mismatch / missing:", prodId, "expected", BP_IAP_PRODUCT_ID);
         return res.status(403).json({ error: "product_mismatch" });
       }
 

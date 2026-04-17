@@ -21,7 +21,7 @@ import { usePlayer } from "@/contexts/PlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getApiUrl } from "@/lib/query-client";
 import { fetch } from "expo/fetch";
-import { purchaseBattlePassPremium } from "@/lib/iap";
+import { purchaseBattlePassPremium, getLocalizedBattlePassPrice } from "@/lib/iap";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type BpTier = {
@@ -102,6 +102,7 @@ export default function BattlePassScreen() {
   const [claiming, setClaiming] = useState<string | null>(null);
   const [buying, setBuying] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [localizedPrice, setLocalizedPrice] = useState<string | null>(null);
 
   const claimAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -141,6 +142,18 @@ export default function BattlePassScreen() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Pull localized store price (e.g. MAD 19,99 / SAR 7,99 / $1.99) from RevenueCat.
+  // Returns null if SDK unavailable or RC not configured — fallback to backend display.
+  useEffect(() => {
+    if (!playerId || !bpState?.iap?.enabled) return;
+    let cancelled = false;
+    (async () => {
+      const p = await getLocalizedBattlePassPrice(playerId);
+      if (!cancelled && p) setLocalizedPrice(p);
+    })();
+    return () => { cancelled = true; };
+  }, [playerId, bpState?.iap?.enabled]);
+
   const buyPremium = async () => {
     if (!playerId || !bpState) return;
     const iap = bpState.iap;
@@ -155,9 +168,10 @@ export default function BattlePassScreen() {
       return;
     }
 
+    const displayPrice = localizedPrice ?? iap.price.display;
     Alert.alert(
       "فتح الباس المميز",
-      `هل تريد شراء الباس المميز مقابل ${iap.price.display}؟`,
+      `هل تريد شراء الباس المميز مقابل ${displayPrice}؟`,
       [
         { text: "إلغاء", style: "cancel" },
         {
@@ -274,7 +288,9 @@ export default function BattlePassScreen() {
   const { passXp, currentTier, premiumUnlocked, claimedTiers, xpPerTier, tiers, season, iap } = bpState;
   const xpInCurrentTier = passXp % xpPerTier;
   const xpProgressPct = currentTier >= 30 ? 1 : Math.min(1, xpInCurrentTier / xpPerTier);
-  const priceLabel = iap?.price.display ?? "€1.99";
+  // Prefer the locale-formatted price string from the device's store (RevenueCat),
+  // falling back to the backend's base EUR display only when the SDK can't reach the store.
+  const priceLabel = localizedPrice ?? iap?.price.display ?? "€1.99";
 
   return (
     <ImageBackground source={BG_BP} style={{ flex: 1 }} resizeMode="cover">
