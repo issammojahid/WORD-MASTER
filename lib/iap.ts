@@ -1,12 +1,21 @@
 import { Platform } from "react-native";
+import Constants from "expo-constants";
 
 // RevenueCat react-native-purchases SDK is a native module — only loaded on iOS/Android.
 // In Expo Go (or web/SSR), `Purchases` may not be available; we lazy-import and degrade gracefully.
 
-const RC_API_KEY =
-  process.env.EXPO_PUBLIC_REVENUECAT_API_KEY ||
-  (process.env as Record<string, string | undefined>).EXPO_PUBLIC_REVENUECAT_PUBLIC_API_KEY ||
-  "";
+const RC_TEST_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_TEST_API_KEY || "";
+const RC_IOS_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY || "";
+const RC_ANDROID_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY || "";
+
+function getApiKey(): string {
+  if (__DEV__ || Platform.OS === "web" || Constants.executionEnvironment === "storeClient") {
+    return RC_TEST_API_KEY;
+  }
+  if (Platform.OS === "ios") return RC_IOS_API_KEY;
+  if (Platform.OS === "android") return RC_ANDROID_API_KEY;
+  return RC_TEST_API_KEY;
+}
 
 const PRODUCT_ID = "battle_pass_premium_s1";
 const ENTITLEMENT_ID = "battle_pass_premium";
@@ -28,6 +37,7 @@ async function loadPurchases(): Promise<PurchasesModule | null> {
 }
 
 export async function initIAP(playerId: string | null): Promise<void> {
+  const RC_API_KEY = getApiKey();
   if (!RC_API_KEY || !playerId) return;
   if (initialized && currentPlayerId === playerId) return;
   const Purchases = await loadPurchases();
@@ -68,7 +78,7 @@ function matchesBattlePassProduct(productIdentifier: string): boolean {
  */
 export async function getLocalizedBattlePassPrice(playerId: string | null): Promise<string | null> {
   const Purchases = await loadPurchases();
-  if (!Purchases || !RC_API_KEY) return null;
+  if (!Purchases || !getApiKey()) return null;
   try {
     if (playerId) await initIAP(playerId);
     const offerings = await Purchases.getOfferings();
@@ -88,7 +98,7 @@ export async function getLocalizedBattlePassPrice(playerId: string | null): Prom
  */
 export async function purchaseBattlePassPremium(playerId: string): Promise<PurchaseResult> {
   const Purchases = await loadPurchases();
-  if (!Purchases || !RC_API_KEY) {
+  if (!Purchases || !getApiKey()) {
     return { ok: false, error: "iap_unavailable" };
   }
   try {
@@ -117,7 +127,7 @@ export async function purchaseBattlePassPremium(playerId: string): Promise<Purch
 
 export async function restorePurchases(playerId: string): Promise<boolean> {
   const Purchases = await loadPurchases();
-  if (!Purchases || !RC_API_KEY) return false;
+  if (!Purchases || !getApiKey()) return false;
   try {
     await initIAP(playerId);
     const customerInfo = await Purchases.restorePurchases();

@@ -34,7 +34,16 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
     - All API contracts preserved: GET state, POST claim/:tier, POST buy-premium (legacy), POST unlock-premium-iap (new)
   - **Version bumped to 2.7.0** in `app.json` (next EAS build will include all changes)
   - **RevenueCat code wiring: COMPLETE.** `react-native-purchases` is installed; `lib/iap.ts` handles configure/offerings/purchase/restore with strict product-ID matching; `<IapInitializer />` is mounted in `app/_layout.tsx`; backend `/unlock-premium-iap` does fail-closed RevenueCat REST verification.
-  - **Operational steps still pending** (no code changes needed): (1) create Google Play Console product `battle_pass_premium_s1` (€1.99 base, regional auto-pricing), (2) create RevenueCat project + entitlement `battle_pass_premium` + offering containing that product, (3) set `REVENUECAT_SECRET_API_KEY` on Railway, (4) set `EXPO_PUBLIC_REVENUECAT_API_KEY` for the mobile build, (5) submit a fresh EAS build (2.7.0) to Play internal track and verify purchase + restore.
+  - **`lib/iap.ts` updated (Task #12)**: Now reads three separate env vars (`EXPO_PUBLIC_REVENUECAT_TEST_API_KEY`, `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY`). Dev/Expo Go uses test store key; production iOS/Android use their respective keys.
+  - **Seed script ready**: `scripts/seedRevenueCat.ts` sets up the RevenueCat project "Huroof Al Maghrib", product `battle_pass_premium_s1` (non-consumable, $1.99/€1.99/MAD 199), entitlement `battle_pass_premium`, and default offering. Run with: `REVENUECAT_API_KEY=<v2_secret_key> npx tsx scripts/seedRevenueCat.ts`
+  - **RevenueCat Replit Integration**: The Replit native integration was dismissed. Use manual API key approach instead. NOTE: Do NOT try to re-propose the Replit RevenueCat integration — user dismissed it. Instead use `REVENUECAT_API_KEY` secret for the seed script and direct env vars for the mobile build keys.
+  - **Operational steps still pending**:
+    1. User provides RevenueCat V2 secret key → store as `REVENUECAT_API_KEY` secret → run seed script → copy logged keys into env vars
+    2. Set `EXPO_PUBLIC_REVENUECAT_TEST_API_KEY`, `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY` from seed script output
+    3. Set `REVENUECAT_PROJECT_ID`, `REVENUECAT_TEST_STORE_APP_ID`, etc. from seed script output
+    4. Set `REVENUECAT_SECRET_API_KEY` on Railway (server-side entitlement verification)
+    5. Create product `battle_pass_premium_s1` in Google Play Console (€1.99 base, non-consumable)
+    6. Submit fresh EAS build (v2.7.0) to Play internal track and verify purchase + restore
 
 - **National & International Leaderboard (Task #12)**:
   - **Schema**: `country` text column (default "MA") added to `player_profiles`
