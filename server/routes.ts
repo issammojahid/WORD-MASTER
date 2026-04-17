@@ -3866,11 +3866,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(battlePassTiers.seasonId, activeSeason.id))
         .orderBy(asc(battlePassTiers.tier));
 
+      const devPremium = process.env.NODE_ENV === "development";
       res.json({
         season: { id: activeSeason.id, name: activeSeason.name, endDate: activeSeason.endDate },
         passXp: pass.passXp,
         currentTier: pass.currentTier,
-        premiumUnlocked: pass.premiumUnlocked,
+        premiumUnlocked: devPremium ? true : pass.premiumUnlocked,
         claimedTiers: Array.isArray(pass.claimedTiers) ? pass.claimedTiers : [],
         xpPerTier: BP_XP_PER_TIER,
         premiumCost: BP_PREMIUM_COST,
