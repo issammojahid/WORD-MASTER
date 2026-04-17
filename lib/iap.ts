@@ -105,9 +105,13 @@ export async function purchaseBattlePassPremium(playerId: string): Promise<Purch
     const ent = customerInfo.entitlements.active[ENTITLEMENT_ID];
     if (!ent) return { ok: false, error: "entitlement_not_active" };
     return { ok: true };
-  } catch (e: any) {
-    if (e?.userCancelled) return { ok: false, cancelled: true, error: "user_cancelled" };
-    return { ok: false, error: e?.message || "purchase_failed" };
+  } catch (e: unknown) {
+    const err = e as { userCancelled?: boolean; message?: string };
+    if (err && err.userCancelled === true) {
+      return { ok: false, cancelled: true, error: "user_cancelled" };
+    }
+    const msg = err && typeof err.message === "string" ? err.message : "purchase_failed";
+    return { ok: false, error: msg };
   }
 }
 
