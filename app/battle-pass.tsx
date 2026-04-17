@@ -21,7 +21,7 @@ import { usePlayer } from "@/contexts/PlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getApiUrl } from "@/lib/query-client";
 import { fetch } from "expo/fetch";
-import { purchaseBattlePassPremium, getLocalizedBattlePassPrice } from "@/lib/iap";
+import { purchaseBattlePassPremium, getLocalizedBattlePassPrice, restorePurchases } from "@/lib/iap";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type BpTier = {
@@ -154,6 +154,34 @@ export default function BattlePassScreen() {
     })();
     return () => { cancelled = true; };
   }, [playerId, bpState?.iap?.enabled]);
+
+  const handleRestore = async () => {
+    if (!playerId || buying) return;
+    setBuying(true);
+    try {
+      const ok = await restorePurchases(playerId);
+      if (!ok) {
+        Alert.alert("لا توجد مشتريات", "لم نجد أي عملية شراء سابقة لهذا الحساب.");
+        return;
+      }
+      // Re-trigger server verification so premium_unlocked gets set
+      const res = await fetch(`${getApiUrl()}/api/battle-pass/${playerId}/unlock-premium-iap`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (res.ok) {
+        await load();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        Alert.alert("تم الاسترجاع ✅", "تم تفعيل الباس المميز.");
+      } else {
+        Alert.alert("خطأ", "تعذّر التحقق من الشراء. حاول مرة أخرى.");
+      }
+    } catch {
+      Alert.alert("خطأ", "فشل الاتصال");
+    } finally {
+      setBuying(false);
+    }
+  };
 
   const buyPremium = async () => {
     if (!playerId || !bpState) return;
@@ -478,6 +506,17 @@ export default function BattlePassScreen() {
               </TouchableOpacity>
             </Animated.View>
           </View>
+        )}
+
+        {!premiumUnlocked && iap?.enabled && (
+          <TouchableOpacity
+            onPress={handleRestore}
+            style={[S.restoreBtn, { bottom: insets.bottom + 78 }]}
+            activeOpacity={0.7}
+            disabled={buying}
+          >
+            <Text style={S.restoreText}>استرجاع مشتريات سابقة</Text>
+          </TouchableOpacity>
         )}
 
         {premiumUnlocked && (
@@ -857,6 +896,22 @@ const S = StyleSheet.create({
     fontSize: 9,
     color: "rgba(255,210,74,0.7)",
     marginTop: -2,
+  },
+
+  restoreBtn: {
+    position: "absolute",
+    alignSelf: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,210,74,0.35)",
+  },
+  restoreText: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 11,
+    color: "#FFD24A",
   },
 
   unlockedBanner: {
