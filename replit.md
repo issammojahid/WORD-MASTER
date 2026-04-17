@@ -19,7 +19,12 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
     - New constants: `BP_IAP_PRODUCT_ID = "battle_pass_premium_s1"`, `BP_IAP_BASE_PRICE = €1.99`, `BP_IAP_ENABLED` (true only when `REVENUECAT_SECRET_API_KEY` env var is set)
     - `GET /api/battle-pass/:playerId` response now includes `iap: { enabled, productId, price: { amount, currency, display } }`
     - New endpoint `POST /api/battle-pass/:playerId/unlock-premium-iap` — verifies entitlement via RevenueCat REST API (`https://api.revenuecat.com/v1/subscribers/{userId}`, entitlement key `battle_pass_premium`) before flipping `premium_unlocked = true`. Returns 503 `iap_not_configured` when keys missing
-    - Old `/buy-premium` (1000 coins) kept as fallback for old APKs and pre-IAP testing
+    - Legacy `/buy-premium` (1000 coins) **deprecated** — now returns `410 Gone` so old clients fail loudly and prompt update
+    - Seed script `scripts/seed-railway-bp.ts` now **creates an active season if missing** (30-day window, name = `موسم {شهر سنة}`) before seeding tiers — fully production-ready
+  - **Mobile IAP integration** (`lib/iap.ts` + `app/_layout.tsx`):
+    - Installed `react-native-purchases`. New `lib/iap.ts` exports `initIAP(playerId)`, `purchaseBattlePassPremium(playerId)`, `restorePurchases(playerId)`. SDK is lazy-loaded so it degrades gracefully on web/Expo Go.
+    - `<IapInitializer />` mounted in `RootLayoutNav` calls `Purchases.configure({ apiKey, appUserID: playerId })` on app boot, ensuring RevenueCat App User ID always equals our in-game playerId (security binding for the server-side verify endpoint).
+    - Reads `EXPO_PUBLIC_REVENUECAT_API_KEY` from env. Until this is set + the native build is published, `purchaseBattlePassPremium()` returns `{ ok: false, error: "iap_unavailable" }` and the UI shows "قريباً".
   - **New Battle Pass UI** (`app/battle-pass.tsx` — 876 lines, full rewrite):
     - Season banner hero card with countdown (days/hours/min, refreshes every 60s), large tier badge (current/30), gold→orange gradient XP bar
     - Vertical tier path: 30 rows, each with two reward cells side-by-side and a center connector with tier-number circle

@@ -3942,47 +3942,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/battle-pass/:playerId/buy-premium — deduct 1000 coins, unlock premium (atomic)
-  app.post("/api/battle-pass/:playerId/buy-premium", async (req, res) => {
-    try {
-      const { playerId } = req.params;
-      const [activeSeason] = await db.select({ id: seasons.id }).from(seasons).where(eq(seasons.status, "active")).limit(1);
-      if (!activeSeason) return res.status(404).json({ error: "no_active_season" });
-
-      await getOrCreatePlayerBattlePass(playerId, activeSeason.id);
-
-      let newCoins: number | undefined;
-      await db.transaction(async (tx) => {
-        // Lock the profile row and check coins atomically
-        const [profile] = await tx.select({ coins: playerProfiles.coins }).from(playerProfiles).where(eq(playerProfiles.id, playerId)).limit(1);
-        if (!profile) throw Object.assign(new Error("player_not_found"), { statusCode: 404 });
-        if (profile.coins < BP_PREMIUM_COST) throw Object.assign(new Error("insufficient_coins"), { statusCode: 400 });
-
-        // Atomically unlock premium only if not already unlocked (prevents double spend on concurrent requests)
-        const updated = await tx.update(playerBattlePass).set({ premiumUnlocked: true, updatedAt: new Date() })
-          .where(and(
-            eq(playerBattlePass.playerId, playerId),
-            eq(playerBattlePass.seasonId, activeSeason.id),
-            eq(playerBattlePass.premiumUnlocked, false),
-          )).returning({ id: playerBattlePass.id });
-        if (updated.length === 0) throw Object.assign(new Error("already_premium"), { statusCode: 400 });
-
-        // Use SQL arithmetic for coin deduction to avoid stale-write under concurrent coin mutations
-        const [updatedProfile] = await tx.update(playerProfiles)
-          .set({ coins: sql`coins - ${BP_PREMIUM_COST}`, updatedAt: new Date() })
-          .where(and(eq(playerProfiles.id, playerId), sql`coins >= ${BP_PREMIUM_COST}`))
-          .returning({ coins: playerProfiles.coins });
-        if (!updatedProfile) throw Object.assign(new Error("insufficient_coins"), { statusCode: 400 });
-        newCoins = updatedProfile.coins;
-      });
-
-      res.json({ ok: true, coins: newCoins });
-    } catch (e: unknown) {
-      const err = e as { message?: string; statusCode?: number };
-      if (err.statusCode && err.message) return res.status(err.statusCode).json({ error: err.message });
-      console.error("POST /api/battle-pass/:playerId/buy-premium error:", e);
-      res.status(500).json({ error: "server_error" });
-    }
+  // POST /api/battle-pass/:playerId/buy-premium — DEPRECATED.
+  // The legacy 1000-coin unlock has been retired in favor of real-money IAP via
+  // POST /unlock-premium-iap. Old APKs hitting this endpoint will fail loudly with 410.
+  app.post("/api/battle-pass/:playerId/buy-premium", async (_req, res) => {
+    return res.status(410).json({
+      error: "endpoint_deprecated",
+      message: "Coin-based premium unlock has been removed. Please update the app to purchase the Battle Pass.",
+      replacement: "POST /api/battle-pass/:playerId/unlock-premium-iap",
+    });
   });
 
   // POST /api/battle-pass/:playerId/claim/:tier — validate & grant reward

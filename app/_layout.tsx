@@ -21,6 +21,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import SplashOverlay from "@/components/SplashOverlay";
 import { preloadAllSounds } from "@/lib/sound-manager";
 import { registerForPushNotifications, getPermissionsStatus } from "@/lib/notifications";
+import { initIAP } from "@/lib/iap";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -215,6 +216,14 @@ const np = StyleSheet.create({
 
 const LAST_RESET_DATE_KEY = "daily_reset_date_v1";
 
+function IapInitializer() {
+  const { playerId } = usePlayer();
+  useEffect(() => {
+    if (playerId) initIAP(playerId).catch(() => {});
+  }, [playerId]);
+  return null;
+}
+
 function DailyResetChecker() {
   const { playerId } = usePlayer();
   const qc = useQueryClient();
@@ -346,6 +355,7 @@ function RootLayoutNav() {
     <>
       <InvitePoller />
       <GiftPoller />
+      <IapInitializer />
       <DailyResetChecker />
       <DailyLoginPopup />
       <PushNotificationRegistrar />

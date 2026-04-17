@@ -21,6 +21,7 @@ import { usePlayer } from "@/contexts/PlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getApiUrl } from "@/lib/query-client";
 import { fetch } from "expo/fetch";
+import { purchaseBattlePassPremium } from "@/lib/iap";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type BpTier = {
@@ -48,7 +49,6 @@ type BpState = {
   premiumUnlocked: boolean;
   claimedTiers: string[];
   xpPerTier: number;
-  premiumCost: number;
   iap?: BpIap;
   tiers: BpTier[];
 };
@@ -145,68 +145,50 @@ export default function BattlePassScreen() {
     if (!playerId || !bpState) return;
     const iap = bpState.iap;
 
-    // Real-money IAP path
-    if (iap?.enabled) {
+    // IAP not yet enabled on backend → show "coming soon" without any fallback purchase.
+    if (!iap?.enabled) {
       Alert.alert(
-        "فتح الباس المميز",
-        `هل تريد شراء الباس المميز مقابل ${iap.price.display}؟`,
-        [
-          { text: "إلغاء", style: "cancel" },
-          {
-            text: "شراء",
-            onPress: async () => {
-              setBuying(true);
-              try {
-                // TODO: once react-native-purchases is wired:
-                //   await Purchases.logIn(playerId);
-                //   await Purchases.purchasePackage(premiumPackage);
-                // The server identifies the RevenueCat subscriber by playerId itself,
-                // so no additional body is required.
-                const res = await fetch(`${getApiUrl()}/api/battle-pass/${playerId}/unlock-premium-iap`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                });
-                const data = await res.json();
-                if (!res.ok) {
-                  Alert.alert("الدفع غير متاح بعد", "نظام الدفع الحقيقي قيد الإعداد. حاول قريباً.");
-                } else {
-                  await load();
-                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                }
-              } catch {
-                Alert.alert("خطأ", "فشل الاتصال بالخادم");
-              } finally {
-                setBuying(false);
-              }
-            },
-          },
-        ]
+        "قريباً 🔜",
+        `الباس المميز سيكون متاح قريباً بـ ${iap?.price.display ?? "€1.99"} عبر متجر Google Play.`,
+        [{ text: "حسناً" }]
       );
       return;
     }
 
-    // IAP not yet enabled → friendly "coming soon" message
     Alert.alert(
-      "قريباً 🔜",
-      `الباس المميز سيكون متاح بـ ${iap?.price.display ?? "€1.99"} عبر متجر Google Play قريباً.\n\nالإصدار التجريبي: يمكنك حالياً فتحه بـ ${bpState.premiumCost} 🪙`,
+      "فتح الباس المميز",
+      `هل تريد شراء الباس المميز مقابل ${iap.price.display}؟`,
       [
         { text: "إلغاء", style: "cancel" },
         {
-          text: `شراء بـ ${bpState.premiumCost} 🪙`,
+          text: "شراء",
           onPress: async () => {
             setBuying(true);
             try {
-              const res = await fetch(`${getApiUrl()}/api/battle-pass/${playerId}/buy-premium`, {
+              // 1) Open native Google Play / App Store billing sheet via RevenueCat SDK
+              const purchase = await purchaseBattlePassPremium(playerId);
+              if (!purchase.ok) {
+                if (purchase.cancelled) {
+                  // user cancelled — silent
+                } else if (purchase.error === "iap_unavailable") {
+                  Alert.alert("غير متاح", "الدفع غير مفعّل في هذا الإصدار. حدّث التطبيق من المتجر.");
+                } else {
+                  Alert.alert("فشل الشراء", "تعذّر إتمام عملية الشراء. حاول مرة أخرى.");
+                }
+                return;
+              }
+
+              // 2) Tell server to verify the entitlement and flip premium_unlocked
+              const res = await fetch(`${getApiUrl()}/api/battle-pass/${playerId}/unlock-premium-iap`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
               });
-              const data = await res.json();
               if (!res.ok) {
-                Alert.alert("خطأ", data.error === "insufficient_coins" ? "ليس لديك كافي عملات" : data.error);
+                Alert.alert("خطأ في التفعيل", "تم الدفع، لكن التفعيل فشل. حاول إعادة فتح الصفحة بعد قليل.");
               } else {
-                if (typeof data.coins === "number") updateProfile({ coins: data.coins });
                 await load();
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                Alert.alert("مبروك! 🎉", "تم تفعيل الباس المميز");
               }
             } catch {
               Alert.alert("خطأ", "فشل الاتصال بالخادم");

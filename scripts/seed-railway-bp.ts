@@ -42,12 +42,27 @@ const BP_TIER_DEFS = [
   { freeRewardType: "skin",      freeRewardId: "champion",    freeRewardAmount: 0,    premiumRewardType: "title",     premiumRewardId: "letter_king", premiumRewardAmount: 0    },
 ];
 
-async function main() {
+async function ensureActiveSeason() {
   const [active] = await db.select().from(seasons).where(eq(seasons.status, "active")).limit(1);
-  if (!active) {
-    console.error("No active season found.");
-    process.exit(1);
-  }
+  if (active) return active;
+
+  // Create-if-missing: 30-day season starting today
+  const now = new Date();
+  const end = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const monthLabel = now.toLocaleDateString("ar", { month: "long", year: "numeric" });
+  const name = `موسم ${monthLabel}`;
+  const [created] = await db.insert(seasons).values({
+    name,
+    status: "active",
+    startDate: now,
+    endDate: end,
+  } as typeof seasons.$inferInsert).returning();
+  console.log(`✓ Created new active season: ${created.name} (${created.id})`);
+  return created;
+}
+
+async function main() {
+  const active = await ensureActiveSeason();
   console.log(`Active season: ${active.name} (${active.id})`);
 
   const existing = await db.select({ id: battlePassTiers.id }).from(battlePassTiers).where(eq(battlePassTiers.seasonId, active.id));
