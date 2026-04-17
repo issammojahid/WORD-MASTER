@@ -373,6 +373,8 @@ export default function BattlePassScreen() {
   // Prefer the locale-formatted price string from the device's store (RevenueCat),
   // falling back to the backend's base EUR display only when the SDK can't reach the store.
   const priceLabel = localizedPrice ?? iap?.price.display ?? "€1.99";
+  const coinCost = bpState.premiumCost ?? 900;
+  const canAffordCoins = (profile.coins ?? 0) >= coinCost;
 
   return (
     <ImageBackground source={BG_BP} style={{ flex: 1 }} resizeMode="cover">
@@ -559,24 +561,18 @@ export default function BattlePassScreen() {
             </Animated.View>
 
             {/* Coin purchase button */}
-            {(() => {
-              const cost = bpState.premiumCost ?? 900;
-              const canAfford = (profile.coins ?? 0) >= cost;
-              return (
-                <TouchableOpacity
-                  activeOpacity={0.82}
-                  onPress={buyWithCoins}
-                  disabled={buying}
-                  style={[S.coinCtaBtn, !canAfford && { opacity: 0.45 }]}
-                >
-                  <Text style={S.coinCtaText}>
-                    {canAfford
-                      ? `شراء بـ ${cost} 🪙`
-                      : `شراء بـ ${cost} 🪙 (عندك ${profile.coins ?? 0})`}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })()}
+            <TouchableOpacity
+              activeOpacity={0.82}
+              onPress={buyWithCoins}
+              disabled={buying}
+              style={[S.coinCtaBtn, !canAffordCoins && { opacity: 0.45 }]}
+            >
+              <Text style={S.coinCtaText}>
+                {canAffordCoins
+                  ? `شراء بـ ${coinCost} 🪙`
+                  : `شراء بـ ${coinCost} 🪙 (عندك ${profile.coins ?? 0})`}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
