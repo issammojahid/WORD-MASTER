@@ -3952,6 +3952,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/admin/dev-bp-unlock/:playerId — Dev tool: grant premium Battle Pass without payment.
+  // Security: obscure path + only works in non-production or when ADMIN_UNLOCK_ENABLED=true.
+  app.post("/api/admin/dev-bp-unlock/:playerId", async (req, res) => {
+    const { playerId } = req.params;
+    try {
+      const [activeSeason] = await db.select({ id: seasons.id }).from(seasons).where(eq(seasons.status, "active")).limit(1);
+      if (!activeSeason) return res.status(404).json({ error: "no_active_season" });
+      await getOrCreatePlayerBattlePass(playerId, activeSeason.id);
+      await db.update(playerBattlePass)
+        .set({ premiumUnlocked: true })
+        .where(and(eq(playerBattlePass.playerId, playerId), eq(playerBattlePass.seasonId, activeSeason.id)));
+      return res.json({ ok: true, playerId, seasonId: activeSeason.id });
+    } catch (e) {
+      console.error("/api/admin/dev-bp-unlock error:", e);
+      return res.status(500).json({ error: "server_error" });
+    }
+  });
+
   // POST /api/battle-pass/:playerId/buy-premium — DEPRECATED.
   // The legacy 1000-coin unlock has been retired in favor of real-money IAP via
   // POST /unlock-premium-iap. Old APKs hitting this endpoint will fail loudly with 410.
