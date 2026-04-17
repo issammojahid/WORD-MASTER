@@ -3984,21 +3984,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [player] = await db.select({ coins: playerProfiles.coins }).from(playerProfiles).where(eq(playerProfiles.id, playerId)).limit(1);
       if (!player) return res.status(404).json({ error: "player_not_found" });
 
+      // Idempotency: if already unlocked for this season, return success without deducting coins.
+      const [existingPass] = await db.select({ premiumUnlocked: playerBattlePass.premiumUnlocked })
+        .from(playerBattlePass)
+        .where(and(eq(playerBattlePass.playerId, playerId), eq(playerBattlePass.seasonId, activeSeason.id)))
+        .limit(1);
+      if (existingPass?.premiumUnlocked) {
+        return res.json({ ok: true, newCoins: player.coins ?? 0 });
+      }
+
       if ((player.coins ?? 0) < BP_PREMIUM_COST) {
         return res.status(402).json({ error: "insufficient_coins", required: BP_PREMIUM_COST, current: player.coins ?? 0 });
       }
 
-      await db.update(playerProfiles)
+      // Deduct coins atomically — only if balance is still sufficient (guards concurrent requests).
+      const deductResult = await db.update(playerProfiles)
         .set({ coins: sql`coins - ${BP_PREMIUM_COST}`, updatedAt: new Date() })
-        .where(and(eq(playerProfiles.id, playerId), sql`coins >= ${BP_PREMIUM_COST}`));
+        .where(and(eq(playerProfiles.id, playerId), sql`coins >= ${BP_PREMIUM_COST}`))
+        .returning({ newCoins: playerProfiles.coins });
+
+      if (deductResult.length === 0) {
+        return res.status(402).json({ error: "insufficient_coins", required: BP_PREMIUM_COST, current: player.coins ?? 0 });
+      }
 
       await getOrCreatePlayerBattlePass(playerId, activeSeason.id);
       await db.update(playerBattlePass)
         .set({ premiumUnlocked: true, updatedAt: new Date() })
         .where(and(eq(playerBattlePass.playerId, playerId), eq(playerBattlePass.seasonId, activeSeason.id)));
 
-      const [updated] = await db.select({ coins: playerProfiles.coins }).from(playerProfiles).where(eq(playerProfiles.id, playerId)).limit(1);
-      res.json({ ok: true, newCoins: updated?.coins ?? 0 });
+      res.json({ ok: true, newCoins: deductResult[0].newCoins ?? 0 });
     } catch (e) {
       console.error("POST /api/battle-pass/:playerId/buy-premium error:", e);
       res.status(500).json({ error: "server_error" });

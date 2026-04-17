@@ -565,8 +565,7 @@ export default function BattlePassScreen() {
               disabled={buying}
               style={S.coinCtaBtn}
             >
-              <Text style={S.coinCtaIcon}>🪙</Text>
-              <Text style={S.coinCtaText}>شراء بـ {bpState.premiumCost ?? 900} عملة</Text>
+              <Text style={S.coinCtaText}>شراء بـ {bpState.premiumCost ?? 900} 🪙</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -994,10 +993,8 @@ const S = StyleSheet.create({
   },
 
   coinCtaBtn: {
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
     marginTop: 8,
     paddingVertical: 11,
     paddingHorizontal: 20,
@@ -1005,9 +1002,6 @@ const S = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.07)",
     borderWidth: 1,
     borderColor: "rgba(255,210,74,0.3)",
-  },
-  coinCtaIcon: {
-    fontSize: 18,
   },
   coinCtaText: {
     fontFamily: "Cairo_700Bold",
