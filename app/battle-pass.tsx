@@ -559,14 +559,24 @@ export default function BattlePassScreen() {
             </Animated.View>
 
             {/* Coin purchase button */}
-            <TouchableOpacity
-              activeOpacity={0.82}
-              onPress={buyWithCoins}
-              disabled={buying}
-              style={S.coinCtaBtn}
-            >
-              <Text style={S.coinCtaText}>شراء بـ {bpState.premiumCost ?? 900} 🪙</Text>
-            </TouchableOpacity>
+            {(() => {
+              const cost = bpState.premiumCost ?? 900;
+              const canAfford = (profile.coins ?? 0) >= cost;
+              return (
+                <TouchableOpacity
+                  activeOpacity={0.82}
+                  onPress={buyWithCoins}
+                  disabled={buying}
+                  style={[S.coinCtaBtn, !canAfford && { opacity: 0.45 }]}
+                >
+                  <Text style={S.coinCtaText}>
+                    {canAfford
+                      ? `شراء بـ ${cost} 🪙`
+                      : `شراء بـ ${cost} 🪙 (عندك ${profile.coins ?? 0})`}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })()}
           </View>
         )}
 
