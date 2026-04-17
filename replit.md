@@ -33,7 +33,8 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
     - Pulsing glow loop animation for claimable rewards & CTA
     - All API contracts preserved: GET state, POST claim/:tier, POST buy-premium (legacy), POST unlock-premium-iap (new)
   - **Version bumped to 2.7.0** in `app.json` (next EAS build will include all changes)
-  - **RevenueCat setup pending** (follow-up): user must (1) create Google Play Console product `battle_pass_premium_s1` ($1.99 base, regional auto-pricing), (2) create RevenueCat project + entitlement `battle_pass_premium` + offering with that product, (3) install `react-native-purchases` in mobile app, (4) wire `Purchases.purchasePackage()` call before hitting backend, (5) set `REVENUECAT_SECRET_API_KEY` env var on Railway
+  - **RevenueCat code wiring: COMPLETE.** `react-native-purchases` is installed; `lib/iap.ts` handles configure/offerings/purchase/restore with strict product-ID matching; `<IapInitializer />` is mounted in `app/_layout.tsx`; backend `/unlock-premium-iap` does fail-closed RevenueCat REST verification.
+  - **Operational steps still pending** (no code changes needed): (1) create Google Play Console product `battle_pass_premium_s1` (€1.99 base, regional auto-pricing), (2) create RevenueCat project + entitlement `battle_pass_premium` + offering containing that product, (3) set `REVENUECAT_SECRET_API_KEY` on Railway, (4) set `EXPO_PUBLIC_REVENUECAT_API_KEY` for the mobile build, (5) submit a fresh EAS build (2.7.0) to Play internal track and verify purchase + restore.
 
 - **National & International Leaderboard (Task #12)**:
   - **Schema**: `country` text column (default "MA") added to `player_profiles`
