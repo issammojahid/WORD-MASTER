@@ -861,8 +861,13 @@ const BP_TIER_DEFS: Array<{
 
 async function seedBattlePassTiers(seasonId: string) {
   try {
-    const existing = await db.select({ id: battlePassTiers.id }).from(battlePassTiers).where(eq(battlePassTiers.seasonId, seasonId)).limit(1);
-    if (existing.length > 0) return;
+    const existing = await db.select({ id: battlePassTiers.id }).from(battlePassTiers).where(eq(battlePassTiers.seasonId, seasonId));
+    if (existing.length === 30) return; // fully seeded
+    if (existing.length > 0 && existing.length < 30) {
+      // self-heal partial corruption
+      console.warn(`[battle-pass] Partial seed detected for season ${seasonId} (${existing.length}/30). Wiping & re-seeding.`);
+      await db.delete(battlePassTiers).where(eq(battlePassTiers.seasonId, seasonId));
+    }
     const rows = BP_TIER_DEFS.map((def, i) => ({
       seasonId,
       tier: i + 1,

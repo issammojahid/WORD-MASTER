@@ -103,7 +103,6 @@ export default function BattlePassScreen() {
   const [buying, setBuying] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [localizedPrice, setLocalizedPrice] = useState<string | null>(null);
-  const [iapClientReady, setIapClientReady] = useState(false);
 
   const claimAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -151,10 +150,7 @@ export default function BattlePassScreen() {
     (async () => {
       const p = await getLocalizedBattlePassPrice(playerId);
       if (cancelled) return;
-      if (p) {
-        setLocalizedPrice(p);
-        setIapClientReady(true); // SDK reachable AND product is in store
-      }
+      if (p) setLocalizedPrice(p);
     })();
     return () => { cancelled = true; };
   }, [playerId, bpState?.iap?.enabled]);
@@ -163,10 +159,10 @@ export default function BattlePassScreen() {
     if (!playerId || !bpState) return;
     const iap = bpState.iap;
 
-    // Show "coming soon" unless BOTH the backend IAP flag is on AND the client SDK
-    // has successfully loaded the product from the store. This avoids showing a
-    // failure when only one side is configured.
-    if (!iap?.enabled || !iapClientReady) {
+    // Backend gate only — if IAP isn't yet enabled server-side, show "coming soon".
+    // When backend is enabled, attempt the purchase; the SDK layer reports specific
+    // errors (iap_unavailable / no_offerings / no_package) which we surface clearly.
+    if (!iap?.enabled) {
       Alert.alert(
         "قريباً 🔜",
         `الباس المميز سيكون متاح قريباً بـ ${localizedPrice ?? iap?.price.display ?? "€1.99"} عبر متجر Google Play.`,
