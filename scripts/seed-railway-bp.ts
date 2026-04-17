@@ -67,7 +67,7 @@ async function main() {
 
   const existing = await db.select({ id: battlePassTiers.id }).from(battlePassTiers).where(eq(battlePassTiers.seasonId, active.id));
   console.log(`Existing tiers for this season: ${existing.length}`);
-  if (existing.length === 30) {
+  if (existing.length >= 30) {
     console.log("Already fully seeded. Exiting.");
     await pool.end();
     return;

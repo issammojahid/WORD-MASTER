@@ -29,7 +29,7 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
     - Season banner hero card with countdown (days/hours/min, refreshes every 60s), large tier badge (current/30), gold→orange gradient XP bar
     - Vertical tier path: 30 rows, each with two reward cells side-by-side and a center connector with tier-number circle
     - Reward cells show: icon (🪙/💡/❄️/⏱️/👗/👑), amount, sub-label (skin/title id), state-aware visuals: claimable (animated gold glow), claimed (✓ تم), locked (🔒 مغلق), premium-locked (⭐ مميز)
-    - Sticky bottom CTA: gold gradient card with `€1.99` chip + animated shadow glow. When `iap.enabled = false`, chip shows "قريباً" and tap shows alert with coin-fallback option. When enabled, calls IAP flow then backend verify endpoint.
+    - Sticky bottom CTA: gold gradient card with `€1.99` chip + animated shadow glow. When `iap.enabled = false`, chip shows "قريباً" and tap shows a "coming soon" alert (no coin fallback in current UX — legacy `/buy-premium` returns 410). When enabled, calls IAP flow then backend verify endpoint, with a "استرجاع مشتريات سابقة" (Restore Purchases) button for recovery.
     - Pulsing glow loop animation for claimable rewards & CTA
     - All API contracts preserved: GET state, POST claim/:tier, POST buy-premium (legacy), POST unlock-premium-iap (new)
   - **Version bumped to 2.7.0** in `app.json` (next EAS build will include all changes)
