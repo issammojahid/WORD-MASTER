@@ -281,7 +281,8 @@ export default function BattlePassScreen() {
                   Alert.alert("خطأ", "فشل الشراء. حاول مرة أخرى.");
                 }
               } else {
-                if (typeof data.newCoins === "number") updateProfile({ coins: data.newCoins });
+                const updatedCoins = data.newCoins ?? data.coins;
+                if (typeof updatedCoins === "number") updateProfile({ coins: updatedCoins });
                 await load();
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 Alert.alert("مبروك! 🎉", "تم تفعيل الباس المميز بنجاح");
