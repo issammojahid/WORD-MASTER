@@ -13,6 +13,23 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
 
 ## Recent Features Added
 
+- **Battle Pass Overhaul (Task #11)**:
+  - **Railway DB seeded**: 1 active season (`موسم أبريل 2026`) + 30 `battle_pass_tiers` rows on Railway production. One-shot script: `scripts/seed-railway-bp.ts` (run with `DATABASE_URL=$RAILWAY_DATABASE_URL npx tsx scripts/seed-railway-bp.ts`). Idempotent — safe to re-run.
+  - **Backend IAP scaffolding** (`server/routes.ts`):
+    - New constants: `BP_IAP_PRODUCT_ID = "battle_pass_premium_s1"`, `BP_IAP_BASE_PRICE = €1.99`, `BP_IAP_ENABLED` (true only when `REVENUECAT_SECRET_API_KEY` env var is set)
+    - `GET /api/battle-pass/:playerId` response now includes `iap: { enabled, productId, price: { amount, currency, display } }`
+    - New endpoint `POST /api/battle-pass/:playerId/unlock-premium-iap` — verifies entitlement via RevenueCat REST API (`https://api.revenuecat.com/v1/subscribers/{userId}`, entitlement key `battle_pass_premium`) before flipping `premium_unlocked = true`. Returns 503 `iap_not_configured` when keys missing
+    - Old `/buy-premium` (1000 coins) kept as fallback for old APKs and pre-IAP testing
+  - **New Battle Pass UI** (`app/battle-pass.tsx` — 876 lines, full rewrite):
+    - Season banner hero card with countdown (days/hours/min, refreshes every 60s), large tier badge (current/30), gold→orange gradient XP bar
+    - Vertical tier path: 30 rows, each with two reward cells side-by-side and a center connector with tier-number circle
+    - Reward cells show: icon (🪙/💡/❄️/⏱️/👗/👑), amount, sub-label (skin/title id), state-aware visuals: claimable (animated gold glow), claimed (✓ تم), locked (🔒 مغلق), premium-locked (⭐ مميز)
+    - Sticky bottom CTA: gold gradient card with `€1.99` chip + animated shadow glow. When `iap.enabled = false`, chip shows "قريباً" and tap shows alert with coin-fallback option. When enabled, calls IAP flow then backend verify endpoint.
+    - Pulsing glow loop animation for claimable rewards & CTA
+    - All API contracts preserved: GET state, POST claim/:tier, POST buy-premium (legacy), POST unlock-premium-iap (new)
+  - **Version bumped to 2.7.0** in `app.json` (next EAS build will include all changes)
+  - **RevenueCat setup pending** (follow-up): user must (1) create Google Play Console product `battle_pass_premium_s1` ($1.99 base, regional auto-pricing), (2) create RevenueCat project + entitlement `battle_pass_premium` + offering with that product, (3) install `react-native-purchases` in mobile app, (4) wire `Purchases.purchasePackage()` call before hitting backend, (5) set `REVENUECAT_SECRET_API_KEY` env var on Railway
+
 - **National & International Leaderboard (Task #12)**:
   - **Schema**: `country` text column (default "MA") added to `player_profiles`
   - **Backend**: `GET /api/leaderboard` and `GET /api/ranked/leaderboard` now accept optional `?country=XX` query param to filter by country; `country` included in all leaderboard API responses; `country` added to `allowedFields` in `PUT /api/player/:id`

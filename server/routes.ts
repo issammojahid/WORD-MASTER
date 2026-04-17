@@ -813,9 +813,14 @@ async function handleSeasonEnd() {
 // ── BATTLE PASS: 30-tier seed per season ─────────────────────────────────────
 
 const BP_XP_PER_TIER = 500; // XP needed per tier
-const BP_PREMIUM_COST = 1000;
+const BP_PREMIUM_COST = 1000; // Legacy coin cost (kept for old APKs / fallback)
 const BP_XP_WIN = 20;
 const BP_XP_GAME = 10;
+
+// ── Real-money premium pricing (RevenueCat / Google Play Billing) ──────────────
+const BP_IAP_PRODUCT_ID = "battle_pass_premium_s1";
+const BP_IAP_BASE_PRICE = { amount: 1.99, currency: "EUR", display: "€1.99" };
+const BP_IAP_ENABLED = !!process.env.REVENUECAT_SECRET_API_KEY;
 
 // 30 tiers definition
 const BP_TIER_DEFS: Array<{
@@ -3864,10 +3869,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
         claimedTiers: Array.isArray(pass.claimedTiers) ? pass.claimedTiers : [],
         xpPerTier: BP_XP_PER_TIER,
         premiumCost: BP_PREMIUM_COST,
+        // Real-money IAP info
+        iap: {
+          enabled: BP_IAP_ENABLED,
+          productId: BP_IAP_PRODUCT_ID,
+          price: BP_IAP_BASE_PRICE,
+        },
         tiers,
       });
     } catch (e) {
       console.error("GET /api/battle-pass/:playerId error:", e);
+      res.status(500).json({ error: "server_error" });
+    }
+  });
+
+  // POST /api/battle-pass/:playerId/unlock-premium-iap — unlock premium via real-money IAP (RevenueCat)
+  // Security model: the RevenueCat App User ID MUST equal the in-game playerId. The mobile client
+  // is required to call Purchases.logIn(playerId) before purchasing, so RevenueCat tracks entitlements
+  // per-player. We therefore look up the subscriber by :playerId directly and IGNORE any client-supplied
+  // user id, preventing one player from unlocking premium for another by knowing an entitled RC user id.
+  // Server verifies (a) the entitlement object exists, (b) it is active (expires_date is null or future),
+  // (c) it was granted by our expected product id.
+  app.post("/api/battle-pass/:playerId/unlock-premium-iap", async (req, res) => {
+    try {
+      if (!BP_IAP_ENABLED) {
+        return res.status(503).json({ error: "iap_not_configured", message: "Real-money premium is not yet available." });
+      }
+      const { playerId } = req.params;
+      if (!playerId) return res.status(400).json({ error: "missing_player_id" });
+
+      // Always look up by playerId (NOT by client-supplied id) — this binds RC user ↔ game player.
+      const rcRes = await fetch(`https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(playerId)}`, {
+        headers: { Authorization: `Bearer ${process.env.REVENUECAT_SECRET_API_KEY}` },
+      });
+      if (!rcRes.ok) {
+        console.error("[battle-pass IAP] RevenueCat verify failed:", rcRes.status);
+        return res.status(502).json({ error: "verify_failed" });
+      }
+      const rcData = await rcRes.json() as {
+        subscriber?: {
+          entitlements?: Record<string, { expires_date: string | null; product_identifier?: string }>;
+        };
+      };
+      const ent = rcData.subscriber?.entitlements?.battle_pass_premium;
+      if (!ent) return res.status(403).json({ error: "entitlement_missing" });
+
+      // Active check: expires_date null = lifetime; otherwise must be in the future
+      if (ent.expires_date !== null && ent.expires_date !== undefined) {
+        const expiresMs = Date.parse(ent.expires_date);
+        if (!Number.isFinite(expiresMs) || expiresMs <= Date.now()) {
+          return res.status(403).json({ error: "entitlement_expired" });
+        }
+      }
+
+      // Product check: ensure entitlement was granted by our expected product id
+      if (ent.product_identifier && ent.product_identifier !== BP_IAP_PRODUCT_ID) {
+        console.warn("[battle-pass IAP] product mismatch:", ent.product_identifier, "expected", BP_IAP_PRODUCT_ID);
+        return res.status(403).json({ error: "product_mismatch" });
+      }
+
+      const [activeSeason] = await db.select({ id: seasons.id }).from(seasons).where(eq(seasons.status, "active")).limit(1);
+      if (!activeSeason) return res.status(404).json({ error: "no_active_season" });
+
+      await getOrCreatePlayerBattlePass(playerId, activeSeason.id);
+      await db.update(playerBattlePass).set({ premiumUnlocked: true, updatedAt: new Date() })
+        .where(and(eq(playerBattlePass.playerId, playerId), eq(playerBattlePass.seasonId, activeSeason.id)));
+
+      res.json({ ok: true });
+    } catch (e) {
+      console.error("POST /api/battle-pass/:playerId/unlock-premium-iap error:", e);
       res.status(500).json({ error: "server_error" });
     }
   });

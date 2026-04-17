@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Alert,
   Animated,
   ImageBackground,
+  Easing,
 } from "react-native";
 const BG_BP = require("@/assets/images/bg_battle_pass.png");
 import { router } from "expo-router";
@@ -34,6 +35,12 @@ type BpTier = {
   premiumRewardAmount: number;
 };
 
+type BpIap = {
+  enabled: boolean;
+  productId: string;
+  price: { amount: number; currency: string; display: string };
+};
+
 type BpState = {
   season: { id: string; name: string; endDate: string };
   passXp: number;
@@ -42,25 +49,46 @@ type BpState = {
   claimedTiers: string[];
   xpPerTier: number;
   premiumCost: number;
+  iap?: BpIap;
   tiers: BpTier[];
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function rewardLabel(type: string, id: string | null, amount: number): string {
-  if (type === "coins") return `🪙 ${amount}`;
-  if (type === "powerCard") {
-    const icons: Record<string, string> = { hint: "💡", freeze: "❄️", time: "⏱️" };
-    return `${icons[id ?? ""] ?? "🃏"} ×${amount}`;
-  }
-  if (type === "skin") return `👗 ${id}`;
-  if (type === "title") return `👑 ${id}`;
-  return `🎁 ${amount}`;
+const REWARD_ICON: Record<string, string> = {
+  hint: "💡",
+  freeze: "❄️",
+  time: "⏱️",
+};
+
+function rewardIcon(type: string, id: string | null): string {
+  if (type === "coins") return "🪙";
+  if (type === "powerCard") return REWARD_ICON[id ?? ""] ?? "🃏";
+  if (type === "skin") return "👗";
+  if (type === "title") return "👑";
+  return "🎁";
 }
 
-function tierBgColor(tier: number): [string, string] {
-  if (tier <= 10) return ["#1a2a1a", "#2a3e2a"];
-  if (tier <= 20) return ["#1a1a2e", "#2d2d5e"];
-  return ["#2e1a00", "#5e3800"];
+function rewardAmountText(type: string, amount: number): string {
+  if (type === "coins") return `${amount}`;
+  if (type === "powerCard") return `×${amount}`;
+  return "";
+}
+
+function rewardSubLabel(type: string, id: string | null): string {
+  if (type === "skin") return id ?? "";
+  if (type === "title") return id ?? "";
+  return "";
+}
+
+function formatCountdown(endIso: string): { days: number; hours: number; minutes: number; expired: boolean } {
+  const end = new Date(endIso).getTime();
+  const now = Date.now();
+  const diff = end - now;
+  if (diff <= 0) return { days: 0, hours: 0, minutes: 0, expired: true };
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  return { days, hours, minutes, expired: false };
 }
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -73,8 +101,26 @@ export default function BattlePassScreen() {
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState<string | null>(null);
   const [buying, setBuying] = useState(false);
+  const [now, setNow] = useState(Date.now());
 
   const claimAnim = useRef(new Animated.Value(1)).current;
+  const glowAnim = useRef(new Animated.Value(0)).current;
+
+  // Countdown ticker
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Pulsing glow for claimable rewards & CTA
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+        Animated.timing(glowAnim, { toValue: 0, duration: 1200, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+      ])
+    ).start();
+  }, [glowAnim]);
 
   const load = useCallback(async () => {
     if (!playerId) {
@@ -87,7 +133,7 @@ export default function BattlePassScreen() {
       const data = await res.json();
       if (res.ok) setBpState(data as BpState);
     } catch {
-      // silently fail — user sees loading state cleared
+      // silently fail
     } finally {
       setLoading(false);
     }
@@ -97,14 +143,56 @@ export default function BattlePassScreen() {
 
   const buyPremium = async () => {
     if (!playerId || !bpState) return;
-    const cost = bpState.premiumCost;
+    const iap = bpState.iap;
+
+    // Real-money IAP path
+    if (iap?.enabled) {
+      Alert.alert(
+        "فتح الباس المميز",
+        `هل تريد شراء الباس المميز مقابل ${iap.price.display}؟`,
+        [
+          { text: "إلغاء", style: "cancel" },
+          {
+            text: "شراء",
+            onPress: async () => {
+              setBuying(true);
+              try {
+                // TODO: once react-native-purchases is wired:
+                //   await Purchases.logIn(playerId);
+                //   await Purchases.purchasePackage(premiumPackage);
+                // The server identifies the RevenueCat subscriber by playerId itself,
+                // so no additional body is required.
+                const res = await fetch(`${getApiUrl()}/api/battle-pass/${playerId}/unlock-premium-iap`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                  Alert.alert("الدفع غير متاح بعد", "نظام الدفع الحقيقي قيد الإعداد. حاول قريباً.");
+                } else {
+                  await load();
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                }
+              } catch {
+                Alert.alert("خطأ", "فشل الاتصال بالخادم");
+              } finally {
+                setBuying(false);
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    // IAP not yet enabled → friendly "coming soon" message
     Alert.alert(
-      "فتح الباس المميز",
-      `هل تريد شراء الباس المميز مقابل ${cost} 🪙؟`,
+      "قريباً 🔜",
+      `الباس المميز سيكون متاح بـ ${iap?.price.display ?? "€1.99"} عبر متجر Google Play قريباً.\n\nالإصدار التجريبي: يمكنك حالياً فتحه بـ ${bpState.premiumCost} 🪙`,
       [
         { text: "إلغاء", style: "cancel" },
         {
-          text: "شراء",
+          text: `شراء بـ ${bpState.premiumCost} 🪙`,
           onPress: async () => {
             setBuying(true);
             try {
@@ -116,9 +204,7 @@ export default function BattlePassScreen() {
               if (!res.ok) {
                 Alert.alert("خطأ", data.error === "insufficient_coins" ? "ليس لديك كافي عملات" : data.error);
               } else {
-                if (typeof data.coins === "number") {
-                  updateProfile({ coins: data.coins });
-                }
+                if (typeof data.coins === "number") updateProfile({ coins: data.coins });
                 await load();
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               }
@@ -153,11 +239,7 @@ export default function BattlePassScreen() {
       if (!res.ok) {
         Alert.alert("خطأ", data.error ?? "حدث خطأ");
       } else {
-        // Update local profile state with new coin balance (always returned)
-        if (typeof data.newCoins === "number") {
-          updateProfile({ coins: data.newCoins });
-        }
-        // For non-coin rewards, also update inventory in local state
+        if (typeof data.newCoins === "number") updateProfile({ coins: data.newCoins });
         if (data.rewardType === "skin" && data.rewardId) {
           const ownedSkins = Array.isArray(profile.ownedSkins) ? (profile.ownedSkins as string[]) : [];
           if (!ownedSkins.includes(data.rewardId)) updateProfile({ ownedSkins: [...ownedSkins, data.rewardId] });
@@ -178,13 +260,17 @@ export default function BattlePassScreen() {
     }
   };
 
+  const countdown = useMemo(
+    () => (bpState ? formatCountdown(bpState.season.endDate) : null),
+    [bpState, now]
+  );
+
   if (loading) {
     return (
       <ImageBackground source={BG_BP} style={{ flex: 1 }} resizeMode="cover">
-        <LinearGradient colors={["rgba(0,0,0,0.72)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.72)"]} style={{ flex: 1 }}>
-          <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-            <ActivityIndicator color="#00CFFF" size="large" />
-          </View>
+        <LinearGradient colors={["rgba(5,10,25,0.92)", "rgba(5,10,25,0.78)", "rgba(5,10,25,0.92)"]} style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator color="#FFD24A" size="large" />
+          <Text style={{ marginTop: 12, color: "#fff", fontFamily: "Cairo_400Regular" }}>تحميل الباس...</Text>
         </LinearGradient>
       </ImageBackground>
     );
@@ -193,357 +279,599 @@ export default function BattlePassScreen() {
   if (!bpState) {
     return (
       <ImageBackground source={BG_BP} style={{ flex: 1 }} resizeMode="cover">
-        <LinearGradient colors={["rgba(0,0,0,0.72)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.72)"]} style={{ flex: 1 }}>
-          <View style={{ flex: 1, justifyContent: "center", alignItems: "center", gap: 16 }}>
-            <Text style={{ color: theme.textPrimary, fontFamily: "Cairo_700Bold", fontSize: 16 }}>لا يوجد موسم نشط</Text>
-            <TouchableOpacity onPress={() => router.back()}>
-              <Text style={{ color: "#00CFFF", fontFamily: "Cairo_400Regular" }}>العودة</Text>
-            </TouchableOpacity>
-          </View>
+        <LinearGradient colors={["rgba(5,10,25,0.92)", "rgba(5,10,25,0.78)", "rgba(5,10,25,0.92)"]} style={{ flex: 1, justifyContent: "center", alignItems: "center", gap: 16 }}>
+          <Text style={{ color: "#fff", fontFamily: "Cairo_700Bold", fontSize: 16 }}>لا يوجد موسم نشط</Text>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={{ color: "#FFD24A", fontFamily: "Cairo_400Regular" }}>العودة</Text>
+          </TouchableOpacity>
         </LinearGradient>
       </ImageBackground>
     );
   }
 
-  const { passXp, currentTier, premiumUnlocked, claimedTiers, xpPerTier, tiers, season } = bpState;
+  const { passXp, currentTier, premiumUnlocked, claimedTiers, xpPerTier, tiers, season, iap } = bpState;
   const xpInCurrentTier = passXp % xpPerTier;
-  const xpProgressPct = Math.min(1, xpInCurrentTier / xpPerTier);
+  const xpProgressPct = currentTier >= 30 ? 1 : Math.min(1, xpInCurrentTier / xpPerTier);
+  const priceLabel = iap?.price.display ?? "€1.99";
 
   return (
     <ImageBackground source={BG_BP} style={{ flex: 1 }} resizeMode="cover">
-    <LinearGradient
-      colors={["rgba(0,0,0,0.72)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.72)"]}
-      style={{ flex: 1 }}
-    >
-      {/* Header */}
       <LinearGradient
-        colors={["#00192D", "#003060"]}
-        style={[styles.header, { paddingTop: insets.top + 8 }]}
+        colors={["rgba(5,10,25,0.94)", "rgba(8,15,32,0.85)", "rgba(5,10,25,0.94)"]}
+        style={{ flex: 1 }}
       >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color="#00CFFF" />
-        </TouchableOpacity>
-        <View style={{ flex: 1, alignItems: "center" }}>
-          <Text style={styles.headerTitle}>🎫 باس الموسم</Text>
-          <Text style={styles.headerSub}>{season.name}</Text>
-        </View>
-        <View style={styles.coinsChip}>
-          <Text style={styles.coinsText}>🪙 {profile.coins}</Text>
-        </View>
-      </LinearGradient>
-
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
-
-        {/* XP Progress Card */}
-        <View style={[styles.xpCard, { backgroundColor: isDark ? "#001830" : "#d0e8ff", borderColor: "#00CFFF30" }]}>
-          <View style={styles.xpRow}>
-            <Text style={[styles.xpLabel, { color: theme.textPrimary }]}>المستوى الحالي</Text>
-            <Text style={[styles.xpTier, { color: "#00CFFF" }]}>المستوى {currentTier} / 30</Text>
-          </View>
-          <View style={[styles.xpBarBg, { backgroundColor: isDark ? "#00CFFF20" : "#a0d0e8" }]}>
-            <View style={[styles.xpBarFill, { width: `${xpProgressPct * 100}%` }]} />
-          </View>
-          <View style={styles.xpRow}>
-            {currentTier >= 30 ? (
-              <>
-                <Text style={[styles.xpSmall, { color: "#00CFFF" }]}>MAX ✓</Text>
-                <Text style={[styles.xpSmall, { color: "#00CFFF" }]}>الحد الأقصى مكتمل!</Text>
-              </>
-            ) : (
-              <>
-                <Text style={[styles.xpSmall, { color: theme.textMuted }]}>{xpInCurrentTier} / {xpPerTier} XP</Text>
-                <Text style={[styles.xpSmall, { color: theme.textMuted }]}>متبقي: {xpPerTier - xpInCurrentTier} XP</Text>
-              </>
-            )}
-          </View>
-          <Text style={[styles.xpTotal, { color: theme.textMuted }]}>إجمالي XP: {passXp} | فوز: +20 XP • لعبة: +10 XP</Text>
-        </View>
-
-        {/* Premium Banner */}
-        {!premiumUnlocked ? (
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={buyPremium}
-            style={{ marginHorizontal: 16, marginBottom: 12 }}
-            disabled={buying}
-          >
-            <LinearGradient
-              colors={["#7B2D00", "#D4500A", "#7B2D00"]}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={styles.premiumBanner}
-            >
-              <Text style={{ fontSize: 22 }}>⭐</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.premiumTitle}>فعّل الباس المميز</Text>
-                <Text style={styles.premiumSub}>احصل على مكافآت المسار المميز لكامل الموسم</Text>
-              </View>
-              {buying ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <View style={styles.premiumCostChip}>
-                  <Text style={styles.premiumCostText}>🪙 {bpState.premiumCost}</Text>
-                </View>
-              )}
-            </LinearGradient>
+        {/* ── Header ─────────────────────────────────────────────────────── */}
+        <View style={[S.header, { paddingTop: insets.top + 10 }]}>
+          <TouchableOpacity onPress={() => router.back()} style={S.iconBtn} activeOpacity={0.8}>
+            <Ionicons name="arrow-back" size={20} color="#FFD24A" />
           </TouchableOpacity>
-        ) : (
-          <LinearGradient
-            colors={["#1a4d00", "#2e7d00"]}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={[styles.premiumBanner, { marginHorizontal: 16, marginBottom: 12 }]}
-          >
-            <Text style={{ fontSize: 22 }}>✅</Text>
-            <Text style={styles.premiumTitle}>الباس المميز مفعّل</Text>
-          </LinearGradient>
-        )}
+          <View style={{ flex: 1, alignItems: "center" }}>
+            <Text style={S.seasonName}>{season.name}</Text>
+            <Text style={S.seasonSub}>باس الموسم • Battle Pass</Text>
+          </View>
+          <View style={S.coinsChip}>
+            <Text style={S.coinsText}>🪙 {profile.coins}</Text>
+          </View>
+        </View>
 
-        {/* Tier Rows */}
-        {tiers.map((tier) => {
-          const reached = currentTier >= tier.tier;
-          const freeKey = `${tier.tier}_free`;
-          const premKey = `${tier.tier}_premium`;
-          const freeClaimed = claimedTiers.includes(freeKey);
-          const premClaimed = claimedTiers.includes(premKey);
-          const [bg1] = tierBgColor(tier.tier);
+        {/* ── Season banner: countdown + tier progress ─────────────────── */}
+        <LinearGradient
+          colors={["#1a0d2e", "#3a1854", "#1a0d2e"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={S.heroCard}
+        >
+          {/* Countdown */}
+          {countdown && !countdown.expired && (
+            <View style={S.countdownRow}>
+              <Ionicons name="time-outline" size={14} color="#FFD24A" />
+              <Text style={S.countdownText}>
+                ينتهي في {countdown.days}ي {countdown.hours}س {countdown.minutes}د
+              </Text>
+            </View>
+          )}
 
-          return (
-            <View key={tier.id} style={[styles.tierRow, { backgroundColor: isDark ? bg1 : "#e8f4ff", borderColor: reached ? "#00CFFF40" : "#ffffff10" }]}>
-              {/* Tier number */}
-              <LinearGradient
-                colors={reached ? ["#00CFFF", "#0080AA"] : ["#333", "#555"]}
-                style={styles.tierNumBadge}
-              >
-                <Text style={styles.tierNumText}>{tier.tier}</Text>
-              </LinearGradient>
-
-              {/* Free track reward */}
-              <View style={styles.rewardBlock}>
-                <Text style={[styles.rewardTrackLabel, { color: theme.textMuted }]}>مجاني</Text>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  disabled={!reached || freeClaimed || claiming !== null}
-                  onPress={() => claimReward(tier.tier, "free")}
-                  style={[
-                    styles.rewardBtn,
-                    freeClaimed && styles.rewardBtnClaimed,
-                    !reached && styles.rewardBtnLocked,
-                    reached && !freeClaimed && { borderColor: "#00CFFF80" },
-                  ]}
-                >
-                  {claiming === freeKey ? (
-                    <ActivityIndicator color="#00CFFF" size="small" />
-                  ) : (
-                    <Text style={[styles.rewardBtnText, { color: freeClaimed ? "#888" : reached ? "#00CFFF" : "#555" }]}>
-                      {freeClaimed ? "✓" : !reached ? "🔒" : rewardLabel(tier.freeRewardType, tier.freeRewardId, tier.freeRewardAmount)}
-                    </Text>
-                  )}
-                </TouchableOpacity>
+          {/* Big tier display */}
+          <View style={S.heroTierRow}>
+            <View style={S.heroTierBadge}>
+              <Text style={S.heroTierLabel}>المستوى</Text>
+              <Text style={S.heroTierNum}>{currentTier}</Text>
+              <Text style={S.heroTierMax}>/ 30</Text>
+            </View>
+            <View style={{ flex: 1, gap: 6 }}>
+              <View style={S.xpBarTrack}>
+                <LinearGradient
+                  colors={["#FFD24A", "#FF9500"]}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  style={[S.xpBarFill, { width: `${xpProgressPct * 100}%` }]}
+                />
               </View>
-
-              {/* Divider */}
-              <View style={[styles.divider, { backgroundColor: isDark ? "#ffffff15" : "#00000015" }]} />
-
-              {/* Premium track reward */}
-              <View style={styles.rewardBlock}>
-                <Text style={[styles.rewardTrackLabel, { color: "#D4500A" }]}>مميز ⭐</Text>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  disabled={!reached || !premiumUnlocked || premClaimed || claiming !== null}
-                  onPress={() => claimReward(tier.tier, "premium")}
-                  style={[
-                    styles.rewardBtn,
-                    premClaimed && styles.rewardBtnClaimed,
-                    (!reached || !premiumUnlocked) && styles.rewardBtnLocked,
-                    reached && premiumUnlocked && !premClaimed && { borderColor: "#D4500A80" },
-                  ]}
-                >
-                  {claiming === premKey ? (
-                    <ActivityIndicator color="#D4500A" size="small" />
-                  ) : (
-                    <Text style={[styles.rewardBtnText, { color: premClaimed ? "#888" : !premiumUnlocked ? "#555" : reached ? "#D4500A" : "#555" }]}>
-                      {premClaimed ? "✓" : (!reached || !premiumUnlocked) ? "🔒" : rewardLabel(tier.premiumRewardType, tier.premiumRewardId, tier.premiumRewardAmount)}
-                    </Text>
-                  )}
-                </TouchableOpacity>
+              <View style={S.xpRow}>
+                <Text style={S.xpSmall}>
+                  {currentTier >= 30 ? "MAX ✓" : `${xpInCurrentTier} / ${xpPerTier} XP`}
+                </Text>
+                <Text style={S.xpSmall}>إجمالي: {passXp} XP</Text>
               </View>
             </View>
-          );
-        })}
-      </ScrollView>
-    </LinearGradient>
+          </View>
+
+          <View style={S.xpHint}>
+            <Text style={S.xpHintText}>فوز: +20 XP   •   لعبة: +10 XP</Text>
+          </View>
+        </LinearGradient>
+
+        {/* ── Tier path ─────────────────────────────────────────────────── */}
+        <ScrollView
+          contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: insets.bottom + (premiumUnlocked ? 24 : 110) }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Track headers */}
+          <View style={S.trackHeaderRow}>
+            <View style={S.trackHeaderCol}>
+              <Text style={[S.trackHeaderText, { color: "#9DCFFF" }]}>المسار المجاني</Text>
+            </View>
+            <View style={{ width: 48 }} />
+            <View style={S.trackHeaderCol}>
+              <Text style={[S.trackHeaderText, { color: "#FFD24A" }]}>المسار المميز ⭐</Text>
+            </View>
+          </View>
+
+          {tiers.map((tier) => {
+            const reached = currentTier >= tier.tier;
+            const freeKey = `${tier.tier}_free`;
+            const premKey = `${tier.tier}_premium`;
+            const freeClaimed = claimedTiers.includes(freeKey);
+            const premClaimed = claimedTiers.includes(premKey);
+            const freeClaimable = reached && !freeClaimed;
+            const premClaimable = reached && premiumUnlocked && !premClaimed;
+
+            return (
+              <View key={tier.id} style={S.tierRow}>
+                {/* Free reward (left) */}
+                <RewardCell
+                  type={tier.freeRewardType}
+                  id={tier.freeRewardId}
+                  amount={tier.freeRewardAmount}
+                  reached={reached}
+                  claimed={freeClaimed}
+                  claimable={freeClaimable}
+                  locked={!reached}
+                  busy={claiming === freeKey}
+                  onPress={() => claimReward(tier.tier, "free")}
+                  glowAnim={glowAnim}
+                  accent="#9DCFFF"
+                />
+
+                {/* Center tier number with connecting line */}
+                <View style={S.centerCol}>
+                  <View style={[S.connectorLine, { opacity: tier.tier === 1 ? 0 : 1 }]} />
+                  <LinearGradient
+                    colors={
+                      reached
+                        ? ["#FFD24A", "#FF9500"]
+                        : ["#2a2a3e", "#1a1a2a"]
+                    }
+                    style={[S.tierBadge, reached && S.tierBadgeReached]}
+                  >
+                    <Text style={[S.tierBadgeText, { color: reached ? "#1a0d2e" : "#666" }]}>
+                      {tier.tier}
+                    </Text>
+                  </LinearGradient>
+                  <View style={[S.connectorLine, { opacity: tier.tier === 30 ? 0 : 1 }]} />
+                </View>
+
+                {/* Premium reward (right) */}
+                <RewardCell
+                  type={tier.premiumRewardType}
+                  id={tier.premiumRewardId}
+                  amount={tier.premiumRewardAmount}
+                  reached={reached}
+                  claimed={premClaimed}
+                  claimable={premClaimable}
+                  locked={!reached || !premiumUnlocked}
+                  premiumLocked={reached && !premiumUnlocked}
+                  busy={claiming === premKey}
+                  onPress={() => claimReward(tier.tier, "premium")}
+                  glowAnim={glowAnim}
+                  accent="#FFD24A"
+                />
+              </View>
+            );
+          })}
+        </ScrollView>
+
+        {/* ── Sticky Premium CTA ────────────────────────────────────────── */}
+        {!premiumUnlocked && (
+          <View style={[S.stickyWrap, { paddingBottom: insets.bottom + 10 }]}>
+            <Animated.View
+              style={{
+                shadowColor: "#FFD24A",
+                shadowOpacity: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.85] }),
+                shadowRadius: 14,
+                shadowOffset: { width: 0, height: 0 },
+                elevation: 8,
+              }}
+            >
+              <TouchableOpacity activeOpacity={0.88} onPress={buyPremium} disabled={buying}>
+                <LinearGradient
+                  colors={["#FF9500", "#FFD24A", "#FF9500"]}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  style={S.ctaCard}
+                >
+                  <View style={S.ctaIconWrap}>
+                    <Text style={{ fontSize: 26 }}>⭐</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={S.ctaTitle}>فعّل الباس المميز</Text>
+                    <Text style={S.ctaSub}>افتح كل المكافآت المميزة + 30 درجة</Text>
+                  </View>
+                  {buying ? (
+                    <ActivityIndicator color="#1a0d2e" size="small" />
+                  ) : (
+                    <View style={S.ctaPriceChip}>
+                      <Text style={S.ctaPriceText}>{priceLabel}</Text>
+                      {!iap?.enabled && <Text style={S.ctaPriceHint}>قريباً</Text>}
+                    </View>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        )}
+
+        {premiumUnlocked && (
+          <LinearGradient
+            colors={["#0f5132", "#198754"]}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={[S.unlockedBanner, { marginBottom: insets.bottom + 8 }]}
+          >
+            <Text style={{ fontSize: 18 }}>✅</Text>
+            <Text style={S.unlockedText}>الباس المميز مفعّل لهذا الموسم</Text>
+          </LinearGradient>
+        )}
+      </LinearGradient>
     </ImageBackground>
   );
 }
 
-const styles = StyleSheet.create({
+// ── Reward cell ─────────────────────────────────────────────────────────────
+type RewardCellProps = {
+  type: string;
+  id: string | null;
+  amount: number;
+  reached: boolean;
+  claimed: boolean;
+  claimable: boolean;
+  locked: boolean;
+  premiumLocked?: boolean;
+  busy: boolean;
+  onPress: () => void;
+  glowAnim: Animated.Value;
+  accent: string;
+};
+
+function RewardCell({
+  type, id, amount, reached, claimed, claimable, locked, premiumLocked, busy, onPress, glowAnim, accent,
+}: RewardCellProps) {
+  const icon = rewardIcon(type, id);
+  const amt = rewardAmountText(type, amount);
+  const sub = rewardSubLabel(type, id);
+
+  const shadowOpacity = claimable
+    ? glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.95] })
+    : 0;
+
+  return (
+    <Animated.View
+      style={{
+        flex: 1,
+        shadowColor: accent,
+        shadowOpacity,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 0 },
+        elevation: claimable ? 6 : 0,
+      }}
+    >
+      <TouchableOpacity
+        activeOpacity={0.85}
+        disabled={!claimable || busy}
+        onPress={onPress}
+        style={[
+          S.rewardCell,
+          {
+            borderColor: claimed
+              ? "#3a3a4e"
+              : claimable
+              ? accent
+              : locked
+              ? "#2a2a3e"
+              : "#3a3a4e",
+            backgroundColor: claimed
+              ? "rgba(255,255,255,0.04)"
+              : claimable
+              ? "rgba(255,210,74,0.08)"
+              : "rgba(20,20,35,0.55)",
+          },
+        ]}
+      >
+        {busy ? (
+          <ActivityIndicator color={accent} size="small" />
+        ) : claimed ? (
+          <>
+            <Text style={[S.rewardIcon, { opacity: 0.4 }]}>{icon}</Text>
+            <Text style={[S.rewardClaimedTag, { color: "#4ade80" }]}>✓ تم</Text>
+          </>
+        ) : premiumLocked ? (
+          <>
+            <Text style={[S.rewardIcon, { opacity: 0.45 }]}>{icon}</Text>
+            <Text style={S.rewardLockedTag}>⭐ مميز</Text>
+          </>
+        ) : locked ? (
+          <>
+            <Text style={[S.rewardIcon, { opacity: 0.35 }]}>🔒</Text>
+            <Text style={S.rewardLockedTag}>مغلق</Text>
+          </>
+        ) : (
+          <>
+            <Text style={S.rewardIcon}>{icon}</Text>
+            {amt ? <Text style={[S.rewardAmount, { color: accent }]}>{amt}</Text> : null}
+            {sub ? <Text style={S.rewardSub} numberOfLines={1}>{sub}</Text> : null}
+            {claimable && <Text style={[S.rewardClaim, { color: accent }]}>اضغط للاستلام</Text>}
+          </>
+        )}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+// ── Styles ──────────────────────────────────────────────────────────────────
+const S = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#00CFFF20",
+    paddingHorizontal: 14,
+    paddingBottom: 12,
+    gap: 10,
   },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  iconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0,207,255,0.12)",
+    backgroundColor: "rgba(255,210,74,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,210,74,0.3)",
   },
-  headerTitle: {
+  seasonName: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 17,
+    fontSize: 16,
     color: "#fff",
   },
-  headerSub: {
+  seasonSub: {
     fontFamily: "Cairo_400Regular",
-    fontSize: 12,
+    fontSize: 11,
     color: "rgba(255,255,255,0.5)",
     marginTop: -2,
   },
   coinsChip: {
-    backgroundColor: "rgba(245,200,66,0.15)",
+    backgroundColor: "rgba(245,200,66,0.18)",
     borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderWidth: 1,
-    borderColor: "#F5C84230",
+    borderColor: "#F5C84240",
   },
   coinsText: {
     fontFamily: "Cairo_700Bold",
     fontSize: 13,
-    color: "#F5C842",
+    color: "#FFD24A",
   },
-  xpCard: {
-    margin: 16,
-    borderRadius: 20,
+
+  heroCard: {
+    marginHorizontal: 14,
+    marginBottom: 14,
+    borderRadius: 22,
     padding: 16,
     borderWidth: 1,
-    gap: 8,
+    borderColor: "rgba(255,210,74,0.25)",
+    gap: 12,
+  },
+  countdownRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(0,0,0,0.35)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  countdownText: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 11,
+    color: "#FFD24A",
+  },
+  heroTierRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  heroTierBadge: {
+    width: 78,
+    height: 78,
+    borderRadius: 22,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    borderWidth: 2,
+    borderColor: "#FFD24A",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  heroTierLabel: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 9,
+    color: "rgba(255,255,255,0.6)",
+  },
+  heroTierNum: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 28,
+    color: "#FFD24A",
+    lineHeight: 32,
+  },
+  heroTierMax: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 10,
+    color: "rgba(255,255,255,0.5)",
+    marginTop: -3,
+  },
+  xpBarTrack: {
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255,210,74,0.2)",
+  },
+  xpBarFill: {
+    height: "100%",
+    borderRadius: 6,
   },
   xpRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-  },
-  xpLabel: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 14,
-  },
-  xpTier: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 16,
-  },
-  xpBarBg: {
-    height: 10,
-    borderRadius: 5,
-    overflow: "hidden",
-  },
-  xpBarFill: {
-    height: "100%",
-    borderRadius: 5,
-    backgroundColor: "#00CFFF",
   },
   xpSmall: {
     fontFamily: "Cairo_400Regular",
     fontSize: 11,
+    color: "rgba(255,255,255,0.7)",
   },
-  xpTotal: {
+  xpHint: {
+    backgroundColor: "rgba(0,0,0,0.3)",
+    borderRadius: 10,
+    paddingVertical: 6,
+    alignItems: "center",
+  },
+  xpHintText: {
     fontFamily: "Cairo_400Regular",
     fontSize: 11,
-    textAlign: "center",
+    color: "rgba(255,255,255,0.6)",
+  },
+
+  trackHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    marginBottom: 4,
+  },
+  trackHeaderCol: {
+    flex: 1,
+    alignItems: "center",
+  },
+  trackHeaderText: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 12,
+  },
+
+  tierRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    marginBottom: 6,
+    gap: 6,
+  },
+  centerCol: {
+    width: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  connectorLine: {
+    flex: 1,
+    width: 2,
+    backgroundColor: "rgba(255,210,74,0.25)",
+  },
+  tierBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  tierBadgeReached: {
+    borderColor: "#FFD24A",
+    shadowColor: "#FFD24A",
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 4,
+  },
+  tierBadgeText: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 14,
+  },
+
+  rewardCell: {
+    minHeight: 78,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+  },
+  rewardIcon: {
+    fontSize: 24,
+  },
+  rewardAmount: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 14,
+  },
+  rewardSub: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 10,
+    color: "rgba(255,255,255,0.7)",
+    maxWidth: "100%",
+  },
+  rewardClaim: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 9,
     marginTop: 2,
   },
-  premiumBanner: {
+  rewardClaimedTag: {
+    fontFamily: "Cairo_700Bold",
+    fontSize: 11,
+  },
+  rewardLockedTag: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 10,
+    color: "rgba(255,255,255,0.4)",
+  },
+
+  stickyWrap: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    bottom: 0,
+  },
+  ctaCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 18,
+    borderRadius: 20,
   },
-  premiumTitle: {
+  ctaIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(0,0,0,0.25)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  ctaTitle: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 14,
-    color: "#fff",
+    fontSize: 15,
+    color: "#1a0d2e",
   },
-  premiumSub: {
+  ctaSub: {
     fontFamily: "Cairo_400Regular",
     fontSize: 11,
-    color: "rgba(255,255,255,0.7)",
+    color: "rgba(26,13,46,0.75)",
   },
-  premiumCostChip: {
-    backgroundColor: "rgba(0,0,0,0.3)",
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+  ctaPriceChip: {
+    backgroundColor: "rgba(26,13,46,0.85)",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    alignItems: "center",
   },
-  premiumCostText: {
+  ctaPriceText: {
     fontFamily: "Cairo_700Bold",
-    fontSize: 13,
-    color: "#FFD700",
+    fontSize: 15,
+    color: "#FFD24A",
   },
-  tierRow: {
+  ctaPriceHint: {
+    fontFamily: "Cairo_400Regular",
+    fontSize: 9,
+    color: "rgba(255,210,74,0.7)",
+    marginTop: -2,
+  },
+
+  unlockedBanner: {
     flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: 16,
-    marginBottom: 8,
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    gap: 8,
-  },
-  tierNumBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
     justifyContent: "center",
-    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 18,
+    marginHorizontal: 14,
   },
-  tierNumText: {
+  unlockedText: {
     fontFamily: "Cairo_700Bold",
     fontSize: 14,
     color: "#fff",
-  },
-  rewardBlock: {
-    flex: 1,
-    alignItems: "center",
-    gap: 4,
-  },
-  rewardTrackLabel: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 10,
-  },
-  rewardBtn: {
-    borderWidth: 1,
-    borderColor: "#ffffff20",
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    minWidth: 80,
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 32,
-  },
-  rewardBtnClaimed: {
-    borderColor: "#ffffff20",
-    backgroundColor: "rgba(255,255,255,0.05)",
-  },
-  rewardBtnLocked: {
-    borderColor: "#ffffff10",
-    backgroundColor: "rgba(255,255,255,0.03)",
-  },
-  rewardBtnText: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 12,
-    textAlign: "center",
-  },
-  divider: {
-    width: 1,
-    height: 40,
   },
 });
