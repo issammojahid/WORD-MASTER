@@ -103,6 +103,7 @@ export default function BattlePassScreen() {
   const [buying, setBuying] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [localizedPrice, setLocalizedPrice] = useState<string | null>(null);
+  const [iapClientReady, setIapClientReady] = useState(false);
 
   const claimAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -149,7 +150,11 @@ export default function BattlePassScreen() {
     let cancelled = false;
     (async () => {
       const p = await getLocalizedBattlePassPrice(playerId);
-      if (!cancelled && p) setLocalizedPrice(p);
+      if (cancelled) return;
+      if (p) {
+        setLocalizedPrice(p);
+        setIapClientReady(true); // SDK reachable AND product is in store
+      }
     })();
     return () => { cancelled = true; };
   }, [playerId, bpState?.iap?.enabled]);
@@ -158,11 +163,13 @@ export default function BattlePassScreen() {
     if (!playerId || !bpState) return;
     const iap = bpState.iap;
 
-    // IAP not yet enabled on backend → show "coming soon" without any fallback purchase.
-    if (!iap?.enabled) {
+    // Show "coming soon" unless BOTH the backend IAP flag is on AND the client SDK
+    // has successfully loaded the product from the store. This avoids showing a
+    // failure when only one side is configured.
+    if (!iap?.enabled || !iapClientReady) {
       Alert.alert(
         "قريباً 🔜",
-        `الباس المميز سيكون متاح قريباً بـ ${iap?.price.display ?? "€1.99"} عبر متجر Google Play.`,
+        `الباس المميز سيكون متاح قريباً بـ ${localizedPrice ?? iap?.price.display ?? "€1.99"} عبر متجر Google Play.`,
         [{ text: "حسناً" }]
       );
       return;
@@ -183,9 +190,11 @@ export default function BattlePassScreen() {
               const purchase = await purchaseBattlePassPremium(playerId);
               if (!purchase.ok) {
                 if (purchase.cancelled) {
-                  // user cancelled — silent
+                  Alert.alert("تم الإلغاء", "لم يتم إتمام الشراء. يمكنك المحاولة في أي وقت.");
                 } else if (purchase.error === "iap_unavailable") {
                   Alert.alert("غير متاح", "الدفع غير مفعّل في هذا الإصدار. حدّث التطبيق من المتجر.");
+                } else if (purchase.error === "no_package" || purchase.error === "no_offerings") {
+                  Alert.alert("غير متاح حالياً", "المنتج غير متوفر في متجرك حالياً. حاول لاحقاً.");
                 } else {
                   Alert.alert("فشل الشراء", "تعذّر إتمام عملية الشراء. حاول مرة أخرى.");
                 }
@@ -409,11 +418,11 @@ export default function BattlePassScreen() {
                         ? ["#FFD24A", "#FF9500"]
                         : ["#2a2a3e", "#1a1a2a"]
                     }
-                    style={[S.tierBadge, reached && S.tierBadgeReached]}
+                    style={[S.tierBadge, reached && S.tierBadgeReached, { transform: [{ scale: tier.tier === currentTier + 1 ? claimAnim : 1 }] }]}
                   >
-                    <Text style={[S.tierBadgeText, { color: reached ? "#1a0d2e" : "#666" }]}>
+                    <Animated.Text style={[S.tierBadgeText, { color: reached ? "#1a0d2e" : "#666" }]}>
                       {tier.tier}
-                    </Text>
+                    </Animated.Text>
                   </LinearGradient>
                   <View style={[S.connectorLine, { opacity: tier.tier === 30 ? 0 : 1 }]} />
                 </View>
