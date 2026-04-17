@@ -44,8 +44,9 @@ function setupCors(app: express.Application) {
       origin?.startsWith("http://127.0.0.1:");
 
     const isRailwayDomain = origin?.endsWith(".railway.app") || origin?.endsWith(".up.railway.app");
+    const isReplitApp = origin?.endsWith(".replit.app");
 
-    if (origin && (origins.has(origin) || isLocalhost || isRailwayDomain)) {
+    if (origin && (origins.has(origin) || isLocalhost || isRailwayDomain || isReplitApp)) {
       res.header("Access-Control-Allow-Origin", origin);
       res.header(
         "Access-Control-Allow-Methods",
