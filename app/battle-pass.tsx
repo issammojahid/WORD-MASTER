@@ -93,7 +93,7 @@ function formatCountdown(endIso: string): { days: number; hours: number; minutes
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function BattlePassScreen() {
-  const { theme, isDark } = useTheme();
+  useTheme();
   const insets = useSafeAreaInsets();
   const { profile, playerId, updateProfile } = usePlayer();
 
@@ -399,7 +399,6 @@ export default function BattlePassScreen() {
                   type={tier.freeRewardType}
                   id={tier.freeRewardId}
                   amount={tier.freeRewardAmount}
-                  reached={reached}
                   claimed={freeClaimed}
                   claimable={freeClaimable}
                   locked={!reached}
@@ -432,7 +431,6 @@ export default function BattlePassScreen() {
                   type={tier.premiumRewardType}
                   id={tier.premiumRewardId}
                   amount={tier.premiumRewardAmount}
-                  reached={reached}
                   claimed={premClaimed}
                   claimable={premClaimable}
                   locked={!reached || !premiumUnlocked}
@@ -506,7 +504,6 @@ type RewardCellProps = {
   type: string;
   id: string | null;
   amount: number;
-  reached: boolean;
   claimed: boolean;
   claimable: boolean;
   locked: boolean;
@@ -518,7 +515,7 @@ type RewardCellProps = {
 };
 
 function RewardCell({
-  type, id, amount, reached, claimed, claimable, locked, premiumLocked, busy, onPress, glowAnim, accent,
+  type, id, amount, claimed, claimable, locked, premiumLocked, busy, onPress, glowAnim, accent,
 }: RewardCellProps) {
   const icon = rewardIcon(type, id);
   const amt = rewardAmountText(type, amount);
