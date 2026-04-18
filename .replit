@@ -6,7 +6,7 @@ channel = "stable-24_05"
 packages = ["flutter316"]
 
 [deployment]
-deploymentTarget = "vm"
+deploymentTarget = "cloudrun"
 build = ["sh", "-c", "npm run server:build && npm run expo:static:build"]
 run = ["npm", "run", "server:prod"]
 
