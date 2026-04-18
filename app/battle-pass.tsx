@@ -131,7 +131,7 @@ export default function BattlePassScreen() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${getApiUrl()}/api/battle-pass/${playerId}`);
+      const res = await fetch(new URL(`/api/battle-pass/${playerId}`, getApiUrl()).toString());
       const data = await res.json();
       if (res.ok) setBpState(data as BpState);
     } catch {
@@ -166,7 +166,7 @@ export default function BattlePassScreen() {
         return;
       }
       // Re-trigger server verification so premium_unlocked gets set
-      const res = await fetch(`${getApiUrl()}/api/battle-pass/${playerId}/unlock-premium-iap`, {
+      const res = await fetch(new URL(`/api/battle-pass/${playerId}/unlock-premium-iap`, getApiUrl()).toString(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -227,7 +227,7 @@ export default function BattlePassScreen() {
               }
 
               // 2) Tell server to verify the entitlement and flip premium_unlocked
-              const res = await fetch(`${getApiUrl()}/api/battle-pass/${playerId}/unlock-premium-iap`, {
+              const res = await fetch(new URL(`/api/battle-pass/${playerId}/unlock-premium-iap`, getApiUrl()).toString(), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
               });
@@ -262,7 +262,7 @@ export default function BattlePassScreen() {
     const executePurchase = async () => {
       setBuying(true);
       try {
-        const res = await fetch(`${getApiUrl()}/api/battle-pass/${playerId}/buy-premium`, {
+        const res = await fetch(new URL(`/api/battle-pass/${playerId}/buy-premium`, getApiUrl()).toString(), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
         });
@@ -324,7 +324,7 @@ export default function BattlePassScreen() {
       Animated.timing(claimAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
     ]).start();
     try {
-      const res = await fetch(`${getApiUrl()}/api/battle-pass/${playerId}/claim/${tierNum}`, {
+      const res = await fetch(new URL(`/api/battle-pass/${playerId}/claim/${tierNum}`, getApiUrl()).toString(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ track }),
