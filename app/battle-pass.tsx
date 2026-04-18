@@ -259,41 +259,56 @@ export default function BattlePassScreen() {
       return;
     }
 
+    const executePurchase = async () => {
+      setBuying(true);
+      try {
+        const res = await fetch(`${getApiUrl()}/api/battle-pass/${playerId}/buy-premium`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          if (data.error === "insufficient_coins") {
+            Alert.alert("ما عندكش كافي 🪙", `محتاج ${data.required} 🪙. عندك ${data.current} 🪙.`);
+          } else {
+            console.error("[buyWithCoins] Server error:", data.error ?? res.status);
+            Alert.alert(
+              "فشل الشراء",
+              "حدث خطأ من الخادم أثناء معالجة طلبك.",
+              [
+                { text: "إلغاء", style: "cancel" },
+                { text: "حاول مرة أخرى", onPress: executePurchase },
+              ]
+            );
+          }
+        } else {
+          const updatedCoins = data.newCoins ?? data.coins;
+          if (typeof updatedCoins === "number") updateProfile({ coins: updatedCoins });
+          await load();
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          Alert.alert("مبروك! 🎉", "تم تفعيل الباس المميز بنجاح");
+        }
+      } catch (err) {
+        console.error("[buyWithCoins] Network error:", err);
+        Alert.alert(
+          "مشكلة في الاتصال",
+          "تعذّر الوصول إلى الخادم. تأكد من اتصالك بالإنترنت وحاول مرة أخرى.",
+          [
+            { text: "إلغاء", style: "cancel" },
+            { text: "حاول مرة أخرى", onPress: executePurchase },
+          ]
+        );
+      } finally {
+        setBuying(false);
+      }
+    };
+
     Alert.alert(
       "شراء الباس المميز",
       `هل تريد شراء الباس المميز مقابل ${cost} 🪙؟`,
       [
         { text: "إلغاء", style: "cancel" },
-        {
-          text: "شراء",
-          onPress: async () => {
-            setBuying(true);
-            try {
-              const res = await fetch(`${getApiUrl()}/api/battle-pass/${playerId}/buy-premium`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-              });
-              const data = await res.json();
-              if (!res.ok) {
-                if (data.error === "insufficient_coins") {
-                  Alert.alert("ما عندكش كافي 🪙", `محتاج ${data.required} 🪙. عندك ${data.current} 🪙.`);
-                } else {
-                  Alert.alert("خطأ", "فشل الشراء. حاول مرة أخرى.");
-                }
-              } else {
-                const updatedCoins = data.newCoins ?? data.coins;
-                if (typeof updatedCoins === "number") updateProfile({ coins: updatedCoins });
-                await load();
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                Alert.alert("مبروك! 🎉", "تم تفعيل الباس المميز بنجاح");
-              }
-            } catch {
-              Alert.alert("خطأ", "فشل الاتصال بالخادم");
-            } finally {
-              setBuying(false);
-            }
-          },
-        },
+        { text: "شراء", onPress: executePurchase },
       ]
     );
   };
