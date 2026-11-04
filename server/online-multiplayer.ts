@@ -739,6 +739,7 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
     (process.env.ALLOWED_ORIGIN ?? "").split(",").map((origin) => origin.trim()).filter(Boolean),
   );
   if (process.env.RAILWAY_PUBLIC_DOMAIN) configuredOrigins.add(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
+  if (process.env.RENDER_EXTERNAL_URL) configuredOrigins.add(new URL(process.env.RENDER_EXTERNAL_URL).origin);
   if (process.env.REPLIT_DEV_DOMAIN) configuredOrigins.add(`https://${process.env.REPLIT_DEV_DOMAIN}`);
 
   const io = new SocketServer(httpServer, {

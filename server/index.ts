@@ -33,6 +33,10 @@ function setupCors(app: express.Application) {
       });
     }
 
+    if (process.env.RENDER_EXTERNAL_URL) {
+      origins.add(new URL(process.env.RENDER_EXTERNAL_URL).origin);
+    }
+
     if (process.env.RAILWAY_PUBLIC_DOMAIN) {
       origins.add(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
     }
