@@ -5,14 +5,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
   Alert,
   Platform,
   Animated,
   Easing,
-  ImageBackground,
 } from "react-native";
-const BG_TASKS = require("@/assets/images/bg_tasks.png");
 import { router, useFocusEffect } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -20,16 +17,18 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
 import { ScreenErrorBoundary } from "@/components/ScreenErrorBoundary";
+import { EmptyState, GameHeader, GameScreenBackground, LoadingState, useReducedMotion } from "@/components/GameUi";
+import { GameIcon } from "@/components/GameIcon";
+import { gameDesign } from "@/constants/game-design";
 
 const ACCENT = {
-  gold:   "#F5C842",
-  cyan:   "#00F5FF",
-  purple: "#BF00FF",
-  green:  "#00FF87",
-  red:    "#FF006E",
+  gold: gameDesign.colors.coins,
+  cyan: gameDesign.colors.missions,
+  purple: gameDesign.colors.online,
+  green: gameDesign.colors.success,
+  red: gameDesign.colors.danger,
 };
 
 type Task = {
@@ -38,6 +37,7 @@ type Task = {
   rowId?: string; progress: number; completed: boolean; claimed: boolean;
   isWeekly?: boolean;
 };
+type AppTheme = ReturnType<typeof useTheme>["theme"];
 
 type ApiFetchOptions = { method?: string; body?: BodyInit; headers?: HeadersInit };
 async function apiFetch(url: string, options?: ApiFetchOptions) {
@@ -82,18 +82,23 @@ function useMidnightCountdown() {
   return countdown;
 }
 
-function AnimatedProgressBar({ pct, color }: { pct: number; color: string }) {
+function AnimatedProgressBar({ pct, color, trackColor }: { pct: number; color: string; trackColor: string }) {
   const widthAnim = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
+    if (reduceMotion) {
+      widthAnim.setValue(pct);
+      return;
+    }
     Animated.timing(widthAnim, {
       toValue: pct,
       duration: 900,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: false,
     }).start();
-  }, [pct]);
+  }, [pct, reduceMotion, widthAnim]);
   return (
-    <View style={pb.track}>
+    <View style={[pb.track, { backgroundColor: trackColor }]}>
       <Animated.View style={[pb.fill, {
         width: widthAnim.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] }),
         backgroundColor: color,
@@ -110,10 +115,12 @@ const pb = StyleSheet.create({
   fill: { height: "100%", borderRadius: 3 },
 });
 
-const ClaimButton = memo(({ onPress, disabled }: { onPress: () => void; disabled: boolean }) => {
+const ClaimButton = memo(function ClaimButton({ onPress, disabled }: { onPress: () => void; disabled: boolean }) {
   const pulse = useRef(new Animated.Value(1)).current;
   const shine = useRef(new Animated.Value(-80)).current;
+  const reduceMotion = useReducedMotion();
   useEffect(() => {
+    if (reduceMotion) return;
     Animated.loop(Animated.sequence([
       Animated.timing(pulse, { toValue: 1.06, duration: 600, useNativeDriver: true }),
       Animated.timing(pulse, { toValue: 1,    duration: 600, useNativeDriver: true }),
@@ -127,7 +134,7 @@ const ClaimButton = memo(({ onPress, disabled }: { onPress: () => void; disabled
     };
     runShine();
     return () => { pulse.stopAnimation(); shine.stopAnimation(); };
-  }, []);
+  }, [pulse, reduceMotion, shine]);
   return (
     <Animated.View style={{ transform: [{ scale: pulse }] }}>
       <TouchableOpacity onPress={onPress} disabled={disabled} activeOpacity={0.85} style={{ overflow: "hidden", borderRadius: 12 }}>
@@ -145,40 +152,42 @@ const cb = StyleSheet.create({
   shine: { position: "absolute", top: 0, bottom: 0, width: 28, backgroundColor: "rgba(255,255,255,0.35)" },
 });
 
-function TaskCard({ task, onClaim, isPending }: { task: Task; onClaim: () => void; isPending: boolean }) {
+function TaskCard({ task, onClaim, isPending, theme }: { task: Task; onClaim: () => void; isPending: boolean; theme: AppTheme }) {
   const pct = Math.min(1, task.progress / task.target);
   const barColor = task.completed ? ACCENT.green : ACCENT.cyan;
   const borderColor = task.claimed ? ACCENT.green + "40"
     : task.completed ? ACCENT.gold + "60"
-    : "rgba(255,255,255,0.07)";
+    : theme.cardBorder;
   const bgGrad: [string, string] = task.claimed
-    ? ["rgba(34,197,94,0.06)", "rgba(34,197,94,0.02)"]
+    ? [`${ACCENT.green}10`, theme.card]
     : task.completed
-    ? ["rgba(245,200,66,0.10)", "rgba(245,200,66,0.03)"]
-    : ["rgba(255,255,255,0.04)", "rgba(255,255,255,0.01)"];
+    ? [`${ACCENT.gold}16`, theme.card]
+    : [theme.card, theme.card];
 
   return (
     <LinearGradient colors={bgGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
       style={[tc.card, { borderColor }]}>
-      <View style={[tc.iconWrap, { backgroundColor: task.completed ? ACCENT.gold + "22" : "rgba(255,255,255,0.06)" }]}>
-        <Text style={tc.icon}>{task.icon}</Text>
+      <View style={[tc.iconWrap, { backgroundColor: task.completed ? ACCENT.gold + "22" : `${ACCENT.cyan}18` }]}>
+        <GameIcon name="missions" size={25} color={task.completed ? ACCENT.gold : ACCENT.cyan} />
       </View>
       <View style={tc.content}>
-        <Text style={tc.title}>{task.titleAr}</Text>
-        <Text style={tc.desc}>{task.descAr}</Text>
+        <Text style={[tc.title, { color: theme.textPrimary }]}>{task.titleAr}</Text>
+        <Text style={[tc.desc, { color: theme.textSecondary }]}>{task.descAr}</Text>
         <View style={tc.progressRow}>
-          <AnimatedProgressBar pct={pct} color={barColor} />
-          <Text style={tc.progressNum}>{task.progress}/{task.target}</Text>
+          <AnimatedProgressBar pct={pct} color={barColor} trackColor={theme.cardBorder} />
+          <Text style={[tc.progressNum, { color: theme.textMuted }]}>{task.progress}/{task.target}</Text>
         </View>
         <View style={tc.rewards}>
           {task.rewardCoins > 0 && (
             <View style={tc.rewardPill}>
-              <Text style={tc.rewardText}>🪙 +{task.rewardCoins}</Text>
+              <View style={tc.rewardIcon}><GameIcon name="coins" size={15} color={ACCENT.gold} /></View>
+              <Text style={tc.rewardText}>+{task.rewardCoins}</Text>
             </View>
           )}
           {task.rewardXp > 0 && (
             <View style={[tc.rewardPill, { backgroundColor: ACCENT.cyan + "18" }]}>
-              <Text style={[tc.rewardText, { color: ACCENT.cyan }]}>⭐ +{task.rewardXp} XP</Text>
+              <Ionicons name="sparkles-outline" size={14} color={ACCENT.cyan} />
+              <Text style={[tc.rewardText, { color: ACCENT.cyan }]}>+{task.rewardXp} XP</Text>
             </View>
           )}
         </View>
@@ -192,7 +201,7 @@ function TaskCard({ task, onClaim, isPending }: { task: Task; onClaim: () => voi
           <ClaimButton onPress={onClaim} disabled={isPending} />
         ) : (
           <View style={tc.lockCircle}>
-            <Ionicons name="lock-closed" size={14} color="rgba(255,255,255,0.25)" />
+            <Ionicons name="lock-closed" size={14} color={theme.textMuted} />
           </View>
         )}
       </View>
@@ -207,12 +216,13 @@ const tc = StyleSheet.create({
   iconWrap: { width: 50, height: 50, borderRadius: 25, justifyContent: "center", alignItems: "center" },
   icon: { fontSize: 26 },
   content: { flex: 1, gap: 4 },
-  title: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#E8E8FF" },
-  desc: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.45)" },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 14 },
+  desc: { fontFamily: "Cairo_400Regular", fontSize: 11 },
   progressRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
-  progressNum: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "rgba(255,255,255,0.4)", minWidth: 32, textAlign: "right" },
+  progressNum: { fontFamily: "Cairo_400Regular", fontSize: 10, minWidth: 32, textAlign: "right" },
   rewards: { flexDirection: "row", gap: 6, marginTop: 5 },
-  rewardPill: { backgroundColor: ACCENT.gold + "18", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
+  rewardPill: { backgroundColor: ACCENT.gold + "18", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, flexDirection: "row", alignItems: "center", gap: 4 },
+  rewardIcon: { alignItems: "center", justifyContent: "center" },
   rewardText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: ACCENT.gold },
   action: { alignItems: "center", justifyContent: "center" },
   doneBadge: { alignItems: "center", justifyContent: "center" },
@@ -222,7 +232,7 @@ const tc = StyleSheet.create({
 function TasksScreenInner() {
   const insets = useSafeAreaInsets();
   const { playerId, addCoins, addXp } = usePlayer();
-  const { isDark } = useTheme();
+  const { theme } = useTheme();
   const qc = useQueryClient();
   const countdown = useMidnightCountdown();
 
@@ -269,10 +279,10 @@ function TasksScreenInner() {
       if ((data.xpEarned ?? 0) > 0) addXp(data.xpEarned);
       qc.invalidateQueries({ queryKey: ["/api/tasks", playerId] });
       const parts: string[] = [];
-      if ((data.coinsEarned ?? 0) > 0) parts.push(`🪙 +${data.coinsEarned} عملة`);
-      if ((data.xpEarned ?? 0) > 0) parts.push(`⭐ +${data.xpEarned} XP`);
-      if (data.titleAwarded) parts.push(`👑 لقب نادر مُنح!`);
-      Alert.alert("تم الاستلام! 🎉", parts.length > 0 ? parts.join("  |  ") : "تم استلام المكافأة بنجاح");
+      if ((data.coinsEarned ?? 0) > 0) parts.push(`+${data.coinsEarned} عملة`);
+      if ((data.xpEarned ?? 0) > 0) parts.push(`+${data.xpEarned} XP`);
+      if (data.titleAwarded) parts.push("لقب نادر مُنح!");
+      Alert.alert("تم الاستلام", parts.length > 0 ? parts.join("  |  ") : "تم استلام المكافأة بنجاح");
     },
     onError: () => {
       Alert.alert("خطأ في الاتصال", "تعذّر الاتصال بالخادم. تحقق من اتصالك وحاول مجدداً.");
@@ -283,65 +293,58 @@ function TasksScreenInner() {
   const totalPct = tasks.length > 0 ? claimedCount / tasks.length : 0;
 
   return (
-    <ImageBackground source={BG_TASKS} style={{ flex: 1 }} resizeMode="cover">
-      <LinearGradient
-        colors={["rgba(0,0,0,0.72)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.72)"]}
-        style={StyleSheet.absoluteFillObject}
-      />
-
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <GameScreenBackground accent="offline" />
       <View style={{ paddingTop: topInset + 8, paddingBottom: bottomInset, flex: 1 }}>
-        <View style={s.header}>
-          <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color="#E8E8FF" />
-          </TouchableOpacity>
-          <View style={s.headerCenter}>
-            <Text style={s.headerTitle}>مهام اليوم</Text>
-            <Text style={s.headerSub}>🎯 {claimedCount}/{tasks.length} مكتملة</Text>
-          </View>
-          <TouchableOpacity style={s.refreshBtn} onPress={() => refetch()}>
-            <Ionicons name="refresh" size={18} color={ACCENT.cyan} />
-          </TouchableOpacity>
-        </View>
+        <GameHeader
+          title="مهام اليوم"
+          subtitle={`${claimedCount}/${tasks.length} مكتملة`}
+          onBack={() => router.back()}
+          icon={<GameIcon name="missions" size={23} color={ACCENT.cyan} />}
+          trailing={
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel="تحديث المهام" style={s.refreshBtn} onPress={() => refetch()}>
+              <Ionicons name="refresh" size={18} color={ACCENT.cyan} />
+            </TouchableOpacity>
+          }
+        />
 
         <LinearGradient
-          colors={["rgba(0,212,232,0.10)", "rgba(168,85,247,0.08)"]}
+          colors={[theme.card, theme.backgroundSecondary]}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={s.summaryCard}
+          style={[s.summaryCard, { borderColor: theme.cardBorder }]}
         >
           <View style={s.summaryTop}>
-            <Text style={s.summaryLabel}>تجدد بعد</Text>
+            <Text style={[s.summaryLabel, { color: theme.textSecondary }]}>تجدد بعد</Text>
             <Text style={s.summaryCountdown}>{countdown}</Text>
           </View>
-          <View style={s.summaryBarTrack}>
+          <View style={[s.summaryBarTrack, { backgroundColor: theme.cardBorder }]}>
             <Animated.View style={[s.summaryBarFill, { width: `${totalPct * 100}%` }]} />
           </View>
           <View style={s.summaryStats}>
             <View style={s.summaryStat}>
-              <Text style={s.summaryStatNum}>{claimedCount}</Text>
-              <Text style={s.summaryStatLabel}>مستلمة</Text>
+              <Text style={[s.summaryStatNum, { color: theme.textPrimary }]}>{claimedCount}</Text>
+              <Text style={[s.summaryStatLabel, { color: theme.textSecondary }]}>مستلمة</Text>
             </View>
             <View style={[s.summaryDivider]} />
             <View style={s.summaryStat}>
-              <Text style={s.summaryStatNum}>{tasks.filter(t => t.completed && !t.claimed).length}</Text>
-              <Text style={s.summaryStatLabel}>جاهزة</Text>
+              <Text style={[s.summaryStatNum, { color: theme.textPrimary }]}>{tasks.filter(t => t.completed && !t.claimed).length}</Text>
+              <Text style={[s.summaryStatLabel, { color: theme.textSecondary }]}>جاهزة</Text>
             </View>
             <View style={[s.summaryDivider]} />
             <View style={s.summaryStat}>
-              <Text style={s.summaryStatNum}>{tasks.filter(t => !t.completed).length}</Text>
-              <Text style={s.summaryStatLabel}>قيد التقدم</Text>
+              <Text style={[s.summaryStatNum, { color: theme.textPrimary }]}>{tasks.filter(t => !t.completed).length}</Text>
+              <Text style={[s.summaryStatLabel, { color: theme.textSecondary }]}>قيد التقدم</Text>
             </View>
           </View>
         </LinearGradient>
 
         {isLoading ? (
           <View style={s.center}>
-            <ActivityIndicator color={ACCENT.gold} size="large" />
+            <LoadingState label="جارٍ تحميل المهام" />
           </View>
         ) : tasks.length === 0 ? (
           <View style={s.center}>
-            <Text style={s.emptyIcon}>📋</Text>
-            <Text style={s.emptyText}>لا توجد مهام حالياً</Text>
-            <Text style={s.emptySubText}>تُجدَّد المهام يومياً</Text>
+            <EmptyState title="لا توجد مهام حالياً" description="تُجدَّد المهام يومياً" icon="missions" />
           </View>
         ) : (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
@@ -352,7 +355,7 @@ function TasksScreenInner() {
                   <Text style={[s.sectionTitle, { color: ACCENT.purple }]}>تحدي الأسبوع</Text>
                 </View>
                 <LinearGradient
-                  colors={["rgba(191,0,255,0.12)", "rgba(0,245,255,0.06)"]}
+                  colors={[`${ACCENT.purple}12`, `${ACCENT.cyan}08`]}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                   style={s.weeklyWrap}
                 >
@@ -360,6 +363,7 @@ function TasksScreenInner() {
                     task={task}
                     onClaim={() => claimTask.mutate(task.key)}
                     isPending={claimTask.isPending}
+                    theme={theme}
                   />
                 </LinearGradient>
               </View>
@@ -374,12 +378,13 @@ function TasksScreenInner() {
                 task={task}
                 onClaim={() => claimTask.mutate(task.key)}
                 isPending={claimTask.isPending}
+                theme={theme}
               />
             ))}
           </ScrollView>
         )}
       </View>
-    </ImageBackground>
+    </View>
   );
 }
 
@@ -395,7 +400,7 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: "rgba(255,255,255,0.10)",
   },
   headerCenter: { flex: 1, alignItems: "center" },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 19, color: "#E8E8FF" },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 19 },
   headerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 1 },
   refreshBtn: {
     width: 42, height: 42, borderRadius: 14,
@@ -407,17 +412,17 @@ const s = StyleSheet.create({
   summaryCard: {
     marginHorizontal: 16, marginBottom: 16,
     borderRadius: 22, padding: 18,
-    borderWidth: 1, borderColor: "rgba(0,212,232,0.18)",
+    borderWidth: 1, borderColor: "rgba(87,200,245,0.18)",
   },
   summaryTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   summaryLabel: { fontFamily: "Cairo_400Regular", fontSize: 12, color: "rgba(255,255,255,0.5)" },
   summaryCountdown: { fontFamily: "Cairo_700Bold", fontSize: 16, color: ACCENT.gold },
-  summaryBarTrack: { height: 7, backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 4, overflow: "hidden", marginBottom: 14 },
+  summaryBarTrack: { height: 7, borderRadius: 4, overflow: "hidden", marginBottom: 14 },
   summaryBarFill: { height: "100%", backgroundColor: ACCENT.gold, borderRadius: 4, shadowColor: ACCENT.gold, shadowOpacity: 0.6, shadowRadius: 4, shadowOffset: { width: 0, height: 0 } },
   summaryStats: { flexDirection: "row", justifyContent: "space-around", alignItems: "center" },
   summaryStat: { alignItems: "center", gap: 2 },
-  summaryStatNum: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#E8E8FF" },
-  summaryStatLabel: { fontFamily: "Cairo_400Regular", fontSize: 10, color: "rgba(255,255,255,0.45)" },
+  summaryStatNum: { fontFamily: "Cairo_700Bold", fontSize: 20 },
+  summaryStatLabel: { fontFamily: "Cairo_400Regular", fontSize: 10 },
   summaryDivider: { width: 1, height: 28, backgroundColor: "rgba(255,255,255,0.10)" },
 
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
@@ -429,7 +434,7 @@ const s = StyleSheet.create({
 
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4, paddingHorizontal: 2 },
   sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 14 },
-  weeklyWrap: { borderRadius: 22, padding: 3, borderWidth: 1.5, borderColor: "rgba(191,0,255,0.25)" },
+  weeklyWrap: { borderRadius: 22, padding: 3, borderWidth: 1.5, borderColor: "rgba(156,140,255,0.25)" },
 });
 
 export default function TasksScreen() {

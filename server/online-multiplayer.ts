@@ -738,7 +738,6 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
   const configuredOrigins = new Set(
     (process.env.ALLOWED_ORIGIN ?? "").split(",").map((origin) => origin.trim()).filter(Boolean),
   );
-  if (process.env.RAILWAY_PUBLIC_DOMAIN) configuredOrigins.add(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
   if (process.env.RENDER_EXTERNAL_URL) configuredOrigins.add(new URL(process.env.RENDER_EXTERNAL_URL).origin);
   if (process.env.REPLIT_DEV_DOMAIN) configuredOrigins.add(`https://${process.env.REPLIT_DEV_DOMAIN}`);
 
@@ -749,9 +748,7 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
       origin(origin, callback) {
         const local = origin?.startsWith("http://localhost:")
           || origin?.startsWith("http://127.0.0.1:");
-        const hosted = origin?.endsWith(".railway.app")
-          || origin?.endsWith(".up.railway.app")
-          || origin?.endsWith(".replit.app");
+        const hosted = origin?.endsWith(".replit.app");
         if (!origin || local || hosted || configuredOrigins.has(origin)) {
           callback(null, true);
         } else {

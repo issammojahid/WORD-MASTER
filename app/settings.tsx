@@ -13,13 +13,10 @@ import {
   TextInput,
   Share,
   ActivityIndicator,
-  ImageBackground,
 } from "react-native";
-const BG_SETTINGS = require("@/assets/images/bg_settings.png");
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -32,12 +29,17 @@ import { getApiUrl } from "@/lib/query-client";
 import { fetch } from "expo/fetch";
 import { updateNotificationSetting, getNotificationSettings } from "@/lib/notifications";
 import { getCountryInfo, CountryPickerModal } from "@/lib/countries";
+import { GameHeader, GameScreenBackground } from "@/components/GameUi";
+import { GameIcon } from "@/components/GameIcon";
+import { useAds } from "@/components/AdsProvider";
+import type { GameIconName } from "@/components/GameIcon";
+import { gameDesign } from "@/constants/game-design";
 
 const LOGO = {
-  cyan:   "#00F5FF",
-  pink:   "#FF006E",
-  purple: "#BF00FF",
-  yellow: "#F5C842",
+  cyan: gameDesign.colors.settings,
+  pink: gameDesign.colors.danger,
+  purple: gameDesign.colors.online,
+  yellow: gameDesign.colors.coins,
 };
 
 export default function SettingsScreen() {
@@ -45,6 +47,7 @@ export default function SettingsScreen() {
   const { t, language, setLanguage, soundEffects, setSoundEffects, musicEnabled, setMusicEnabled } = useLanguage();
   const { playerId, profile, addCoins, updateProfile } = usePlayer();
   const { theme } = useTheme();
+  const { privacyOptionsRequired, showPrivacyOptions } = useAds();
   const [showExitModal, setShowExitModal] = useState(false);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
@@ -107,6 +110,14 @@ export default function SettingsScreen() {
     }
   };
 
+  const handlePrivacyOptions = async () => {
+    try {
+      await showPrivacyOptions();
+    } catch {
+      Alert.alert(t.privacyOptions, t.privacyOptionsUnavailable);
+    }
+  };
+
   const handleCopyReferral = async () => {
     if (!referralCode) return;
     await Clipboard.setStringAsync(referralCode);
@@ -158,33 +169,20 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ImageBackground source={BG_SETTINGS} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
-      <LinearGradient
-        colors={["rgba(0,0,0,0.72)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.72)"]}
-        style={StyleSheet.absoluteFillObject}
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+      <GameScreenBackground />
+      <GameHeader
+        title={t.settings}
+        onBack={() => router.back()}
+        icon={<GameIcon name="settings" size={23} color={LOGO.cyan} />}
       />
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <LinearGradient
-            colors={[LOGO.pink + "20", LOGO.purple + "18"]}
-            style={StyleSheet.absoluteFillObject}
-          />
-          <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerEmoji}>⚙️</Text>
-          <Text style={styles.headerTitle}>{t.settings}</Text>
-        </View>
-        <View style={{ width: 40 }} />
-      </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
         {/* ── Country ──────────────────────────────────── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={{ fontSize: 20 }}>🌍</Text>
+            <Ionicons name="earth-outline" size={20} color={LOGO.cyan} />
             <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>بلدك</Text>
           </View>
           <TouchableOpacity
@@ -251,7 +249,7 @@ export default function SettingsScreen() {
               <Text style={[styles.refLabel, { color: theme.textMuted }]}>هل لديك كود إحالة؟</Text>
               <View style={styles.refInputRow}>
                 <TextInput
-                  style={[styles.refTextInput, { color: theme.textPrimary, backgroundColor: theme.inputBg || "#0A0A1A", borderColor: theme.cardBorder }]}
+                  style={[styles.refTextInput, { color: theme.inputText, backgroundColor: theme.inputBg, borderColor: theme.cardBorder }]}
                   placeholder="أدخل كود الإحالة..."
                   placeholderTextColor={theme.textMuted}
                   value={refInput}
@@ -272,6 +270,11 @@ export default function SettingsScreen() {
               </View>
             </View>
           )}
+          {refAlreadyClaimed && !refEligible ? (
+            <Text style={[styles.refStats, { color: theme.textSecondary }]}>
+              لقد استخدمت كود إحالة من قبل
+            </Text>
+          ) : null}
         </View>
 
         {/* ── Language ────────────────────────────────── */}
@@ -341,61 +344,53 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {Platform.OS !== "web" && privacyOptionsRequired && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="shield-checkmark-outline" size={20} color={LOGO.cyan} />
+              <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{t.privacyOptions}</Text>
+            </View>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t.privacyOptions}
+              accessibilityHint={t.privacyOptionsHint}
+              style={[styles.settingRow, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+              onPress={handlePrivacyOptions}
+              activeOpacity={0.75}
+            >
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>{t.privacyOptions}</Text>
+                <Text style={[styles.toggleSub, { color: theme.textMuted }]}>{t.privacyOptionsHint}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* ── Notifications ─────────────────────────── */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="notifications" size={20} color="#FF006E" />
+            <Ionicons name="notifications" size={20} color={gameDesign.colors.online} />
             <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>الإشعارات</Text>
           </View>
 
           <View style={[styles.toggleCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
             <View style={styles.toggleRow}>
               <View style={styles.toggleLeft}>
-                <Ionicons name="notifications-outline" size={20} color="#FF006E" />
+                <Ionicons name="notifications-outline" size={20} color={gameDesign.colors.online} />
                 <View style={styles.toggleTexts}>
                   <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>إشعارات اللعبة</Text>
-                  <Text style={[styles.toggleSub, { color: theme.textMuted }]}>دعوات، هدايا، تذكيرات يومية</Text>
+                  <Text style={[styles.toggleSub, { color: theme.textMuted }]}>مكافآت وتذكيرات يومية</Text>
                 </View>
               </View>
               <Switch
                 value={notificationsEnabled}
                 onValueChange={handleToggleNotifications}
-                trackColor={{ false: theme.cardBorder, true: "#FF006E80" }}
-                thumbColor={notificationsEnabled ? "#FF006E" : theme.textMuted}
+                trackColor={{ false: theme.cardBorder, true: `${gameDesign.colors.online}80` }}
+                thumbColor={notificationsEnabled ? gameDesign.colors.online : theme.textMuted}
               />
             </View>
           </View>
-        </View>
-
-        {/* ── VIP Status ────────────────────────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={{ fontSize: 20 }}>👑</Text>
-            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>الاشتراك المميز</Text>
-          </View>
-          <TouchableOpacity
-            style={[styles.toggleCard, { backgroundColor: theme.card, borderColor: profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > new Date()) ? "#F5C84260" : theme.cardBorder }]}
-            onPress={() => router.push("/vip")}
-            activeOpacity={0.7}
-          >
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleLeft}>
-                <Text style={{ fontSize: 20 }}>👑</Text>
-                <View style={styles.toggleTexts}>
-                  <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>
-                    {profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > new Date()) ? "VIP مفعّل" : "اشترك الآن"}
-                  </Text>
-                  <Text style={[styles.toggleSub, { color: theme.textMuted }]}>
-                    {profile.isVip && (!profile.vipExpiresAt || new Date(profile.vipExpiresAt) > new Date())
-                      ? `ينتهي: ${profile.vipExpiresAt ? new Date(profile.vipExpiresAt).toLocaleDateString("ar-MA") : "—"}`
-                      : "عملات مضاعفة · أزياء حصرية · لقب ذهبي"
-                    }
-                  </Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#F5C842" />
-            </View>
-          </TouchableOpacity>
         </View>
 
         {/* ── Game Rules ─────────────────────────────── */}
@@ -453,13 +448,17 @@ export default function SettingsScreen() {
           </View>
           <View style={[styles.rulesList, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
             {[
-              { level: 5,  reward: "+300 عملة",            icon: "🎉" },
-              { level: 10, reward: "+500 عملة",            icon: "🔥" },
-              { level: 15, reward: "فتح شخصية رائد الفضاء 👨‍🚀", icon: "🚀" },
-              { level: 20, reward: "+1000 عملة",           icon: "👑" },
+              { level: 5,  reward: "+300 عملة", icon: "coins" as GameIconName },
+              { level: 10, reward: "+500 عملة", icon: "coins" as GameIconName },
+              { level: 15, reward: "فتح شخصية رائد الفضاء", icon: "achievements" as GameIconName },
+              { level: 20, reward: "+1000 عملة", icon: "coins" as GameIconName },
             ].map((item, i) => (
               <View key={i} style={styles.ruleRow}>
-                <Text style={{ fontSize: 18 }}>{item.icon}</Text>
+                <GameIcon
+                  name={item.icon}
+                  size={20}
+                  color={item.icon === "coins" ? Colors.gold : LOGO.purple}
+                />
                 <Text style={[styles.ruleText, { color: theme.textSecondary }]}>
                   <Text style={{ color: LOGO.purple, fontFamily: "Cairo_700Bold" }}>المستوى {item.level}</Text>
                   {"  →  "}{item.reward}
@@ -492,7 +491,7 @@ export default function SettingsScreen() {
       <Modal visible={showExitModal} transparent animationType="fade" onRequestClose={() => setShowExitModal(false)}>
         <View style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}>
           <View style={[styles.modalCard, { backgroundColor: theme.modalBg }]}>
-            <Text style={styles.modalIcon}>🚪</Text>
+            <Ionicons name="log-out-outline" size={42} color={gameDesign.colors.danger} style={styles.modalIcon} />
             <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>هل تريد الخروج من اللعبة؟</Text>
             <Text style={[styles.modalSub, { color: theme.textMuted }]}>سيتم إغلاق التطبيق</Text>
             <View style={styles.modalButtons}>
@@ -506,7 +505,7 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
-    </ImageBackground>
+    </View>
   );
 }
 
@@ -523,12 +522,12 @@ const styles = StyleSheet.create({
   },
   headerCenter: { flexDirection: "row", alignItems: "center", gap: 8 },
   headerEmoji: { fontSize: 20 },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#E8E8FF" },
+  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F6F7FF" },
   content: { padding: 16, gap: 20, paddingBottom: 40 },
 
   section: { gap: 12 },
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#E8E8FF" },
+  sectionTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, color: "#F6F7FF" },
   settingRow: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     borderRadius: 14, padding: 14, borderWidth: 1,
@@ -564,7 +563,7 @@ const styles = StyleSheet.create({
   },
   toggleLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
   toggleTexts: { gap: 2 },
-  toggleTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#E8E8FF" },
+  toggleTitle: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#F6F7FF" },
   toggleSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#5A5A88" },
   toggleDivider: { height: 1, backgroundColor: "rgba(255,255,255,0.07)", marginHorizontal: 16 },
 
@@ -601,8 +600,8 @@ const styles = StyleSheet.create({
     padding: 28, alignItems: "center",
     borderWidth: 1, borderColor: LOGO.purple + "40",
   },
-  modalIcon: { fontSize: 44, marginBottom: 12 },
-  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#E8E8FF", textAlign: "center", marginBottom: 6 },
+  modalIcon: { marginBottom: 12 },
+  modalTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F6F7FF", textAlign: "center", marginBottom: 6 },
   modalSub: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#5A5A88", marginBottom: 24 },
   modalButtons: { flexDirection: "row", gap: 12, width: "100%" },
   modalNo: {

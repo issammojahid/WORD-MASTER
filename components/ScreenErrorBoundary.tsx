@@ -1,7 +1,8 @@
 import React, { Component } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { router } from "expo-router";
-import Colors from "@/constants/colors";
+import { GameIllustration } from "@/components/GameIcon";
+import { gameDesign } from "@/constants/game-design";
 
 type Props = {
   children: React.ReactNode;
@@ -31,7 +32,7 @@ export class ScreenErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <View style={styles.container}>
-          <Text style={styles.emoji}>⚠️</Text>
+          <GameIllustration name="error" size={96} />
           <Text style={styles.title}>تعذّر تحميل الصفحة</Text>
           <Text style={styles.subtitle}>
             {this.props.screenName
@@ -65,48 +66,53 @@ export class ScreenErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0A0A1A",
+    backgroundColor: gameDesign.colors.background,
     justifyContent: "center",
     alignItems: "center",
-    padding: 32,
+    padding: gameDesign.spacing.xl,
     gap: 16,
   },
-  emoji: { fontSize: 52 },
   title: {
-    fontFamily: "Cairo_700Bold",
-    fontSize: 20,
-    color: "#E8E8FF",
+    fontFamily: gameDesign.typography.fontFamily.bold,
+    fontSize: gameDesign.typography.fontSize.subtitle,
+    color: gameDesign.colors.textPrimary,
     textAlign: "center",
   },
   subtitle: {
-    fontFamily: "Cairo_400Regular",
-    fontSize: 14,
-    color: "#5A5A88",
+    fontFamily: gameDesign.typography.fontFamily.regular,
+    fontSize: gameDesign.typography.fontSize.body,
+    color: gameDesign.colors.textSecondary,
     textAlign: "center",
     lineHeight: 22,
   },
   backBtn: {
     marginTop: 8,
-    backgroundColor: Colors.gold,
-    borderRadius: 14,
+    minHeight: 48,
+    minWidth: 180,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: gameDesign.colors.coins,
+    borderRadius: gameDesign.radii.control,
     paddingHorizontal: 32,
-    paddingVertical: 14,
   },
   backBtnText: {
-    fontFamily: "Cairo_700Bold",
+    fontFamily: gameDesign.typography.fontFamily.bold,
     fontSize: 15,
-    color: "#000",
+    color: gameDesign.colors.background,
   },
   retryBtn: {
-    borderRadius: 14,
+    minHeight: 48,
+    minWidth: 180,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: gameDesign.radii.control,
     paddingHorizontal: 28,
-    paddingVertical: 12,
     borderWidth: 1,
-    borderColor: "#1E1E3A",
+    borderColor: gameDesign.colors.surfaceBorder,
   },
   retryBtnText: {
-    fontFamily: "Cairo_600SemiBold",
+    fontFamily: gameDesign.typography.fontFamily.semibold,
     fontSize: 14,
-    color: "#9898CC",
+    color: gameDesign.colors.textSecondary,
   },
 });

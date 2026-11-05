@@ -1,750 +1,765 @@
-import React, { useState, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  ScrollView,
   ActivityIndicator,
-  Platform,
   Alert,
-  ImageBackground,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
-const BG_FRIENDS = require("@/assets/images/bg_friends.png");
-import { fetch } from "expo/fetch";
-import * as Haptics from "expo-haptics";
-import * as Clipboard from "expo-clipboard";
-import { router } from "expo-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { usePlayer, SKINS } from "@/contexts/PlayerContext";
+import { GameIcon, GameIllustration } from "@/components/GameIcon";
+import { GameCard, GameHeader, GameScreenBackground } from "@/components/GameUi";
+import * as Clipboard from "expo-clipboard";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { usePlayer } from "@/contexts/PlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import Colors from "@/constants/colors";
-import { getApiUrl } from "@/lib/query-client";
-import { ScreenErrorBoundary } from "@/components/ScreenErrorBoundary";
-import { getPlayerDisplayId } from "@/lib/player-code";
-import { LinearGradient } from "expo-linear-gradient";
+import { connectOnlineSocket } from "@/services/socket";
+import {
+  socialApi,
+  type SocialInvite,
+  type SocialConversation,
+  type SocialPlayer,
+  type SocialRequest,
+} from "@/services/social";
+import type { SocialServerToClientEvents } from "@shared/social-events";
+import { gameDesign } from "@/constants/game-design";
 
-const FRIENDS_BG: [string, string, string] = ["rgba(0,0,0,0.72)", "rgba(0,0,0,0.58)", "rgba(0,0,0,0.72)"];
+const CYAN = gameDesign.colors.friends;
+const GREEN = gameDesign.colors.success;
+const RED = gameDesign.colors.danger;
+const GOLD = gameDesign.colors.coins;
 
-type PlayerResult = {
+type Privacy = {
+  allowFriendRequests: boolean;
+  allowGameInvites: boolean;
+  showPresence: boolean;
+};
+type SocialNotification = {
   id: string;
-  name: string;
-  playerTag?: number | null;
-  skin: string;
-  level: number;
-  wins: number;
-};
-
-type FriendEntry = {
-  friendshipId: string;
-  friend: PlayerResult;
-  since: string;
-  activeRoomId?: string | null;
-};
-
-type RequestEntry = {
-  requestId: string;
-  isSender: boolean;
-  player: PlayerResult;
+  type: string;
+  actorId: string | null;
+  actorName: string | null;
+  entityId: string | null;
+  payload: Record<string, string>;
+  readAt: string | null;
   createdAt: string;
 };
 
-type TabType = "friends" | "search" | "requests" | "gifts";
-
-type GiftHistoryEntry = {
-  id: string;
-  type: "sent" | "received";
-  playerName: string;
-  amount: number;
-  sentAt: string;
-};
-
-type GiftModalState = { visible: boolean; targetId: string; targetName: string };
-
-type ApiFetchOptions = { method?: string; body?: BodyInit; headers?: HeadersInit };
-async function apiFetch(url: string, options?: ApiFetchOptions) {
-  try {
-    const res = await fetch(url, { headers: { "Content-Type": "application/json" }, ...options });
-    if (!res.ok) return null;
-    const text = await res.text();
-    return text ? JSON.parse(text) : null;
-  } catch {
-    return null;
-  }
+function playerName(player?: SocialPlayer): string {
+  return player?.displayName || "Player";
 }
 
-function FriendsScreenInner() {
+export default function FriendsScreen() {
   const insets = useSafeAreaInsets();
-  const { playerId, profile, addCoins } = usePlayer();
+  const { isRTL } = useLanguage();
+  const { profile } = usePlayer();
   const { theme } = useTheme();
-  const qc = useQueryClient();
-  const [tab, setTab] = useState<TabType>("friends");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQ, setDebouncedQ] = useState("");
-  const [copiedToast, setCopiedToast] = useState(false);
-  const [giftModal, setGiftModal] = useState<GiftModalState>({ visible: false, targetId: "", targetName: "" });
-  const [giftSending, setGiftSending] = useState(false);
-  const searchTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const params = useLocalSearchParams<{ roomCode?: string; section?: "inbox" | "notifications" }>();
+  const roomCode = typeof params.roomCode === "string" ? params.roomCode.toUpperCase() : "";
+  const labels = useMemo(() => isRTL ? {
+    title: "الأصدقاء",
+    search: "ابحث بالاسم أو معرّف اللاعب",
+    friends: "الأصدقاء",
+    incoming: "طلبات واردة",
+    outgoing: "طلبات مرسلة",
+    inbox: "دعوات الغرف",
+    notifications: "الإشعارات",
+    chats: "المحادثات",
+    privacy: "الخصوصية",
+    noFriends: "لا توجد صداقات بعد. ابحث عن لاعب لإرسال طلب.",
+    noChats: "لا توجد محادثات بعد.",
+    noResults: "لا توجد نتائج.",
+    noRequests: "لا توجد طلبات معلّقة.",
+    send: "إضافة",
+    accept: "قبول",
+    decline: "رفض",
+    cancel: "إلغاء",
+    chat: "محادثة",
+    invite: "دعوة للغرفة",
+    createRoom: "أنشئ غرفة خاصة أولاً، ثم ارجع لدعوة أصدقائك.",
+    remove: "إزالة",
+    block: "حظر",
+    unblock: "إلغاء الحظر",
+    blocked: "المحظورون",
+    requestsPrivacy: "السماح بطلبات الصداقة",
+    invitesPrivacy: "السماح بدعوات اللعب",
+    presencePrivacy: "إظهار حالة الاتصال للأصدقاء",
+    allow: "قبول الدعوة",
+    declineInvite: "رفض الدعوة",
+    emptyInvites: "لا توجد دعوات جديدة.",
+    online: "متصل",
+    offline: "غير متصل",
+    inGame: "داخل مباراة",
+    hidden: "مخفي",
+    playerId: "معرّف اللاعب",
+    yourId: "معرّفك الفريد",
+    copied: "تم نسخ المعرّف",
+    notification: "إشعار",
+    notificationEmpty: "لا توجد إشعارات جديدة.",
+    roomAccepted: "تم قبول الدعوة. يجري فتح الغرفة.",
+    loadMore: "عرض المزيد",
+    loading: "جار التحميل…",
+    back: "رجوع",
+    error: "تعذر إكمال العملية",
+    inviteSent: "تم إرسال الدعوة",
+    update: "حفظ",
+  } : {
+    title: "Friends",
+    search: "Search by name or Player ID",
+    friends: "Friends",
+    incoming: "Incoming requests",
+    outgoing: "Sent requests",
+    inbox: "Room invites",
+    notifications: "Notifications",
+    chats: "Chats",
+    privacy: "Privacy",
+    noFriends: "No friends yet. Search for a player to send a request.",
+    noChats: "No conversations yet.",
+    noResults: "No players found.",
+    noRequests: "No pending requests.",
+    send: "Add",
+    accept: "Accept",
+    decline: "Decline",
+    cancel: "Cancel",
+    chat: "Chat",
+    invite: "Invite to room",
+    createRoom: "Create a private room first, then return to invite friends.",
+    remove: "Remove",
+    block: "Block",
+    unblock: "Unblock",
+    blocked: "Blocked players",
+    requestsPrivacy: "Allow friend requests",
+    invitesPrivacy: "Allow game invitations",
+    presencePrivacy: "Show my status to friends",
+    allow: "Accept invite",
+    declineInvite: "Decline invite",
+    emptyInvites: "No new invitations.",
+    online: "Online",
+    offline: "Offline",
+    inGame: "In game",
+    hidden: "Hidden",
+    playerId: "Player ID",
+    yourId: "Your unique Player ID",
+    copied: "Player ID copied",
+    notification: "Notification",
+    notificationEmpty: "No new notifications.",
+    roomAccepted: "Invite accepted. Opening the room.",
+    loadMore: "Load more",
+    loading: "Loading…",
+    back: "Back",
+    error: "Could not complete the action",
+    inviteSent: "Invitation sent",
+    update: "Save",
+  }, [isRTL]);
 
-  const myDisplayId = getPlayerDisplayId(profile.playerTag);
-
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
-
-  const copyToClipboard = useCallback(async (text: string) => {
-    await Clipboard.setStringAsync(text);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setCopiedToast(true);
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setCopiedToast(false), 2200);
-  }, []);
-
-  const { data: friendsRaw, isLoading: loadingFriends } = useQuery<FriendEntry[]>({
-    queryKey: ["/api/friends/list", playerId],
-    queryFn: async () => {
-      const url = new URL(`/api/friends/list/${playerId}`, getApiUrl());
-      const result = await apiFetch(url.toString());
-      return Array.isArray(result) ? result : [];
-    },
-    enabled: !!playerId,
-    refetchInterval: 15_000,
-    initialData: [],
+  const [friends, setFriends] = useState<(SocialPlayer & { since: string })[]>([]);
+  const [friendsOffset, setFriendsOffset] = useState<number | null>(null);
+  const [incoming, setIncoming] = useState<SocialRequest[]>([]);
+  const [outgoing, setOutgoing] = useState<SocialRequest[]>([]);
+  const [incomingOffset, setIncomingOffset] = useState<number | null>(null);
+  const [outgoingOffset, setOutgoingOffset] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<SocialPlayer[]>([]);
+  const [invitations, setInvitations] = useState<SocialInvite[]>([]);
+  const [blocks, setBlocks] = useState<(SocialPlayer & { createdAt: string })[]>([]);
+  const [privacy, setPrivacy] = useState<Privacy>({
+    allowFriendRequests: true,
+    allowGameInvites: true,
+    showPresence: true,
   });
+  const [notifications, setNotifications] = useState<SocialNotification[]>([]);
+  const [conversations, setConversations] = useState<SocialConversation[]>([]);
+  const [activeSection, setActiveSection] = useState<"friends" | "chats" | "requests" | "inbox" | "notifications" | "privacy">(
+    params.section === "inbox" || params.section === "notifications" ? params.section : "friends",
+  );
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState("");
+  const [error, setError] = useState("");
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [myPlayerId, setMyPlayerId] = useState("");
+  const [socket, setSocket] = useState<Awaited<ReturnType<typeof connectOnlineSocket>> | null>(null);
+  const [socketConnected, setSocketConnected] = useState(false);
 
-  const { data: requestsRaw, isLoading: loadingRequests } = useQuery<RequestEntry[]>({
-    queryKey: ["/api/friends/requests", playerId],
-    queryFn: async () => {
-      const url = new URL(`/api/friends/requests/${playerId}`, getApiUrl());
-      const result = await apiFetch(url.toString());
-      return Array.isArray(result) ? result : [];
-    },
-    enabled: !!playerId,
-    refetchInterval: 15_000,
-    initialData: [],
-  });
-
-  const { data: pendingGiftsRaw } = useQuery({
-    queryKey: ["/api/friends/gifts/pending", playerId],
-    queryFn: async () => {
-      const url = new URL(`/api/friends/gifts/pending/${playerId}`, getApiUrl());
-      const result = await apiFetch(url.toString());
-      return Array.isArray(result) ? result : [];
-    },
-    enabled: !!playerId,
-    refetchInterval: 15_000,
-    initialData: [],
-  });
-  const pendingGiftsCount = Array.isArray(pendingGiftsRaw) ? pendingGiftsRaw.length : 0;
-
-  const { data: giftHistoryRaw, isLoading: loadingGifts } = useQuery({
-    queryKey: ["/api/friends/gifts/history", playerId],
-    queryFn: async () => {
-      const url = new URL(`/api/friends/gifts/history/${playerId}`, getApiUrl());
-      const result = await apiFetch(url.toString());
-      return Array.isArray(result) ? result : [];
-    },
-    enabled: !!playerId && tab === "gifts",
-    initialData: [],
-  });
-  const giftHistory: GiftHistoryEntry[] = Array.isArray(giftHistoryRaw) ? giftHistoryRaw : [];
-
-  const friendList: FriendEntry[] = Array.isArray(friendsRaw) ? friendsRaw : [];
-  const requests: RequestEntry[] = Array.isArray(requestsRaw) ? requestsRaw : [];
-  const incomingRequests = requests.filter((r) => !r.isSender);
-  const outgoingRequests = requests.filter((r) => r.isSender);
-
-  const friendIds = new Set(friendList.map((f) => f.friend.id));
-  const sentToIds = new Set(outgoingRequests.map((r) => r.player.id));
-
-  const { data: searchResultsRaw, isLoading: loadingSearch } = useQuery<PlayerResult[]>({
-    queryKey: ["/api/players/search", debouncedQ],
-    queryFn: async () => {
-      if (debouncedQ.length < 2) return [];
-      const url = new URL(`/api/players/search?q=${encodeURIComponent(debouncedQ)}&playerId=${playerId}`, getApiUrl());
-      const result = await apiFetch(url.toString());
-      return Array.isArray(result) ? result : [];
-    },
-    enabled: debouncedQ.length >= 2,
-    initialData: [],
-  });
-  const searchResults: PlayerResult[] = Array.isArray(searchResultsRaw) ? searchResultsRaw : [];
-
-  const handleSearchChange = useCallback((text: string) => {
-    setSearchQuery(text);
-    if (searchTimer.current) clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => setDebouncedQ(text), 500);
-  }, []);
-
-  const sendRequest = useMutation({
-    mutationFn: async (receiverId: string) => {
-      const url = new URL("/api/friends/request", getApiUrl());
-      return apiFetch(url.toString(), {
-        method: "POST",
-        body: JSON.stringify({ senderId: playerId, receiverId }),
-      });
-    },
-    onSuccess: (data) => {
-      if (!data) { Alert.alert("", "حدث خطأ، حاول مرة أخرى"); return; }
-      if (data.error === "already_friends") {
-        Alert.alert("", "أنتم أصدقاء بالفعل ✓");
-      } else if (data.error === "request_exists") {
-        Alert.alert("", "طلب الصداقة تم إرساله مسبقاً");
-      } else if (data.success) {
-        Alert.alert("", "تم إرسال طلب الصداقة ✓");
-      }
-      qc.invalidateQueries({ queryKey: ["/api/friends/requests", playerId] });
-    },
-    onError: () => Alert.alert("", "حدث خطأ، حاول مرة أخرى"),
-  });
-
-  const acceptRequest = useMutation({
-    mutationFn: async (requestId: string) => {
-      const url = new URL("/api/friends/accept", getApiUrl());
-      return apiFetch(url.toString(), {
-        method: "POST",
-        body: JSON.stringify({ requestId, playerId }),
-      });
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["/api/friends/list", playerId] });
-      qc.invalidateQueries({ queryKey: ["/api/friends/requests", playerId] });
-    },
-  });
-
-  const declineRequest = useMutation({
-    mutationFn: async (requestId: string) => {
-      const url = new URL("/api/friends/decline", getApiUrl());
-      return apiFetch(url.toString(), {
-        method: "POST",
-        body: JSON.stringify({ requestId, playerId }),
-      });
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/friends/requests", playerId] }),
-  });
-
-  const removeFriend = useMutation({
-    mutationFn: async (friendId: string) => {
-      const url = new URL(`/api/friends/${playerId}/${friendId}`, getApiUrl());
-      return apiFetch(url.toString(), { method: "DELETE" });
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/friends/list", playerId] }),
-  });
-
-  const sendGift = async (amount: number) => {
-    if (!giftModal.targetId || giftSending) return;
-    setGiftSending(true);
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setError("");
     try {
-      const url = new URL("/api/friends/gift", getApiUrl());
-      const result = await apiFetch(url.toString(), {
-        method: "POST",
-        body: JSON.stringify({ fromPlayerId: playerId, toPlayerId: giftModal.targetId, amount }),
-      });
-      if (result?.success) {
-        addCoins(-amount);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert("", `تم إرسال ${amount} عملة إلى ${giftModal.targetName} 🎁`);
-      } else if (result?.error === "already_gifted_today") {
-        Alert.alert("", "لقد أرسلت هدية لهذا اللاعب اليوم بالفعل");
-      } else if (result?.error === "insufficient_coins") {
-        Alert.alert("", "رصيدك غير كافٍ");
-      } else {
-        Alert.alert("", "حدث خطأ، حاول مرة أخرى");
-      }
-    } catch {
-      Alert.alert("", "حدث خطأ، حاول مرة أخرى");
+      const [friendPage, received, sent, inviteResult, blockResult, savedPrivacy, notificationResult, conversationResult] = await Promise.all([
+        socialApi.friends(),
+        socialApi.requests("incoming"),
+        socialApi.requests("outgoing"),
+        socialApi.invitations(),
+        socialApi.blocks(),
+        socialApi.privacy(),
+        socialApi.notifications(),
+        socialApi.conversations(),
+      ]);
+      setFriends(friendPage.friends);
+      setFriendsOffset(friendPage.nextOffset);
+      setIncoming(received.requests);
+      setOutgoing(sent.requests);
+      setIncomingOffset(received.nextOffset);
+      setOutgoingOffset(sent.nextOffset);
+      setInvitations(inviteResult.invitations);
+      setBlocks(blockResult.blocks);
+      setPrivacy(savedPrivacy);
+      setNotifications(notificationResult.notifications);
+      setUnreadNotifications(notificationResult.notifications.filter((item) => !item.readAt).length);
+      setConversations(conversationResult.conversations);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : labels.error);
+    } finally {
+      setLoading(false);
     }
-    setGiftSending(false);
-    setGiftModal({ visible: false, targetId: "", targetName: "" });
+  }, [labels.error]);
+
+  useEffect(() => {
+    let active = true;
+    void connectOnlineSocket(profile.name).then(async (connectedSocket) => {
+      if (!active) return;
+      setSocket(connectedSocket);
+      connectedSocket.connect();
+      try {
+        const player = await socialApi.updateProfile(profile.name);
+        setMyPlayerId(player.playerId);
+      } catch (profileError) {
+        console.error("[social] Could not sync display name:", profileError);
+        setError(profileError instanceof Error ? profileError.message : labels.error);
+      }
+    }).catch((connectError: unknown) => {
+      if (active) setError(connectError instanceof Error ? connectError.message : labels.error);
+    });
+    return () => {
+      active = false;
+    };
+  }, [labels.error, profile.name]);
+
+  useFocusEffect(useCallback(() => {
+    void loadData();
+  }, [loadData]));
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const value = search.trim();
+      if (value.length < 2) {
+        setSearchResults([]);
+        return;
+      }
+      void socialApi.search(value)
+        .then((result) => setSearchResults(result.players))
+        .catch((searchError: unknown) => {
+          setError(searchError instanceof Error ? searchError.message : labels.error);
+        });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [labels.error, search]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const updateConnection = () => setSocketConnected(socket.connected);
+    socket.on("connect", updateConnection);
+    socket.on("disconnect", updateConnection);
+    updateConnection();
+    const onInvite: SocialServerToClientEvents["social:game_invite"] = (invite) => {
+      setInvitations((current) => [invite, ...current.filter((item) => item.id !== invite.id)]);
+      setActiveSection("inbox");
+    };
+    const onPresence: SocialServerToClientEvents["social:presence"] = ({ playerId, status }) => {
+      setFriends((current) => current.map((friend) =>
+        friend.playerId === playerId ? { ...friend, presence: status } : friend,
+      ));
+      setSearchResults((current) => current.map((friend) =>
+        friend.playerId === playerId ? { ...friend, presence: status } : friend,
+      ));
+    };
+    const onNotification: SocialServerToClientEvents["social:notification"] = () => {
+      setUnreadNotifications((count) => count + 1);
+      void loadData();
+    };
+    const onNotificationRead: SocialServerToClientEvents["social:notification_read"] = () => {
+      void loadData();
+    };
+    socket.on("social:game_invite", onInvite);
+    socket.on("social:presence", onPresence);
+    socket.on("social:notification", onNotification);
+    socket.on("social:notification_read", onNotificationRead);
+    return () => {
+      socket.off("connect", updateConnection);
+      socket.off("disconnect", updateConnection);
+      socket.off("social:game_invite", onInvite);
+      socket.off("social:presence", onPresence);
+      socket.off("social:notification", onNotification);
+      socket.off("social:notification_read", onNotificationRead);
+    };
+  }, [loadData, socket]);
+
+  const perform = async (id: string, action: () => Promise<unknown>, after?: () => void) => {
+    setBusyId(id);
+    setError("");
+    try {
+      await action();
+      after?.();
+      await loadData();
+    } catch (actionError) {
+      const message = actionError instanceof Error ? actionError.message : labels.error;
+      setError(message);
+      Alert.alert(labels.error, message);
+    } finally {
+      setBusyId("");
+    }
   };
 
-  const renderPlayerCard = (player: PlayerResult, extra?: React.ReactNode) => {
-    const skin = SKINS.find((s) => s.id === player.skin) || SKINS[0];
-    const wmId = getPlayerDisplayId(player.playerTag);
-    return (
-      <View key={player.id} style={[styles.playerCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-        <View style={[styles.avatar, { backgroundColor: skin.color + "33" }]}>
-          <Text style={styles.avatarEmoji}>{skin.emoji}</Text>
-        </View>
-        <View style={styles.playerInfo}>
-          <Text style={[styles.playerName, { color: theme.textPrimary }]}>{player.name}</Text>
-          <Text style={[styles.playerSub, { color: theme.textMuted }]}>
-            {wmId ? `${wmId} · ` : ""}المستوى {player.level} · {player.wins} انتصار
-          </Text>
-        </View>
-        {extra}
-      </View>
-    );
+  const loadMoreFriends = async () => {
+    if (friendsOffset === null) return;
+    try {
+      const page = await socialApi.friends(friendsOffset);
+      setFriends((current) => [...current, ...page.friends]);
+      setFriendsOffset(page.nextOffset);
+    } catch (pageError) {
+      setError(pageError instanceof Error ? pageError.message : labels.error);
+    }
   };
+
+  const loadMoreRequests = async (direction: "incoming" | "outgoing") => {
+    const offset = direction === "incoming" ? incomingOffset : outgoingOffset;
+    if (offset === null) return;
+    try {
+      const page = await socialApi.requests(direction, offset);
+      if (direction === "incoming") {
+        setIncoming((current) => [...current, ...page.requests]);
+        setIncomingOffset(page.nextOffset);
+      } else {
+        setOutgoing((current) => [...current, ...page.requests]);
+        setOutgoingOffset(page.nextOffset);
+      }
+    } catch (pageError) {
+      setError(pageError instanceof Error ? pageError.message : labels.error);
+    }
+  };
+
+  const openChat = async (playerId: string) => {
+    try {
+      const result = await socialApi.conversation(playerId);
+      const friend = friends.find((item) => item.playerId === playerId);
+      router.push({
+        pathname: "/chat/[conversationId]",
+        params: {
+          conversationId: result.conversationId,
+          playerId,
+          displayName: friend?.displayName ?? "",
+        },
+      });
+    } catch (chatError) {
+      const message = chatError instanceof Error ? chatError.message : labels.error;
+      setError(message);
+      Alert.alert(labels.error, message);
+    }
+  };
+
+  const openConversation = (conversation: SocialConversation) => {
+    router.push({
+      pathname: "/chat/[conversationId]",
+      params: {
+        conversationId: conversation.conversationId,
+        playerId: conversation.playerId,
+        displayName: conversation.displayName,
+      },
+    });
+  };
+
+  const sendInvite = (friend: SocialPlayer) => {
+    if (!roomCode) {
+      Alert.alert(labels.invite, labels.createRoom);
+      return;
+    }
+    const activeSocket = socket;
+    if (!socketConnected || !activeSocket) {
+      Alert.alert(labels.error, "online_unavailable");
+      return;
+    }
+    setBusyId(friend.playerId);
+    activeSocket.emit("social:game_invite", {
+      playerId: friend.playerId,
+      roomCode,
+    }, (result: unknown) => {
+      setBusyId("");
+      if (typeof result === "object" && result !== null && "ok" in result && result.ok === true) {
+        Alert.alert(labels.inviteSent);
+      } else {
+        const code = typeof result === "object" && result !== null && "error" in result
+          ? String(result.error)
+          : labels.error;
+        Alert.alert(labels.error, code);
+      }
+    });
+  };
+
+  const respondInvite = (invite: SocialInvite, accept: boolean) => {
+    const activeSocket = socket;
+    if (!socketConnected || !activeSocket) {
+      Alert.alert(labels.error, "online_unavailable");
+      return;
+    }
+    setBusyId(invite.id);
+    activeSocket.emit("social:game_invite:respond", { inviteId: invite.id, accept }, (result: unknown) => {
+      setBusyId("");
+      if (typeof result !== "object" || result === null || !("ok" in result) || result.ok !== true) {
+        const code = typeof result === "object" && result !== null && "error" in result
+          ? String(result.error)
+          : labels.error;
+        Alert.alert(labels.error, code);
+        return;
+      }
+      setInvitations((current) => current.filter((item) => item.id !== invite.id));
+      if (accept) {
+        const room = "roomCode" in result && typeof result.roomCode === "string" ? result.roomCode : invite.roomCode;
+        Alert.alert(labels.roomAccepted);
+        router.push({ pathname: "/private-room", params: { roomCode: room } });
+      } else {
+        void loadData();
+      }
+    });
+  };
+
+  const savePrivacy = (next: Privacy) => {
+    setPrivacy(next);
+    void perform("privacy", () => socialApi.updatePrivacy(next));
+  };
+
+  const openNotification = async (item: SocialNotification) => {
+    try {
+      if (!item.readAt) await socialApi.markNotificationRead(item.id);
+      setNotifications((current) => current.map((notification) =>
+        notification.id === item.id ? { ...notification, readAt: new Date().toISOString() } : notification,
+      ));
+      setUnreadNotifications((count) => Math.max(0, count - (item.readAt ? 0 : 1)));
+      if (item.type === "friend_request") setActiveSection("requests");
+      else if (item.type === "game_invite") setActiveSection("inbox");
+      else if (item.type === "friend_accepted") setActiveSection("friends");
+      else if (item.type === "message" && item.payload.conversationId) {
+        router.push({
+          pathname: "/chat/[conversationId]",
+          params: {
+            conversationId: item.payload.conversationId,
+            playerId: item.actorId ?? "",
+          },
+        });
+      }
+    } catch (notificationError) {
+      setError(notificationError instanceof Error ? notificationError.message : labels.error);
+    }
+  };
+
+  const notificationText = (type: string) => {
+    if (type === "friend_request") return isRTL ? "أرسل لك طلب صداقة" : "sent you a friend request";
+    if (type === "friend_accepted") return isRTL ? "قبل طلب الصداقة" : "accepted your friend request";
+    if (type === "message") return isRTL ? "أرسل لك رسالة جديدة" : "sent you a message";
+    if (type === "game_invite") return isRTL ? "دعاك إلى غرفة لعب" : "invited you to a game room";
+    if (type === "invite_response") return isRTL ? "ردّ على دعوة الغرفة" : "responded to your room invite";
+    return labels.notification;
+  };
+
+  const statusLabel = (presence?: SocialPlayer["presence"]) => {
+    if (presence === "online") return labels.online;
+    if (presence === "in_game") return labels.inGame;
+    if (presence === "hidden") return labels.hidden;
+    return labels.offline;
+  };
+
+  const button = (
+    title: string,
+    action: () => void,
+    color: string = CYAN,
+    disabled = false,
+  ) => (
+    <Pressable
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={action}
+      style={({ pressed }) => [styles.actionButton, { borderColor: `${color}66`, opacity: disabled ? 0.45 : pressed ? 0.7 : 1 }]}
+    >
+      <Text style={[styles.actionText, { color }]}>{title}</Text>
+    </Pressable>
+  );
+
+  const personCard = (person: SocialPlayer, actions: React.ReactNode, subline?: string) => (
+    <GameCard key={person.playerId} style={[styles.personCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+      <View style={[styles.avatar, { backgroundColor: `${CYAN}20` }]}>
+        <GameIcon name="profile" size={22} color={CYAN} />
+      </View>
+      <View style={styles.personDetails}>
+        <Text style={[styles.personName, { color: theme.textPrimary }]} numberOfLines={1}>{playerName(person)}</Text>
+        <Text style={[styles.subline, { color: theme.textSecondary }]} numberOfLines={1}>
+          {subline ?? `${statusLabel(person.presence)} · ${labels.playerId}: ${person.playerId.slice(0, 8).toUpperCase()}`}
+        </Text>
+      </View>
+      <View style={styles.actions}>{actions}</View>
+    </GameCard>
+  );
+
+  const sectionButton = (
+    key: typeof activeSection,
+    title: string,
+    badge?: number,
+  ) => (
+    <Pressable
+      key={key}
+      onPress={() => setActiveSection(key)}
+      style={[styles.tabButton, { backgroundColor: theme.card, borderColor: activeSection === key ? CYAN : theme.cardBorder }]}
+    >
+      <Text style={{ color: activeSection === key ? CYAN : theme.textSecondary, fontWeight: "700" }}>
+        {title}{badge ? ` (${badge})` : ""}
+      </Text>
+    </Pressable>
+  );
 
   return (
-    <ImageBackground source={BG_FRIENDS} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
-      <LinearGradient colors={FRIENDS_BG} style={StyleSheet.absoluteFillObject} />
-      <View style={styles.header}>
-        <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>الأصدقاء</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <View style={[styles.container, { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 12) }]}>
+      <GameScreenBackground accent="online" />
+      <GameHeader
+        title={labels.title}
+        onBack={() => router.back()}
+        icon={<GameIcon name="friends" size={24} color={CYAN} />}
+      />
 
-      {/* WM-XXXXX Identity Banner */}
-      <TouchableOpacity
-        style={[styles.codeBanner, { backgroundColor: theme.card, borderColor: Colors.gold + "30" }]}
-        onPress={() => myDisplayId && copyToClipboard(myDisplayId)}
-        activeOpacity={0.75}
-      >
-        <View style={styles.codeBannerLeft}>
-          <Ionicons name="id-card" size={18} color={Colors.gold} />
-          <Text style={[styles.codeBannerLabel, { color: theme.textMuted }]}>معرفك:</Text>
-          <Text style={styles.codeBannerValue}>{myDisplayId || "..."}</Text>
-        </View>
-        <Ionicons name="copy-outline" size={18} color={theme.textMuted} />
-      </TouchableOpacity>
-
-      {copiedToast && (
-        <View style={styles.toast}>
-          <Ionicons name="checkmark-circle" size={16} color={Colors.emerald} />
-          <Text style={styles.toastText}>تم نسخ المعرف</Text>
-        </View>
-      )}
-
-      {/* Quick Play */}
-      <View style={[styles.playSection, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-        <TouchableOpacity
-          style={styles.playBtn}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push({ pathname: "/lobby", params: { action: "create" } }); }}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add-circle" size={22} color={Colors.emerald} />
-          <Text style={[styles.playBtnText, { color: Colors.emerald }]}>إنشاء غرفة</Text>
-        </TouchableOpacity>
-        <View style={[styles.playDivider, { backgroundColor: theme.cardBorder }]} />
-        <TouchableOpacity
-          style={styles.playBtn}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push({ pathname: "/lobby", params: { action: "join" } }); }}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="enter" size={22} color={Colors.gold} />
-          <Text style={[styles.playBtnText, { color: Colors.gold }]}>الانضمام لغرفة</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Tabs */}
-      <View style={[styles.tabs, { backgroundColor: theme.card }]}>
-        {(["friends", "search", "requests", "gifts"] as TabType[]).map((t) => (
-          <TouchableOpacity key={t} style={[styles.tab, tab === t && styles.tabActive]} onPress={() => setTab(t)}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-              <Text style={[styles.tabText, { color: theme.textMuted }, tab === t && styles.tabTextActive]}>
-                {t === "friends"
-                  ? `الأصدقاء (${friendList.length})`
-                  : t === "search"
-                  ? "بحث"
-                  : t === "requests"
-                  ? `الطلبات (${incomingRequests.length})`
-                  : "🎁"}
-              </Text>
-              {t === "gifts" && pendingGiftsCount > 0 && (
-                <View style={styles.giftBadge}>
-                  <Text style={styles.giftBadgeText}>{pendingGiftsCount}</Text>
-                </View>
-              )}
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {myPlayerId ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void Clipboard.setStringAsync(myPlayerId).then(() => Alert.alert(labels.copied))}
+            style={[styles.playerCode, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+          >
+            <View style={styles.personDetails}>
+              <Text style={[styles.subline, { color: theme.textSecondary }]}>{labels.yourId}</Text>
+              <Text selectable style={[styles.playerCodeText, { color: theme.textPrimary }]}>{myPlayerId}</Text>
             </View>
-          </TouchableOpacity>
-        ))}
-      </View>
+            <Ionicons name="copy-outline" size={18} color={CYAN} />
+          </Pressable>
+        ) : null}
 
-      {/* ── Friends Tab ── */}
-      {tab === "friends" && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-          {loadingFriends ? (
-            <ActivityIndicator color={Colors.gold} style={{ marginTop: 40 }} />
-          ) : friendList.length === 0 ? (
-            <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>👥</Text>
-              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>ليس لديك أصدقاء بعد</Text>
-              <Text style={[styles.emptySubText, { color: theme.textMuted }]}>ابحث عن لاعبين وأضفهم كأصدقاء</Text>
-            </View>
-          ) : (
-            friendList.map((row) =>
-              renderPlayerCard(
-                row.friend,
-                <View style={styles.friendActions}>
-                  {row.activeRoomId ? (
-                    <TouchableOpacity
-                      style={styles.spectateBtn}
-                      onPress={() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        router.push({ pathname: "/spectate", params: { roomId: row.activeRoomId! } });
-                      }}
-                    >
-                      <Text style={styles.spectateBtnText}>👁️ شاهد</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <>
-                      <TouchableOpacity
-                        style={styles.giftBtn}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setGiftModal({ visible: true, targetId: row.friend.id, targetName: row.friend.name });
-                        }}
-                      >
-                        <Text style={{ fontSize: 12, fontFamily: "Cairo_600SemiBold", color: Colors.gold }}>🎁 أهدِ</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.inviteBtn}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          router.push({ pathname: "/lobby", params: { action: "create" } });
-                        }}
-                      >
-                        <Ionicons name="game-controller" size={14} color={Colors.sapphire} />
-                        <Text style={styles.inviteBtnText}>العب معه</Text>
-                      </TouchableOpacity>
-                    </>
-                  )}
-                  <TouchableOpacity
-                    style={styles.removeBtn}
-                    onPress={() =>
-                      Alert.alert("إزالة صديق", `هل تريد إزالة ${row.friend.name}؟`, [
-                        { text: "إلغاء", style: "cancel" },
-                        { text: "إزالة", style: "destructive", onPress: () => removeFriend.mutate(row.friend.id) },
-                      ])
-                    }
-                  >
-                    <Ionicons name="person-remove" size={18} color={Colors.ruby} />
-                  </TouchableOpacity>
+        <View style={[styles.searchBox, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          <Ionicons name="search" size={19} color={theme.textMuted} />
+          <TextInput
+            accessibilityLabel={labels.search}
+            autoCapitalize="none"
+            autoCorrect={false}
+            onChangeText={setSearch}
+            placeholder={labels.search}
+            placeholderTextColor={theme.textMuted}
+            style={[styles.searchInput, { color: theme.textPrimary, textAlign: isRTL ? "right" : "left" }]}
+            value={search}
+          />
+        </View>
+
+        {search.trim().length >= 2 && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{labels.search}</Text>
+            {searchResults.length === 0
+              ? <Text style={[styles.empty, { color: theme.textSecondary }]}>{labels.noResults}</Text>
+              : searchResults.map((person) => personCard(person, button(labels.send, () =>
+                void perform(person.playerId, () => socialApi.sendRequest(person.playerId), () => setSearch("")),
+                GREEN, busyId === person.playerId)))}
+          </View>
+        )}
+
+        {!!error && (
+          <View style={styles.errorBanner}>
+            <Ionicons name="alert-circle-outline" size={18} color={RED} />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+          {sectionButton("friends", labels.friends)}
+          {sectionButton("chats", labels.chats, conversations.reduce((sum, item) => sum + item.unreadCount, 0))}
+          {sectionButton("requests", `${labels.incoming}/${labels.outgoing}`, incoming.length)}
+          {sectionButton("inbox", labels.inbox, invitations.length + unreadNotifications)}
+          {sectionButton("notifications", labels.notifications, unreadNotifications)}
+          {sectionButton("privacy", labels.privacy)}
+        </ScrollView>
+
+        {loading ? (
+          <View style={styles.loading}>
+            <ActivityIndicator color={CYAN} />
+            <Text style={{ color: theme.textSecondary }}>{labels.loading}</Text>
+          </View>
+        ) : null}
+
+        {!loading && activeSection === "friends" && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{labels.friends}</Text>
+            {friends.length === 0
+              ? (
+                <View style={styles.emptyState}>
+                  <GameIllustration name="social" size={108} />
+                  <Text style={[styles.empty, { color: theme.textSecondary }]}>{labels.noFriends}</Text>
                 </View>
               )
-            )
-          )}
-        </ScrollView>
-      )}
-
-      {/* ── Search Tab ── */}
-      {tab === "search" && (
-        <View style={{ flex: 1 }}>
-          <View style={[styles.searchBox, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}>
-            <Ionicons name="search" size={18} color={theme.textMuted} style={{ marginRight: 8 }} />
-            <TextInput
-              style={[styles.searchInput, { color: theme.inputText }]}
-              placeholder="ابحث بالاسم أو المعرف (WM-XXXXX)..."
-              placeholderTextColor={theme.inputPlaceholder}
-              value={searchQuery}
-              onChangeText={handleSearchChange}
-              autoFocus
-            />
+              : friends.map((friend) => personCard(friend, (
+                <>
+                  {button(labels.chat, () => void openChat(friend.playerId), CYAN)}
+                  {button(labels.invite, () => sendInvite(friend), GOLD, busyId === friend.playerId)}
+                  {button(labels.remove, () => void perform(friend.playerId, () => socialApi.removeFriend(friend.playerId)), RED)}
+                  {button(labels.block, () => void perform(friend.playerId, () => socialApi.block(friend.playerId)), RED)}
+                </>
+              )))}
+            {friendsOffset !== null && button(labels.loadMore, () => void loadMoreFriends())}
           </View>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-            {loadingSearch ? (
-              <ActivityIndicator color={Colors.gold} style={{ marginTop: 40 }} />
-            ) : debouncedQ.length < 2 ? (
-              <View style={styles.empty}>
-                <Text style={[styles.emptyText, { color: theme.textSecondary }]}>ابحث عن لاعب</Text>
-              </View>
-            ) : searchResults.length === 0 ? (
-              <View style={styles.empty}>
-                <Text style={[styles.emptyText, { color: theme.textSecondary }]}>لا توجد نتائج</Text>
-              </View>
-            ) : (
-              searchResults.map((player) => {
-                const isFriend = friendIds.has(player.id);
-                const sentRequest = sentToIds.has(player.id);
-                let actionBtn: React.ReactNode;
-                if (isFriend) {
-                  actionBtn = (
-                    <View style={styles.friendBadge}>
-                      <Text style={styles.friendBadgeText}>صديق</Text>
-                    </View>
-                  );
-                } else if (sentRequest) {
-                  actionBtn = (
-                    <View style={styles.sentBadge}>
-                      <Text style={styles.sentBadgeText}>تم الإرسال</Text>
-                    </View>
-                  );
-                } else {
-                  actionBtn = (
-                    <TouchableOpacity
-                      style={styles.addBtn}
-                      onPress={() => sendRequest.mutate(player.id)}
-                      disabled={sendRequest.isPending}
-                    >
-                      <Ionicons name="person-add" size={18} color={Colors.emerald} />
-                    </TouchableOpacity>
-                  );
-                }
-                return renderPlayerCard(player, actionBtn);
-              })
-            )}
-          </ScrollView>
-        </View>
-      )}
+        )}
 
-      {/* ── Requests Tab ── */}
-      {tab === "requests" && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-          {loadingRequests ? (
-            <ActivityIndicator color={Colors.gold} style={{ marginTop: 40 }} />
-          ) : requests.length === 0 ? (
-            <View style={styles.empty}>
-              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>لا توجد طلبات</Text>
-            </View>
-          ) : (
-            <>
-              {incomingRequests.length > 0 && (
+        {!loading && activeSection === "chats" && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{labels.chats}</Text>
+            {conversations.length === 0
+              ? <Text style={[styles.empty, { color: theme.textSecondary }]}>{labels.noChats}</Text>
+              : conversations.map((conversation) => personCard({
+                playerId: conversation.playerId,
+                displayName: conversation.displayName,
+              }, button(
+                conversation.unreadCount ? `${labels.chat} (${conversation.unreadCount})` : labels.chat,
+                () => openConversation(conversation),
+                conversation.unreadCount ? GREEN : CYAN,
+              ), conversation.lastMessage || labels.noChats))}
+          </View>
+        )}
+
+        {!loading && activeSection === "requests" && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{labels.incoming}</Text>
+            {incoming.length === 0
+              ? <Text style={[styles.empty, { color: theme.textSecondary }]}>{labels.noRequests}</Text>
+              : incoming.map((request: SocialRequest) => personCard(request.player ?? { playerId: "", displayName: "Player" }, (
                 <>
-                  <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>طلبات واردة</Text>
-                  {incomingRequests.map((row) =>
-                    renderPlayerCard(
-                      row.player,
-                      <View style={styles.requestBtns}>
-                        <TouchableOpacity
-                          style={styles.acceptBtn}
-                          onPress={() => acceptRequest.mutate(row.requestId)}
-                          disabled={acceptRequest.isPending}
-                        >
-                          <Ionicons name="checkmark" size={20} color="#fff" />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.rejectBtn}
-                          onPress={() => declineRequest.mutate(row.requestId)}
-                          disabled={declineRequest.isPending}
-                        >
-                          <Ionicons name="close" size={20} color="#fff" />
-                        </TouchableOpacity>
-                      </View>
-                    )
-                  )}
+                  {button(labels.accept, () => void perform(request.id, () => socialApi.respondRequest(request.id, true)), GREEN)}
+                  {button(labels.decline, () => void perform(request.id, () => socialApi.respondRequest(request.id, false)), RED)}
                 </>
-              )}
-              {outgoingRequests.length > 0 && (
+              ), request.createdAt))}
+            {incomingOffset !== null && button(labels.loadMore, () => void loadMoreRequests("incoming"))}
+
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary, marginTop: 18 }]}>{labels.outgoing}</Text>
+            {outgoing.length === 0
+              ? <Text style={[styles.empty, { color: theme.textSecondary }]}>{labels.noRequests}</Text>
+              : outgoing.map((request: SocialRequest) => personCard(request.player ?? { playerId: "", displayName: "Player" }, (
+                button(labels.cancel, () => void perform(request.id, () => socialApi.cancelRequest(request.id)), RED)
+              ), request.createdAt))}
+            {outgoingOffset !== null && button(labels.loadMore, () => void loadMoreRequests("outgoing"))}
+          </View>
+        )}
+
+        {!loading && activeSection === "inbox" && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{labels.inbox}</Text>
+            {invitations.length === 0
+              ? (
+                <View style={styles.emptyState}>
+                  <GameIllustration name="invitation" size={92} />
+                  <Text style={[styles.empty, { color: theme.textSecondary }]}>{labels.emptyInvites}</Text>
+                </View>
+              )
+              : invitations.map((invite) => personCard({
+                playerId: invite.senderId,
+                displayName: invite.displayName,
+              }, (
                 <>
-                  <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>طلبات أرسلتها</Text>
-                  {outgoingRequests.map((row) =>
-                    renderPlayerCard(
-                      row.player,
-                      <View style={styles.sentBadge}>
-                        <Text style={styles.sentBadgeText}>بانتظار القبول</Text>
-                      </View>
-                    )
-                  )}
+                  {button(labels.allow, () => respondInvite(invite, true), GREEN, busyId === invite.id)}
+                  {button(labels.declineInvite, () => respondInvite(invite, false), RED, busyId === invite.id)}
                 </>
-              )}
-            </>
-          )}
-        </ScrollView>
-      )}
+              ), `${labels.invite}: ${invite.roomCode}`))}
+          </View>
+        )}
 
-      {/* ── Gifts Tab ── */}
-      {tab === "gifts" && (
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-          {loadingGifts ? (
-            <ActivityIndicator color={Colors.gold} style={{ marginTop: 40 }} />
-          ) : giftHistory.length === 0 ? (
-            <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>🎁</Text>
-              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>لا توجد هدايا بعد</Text>
-              <Text style={[styles.emptySubText, { color: theme.textMuted }]}>أرسل هدية لأصدقائك من تبويب الأصدقاء</Text>
-            </View>
-          ) : (
-            giftHistory.map((gift: GiftHistoryEntry, idx: number) => (
-              <View key={gift.id || idx} style={[styles.giftHistoryRow, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-                <View style={[styles.giftHistoryIcon, { backgroundColor: gift.type === "sent" ? Colors.ruby + "18" : Colors.emerald + "18" }]}>
-                  <Ionicons name={gift.type === "sent" ? "arrow-up" : "arrow-down"} size={16} color={gift.type === "sent" ? Colors.ruby : Colors.emerald} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.giftHistoryName, { color: theme.textPrimary }]}>
-                    {gift.type === "sent" ? `أرسلت إلى ${gift.playerName}` : `استلمت من ${gift.playerName}`}
-                  </Text>
-                  <Text style={[styles.giftHistoryDate, { color: theme.textMuted }]}>
-                    {new Date(gift.sentAt).toLocaleDateString("ar-MA")}
-                  </Text>
-                </View>
-                <View style={styles.giftHistoryAmount}>
-                  <Ionicons name="star" size={12} color={Colors.gold} />
-                  <Text style={styles.giftHistoryAmountText}>{gift.type === "sent" ? "-" : "+"}{gift.amount}</Text>
-                </View>
-              </View>
-            ))
-          )}
-        </ScrollView>
-      )}
-
-      {/* Gift Modal */}
-      {giftModal.visible && (
-        <View style={styles.giftOverlay}>
-          <View style={[styles.giftCard, { backgroundColor: theme.card, borderColor: Colors.gold + "40" }]}>
-            <Text style={styles.giftTitle}>🎁 أهدِ عملات</Text>
-            <Text style={[styles.giftSubtitle, { color: theme.textSecondary }]}>إلى {giftModal.targetName}</Text>
-            <View style={styles.giftAmountRow}>
-              {[50, 100, 200].map((amount) => (
-                <TouchableOpacity
-                  key={amount}
-                  style={[styles.giftAmountBtn, { borderColor: Colors.gold + "40" }]}
-                  onPress={() => sendGift(amount)}
-                  disabled={giftSending}
-                  activeOpacity={0.7}
+        {!loading && activeSection === "notifications" && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{labels.notifications}</Text>
+            {notifications.length === 0
+              ? <Text style={[styles.empty, { color: theme.textSecondary }]}>{labels.notificationEmpty}</Text>
+              : notifications.map((item) => (
+                <Pressable
+                  key={item.id}
+                  accessibilityRole="button"
+                  onPress={() => void openNotification(item)}
+                  style={[styles.notificationCard, { backgroundColor: theme.card, borderColor: item.readAt ? theme.cardBorder : `${CYAN}66` }]}
                 >
-                  <Ionicons name="star" size={14} color={Colors.gold} />
-                  <Text style={styles.giftAmountText}>{amount}</Text>
-                </TouchableOpacity>
+                  <Ionicons name={item.readAt ? "notifications-outline" : "notifications"} size={19} color={item.readAt ? theme.textMuted : CYAN} />
+                  <View style={styles.personDetails}>
+                    <Text style={[styles.personName, { color: theme.textPrimary }]}>
+                      {item.actorName ? `${item.actorName} ` : ""}{notificationText(item.type)}
+                    </Text>
+                    <Text style={[styles.subline, { color: theme.textSecondary }]}>
+                      {new Date(item.createdAt).toLocaleString()}
+                    </Text>
+                  </View>
+                  <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={16} color={theme.textMuted} />
+                </Pressable>
               ))}
-            </View>
-            <TouchableOpacity
-              style={[styles.giftCancelBtn, { backgroundColor: theme.cardBorder + "40" }]}
-              onPress={() => setGiftModal({ visible: false, targetId: "", targetName: "" })}
-            >
-              <Text style={[styles.giftCancelText, { color: theme.textMuted }]}>إلغاء</Text>
-            </TouchableOpacity>
           </View>
-        </View>
-      )}
-    </ImageBackground>
+        )}
+
+        {!loading && activeSection === "privacy" && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{labels.privacy}</Text>
+            {([
+              ["allowFriendRequests", labels.requestsPrivacy],
+              ["allowGameInvites", labels.invitesPrivacy],
+              ["showPresence", labels.presencePrivacy],
+            ] as const).map(([key, title]) => (
+              <View key={key} style={[styles.privacyRow, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+                <Text style={[styles.privacyLabel, { color: theme.textPrimary }]}>{title}</Text>
+                <Switch
+                  value={privacy[key]}
+                  onValueChange={(value) => savePrivacy({ ...privacy, [key]: value })}
+                  trackColor={{ true: `${CYAN}88`, false: theme.cardBorder }}
+                  thumbColor={privacy[key] ? CYAN : theme.textMuted}
+                />
+              </View>
+            ))}
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary, marginTop: 18 }]}>{labels.blocked}</Text>
+            {blocks.length === 0
+              ? <Text style={[styles.empty, { color: theme.textSecondary }]}>{labels.noResults}</Text>
+              : blocks.map((person) => personCard(person, button(labels.unblock, () =>
+                void perform(person.playerId, () => socialApi.unblock(person.playerId)), GREEN)))}
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "transparent" },
-  header: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 16, paddingVertical: 12, justifyContent: "space-between",
-  },
-  backBtn: {
-    width: 40, height: 40, borderRadius: 12,
-    backgroundColor: "#12122A", justifyContent: "center", alignItems: "center",
-  },
-  headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#E8E8FF" },
-  tabs: {
-    flexDirection: "row", backgroundColor: "#12122A",
-    borderRadius: 12, padding: 4, marginHorizontal: 16, marginBottom: 12,
-  },
-  tab: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: "center" },
-  tabActive: { backgroundColor: "#14142E" },
-  tabText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#5A5A88" },
-  tabTextActive: { color: Colors.gold },
-  list: { padding: 16, gap: 10 },
-  playerCard: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: "#12122A", borderRadius: 14,
-    padding: 12, borderWidth: 1, borderColor: "#1E1E3A",
-  },
-  avatar: { width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center" },
-  avatarEmoji: { fontSize: 22 },
-  playerInfo: { flex: 1, marginLeft: 10 },
-  playerName: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#E8E8FF" },
-  playerSub: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#5A5A88", marginTop: 2 },
-  addBtn: { padding: 8, borderRadius: 10, backgroundColor: Colors.emerald + "20" },
-  removeBtn: { padding: 8, borderRadius: 10, backgroundColor: Colors.ruby + "20" },
-  requestBtns: { flexDirection: "row", gap: 8 },
-  acceptBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.emerald, justifyContent: "center", alignItems: "center" },
-  rejectBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.ruby, justifyContent: "center", alignItems: "center" },
-  friendBadge: { backgroundColor: Colors.emerald + "20", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
-  friendBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.emerald },
-  sentBadge: { backgroundColor: "#5A5A88" + "20", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 },
-  sentBadgeText: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#5A5A88" },
-  codeBanner: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    backgroundColor: "#12122A", borderRadius: 14, marginHorizontal: 16, marginBottom: 10,
-    paddingHorizontal: 14, paddingVertical: 10,
-    borderWidth: 1, borderColor: Colors.gold + "30",
-  },
-  codeBannerLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
-  codeBannerLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#9898CC" },
-  codeBannerValue: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.gold },
-  toast: {
-    position: "absolute", top: 120, alignSelf: "center",
-    flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: "#14142E", borderRadius: 10,
-    paddingHorizontal: 14, paddingVertical: 8,
-    borderWidth: 1, borderColor: Colors.emerald + "40",
-    zIndex: 100,
-  },
-  toastText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: Colors.emerald },
-  friendActions: { flexDirection: "row", alignItems: "center", gap: 6 },
-  inviteBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: Colors.sapphire + "20" },
-  inviteBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: Colors.sapphire },
-  spectateBtn: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, backgroundColor: "#4A2080" + "40", borderWidth: 1, borderColor: "#9B59B6" + "60" },
-  spectateBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: "#C39BD3" },
-  sectionLabel: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#9898CC", marginTop: 8, marginBottom: 4 },
-  playSection: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: "#12122A", borderRadius: 16,
-    marginHorizontal: 16, marginBottom: 12,
-    borderWidth: 1, borderColor: "#1E1E3A", overflow: "hidden",
-  },
-  playBtn: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    paddingVertical: 14, gap: 8,
-  },
-  playBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14 },
-  playDivider: { width: 1, height: 40, backgroundColor: "#1E1E3A" },
-  searchBox: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: "#12122A", borderRadius: 12,
-    marginHorizontal: 16, marginBottom: 8, paddingHorizontal: 14, paddingVertical: 10,
-    borderWidth: 1, borderColor: "#1E1E3A",
-  },
-  searchInput: { flex: 1, fontFamily: "Cairo_400Regular", fontSize: 14, color: "#E8E8FF" },
-  empty: { alignItems: "center", paddingTop: 40, gap: 8 },
-  emptyIcon: { fontSize: 40 },
-  emptyText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#9898CC" },
-  emptySubText: { fontFamily: "Cairo_400Regular", fontSize: 13, color: "#5A5A88", textAlign: "center" },
-  giftBtn: {
-    padding: 8, borderRadius: 10, backgroundColor: Colors.gold + "18",
-    borderWidth: 1, borderColor: Colors.gold + "30",
-  },
-  giftOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.65)",
-    justifyContent: "center", alignItems: "center",
-    paddingHorizontal: 24, zIndex: 100,
-  },
-  giftCard: {
-    width: "100%", maxWidth: 340, borderRadius: 20,
-    padding: 24, alignItems: "center",
-    borderWidth: 1.5, backgroundColor: "#12122A",
-  },
-  giftTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: Colors.gold, marginBottom: 4 },
-  giftSubtitle: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "#9898CC", marginBottom: 16 },
-  giftAmountRow: { flexDirection: "row", gap: 12, marginBottom: 16 },
-  giftAmountBtn: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    paddingHorizontal: 18, paddingVertical: 12,
-    borderRadius: 14, borderWidth: 1.5,
-    backgroundColor: Colors.gold + "12",
-  },
-  giftAmountText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: Colors.gold },
-  giftCancelBtn: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 12 },
-  giftCancelText: { fontFamily: "Cairo_600SemiBold", fontSize: 14 },
-  giftBadge: {
-    minWidth: 18, height: 18, borderRadius: 9,
-    backgroundColor: Colors.ruby, justifyContent: "center", alignItems: "center",
-    paddingHorizontal: 4,
-  },
-  giftBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 10, color: "#fff" },
-  giftHistoryRow: {
-    flexDirection: "row", alignItems: "center", gap: 12,
-    padding: 12, borderRadius: 14, borderWidth: 1,
-    backgroundColor: "#12122A", borderColor: "#1E1E3A",
-  },
-  giftHistoryIcon: {
-    width: 36, height: 36, borderRadius: 18,
-    justifyContent: "center", alignItems: "center",
-  },
-  giftHistoryName: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#E8E8FF" },
-  giftHistoryDate: { fontFamily: "Cairo_400Regular", fontSize: 11, color: "#5A5A88", marginTop: 2 },
-  giftHistoryAmount: { flexDirection: "row", alignItems: "center", gap: 4 },
-  giftHistoryAmountText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: Colors.gold },
+  container: { flex: 1 },
+  header: { alignItems: "center", gap: 12, paddingHorizontal: 18, paddingVertical: 10 },
+  backButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center" },
+  title: { flex: 1, fontSize: 22, fontWeight: "900" },
+  headerIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: `${CYAN}18` },
+  content: { width: "100%", maxWidth: 760, alignSelf: "center", padding: 18, paddingBottom: 36, gap: 14 },
+  searchBox: { minHeight: 52, borderWidth: 1, borderRadius: 17, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 10 },
+  playerCode: { minHeight: 60, borderWidth: 1, borderRadius: 16, paddingHorizontal: 13, paddingVertical: 9, flexDirection: "row", alignItems: "center", gap: 12 },
+  playerCodeText: { fontSize: 11, fontWeight: "700" },
+  searchInput: { flex: 1, fontSize: 15 },
+  tabs: { gap: 8, paddingVertical: 3 },
+  tabButton: { paddingHorizontal: 13, paddingVertical: 10, borderWidth: 1, borderRadius: 14, backgroundColor: "#15213A" },
+  section: { gap: 10 },
+  sectionTitle: { fontSize: 18, fontWeight: "800", marginBottom: 2 },
+  emptyState: { alignItems: "center", gap: 8, paddingVertical: 12 },
+  empty: { paddingVertical: 14, lineHeight: 22 },
+  loading: { paddingVertical: 12, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 10 },
+  personCard: { minHeight: 68, borderWidth: 1, borderRadius: 17, padding: 10, flexDirection: "row", alignItems: "center", gap: 10 },
+  avatar: { width: 38, height: 38, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  personDetails: { flex: 1, minWidth: 90 },
+  personName: { fontSize: 14, fontWeight: "800" },
+  subline: { fontSize: 11, marginTop: 2 },
+  actions: { flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-end", gap: 5, maxWidth: "55%" },
+  actionButton: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 7 },
+  actionText: { fontSize: 11, fontWeight: "800" },
+  errorBanner: { backgroundColor: "#5A2938", borderRadius: 13, padding: 11, flexDirection: "row", gap: 8, alignItems: "center" },
+  errorText: { color: "#FFC0CB", flex: 1, fontSize: 12 },
+  privacyRow: { minHeight: 58, borderWidth: 1, borderRadius: 15, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  notificationCard: { minHeight: 64, borderWidth: 1, borderRadius: 15, padding: 11, flexDirection: "row", alignItems: "center", gap: 10 },
+  privacyLabel: { flex: 1, fontSize: 14, fontWeight: "700" },
 });
-
-export default function FriendsScreen() {
-  return (
-    <ScreenErrorBoundary screenName="الأصدقاء">
-      <FriendsScreenInner />
-    </ScreenErrorBoundary>
-  );
-}

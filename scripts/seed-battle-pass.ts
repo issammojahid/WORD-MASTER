@@ -3,8 +3,8 @@ import { eq } from "drizzle-orm";
 import pg from "pg";
 import { seasons, battlePassTiers } from "../shared/schema.js";
 
-const url = process.env.RAILWAY_DATABASE_URL || process.env.DATABASE_URL;
-if (!url) throw new Error("RAILWAY_DATABASE_URL not set");
+const url = process.env.DATABASE_URL;
+if (!url) throw new Error("DATABASE_URL not set");
 
 const pool = new pg.Pool({ connectionString: url, ssl: { rejectUnauthorized: false } });
 const db = drizzle(pool);

@@ -37,20 +37,15 @@ function setupCors(app: express.Application) {
       origins.add(new URL(process.env.RENDER_EXTERNAL_URL).origin);
     }
 
-    if (process.env.RAILWAY_PUBLIC_DOMAIN) {
-      origins.add(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
-    }
-
     const origin = req.header("origin");
 
     const isLocalhost =
       origin?.startsWith("http://localhost:") ||
       origin?.startsWith("http://127.0.0.1:");
 
-    const isRailwayDomain = origin?.endsWith(".railway.app") || origin?.endsWith(".up.railway.app");
     const isReplitApp = origin?.endsWith(".replit.app");
 
-    if (origin && (origins.has(origin) || isLocalhost || isRailwayDomain || isReplitApp)) {
+    if (origin && (origins.has(origin) || isLocalhost || isReplitApp)) {
       res.header("Access-Control-Allow-Origin", origin);
       res.header(
         "Access-Control-Allow-Methods",

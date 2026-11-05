@@ -24,43 +24,43 @@ export type ThemeColors = {
 };
 
 const darkColors: ThemeColors = {
-  background: "#0A0A1A",
-  backgroundSecondary: "#0E0E24",
-  backgroundTertiary: "#14142E",
-  card: "#12122A",
-  cardBorder: "#1E1E3A",
-  textPrimary: "#E8E8FF",
-  textSecondary: "#9898CC",
-  textMuted: "#5A5A88",
-  inputBg: "#0E0E24",
-  inputBorder: "#1E1E3A",
-  inputBorderFocus: "#00F5FF",
-  inputText: "#E8E8FF",
-  inputPlaceholder: "#3A3A66",
-  overlay: "rgba(0,0,0,0.85)",
-  overlayLight: "rgba(10,10,26,0.92)",
-  modalBg: "#0E0E24",
+  background: "#100B24",
+  backgroundSecondary: "#1A1033",
+  backgroundTertiary: "#241047",
+  card: "#1B1433",
+  cardBorder: "#51406E",
+  textPrimary: "#FFF8FF",
+  textSecondary: "#D8C9EA",
+  textMuted: "#B5A5CA",
+  inputBg: "#140E29",
+  inputBorder: "#594274",
+  inputBorderFocus: "#22D9E5",
+  inputText: "#FFF8FF",
+  inputPlaceholder: "#B5A5CA",
+  overlay: "rgba(8,4,20,0.78)",
+  overlayLight: "rgba(16,11,36,0.97)",
+  modalBg: "#21153B",
   statusBar: "light",
 };
 
 const lightColors: ThemeColors = {
-  background: "#0A0A1A",
-  backgroundSecondary: "#0E0E24",
-  backgroundTertiary: "#14142E",
-  card: "#12122A",
-  cardBorder: "#1E1E3A",
-  textPrimary: "#E8E8FF",
-  textSecondary: "#9898CC",
-  textMuted: "#5A5A88",
-  inputBg: "#0E0E24",
-  inputBorder: "#1E1E3A",
-  inputBorderFocus: "#00F5FF",
-  inputText: "#E8E8FF",
-  inputPlaceholder: "#3A3A66",
-  overlay: "rgba(0,0,0,0.85)",
-  overlayLight: "rgba(10,10,26,0.92)",
-  modalBg: "#0E0E24",
-  statusBar: "light",
+  background: "#F5F1F7",
+  backgroundSecondary: "#ECE5F1",
+  backgroundTertiary: "#FFF6DC",
+  card: "#FFFFFF",
+  cardBorder: "#D5D0D2",
+  textPrimary: "#33243B",
+  textSecondary: "#62576A",
+  textMuted: "#827A88",
+  inputBg: "#FFFDF9",
+  inputBorder: "#CFC7C3",
+  inputBorderFocus: "#08A8D0",
+  inputText: "#33243B",
+  inputPlaceholder: "#827A88",
+  overlay: "rgba(51,36,59,0.58)",
+  overlayLight: "rgba(255,254,252,0.97)",
+  modalBg: "#FFFFFF",
+  statusBar: "dark",
 };
 
 type ThemeContextType = {
@@ -81,7 +81,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then((val) => {
-        if (val === "light") setIsDark(false);
+        if (val === "dark") setIsDark(true);
+        else if (val === "light") setIsDark(false);
       })
       .catch(() => {});
   }, []);

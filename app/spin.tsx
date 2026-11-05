@@ -7,9 +7,8 @@ import {
   Animated,
   Easing,
   Platform,
-  ImageBackground,
+  useWindowDimensions,
 } from "react-native";
-const BG_SPIN = require("@/assets/images/bg_spin.png");
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -17,29 +16,32 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import Colors from "@/constants/colors";
 import { getApiUrl } from "@/lib/query-client";
+import { GameHeader, GameScreenBackground, useReducedMotion } from "@/components/GameUi";
+import { GameIcon } from "@/components/GameIcon";
+import { gameDesign } from "@/constants/game-design";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const LOGO = {
-  cyan:   "#00F5FF",
-  pink:   "#FF006E",
-  purple: "#BF00FF",
-  yellow: "#F5C842",
+  cyan: gameDesign.colors.profile,
+  pink: gameDesign.colors.danger,
+  purple: gameDesign.colors.online,
+  yellow: gameDesign.colors.coins,
 };
 
 const WHEEL_SEGMENTS = [
-  { type: "coins",     amount: 50,   label: "50",        color: LOGO.yellow + "50", textColor: LOGO.yellow,  icon: "🪙" },
-  { type: "xp",        amount: 100,  label: "100 XP",    color: LOGO.cyan   + "50", textColor: LOGO.cyan,    icon: "⭐" },
-  { type: "coins",     amount: 50,   label: "50",        color: LOGO.pink   + "50", textColor: LOGO.pink,    icon: "🪙" },
-  { type: "coins",     amount: 100,  label: "100",       color: LOGO.purple + "50", textColor: LOGO.purple,  icon: "🪙" },
-  { type: "coins",     amount: 50,   label: "50",        color: LOGO.yellow + "50", textColor: LOGO.yellow,  icon: "🪙" },
-  { type: "powerCard", amount: 1,    label: "بطاقة قوة", color: LOGO.cyan   + "50", textColor: LOGO.cyan,    icon: "🃏" },
-  { type: "coins",     amount: 50,   label: "50",        color: LOGO.pink   + "50", textColor: LOGO.pink,    icon: "🪙" },
-  { type: "coins",     amount: 100,  label: "100",       color: LOGO.purple + "50", textColor: LOGO.purple,  icon: "🪙" },
-  { type: "coins",     amount: 200,  label: "200",       color: LOGO.yellow + "50", textColor: LOGO.yellow,  icon: "🪙" },
-  { type: "xp",        amount: 200,  label: "XP مضاعف", color: LOGO.cyan   + "50", textColor: LOGO.cyan,    icon: "🚀" },
-  { type: "coins",     amount: 100,  label: "100",       color: LOGO.pink   + "50", textColor: LOGO.pink,    icon: "🪙" },
-  { type: "coins",     amount: 500,  label: "500",       color: LOGO.purple + "50", textColor: LOGO.yellow,  icon: "💰" },
+  { type: "coins",     amount: 50,   label: "50",        color: LOGO.yellow + "50", textColor: LOGO.yellow,  icon: "coins" },
+  { type: "xp",        amount: 100,  label: "100 XP",    color: LOGO.cyan   + "50", textColor: LOGO.cyan,    icon: "sparkles" },
+  { type: "coins",     amount: 50,   label: "50",        color: LOGO.pink   + "50", textColor: LOGO.pink,    icon: "coins" },
+  { type: "coins",     amount: 100,  label: "100",       color: LOGO.purple + "50", textColor: LOGO.purple,  icon: "coins" },
+  { type: "coins",     amount: 50,   label: "50",        color: LOGO.yellow + "50", textColor: LOGO.yellow,  icon: "coins" },
+  { type: "powerCard", amount: 1,    label: "قوة", color: LOGO.cyan   + "50", textColor: LOGO.cyan,    icon: "flash" },
+  { type: "coins",     amount: 50,   label: "50",        color: LOGO.pink   + "50", textColor: LOGO.pink,    icon: "coins" },
+  { type: "coins",     amount: 100,  label: "100",       color: LOGO.purple + "50", textColor: LOGO.purple,  icon: "coins" },
+  { type: "coins",     amount: 200,  label: "200",       color: LOGO.yellow + "50", textColor: LOGO.yellow,  icon: "coins" },
+  { type: "xp",        amount: 200,  label: "XP", color: LOGO.cyan   + "50", textColor: LOGO.cyan,    icon: "sparkles" },
+  { type: "coins",     amount: 100,  label: "100",       color: LOGO.pink   + "50", textColor: LOGO.pink,    icon: "coins" },
+  { type: "coins",     amount: 500,  label: "500",       color: LOGO.purple + "50", textColor: LOGO.yellow,  icon: "coins" },
 ];
 
 const SEG_COUNT = WHEEL_SEGMENTS.length;
@@ -47,6 +49,9 @@ const SEG_ANGLE = SEG_COUNT > 0 ? 360 / SEG_COUNT : 45;
 
 export default function SpinScreen() {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const { isRTL } = useLanguage();
+  const reduceMotion = useReducedMotion();
   const { profile, playerId, addCoins, addXp, updateProfile, addPowerCard } = usePlayer();
   const { theme } = useTheme();
   const [spinning, setSpinning]     = useState(false);
@@ -65,6 +70,7 @@ export default function SpinScreen() {
 
   const topInset    = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
+  const wheelSize = Math.min(Math.max(width - 48, 236), 280);
 
   // ─── Cooldown checks ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -80,6 +86,7 @@ export default function SpinScreen() {
   const pulseLoopRef = useRef<Animated.CompositeAnimation | null>(null);
 
   const startPulse = () => {
+    if (reduceMotion) return;
     if (pulseLoopRef.current) return;
     const loop = Animated.loop(
       Animated.sequence([
@@ -102,7 +109,7 @@ export default function SpinScreen() {
   useEffect(() => {
     startPulse();
     return () => stopPulse();
-  }, []);
+  }, [reduceMotion]);
 
   const checkSpinAvailability = () => {
     try {
@@ -212,7 +219,7 @@ export default function SpinScreen() {
 
     Animated.timing(spinAnim, {
       toValue:        nextAngle,
-      duration:       4000,
+      duration:       reduceMotion ? 0 : 4000,
       easing:         Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start(({ finished }) => {
@@ -239,7 +246,10 @@ export default function SpinScreen() {
 
       try { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch {}
 
-      Animated.parallel([
+      if (reduceMotion) {
+        rewardScale.setValue(1);
+        rewardOpacity.setValue(1);
+      } else Animated.parallel([
         Animated.spring(rewardScale,   { toValue: 1, tension: 80, friction: 7, useNativeDriver: true }),
         Animated.timing(rewardOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
       ]).start();
@@ -258,31 +268,14 @@ export default function SpinScreen() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <ImageBackground source={BG_SPIN} style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset }]} resizeMode="cover">
-      <LinearGradient
-        colors={["rgba(0,0,0,0.72)", "rgba(0,0,0,0.60)", "rgba(0,0,0,0.72)"]}
-        style={StyleSheet.absoluteFillObject}
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
+      <GameScreenBackground accent="reward" />
+      <GameHeader
+        title={isRTL ? "العجلة اليومية" : "Daily Spin"}
+        onBack={() => router.back()}
+        icon={<Ionicons name="gift-outline" size={23} color={LOGO.yellow} />}
+        trailing={<View style={styles.headerBalance}><GameIcon name="coins" size={21} color={LOGO.yellow} /><Text style={[styles.headerCoins, { color: theme.textPrimary }]}>{profile.coins.toLocaleString()}</Text></View>}
       />
-
-      {/* Ambient glow blobs */}
-      <View style={{ position: "absolute", top: 80, left: -60, width: 220, height: 220, borderRadius: 110, backgroundColor: LOGO.purple + "18" }} />
-      <View style={{ position: "absolute", bottom: 100, right: -80, width: 260, height: 260, borderRadius: 130, backgroundColor: LOGO.cyan + "10" }} />
-      <View style={{ position: "absolute", top: "40%", left: "30%", width: 140, height: 140, borderRadius: 70, backgroundColor: LOGO.yellow + "08" }} />
-
-      {/* Floating particles */}
-      {["✨","⭐","💫","✦","🌟","✨","💫","⭐"].map((sym, i) => (
-        <Text key={i} style={{ position: "absolute", fontSize: 14 + (i % 3) * 4, opacity: 0.15 + (i % 4) * 0.06,
-          top: 60 + (i * 55) % 400, left: (i * 73) % 340 }}>{sym}</Text>
-      ))}
-
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={[styles.backBtn, { backgroundColor: theme.card }]} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.textPrimary }]}>العجلة اليومية 🎰</Text>
-        <View style={{ width: 38 }} />
-      </View>
 
       <View style={styles.content}>
 
@@ -296,6 +289,7 @@ export default function SpinScreen() {
           <Animated.View
             style={[
               styles.wheel,
+              { width: wheelSize, height: wheelSize, borderRadius: wheelSize / 2 },
               { transform: [{ rotate: spinRotation }, { scale: pulseAnim }] },
             ]}
           >
@@ -307,12 +301,16 @@ export default function SpinScreen() {
                   style={[
                     styles.segment,
                     {
-                      transform: [{ rotate: `${angle}deg` }, { translateY: -88 }],
+                      width: wheelSize * 0.31,
+                      height: wheelSize * 0.15,
+                      transform: [{ rotate: `${angle}deg` }, { translateY: -wheelSize * 0.314 }],
                       backgroundColor: seg.color,
                     },
                   ]}
                 >
-                  <Text style={styles.segmentIcon}>{seg.icon}</Text>
+                  {seg.icon === "coins"
+                    ? <GameIcon name="coins" size={15} color={seg.textColor} />
+                    : <Ionicons name={seg.icon === "sparkles" ? "sparkles-outline" : "flash-outline"} size={15} color={seg.textColor} />}
                   <Text style={[styles.segmentText, { color: seg.textColor }]}>{seg.label}</Text>
                 </View>
               );
@@ -335,15 +333,15 @@ export default function SpinScreen() {
               { opacity: rewardOpacity, transform: [{ scale: rewardScale }] },
             ]}
           >
-            <Text style={styles.rewardEmoji}>{reward.icon}</Text>
+            <GameIcon name={reward.type === "coins" ? "coins" : "achievements"} size={36} color={LOGO.yellow} />
             <View>
-              <Text style={styles.rewardTitle}>🎉 مبروك!</Text>
+              <Text style={styles.rewardTitle}>{isRTL ? "مبروك!" : "Congratulations!"}</Text>
               <Text style={[styles.rewardValue, { color: theme.textPrimary }]}>
                 {reward.type === "powerCard"
-                  ? "بطاقة قوة إضافية! 🃏"
+                  ? (isRTL ? "بطاقة قوة إضافية!" : "Power card earned!")
                   : reward.type === "xp"
-                  ? `⭐ +${reward.amount} XP`
-                  : `🪙 +${reward.amount} عملة`}
+                  ? `+${reward.amount} XP`
+                  : `+${reward.amount} ${isRTL ? "عملة" : "coins"}`}
               </Text>
             </View>
           </Animated.View>
@@ -352,11 +350,11 @@ export default function SpinScreen() {
         {/* Cooldown message + countdown */}
         {!canSpin && (
           <View style={styles.cooldownContainer}>
-            <Text style={[styles.cooldownMsg, { color: theme.textMuted }]}>يمكنك تدوير العجلة مرة واحدة يومياً</Text>
+            <Text style={[styles.cooldownMsg, { color: theme.textMuted }]}>{isRTL ? "يمكنك تدوير العجلة مرة واحدة يومياً" : "You can spin once per day"}</Text>
             {countdown ? (
               <View style={styles.countdownRow}>
                 <Ionicons name="time-outline" size={16} color={theme.textMuted} />
-                <Text style={[styles.countdownLabel, { color: theme.textMuted }]}>الدورة القادمة بعد</Text>
+                <Text style={[styles.countdownLabel, { color: theme.textMuted }]}>{isRTL ? "الدورة القادمة بعد" : "Next spin in"}</Text>
                 <Text style={styles.countdownTime}>{countdown}</Text>
               </View>
             ) : null}
@@ -382,7 +380,7 @@ export default function SpinScreen() {
               color={canSpin && !spinning ? "#000" : theme.textMuted}
             />
             <Text style={[styles.spinBtnText, (!canSpin || spinning) && { color: theme.textMuted }]}>
-              {spinning ? "جارٍ الدوران..." : canSpin ? "ادر العجلة!" : "غداً إن شاء الله"}
+              {spinning ? (isRTL ? "جارٍ الدوران..." : "Spinning...") : canSpin ? (isRTL ? "أدر العجلة!" : "Spin now") : (isRTL ? "غداً إن شاء الله" : "Come back tomorrow")}
             </Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -390,19 +388,21 @@ export default function SpinScreen() {
         {/* Reward types info */}
         <View style={styles.infoRow}>
           {[
-            { icon: "🪙", label: "50-500 عملة" },
-            { icon: "⭐", label: "XP مضاعف" },
-            { icon: "🃏", label: "بطاقة قوة" },
+            { icon: "coins", label: isRTL ? "50-500 عملة" : "50-500 coins" },
+            { icon: "sparkles", label: isRTL ? "نقاط XP" : "Bonus XP" },
+            { icon: "flash", label: isRTL ? "بطاقة قوة" : "Power card" },
           ].map((item, i) => (
             <View key={i} style={styles.infoItem}>
-              <Text style={styles.infoIcon}>{item.icon}</Text>
+              {item.icon === "coins"
+                ? <GameIcon name="coins" size={22} color={LOGO.yellow} />
+                : <Ionicons name={item.icon === "sparkles" ? "sparkles-outline" : "flash-outline"} size={22} color={LOGO.cyan} />}
               <Text style={[styles.infoLabel, { color: theme.textMuted }]}>{item.label}</Text>
             </View>
           ))}
         </View>
 
       </View>
-    </ImageBackground>
+    </View>
   );
 }
 
@@ -412,11 +412,13 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 16, paddingVertical: 12,
   },
+  headerBalance: { minWidth: 48, height: 46, flexDirection: "row", alignItems: "center", justifyContent: "flex-end", gap: 5 },
+  headerCoins: { fontFamily: "Cairo_700Bold", fontSize: 13 },
   backBtn: {
     width: 38, height: 38, borderRadius: 12,
     backgroundColor: "rgba(255,255,255,0.08)", justifyContent: "center", alignItems: "center",
   },
-  title: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#E8E8FF" },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F6F7FF" },
   content: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 20, gap: 20 },
 
   wheelContainer: { width: 300, height: 300, alignItems: "center", justifyContent: "center" },
@@ -428,7 +430,6 @@ const styles = StyleSheet.create({
     borderTopColor: LOGO.yellow,
   },
   wheel: {
-    width: 280, height: 280, borderRadius: 140,
     backgroundColor: "rgba(255,255,255,0.04)",
     borderWidth: 4, borderColor: LOGO.purple + "88",
     alignItems: "center", justifyContent: "center",
@@ -436,10 +437,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.9, shadowRadius: 32, elevation: 20,
   },
   segment: {
-    position: "absolute", width: 86, height: 42, borderRadius: 10,
+    position: "absolute", borderRadius: 10,
     alignItems: "center", justifyContent: "center",
   },
-  segmentIcon: { fontSize: 14 },
   segmentText: { fontFamily: "Cairo_700Bold", fontSize: 10 },
   wheelCenter: {
     width: 56, height: 56, borderRadius: 28,
@@ -453,9 +453,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24, paddingVertical: 16,
     borderWidth: 1, borderColor: LOGO.yellow + "40",
   },
-  rewardEmoji: { fontSize: 36 },
   rewardTitle: { fontFamily: "Cairo_700Bold", fontSize: 18, color: LOGO.yellow },
-  rewardValue: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#E8E8FF" },
+  rewardValue: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#F6F7FF" },
 
   cooldownContainer: { alignItems: "center", gap: 6 },
   cooldownMsg: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#5A5A88", textAlign: "center" },

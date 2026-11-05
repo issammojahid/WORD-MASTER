@@ -1570,6 +1570,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         streak: newStreak,
         longestStreak,
         reward,
+        coins: updated[0].coins,
         lastLoginDate: today,
       });
     } catch (e) {

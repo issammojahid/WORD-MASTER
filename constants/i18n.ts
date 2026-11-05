@@ -98,6 +98,8 @@ export type Translations = {
   // Online
   randomMatch: string;
   privateRooms: string;
+  privateRoomsInternetRequired: string;
+  joinRoomByCode: string;
   findOpponent: string;
   searchingOpponent: string;
   cancelSearch: string;
@@ -260,6 +262,8 @@ const ar: Translations = {
 
   randomMatch: "مباراة عشوائية",
   privateRooms: "غرف خاصة",
+  privateRoomsInternetRequired: "تتطلب الغرف الخاصة اتصالاً بالإنترنت",
+  joinRoomByCode: "دخول بكود",
   findOpponent: "ابحث عن خصم",
   searchingOpponent: "كنقلبو على خصم...",
   cancelSearch: "إلغاء البحث",
@@ -420,6 +424,8 @@ const en: Translations = {
 
   randomMatch: "Random Match",
   privateRooms: "Private Rooms",
+  privateRoomsInternetRequired: "Private rooms require an internet connection",
+  joinRoomByCode: "Join with Code",
   findOpponent: "Find Opponent",
   searchingOpponent: "Searching for an opponent...",
   cancelSearch: "Cancel Search",

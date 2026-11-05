@@ -6,35 +6,29 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
-  Modal,
   TextInput,
   Alert,
-  Image,
 } from "react-native";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
-import { usePlayer, SKINS, getXpProgress } from "@/contexts/PlayerContext";
+import { usePlayer, getXpProgress } from "@/contexts/PlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { CoinBalance, GameHeader, GameModal, GameScreenBackground, PlayerAvatar } from "@/components/GameUi";
+import { CosmeticArtwork } from "@/components/CosmeticArtwork";
 import { getPlayerDisplayId, getDisplayCode } from "@/lib/player-code";
+import { gameDesign } from "@/constants/game-design";
+import { getAvatarCosmetic, getCosmetic } from "@shared/cosmetics";
 
 const LOGO = {
-  cyan:   "#00F5FF",
-  pink:   "#FF006E",
-  purple: "#BF00FF",
-  yellow: "#F5C842",
-  green:  "#00FF87",
-};
-
-const DIVISION_MAP: Record<string, { emoji: string; nameAr: string; color: string }> = {
-  bronze:   { emoji: "🥉", nameAr: "برونز",  color: "#CD7F32" },
-  silver:   { emoji: "🥈", nameAr: "فضة",    color: "#A8A8A8" },
-  gold:     { emoji: "🥇", nameAr: "ذهب",    color: "#FFD700" },
-  platinum: { emoji: "💠", nameAr: "بلاتين", color: "#00E5FF" },
-  diamond:  { emoji: "💎", nameAr: "ماسة",   color: "#BF00FF" },
+  cyan: gameDesign.colors.profile,
+  pink: gameDesign.colors.danger,
+  purple: gameDesign.colors.online,
+  yellow: gameDesign.colors.coins,
+  green: gameDesign.colors.success,
 };
 
 export default function ProfileScreen() {
@@ -56,9 +50,11 @@ export default function ProfileScreen() {
   const topInset = Platform.OS === "web" ? 67 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
-  const equippedSkin = SKINS.find((s) => s.id === profile.equippedSkin) || SKINS[0];
   const xpData = getXpProgress(profile.xp);
-  const div = DIVISION_MAP[profile.division ?? "bronze"] ?? DIVISION_MAP.bronze;
+  const avatarCosmetic = getAvatarCosmetic(profile.equippedSkin);
+  const profileBackground = getCosmetic("background", profile.equippedCosmetics.background);
+  const nameplate = getCosmetic("nameplate", profile.equippedCosmetics.nameplate);
+  const seasonalCosmetic = getCosmetic("seasonal", profile.equippedCosmetics.seasonal);
 
   const displayId = getPlayerDisplayId(profile.playerTag);
   const displayCode = getDisplayCode(profile.name, playerId, profile.playerTag);
@@ -86,11 +82,6 @@ export default function ProfileScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
-  const skinRarityColors: Record<string, string> = {
-    common: LOGO.cyan, rare: LOGO.purple, epic: LOGO.pink, legendary: LOGO.yellow,
-  };
-  const ringColor = skinRarityColors[equippedSkin.rarity] || LOGO.cyan;
-
   const STATS = [
     { label: "مباريات", value: profile.gamesPlayed, color: LOGO.cyan,   icon: "game-controller" as const },
     { label: "انتصارات", value: profile.wins,         color: LOGO.green,  icon: "trophy" as const },
@@ -100,59 +91,70 @@ export default function ProfileScreen() {
 
   return (
     <View style={[s.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-      <LinearGradient
-        colors={["#0A0E1A", "#0D1526", "#0A0E1A"]}
-        style={StyleSheet.absoluteFillObject}
+      <GameScreenBackground accent="online" />
+      <GameHeader
+        title="بروفايلي"
+        onBack={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }}
+        icon={<Ionicons name="person-circle-outline" size={23} color={LOGO.cyan} />}
+        trailing={<View style={s.headerTrailing}><CoinBalance amount={profile.coins} /></View>}
       />
-
-      {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity
-          style={s.backBtn}
-          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }}
-          activeOpacity={0.8}
-        >
-          <LinearGradient
-            colors={[LOGO.cyan + "20", LOGO.purple + "18"]}
-            style={StyleSheet.absoluteFillObject}
-          />
-          <Ionicons name="arrow-back" size={22} color={theme.textPrimary} />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>بروفايلي</Text>
-        <View style={{ width: 44 }} />
-      </View>
 
       <ScrollView
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
       >
         {/* Avatar + Name */}
-        <View style={s.avatarSection}>
-          <View style={[s.avatarOuter, { borderColor: ringColor + "CC", shadowColor: ringColor }]}>
-            <LinearGradient
-              colors={[ringColor + "22", equippedSkin.color + "33"]}
-              style={s.avatarInner}
-            >
-              <Image source={equippedSkin.image} style={s.avatarImage} resizeMode="contain" />
-            </LinearGradient>
+        <View style={[s.avatarSection, profileBackground ? { backgroundColor: `${profileBackground.colors[0]}18` } : null]}>
+          {profileBackground ? (
+            <View style={[s.profileBackgroundArtwork, { pointerEvents: "none" }]}>
+              <CosmeticArtwork kind="background" itemId={profile.equippedCosmetics.background} size={190} height={136} />
+            </View>
+          ) : null}
+          <View style={[s.avatarOuter, { borderColor: avatarCosmetic.colors[0], shadowColor: avatarCosmetic.colors[0] }]}>
+            <PlayerAvatar size={88} skinId={profile.equippedSkin} frameId={profile.equippedCosmetics.frame} accessibilityLabel={profile.name} />
           </View>
 
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={`Edit player name: ${profile.name}`}
             style={s.nameRow}
             onPress={() => { setNameInput(profile.name); setShowEditModal(true); }}
             activeOpacity={0.8}
           >
-            <Text style={[s.playerName, { color: theme.textPrimary }]}>{profile.name}</Text>
-            <Ionicons name="pencil" size={14} color={LOGO.cyan} style={{ marginLeft: 6 }} />
+            {nameplate ? (
+              <View style={[StyleSheet.absoluteFill, { pointerEvents: "none" }]}>
+                <CosmeticArtwork kind="nameplate" itemId={profile.equippedCosmetics.nameplate} size={240} height={68} />
+              </View>
+            ) : null}
+            <Text style={[s.playerName, { color: theme.textPrimary }]} numberOfLines={1}>{profile.name}</Text>
+            <Ionicons name="pencil" size={14} color={LOGO.cyan} />
           </TouchableOpacity>
+          {seasonalCosmetic && profile.equippedCosmetics.seasonal !== "no_seasonal" ? (
+            <View style={[s.seasonalBadge, { backgroundColor: `${seasonalCosmetic.colors[0]}20` }]}>
+              <CosmeticArtwork kind="seasonal" itemId={profile.equippedCosmetics.seasonal} size={28} />
+              <Text style={[s.seasonalText, { color: theme.textSecondary }]}>{profile.equippedCosmetics.seasonal.replace(/_/g, " ")}</Text>
+            </View>
+          ) : null}
 
-          {/* Division badge */}
-          <View style={[s.divisionBadge, { backgroundColor: div.color + "18", borderColor: div.color + "55" }]}>
-            <Text style={{ fontSize: 14 }}>{div.emoji}</Text>
-            <Text style={[s.divisionText, { color: div.color }]}>{div.nameAr}</Text>
-            <Text style={[s.eloText, { color: div.color + "BB" }]}>{profile.elo ?? 1000} ELO</Text>
-          </View>
         </View>
+
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="فتح متجر المظاهر"
+          style={[s.storeCard, { backgroundColor: theme.card, borderColor: `${gameDesign.colors.coins}70` }]}
+          onPress={() => router.push("/store" as Href)}
+          activeOpacity={0.82}
+        >
+          <View style={[s.storeIcon, { backgroundColor: `${gameDesign.colors.coins}20` }]}>
+            <Ionicons name="color-palette-outline" size={22} color={gameDesign.colors.coinsText} />
+          </View>
+          <View style={s.storeCopy}>
+            <Text style={[s.storeTitle, { color: theme.textPrimary }]}>متجر المظاهر</Text>
+            <Text style={[s.storeDescription, { color: theme.textSecondary }]}>أفاتارات أصلية وإطارات بتأثيرات جميلة</Text>
+          </View>
+          <CoinBalance amount={profile.coins} />
+          <Ionicons name="chevron-back" size={18} color={theme.textMuted} />
+        </TouchableOpacity>
 
         {/* Player ID */}
         <View style={[s.idCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
@@ -215,66 +217,37 @@ export default function ProfileScreen() {
           </Text>
         </View>
 
-        {/* Season Stats */}
-        <View style={[s.seasonCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-          <View style={s.seasonHeader}>
-            <Ionicons name="calendar" size={16} color={LOGO.purple} />
-            <Text style={[s.seasonTitle, { color: theme.textPrimary }]}>الموسم الحالي</Text>
-          </View>
-          <View style={s.seasonRow}>
-            <View style={s.seasonStat}>
-              <Text style={[s.seasonVal, { color: LOGO.green }]}>{profile.seasonWins ?? 0}</Text>
-              <Text style={[s.seasonLbl, { color: theme.textMuted }]}>فوز</Text>
-            </View>
-            <View style={[s.seasonDivider, { backgroundColor: theme.cardBorder }]} />
-            <View style={s.seasonStat}>
-              <Text style={[s.seasonVal, { color: LOGO.pink }]}>{profile.seasonLosses ?? 0}</Text>
-              <Text style={[s.seasonLbl, { color: theme.textMuted }]}>خسارة</Text>
-            </View>
-            <View style={[s.seasonDivider, { backgroundColor: theme.cardBorder }]} />
-            <View style={s.seasonStat}>
-              <Text style={[s.seasonVal, { color: LOGO.yellow }]}>{profile.bestStreak}</Text>
-              <Text style={[s.seasonLbl, { color: theme.textMuted }]}>أفضل سلسلة</Text>
-            </View>
-          </View>
-        </View>
       </ScrollView>
 
       {/* Edit Name Modal */}
-      <Modal
+      <GameModal
         visible={showEditModal}
-        transparent
-        animationType="fade"
         onRequestClose={() => setShowEditModal(false)}
       >
-        <View style={s.modalOverlay}>
-          <View style={s.modalCard}>
-            <Text style={s.modalTitle}>تغيير الاسم</Text>
-            <TextInput
-              style={s.nameInput}
-              value={nameInput}
-              onChangeText={setNameInput}
-              maxLength={20}
-              textAlign="right"
-              autoFocus
-              selectTextOnFocus
-              placeholderTextColor="#5A5A88"
-              placeholder="اكتب اسمك..."
-            />
-            <View style={s.modalBtns}>
-              <TouchableOpacity
-                style={s.modalCancel}
-                onPress={() => setShowEditModal(false)}
-              >
-                <Text style={s.modalCancelText}>إلغاء</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.modalConfirm} onPress={handleSaveName}>
-                <Text style={s.modalConfirmText}>حفظ</Text>
-              </TouchableOpacity>
-            </View>
+        <Text style={s.modalTitle}>تغيير الاسم</Text>
+        <TextInput
+          style={[s.nameInput, { color: theme.inputText, backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}
+          value={nameInput}
+          onChangeText={setNameInput}
+          maxLength={20}
+          textAlign="right"
+          autoFocus
+          selectTextOnFocus
+          placeholderTextColor={theme.inputPlaceholder}
+          placeholder="اكتب اسمك..."
+        />
+        <View style={s.modalBtns}>
+          <TouchableOpacity
+            style={s.modalCancel}
+            onPress={() => setShowEditModal(false)}
+          >
+            <Text style={s.modalCancelText}>إلغاء</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.modalConfirm} onPress={handleSaveName}>
+            <Text style={s.modalConfirmText}>حفظ</Text>
+          </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
+      </GameModal>
     </View>
   );
 }
@@ -291,11 +264,15 @@ const s = StyleSheet.create({
     borderWidth: 2, borderColor: "rgba(255,255,255,0.14)",
   },
   headerTitle: {
-    fontFamily: "Cairo_700Bold", fontSize: 20, color: "#E8E8FF",
+    fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F6F7FF",
   },
+  headerTrailing: { minWidth: 48, alignItems: "flex-end" },
   content: { paddingHorizontal: 16, paddingBottom: 32, gap: 16 },
 
-  avatarSection: { alignItems: "center", paddingVertical: 12, gap: 10 },
+  avatarSection: { alignItems: "center", paddingVertical: 12, gap: 10, borderRadius: 24, overflow: "hidden" },
+  profileBackgroundArtwork: { position: "absolute", top: 0, width: 190, height: 136, opacity: 0.3 },
+  seasonalBadge: { minHeight: 36, flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  seasonalText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
   avatarOuter: {
     width: 96, height: 96, borderRadius: 48,
     borderWidth: 3,
@@ -306,22 +283,16 @@ const s = StyleSheet.create({
     width: 88, height: 88, borderRadius: 44,
     justifyContent: "center", alignItems: "center",
   },
-  avatarImage: { width: 76, height: 76, borderRadius: 38 },
   nameRow: {
-    flexDirection: "row", alignItems: "center",
-    paddingHorizontal: 14, paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1.5, borderColor: "rgba(255,255,255,0.12)",
+    width: 240, minHeight: 62, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    paddingHorizontal: 32, paddingVertical: 8, borderRadius: 16, overflow: "hidden",
   },
-  playerName: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#E8E8FF" },
-  divisionBadge: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 6,
-    borderWidth: 1.5,
-  },
-  divisionText: { fontFamily: "Cairo_700Bold", fontSize: 13 },
-  eloText: { fontFamily: "Cairo_400Regular", fontSize: 11 },
+  playerName: { maxWidth: 160, fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F6F7FF" },
+  storeCard: { minHeight: 76, flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: 18, borderWidth: 1.5 },
+  storeIcon: { width: 44, height: 44, borderRadius: 15, alignItems: "center", justifyContent: "center" },
+  storeCopy: { flex: 1, gap: 2 },
+  storeTitle: { fontFamily: "Cairo_700Bold", fontSize: 14 },
+  storeDescription: { fontFamily: "Cairo_400Regular", fontSize: 10 },
 
   idCard: {
     borderRadius: 20, padding: 16,
@@ -370,29 +341,7 @@ const s = StyleSheet.create({
   xpBarFill: { height: "100%", borderRadius: 4 },
   xpHint: { fontFamily: "Cairo_400Regular", fontSize: 11, textAlign: "center" },
 
-  seasonCard: {
-    borderRadius: 20, padding: 16,
-    borderWidth: 2,
-    gap: 12,
-  },
-  seasonHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  seasonTitle: { fontFamily: "Cairo_700Bold", fontSize: 15 },
-  seasonRow: { flexDirection: "row", alignItems: "center" },
-  seasonStat: { flex: 1, alignItems: "center" },
-  seasonVal: { fontFamily: "Cairo_700Bold", fontSize: 22 },
-  seasonLbl: { fontFamily: "Cairo_400Regular", fontSize: 11 },
-  seasonDivider: { width: 1, height: 36 },
 
-  modalOverlay: {
-    flex: 1, backgroundColor: "rgba(0,0,0,0.70)",
-    justifyContent: "center", alignItems: "center", padding: 24,
-  },
-  modalCard: {
-    width: "100%", backgroundColor: "#160D33", borderRadius: 26, padding: 24,
-    borderWidth: 3, borderColor: LOGO.purple + "70",
-    borderBottomWidth: 5, borderBottomColor: LOGO.purple + "99",
-    gap: 16,
-  },
   modalTitle: {
     fontFamily: "Cairo_700Bold", fontSize: 20, color: LOGO.cyan, textAlign: "center",
   },
@@ -400,7 +349,7 @@ const s = StyleSheet.create({
     borderWidth: 2.5, borderColor: LOGO.cyan + "60", borderRadius: 16,
     borderBottomWidth: 4, borderBottomColor: LOGO.cyan + "99",
     padding: 14, fontFamily: "Cairo_400Regular", fontSize: 16,
-    color: "#E8E8FF", backgroundColor: "rgba(255,255,255,0.06)",
+    color: "#F6F7FF", backgroundColor: "rgba(255,255,255,0.06)",
   },
   modalBtns: { flexDirection: "row", gap: 12 },
   modalCancel: {
@@ -414,7 +363,7 @@ const s = StyleSheet.create({
     flex: 1, paddingVertical: 14, borderRadius: 18,
     backgroundColor: LOGO.yellow, alignItems: "center",
     borderWidth: 2.5, borderColor: "rgba(255,255,255,0.30)",
-    borderBottomWidth: 4, borderBottomColor: "#C4A010",
+    borderBottomWidth: 4, borderBottomColor: "#D59A3F",
   },
   modalConfirmText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#000" },
 });
