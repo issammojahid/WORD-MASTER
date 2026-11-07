@@ -1,4 +1,6 @@
+import {gameLevel} from "../shared/game-wallet";
 import { randomBytes } from "node:crypto";
+import {registerGameWallet,walletTransaction} from "./game-wallet";
 import { registerPlayerNameRoute } from "./player-name-store";
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
@@ -346,7 +348,7 @@ async function handleClanWarWeeklyEnd() {
         for (const m of members) {
           const [prof] = await db.select({ coins: playerProfiles.coins }).from(playerProfiles).where(eq(playerProfiles.id, m.playerId)).limit(1);
           if (prof) {
-            await db.update(playerProfiles).set({ coins: prof.coins + rewardPerMember, updatedAt: new Date() }).where(eq(playerProfiles.id, m.playerId));
+            await db.update(playerProfiles).set({ coins: sql`${playerProfiles.coins} + ${rewardPerMember}`, updatedAt: new Date() }).where(eq(playerProfiles.id, m.playerId));
           }
         }
       }
@@ -365,6 +367,7 @@ async function handleClanWarWeeklyEnd() {
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   await registerOnlineMultiplayer(app, httpServer);
+  registerGameWallet(app);
   registerSocialRoutes(app);
   registerHalloweenRoutes(app, postgresHalloweenRepository(pool), { enabled: () => process.env.HALLOWEEN_COMMERCE_ENABLED === "1" });
 
@@ -396,7 +399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.json(result);
   });
 
-  app.post("/api/validate-round", (req, res) => {
+  app.post("/api/validate-round", walletTransaction((req, res) => {
     try {
       const { letter, participantsAnswers } = req.body as {
         letter: string;
@@ -426,7 +429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("validate-round error:", e);
       res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
   function getTodayDateString(): string {
     return new Date().toISOString().slice(0, 10);
@@ -512,7 +515,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/daily-challenge/guess
-  app.post("/api/daily-challenge/guess", async (req, res) => {
+  app.post("/api/daily-challenge/guess", walletTransaction(async (req, res) => {
     try {
       const { playerId, guess } = req.body as { playerId: string; guess: string };
       if (!playerId || !guess) return res.status(400).json({ error: "missing_params" });
@@ -582,7 +585,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("[daily-challenge] POST guess error:", e);
       return res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
   // GET /api/daily-challenge/leaderboard
   app.get("/api/daily-challenge/leaderboard", async (_req, res) => {
@@ -611,7 +614,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ────────────────────────────────────────────────────────────────────────────
 
   app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString(),release:process.env.RENDER_GIT_COMMIT??"local",privateRoomTeams:true,coinEntryRooms:true });
+    res.json({ status: "ok", timestamp: new Date().toISOString(),release:process.env.RENDER_GIT_COMMIT??"local",privateRoomTeams:true,coinEntryRooms:true,unifiedWallet:true });
   });
 
   const LOGIN_STREAK_REWARDS: Record<number, number> = {
@@ -690,7 +693,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/player/:id", async (req, res) => {
+  app.put("/api/player/:id", walletTransaction(async (req, res) => {
     try {
       const id = req.params.id;
       const data = req.body;
@@ -784,10 +787,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("PUT /api/player error:", e);
       res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
   // Purchase endpoint: validates coins server-side and atomically deducts + grants item
-  app.post("/api/player/:id/purchase", async (req, res) => {
+  app.post("/api/player/:id/purchase", walletTransaction(async (req, res) => {
     try {
       const id = req.params.id;
       const { itemType, itemId, price } = req.body as { itemType: string; itemId: string; price: number };
@@ -858,11 +861,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("POST /api/player/:id/purchase error:", e);
       res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
   registerPlayerNameRoute(app,pool);
 
-  app.post("/api/player/:id/spin", async (req, res) => {
+  app.post("/api/player/:id/spin", walletTransaction(async (req, res) => {
     try {
       const id = req.params.id;
       let [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, id));
@@ -884,7 +887,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         updates.coins = profile.coins + reward.amount * coinMultiplier;
       } else if (reward.type === "xp") {
         updates.xp = profile.xp + reward.amount;
-        updates.level = Math.floor((profile.xp + reward.amount) / 100) + 1;
+        updates.level = gameLevel(profile.xp + reward.amount);
       } else if (reward.type === "powerCard") {
         const currentCards = (profile.powerCards as Record<string, number>) || {};
         const cardKeys = ["time", "freeze", "hint"] as const;
@@ -902,7 +905,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("POST /api/player/:id/spin error:", e);
       res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
   app.get("/api/player/:id/streak", async (req, res) => {
     try {
@@ -922,7 +925,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/player/:id/game-result", async (req, res) => {
+  app.post("/api/player/:id/game-result", walletTransaction(async (req, res) => {
     try {
       const id = req.params.id;
       const { won } = req.body as { won: boolean };
@@ -981,9 +984,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("POST /api/player/:id/game-result error:", e);
       res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
-  app.post("/api/player/:id/activate-vip", async (req, res) => {
+  app.post("/api/player/:id/activate-vip", walletTransaction(async (req, res) => {
     try {
       const id = req.params.id;
       const { duration, subscriptionId } = req.body as { duration?: number; subscriptionId?: string };
@@ -1001,7 +1004,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("POST /api/player/:id/activate-vip error:", e);
       res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
   app.get("/api/player/:id/vip-status", async (req, res) => {
     try {
@@ -1086,7 +1089,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/clans/create — costs 500 coins
-  app.post("/api/clans/create", async (req, res) => {
+  app.post("/api/clans/create", walletTransaction(async (req, res) => {
     try {
       const { playerId, name, emoji } = req.body as { playerId: string; name: string; emoji: string };
       if (!playerId || !name?.trim() || !emoji) return res.status(400).json({ error: "missing_params" });
@@ -1111,10 +1114,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("POST /api/clans/create error:", e);
       res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
   // POST /api/clans/:id/join
-  app.post("/api/clans/:id/join", async (req, res) => {
+  app.post("/api/clans/:id/join", walletTransaction(async (req, res) => {
     try {
       const { id } = req.params;
       const { playerId } = req.body as { playerId: string };
@@ -1140,10 +1143,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("POST /api/clans/:id/join error:", e);
       res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
   // POST /api/clans/:id/leave
-  app.post("/api/clans/:id/leave", async (req, res) => {
+  app.post("/api/clans/:id/leave", walletTransaction(async (req, res) => {
     try {
       const { id } = req.params;
       const { playerId } = req.body as { playerId: string };
@@ -1183,10 +1186,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("POST /api/clans/:id/leave error:", e);
       res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
   // POST /api/clans/:id/kick — leader kicks a member
-  app.post("/api/clans/:id/kick", async (req, res) => {
+  app.post("/api/clans/:id/kick", walletTransaction(async (req, res) => {
     try {
       const { id } = req.params;
       const { leaderId, targetPlayerId } = req.body as { leaderId: string; targetPlayerId: string };
@@ -1215,10 +1218,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("POST /api/clans/:id/kick error:", e);
       res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
   // POST /api/clans/:id/rename — leader renames clan
-  app.post("/api/clans/:id/rename", async (req, res) => {
+  app.post("/api/clans/:id/rename", walletTransaction(async (req, res) => {
     try {
       const { id } = req.params;
       const { leaderId, name } = req.body as { leaderId: string; name: string };
@@ -1239,7 +1242,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("POST /api/clans/:id/rename error:", e);
       res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
   // ── BATTLE PASS ─────────────────────────────────────────────────────────────
 
@@ -1284,7 +1287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // user id, preventing one player from unlocking premium for another by knowing an entitled RC user id.
   // Server verifies (a) the entitlement object exists, (b) it is active (expires_date is null or future),
   // (c) it was granted by our expected product id.
-  app.post("/api/battle-pass/:playerId/unlock-premium-iap", async (req, res) => {
+  app.post("/api/battle-pass/:playerId/unlock-premium-iap", walletTransaction(async (req, res) => {
     try {
       if (!BP_IAP_ENABLED) {
         return res.status(503).json({ error: "iap_not_configured", message: "Real-money premium is not yet available." });
@@ -1339,11 +1342,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("POST /api/battle-pass/:playerId/unlock-premium-iap error:", e);
       res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
   // POST /api/admin/dev-bp-unlock/:playerId — Dev tool: grant premium Battle Pass without payment.
   // Security: obscure path + only works in non-production or when ADMIN_UNLOCK_ENABLED=true.
-  app.post("/api/admin/dev-bp-unlock/:playerId", async (req, res) => {
+  app.post("/api/admin/dev-bp-unlock/:playerId", walletTransaction(async (req, res) => {
     const { playerId } = req.params;
     try {
       const [activeSeason] = await db.select({ id: seasons.id }).from(seasons).where(eq(seasons.status, "active")).limit(1);
@@ -1357,12 +1360,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("/api/admin/dev-bp-unlock error:", e);
       return res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
   // POST /api/battle-pass/:playerId/buy-premium — unlock premium with in-game coins.
   // Deducts BP_PREMIUM_COST coins from the player's balance atomically, then sets
   // premium_unlocked = true for the active season. Returns 402 if insufficient coins.
-  app.post("/api/battle-pass/:playerId/buy-premium", async (req, res) => {
+  app.post("/api/battle-pass/:playerId/buy-premium", walletTransaction(async (req, res) => {
     try {
       const { playerId } = req.params;
       if (!playerId) return res.status(400).json({ error: "missing_player_id" });
@@ -1406,10 +1409,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("POST /api/battle-pass/:playerId/buy-premium error:", e);
       res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
   // POST /api/battle-pass/:playerId/claim/:tier — validate & grant reward
-  app.post("/api/battle-pass/:playerId/claim/:tier", async (req, res) => {
+  app.post("/api/battle-pass/:playerId/claim/:tier", walletTransaction(async (req, res) => {
     try {
       const { playerId, tier: tierStr } = req.params;
       const { track } = req.body as { track: "free" | "premium" };
@@ -1502,10 +1505,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("POST /api/battle-pass/:playerId/claim/:tier error:", e);
       res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
   // ── DAILY LOGIN STREAK ────────────────────────────────────────────────────
-  app.post("/api/player/:id/daily-login", async (req, res) => {
+  app.post("/api/player/:id/daily-login", walletTransaction(async (req, res) => {
     try {
       const { id: playerId } = req.params;
       const today = new Date().toISOString().slice(0, 10);
@@ -1566,7 +1569,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("POST /api/player/daily-login error:", e);
       res.json({ success: false, error: "server_error" });
     }
-  });
+  }));
 
   // ── WEEKLY CHALLENGE ─────────────────────────────────────────────────────
   const WEEKLY_TASK_POOL = [
@@ -1742,7 +1745,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/tasks/:playerId/:taskKey/claim", async (req, res) => {
+  app.post("/api/tasks/:playerId/:taskKey/claim", walletTransaction(async (req, res) => {
     try {
       const { playerId, taskKey } = req.params;
       const today = getTodayDate();
@@ -1828,7 +1831,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("POST /api/tasks/claim error:", e);
       res.json({ success: false, error: "server_error" });
     }
-  });
+  }));
 
   // ── ACHIEVEMENTS ──────────────────────────────────────────────────────────
   app.get("/api/achievements/:playerId", async (req, res) => {
@@ -1925,7 +1928,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return { success: true, coinsEarned: def.rewardCoins, xpEarned: def.rewardXp };
   }
 
-  app.post("/api/achievements/:playerId/claim/:key", async (req, res) => {
+  app.post("/api/achievements/:playerId/claim/:key", walletTransaction(async (req, res) => {
     try {
       const result = await processAchievementClaim(req.params.playerId, req.params.key);
       res.json(result);
@@ -1933,9 +1936,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("POST /api/achievements/claim error:", e);
       res.json({ success: false, error: "server_error" });
     }
-  });
+  }));
 
-  app.post("/api/claim-achievement", async (req, res) => {
+  app.post("/api/claim-achievement", walletTransaction(async (req, res) => {
     try {
       const { playerId, achievementKey } = req.body;
       if (!playerId || !achievementKey) return res.json({ success: false, error: "missing_fields" });
@@ -1945,10 +1948,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("POST /api/claim-achievement error:", e);
       res.json({ success: false, error: "server_error" });
     }
-  });
+  }));
 
   // ── TASK PROGRESS (direct update) ─────────────────────────────────────────
-  app.post("/api/task-progress", async (req, res) => {
+  app.post("/api/task-progress", walletTransaction(async (req, res) => {
     try {
       const { playerId, taskType } = req.body;
       if (!playerId || !taskType) return res.status(400).json({ error: "missing_fields" });
@@ -1980,10 +1983,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("POST /api/task-progress error:", e);
       res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
   // ── ACHIEVEMENT PROGRESS (direct update) ───────────────────────────────────
-  app.post("/api/achievement-progress", async (req, res) => {
+  app.post("/api/achievement-progress", walletTransaction(async (req, res) => {
     try {
       const { playerId, achievementType } = req.body;
       if (!playerId || !achievementType) return res.status(400).json({ error: "missing_fields" });
@@ -2027,7 +2030,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("POST /api/achievement-progress error:", e);
       res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
   // ── ROOM INVITES ──────────────────────────────────────────────────────────
   app.get("/api/referral/:playerId", async (req, res) => {
@@ -2043,7 +2046,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/referral/claim", async (req, res) => {
+  app.post("/api/referral/claim", walletTransaction(async (req, res) => {
     try {
       const { playerId, referralCode } = req.body;
       if (!playerId || !referralCode) return res.status(400).json({ error: "missing_fields" });
@@ -2076,9 +2079,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("POST /api/referral/claim error:", e);
       res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
-  app.post("/api/player/:id/push-token", async (req, res) => {
+  app.post("/api/player/:id/push-token", walletTransaction(async (req, res) => {
     try {
       const { id } = req.params;
       const { token } = req.body;
@@ -2091,9 +2094,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("POST /api/player/:id/push-token error:", e);
       res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
-  app.put("/api/player/:id/notifications", async (req, res) => {
+  app.put("/api/player/:id/notifications", walletTransaction(async (req, res) => {
     try {
       const { id } = req.params;
       const { enabled } = req.body;
@@ -2106,7 +2109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("PUT /api/player/:id/notifications error:", e);
       res.status(500).json({ error: "server_error" });
     }
-  });
+  }));
 
   app.get("/api/player/:id/notifications", async (req, res) => {
     try {

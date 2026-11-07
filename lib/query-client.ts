@@ -1,4 +1,4 @@
-import { fetch } from "expo/fetch";
+// Authenticated global fetch is installed by the wallet bootstrap.
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 /**

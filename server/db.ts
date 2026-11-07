@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import * as schema from "@shared/schema";
+import { AsyncLocalStorage } from "node:async_hooks";
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -46,4 +47,10 @@ pool.on("error", (error: Error) => {
   console.error(`[db] idle connection error (${code})`);
 });
 
-export const db = drizzle(pool, { schema });
+const database = drizzle(pool, { schema });
+const requestDatabase=new AsyncLocalStorage<{database:typeof database;active:boolean}>();
+export const db:typeof database=new Proxy(database,{get(target,key){const context=requestDatabase.getStore();const selected=context?.active?context.database:target;const value=Reflect.get(selected,key);return typeof value==="function"?value.bind(selected):value;}});
+export async function withRequestDatabase<T>(transaction:unknown,operation:()=>Promise<T>):Promise<T>{
+ const context={database:transaction as typeof database,active:true};
+ try{return await requestDatabase.run(context,operation);}finally{context.active=false;}
+}

@@ -1,6 +1,8 @@
 import {isEntryFee,isQueueFee} from "../shared/coin-entry";
 import {reserveCoinEntry,settleCoinEntry,refundInterruptedCoinEntries} from "./coin-entry-ledger";
 import {coinDatabase} from "./coin-entry-postgres";
+import {readGameCoins} from "./game-wallet-ledger";
+import {pool} from "./db";
 import { createRoomVoice } from "./room-voice";
 import { safeOnlineDisplayName } from "./online-display-name";
 import { PublicMatchmaking,getPublicMatchBaseRewards } from "./public-matchmaking";
@@ -366,6 +368,8 @@ async function persistAndPayMatch(match: MatchState, forfeitedPlayerId?: string)
         }).onConflictDoNothing().returning({ id: onlineRewardClaims.id });
 
         if (claim && amount > 0) {
+          const unified=(await tx.execute(sql`SELECT player_id FROM game_wallet_accounts WHERE player_id=${player.id}`)).rows.length>0;
+          if(unified){const result=await tx.execute(sql`UPDATE player_profiles SET coins=coins+${amount},updated_at=now() WHERE id=${player.id} RETURNING coins`);wallets.set(player.id,{coinsAwarded:amount,balance:Number(result.rows[0].coins)});continue;}
           const [wallet] = await tx.update(onlineGuestWallets)
             .set({ coins: sql`${onlineGuestWallets.coins} + ${amount}`, updatedAt: new Date() })
             .where(eq(onlineGuestWallets.playerId, player.id))
@@ -376,7 +380,9 @@ async function persistAndPayMatch(match: MatchState, forfeitedPlayerId?: string)
             .from(onlineGuestWallets)
             .where(eq(onlineGuestWallets.playerId, player.id))
             .limit(1);
-          wallets.set(player.id, { coinsAwarded: 0, balance: wallet?.coins ?? 0 });
+          const unified=(await tx.execute(sql`SELECT player_id FROM game_wallet_accounts WHERE player_id=${player.id}`)).rows.length>0;
+          const game=unified?await tx.execute(sql`SELECT coins FROM player_profiles WHERE id=${player.id}`):null;
+          wallets.set(player.id, { coinsAwarded: 0, balance: game?Number(game.rows[0]?.coins??0):wallet?.coins??0 });
         }
       }
     }
@@ -610,7 +616,7 @@ function beginCountdown(io: SocketServer, match: MatchState): void {
     void (async () => {
       try {
         await persistMatchStart(match);
-        for(const player of match.players){try{const [wallet]=await db.select({coins:onlineGuestWallets.coins}).from(onlineGuestWallets).where(eq(onlineGuestWallets.playerId,player.id)).limit(1);for(const sid of socketsByPlayer.get(player.id)??[])io.to(sid).emit("match:balance",{balance:wallet?.coins??0});}catch{}}
+        for(const player of match.players){try{const [wallet]=await db.select({coins:onlineGuestWallets.coins}).from(onlineGuestWallets).where(eq(onlineGuestWallets.playerId,player.id)).limit(1);for(const sid of socketsByPlayer.get(player.id)??[])io.to(sid).emit("match:balance",{balance:await readGameCoins(pool,player.id)});}catch{}}
         match.startedAt = Date.now();
         beginRound(io, match);
       } catch (error) {
@@ -732,9 +738,10 @@ async function createGuestSession(app: Express): Promise<void> {
         .orderBy(desc(onlineRewardClaims.createdAt))
         .limit(100);
       return res.json({
-        coins: wallet?.coins ?? 0,
+        coins: await readGameCoins(pool,session.id),
+        unified:(await pool.query("SELECT player_id FROM game_wallet_accounts WHERE player_id=$1",[session.id])).rows.length>0,
         entryFees:true,
-        claims: claims.filter((claim) => claim.amount > 0),
+        claims: (await pool.query("SELECT player_id FROM game_wallet_accounts WHERE player_id=$1",[session.id])).rows.length?[]:claims.filter((claim) => claim.amount > 0),
       });
     } catch (error) {
       console.error("[online] Wallet lookup failed:", error);
@@ -912,7 +919,7 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
       const requested=payload===undefined?"solo":payload&&typeof payload==="object"?(payload as {mode?:unknown}).mode:undefined;
       const entryFee=payload&&typeof payload==="object"?(payload as {entryFee?:unknown}).entryFee??0:0;
       if(!isPublicQueueMode(requested)||!isQueueFee(entryFee)){emitError(socket,"invalid_payload");return;}
-      if(entryFee>0){try{const [wallet]=await db.select({coins:onlineGuestWallets.coins}).from(onlineGuestWallets).where(eq(onlineGuestWallets.playerId,playerId)).limit(1);if((wallet?.coins??0)<entryFee){emitError(socket,"insufficient_online_coins");return;}}catch{emitError(socket,"online_unavailable");return;}}
+      if(entryFee>0){try{const [wallet]=await db.select({coins:onlineGuestWallets.coins}).from(onlineGuestWallets).where(eq(onlineGuestWallets.playerId,playerId)).limit(1);if((await readGameCoins(pool,playerId))<entryFee){emitError(socket,"insufficient_online_coins");return;}}catch{emitError(socket,"online_unavailable");return;}}
       if(!socket.connected)return;
       if(activeMatchByPlayer.has(playerId)){emitError(socket,"already_in_match");return;}
       const prior=waitingQueue.modeFor(playerId);if(prior&&(prior!==requested||waitingQueue.feeFor(playerId)!==entryFee)){emitError(socket,"already_in_queue");return;}

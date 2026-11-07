@@ -73,7 +73,7 @@ function shuffleLetters(letters: string[]): string[] {
 export default function OfflineScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
-  const { profile, addCoins, addXp, updateProfile } = usePlayer();
+  const { profile, addXp, updateProfile, awardOfflineMatch } = usePlayer();
   const { theme, isDark } = useTheme();
   const letterQueueRef = useRef(shuffleLetters(ARABIC_LETTERS));
   const letterIndexRef = useRef(0);
@@ -173,7 +173,7 @@ export default function OfflineScreen() {
   const finishGame = () => {
     if (finishedRef.current) return;
     finishedRef.current = true;
-    addCoins(ROUND_REWARD);
+    void awardOfflineMatch(totalScore);
     addXp(Math.floor(totalScore / 2));
     updateProfile({
       gamesPlayed: profile.gamesPlayed + 1,

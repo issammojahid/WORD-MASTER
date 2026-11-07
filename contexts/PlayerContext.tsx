@@ -1,3 +1,5 @@
+import { initializeGameWallet,gameWalletAction,queueOfflineMatch,flushOfflineMatches } from "@/services/game-wallet";
+import { getOnlineGuestToken } from "@/services/socket";
 import { applyDeviceHalloween, recordDeviceHalloweenClaims, type DeviceHalloween } from "@shared/halloween-update";
 import { prepareHalloweenObjectives } from "@shared/halloween-objectives";
 import type { SeasonAction, SeasonSnapshot } from "@shared/halloween";
@@ -109,6 +111,8 @@ type PlayerContextType = {
   applyHalloweenAction: (action:SeasonAction) => Promise<SeasonSnapshot>;
   recordHalloweenClaims: (source:"task"|"achievement",keys:string[]) => void;
   addCoins: (amount: number) => void;
+  refreshCoins:()=>Promise<void>;
+  awardOfflineMatch:(score:number)=>Promise<void>;
   addXp: (amount: number) => void;
   setPlayerName: (name: string) => Promise<void>;
   needsName: boolean;
@@ -123,7 +127,7 @@ const PlayerContext = createContext<PlayerContextType | null>(null);
 const STORAGE_KEY = "player_profile_v3";
 const PLAYER_ID_KEY = "player_id_v1";
 const FIRST_LAUNCH_KEY = "player_first_launch_v1";
-const STARTING_COINS = 1000;
+const STARTING_COINS = 2000;
 let profileWriteQueue:Promise<void>=Promise.resolve();
 function persistPlayerProfile(profile:PlayerProfile){
  const write=profileWriteQueue.catch(()=>{}).then(()=>AsyncStorage.setItem(STORAGE_KEY,JSON.stringify(profile)));
@@ -234,6 +238,8 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [hasLocalProfileError, setHasLocalProfileError] = useState(false);
   const profileRef = useRef(defaultProfile);
   const nameRevisionRef = useRef(0);
+  const walletReadyRef=useRef(false);
+  const refreshSequence=useRef(0);
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -276,6 +282,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (!stored) localProfile.name = suggestPlayerName();
         setNeedsName(!stored || await AsyncStorage.getItem("@horof_name_pending") === "1");
         if (!stored) await AsyncStorage.setItem("@horof_name_pending", "1");
+        try {
+          const wallet=await initializeGameWallet();
+          if(id!==wallet.playerId){await AsyncStorage.setItem("@horof_pre_unified_profile",JSON.stringify({playerId:id,profile:localProfile}));await AsyncStorage.setItem(PLAYER_ID_KEY,wallet.playerId);localProfile.coins=wallet.coins;localProfile.name=wallet.name;}
+          id=wallet.playerId;walletReadyRef.current=true;
+          localProfile.coins=wallet.coins;
+        }catch{walletReadyRef.current=false;}
         parsed = localProfile;
         profileRef.current = localProfile;
         setProfile(localProfile);
@@ -297,9 +309,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
             // Merge against the latest local state so a game played while the
             // initial request is pending cannot lose its earned progress.
-            const serverCoins: number = latestLocal.halloween2026?.walletPending ? latestLocal.coins : isNewPlayer
-              ? Math.max(STARTING_COINS, latestLocal.coins)
-              : Math.max(sp.coins ?? 0, latestLocal.coins);
+            const serverCoins: number = walletReadyRef.current ? sp.coins : latestLocal.coins;
 
             const merged: PlayerProfile = {
               halloween2026: latestLocal.halloween2026,
@@ -396,7 +406,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (!playerId) return;
       try {
         const baseUrl = getApiUrl();
-        const payload={...p};delete payload.halloween2026;
+        const payload={...p};delete payload.halloween2026; if(walletReadyRef.current)delete (payload as Partial<PlayerProfile>).coins;
         const response=await fetch(new URL(`/api/player/${playerId}`, baseUrl).toString(), {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -414,7 +424,12 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const applyHalloweenAction = useCallback(async (action:SeasonAction) => {
     const previous=profileRef.current;
     const seasonal=prepareHalloweenObjectives(previous.halloween2026,previous);
-    const result=applyDeviceHalloween(previous.coins,seasonal,action);
+    let result;
+    if(action.type==='buy'&&walletReadyRef.current){
+      const paid=await gameWalletAction({operationId:'halloween_buy:'+action.itemId,kind:'halloween_buy',itemId:action.itemId});
+      const local=applyDeviceHalloween(Number.MAX_SAFE_INTEGER,seasonal,action);
+      result={...local,coins:paid.coins};
+    }else result=applyDeviceHalloween(previous.coins,seasonal,action);
     const next:PlayerProfile={...previous,coins:result.coins,halloween2026:{state:result.state,claimedTasks:result.claimedTasks,claimedAchievements:result.claimedAchievements,objectiveBaseline:seasonal?.objectiveBaseline,walletPending:previous.halloween2026?.walletPending||result.coins!==previous.coins}};
     profileRef.current=next;setProfile(next);
     await persistPlayerProfile(next);
@@ -440,7 +455,20 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const refreshCoins=useCallback(async()=>{
+    if(!walletReadyRef.current){const initialized=await initializeGameWallet();walletReadyRef.current=true;setPlayerId(initialized.playerId);await AsyncStorage.setItem(PLAYER_ID_KEY,initialized.playerId);}
+    const sequence=++refreshSequence.current;
+    await getOnlineGuestToken();
+    const response=await fetchWithTimeout(new URL('/api/online/wallet',getApiUrl()));
+    if(!response.ok)throw Error('wallet_unavailable');
+    const wallet=await response.json();
+    if(sequence!==refreshSequence.current||!Number.isSafeInteger(wallet.coins))return;
+    const next={...profileRef.current,coins:wallet.coins};profileRef.current=next;setProfile(next);await persistPlayerProfile(next);
+  },[]);
+  const awardOfflineMatch=async(score:number)=>{await queueOfflineMatch(score);try{await flushOfflineMatches();await refreshCoins();}catch{/* queued until the next connection */}};
+  useEffect(()=>{if(!isReady||!walletReadyRef.current)return;void flushOfflineMatches().then(refreshCoins).catch(()=>{});},[isReady,refreshCoins]);
   const addCoins = (amount: number) => {
+    if(walletReadyRef.current){void refreshCoins().catch(()=>{});return;}
     setProfile((prev) => {
       const updated = { ...prev, coins: prev.coins + amount };
       profileRef.current = updated;
@@ -461,7 +489,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (newLevel >= milestone.level && !updated.claimedLevelRewards.includes(milestone.level)) {
           updated = { ...updated, claimedLevelRewards: [...updated.claimedLevelRewards, milestone.level] };
           if (milestone.coins) {
-            updated = { ...updated, coins: updated.coins + milestone.coins };
+            if(walletReadyRef.current){void gameWalletAction({operationId:`level_reward:${milestone.level}`,kind:"level_reward",level:milestone.level}).then(refreshCoins).catch(()=>{});}else updated = { ...updated, coins: updated.coins + milestone.coins };
           }
           if (milestone.skinId && !updated.ownedSkins.includes(milestone.skinId)) {
             updated = { ...updated, ownedSkins: [...updated.ownedSkins, milestone.skinId] };
@@ -617,7 +645,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <PlayerContext.Provider value={{
-      profile, playerId, isReady, needsName, hasLocalProfileError, updateProfile, applyHalloweenAction, recordHalloweenClaims, addCoins, addXp,
+      profile, playerId, isReady, needsName, hasLocalProfileError, updateProfile, applyHalloweenAction, recordHalloweenClaims, addCoins, addXp, refreshCoins, awardOfflineMatch,
       setPlayerName, syncToServer, reportGameResult, consumeCard,
       addPowerCard,
     }}>

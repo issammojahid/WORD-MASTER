@@ -110,7 +110,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
   const isPrivateRoomScreen = mode === "private";
   const insets = useSafeAreaInsets();
   const { t, isRTL } = useLanguage();
-  const { profile, addCoins } = usePlayer();
+  const { profile, addCoins, refreshCoins } = usePlayer();
   const { theme } = useTheme();
   const routeParams = useLocalSearchParams<{ roomCode?: string }>();
   const socketRef = useRef<Socket | null>(null);
@@ -184,7 +184,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
 
   const syncOnlineWallet = useCallback(async (playerId: string) => {
     const wallet = await fetchOnlineWallet();
-    setOnlineCoins(wallet.coins);setEntrySupported(wallet.entryFees);setLocalCoins(wallet.local);
+    setOnlineCoins(wallet.coins);void refreshCoins().catch(()=>{});setEntrySupported(wallet.entryFees);setLocalCoins(wallet.local);
     for (const claim of wallet.claims) {
       await creditVerifiedReward(claim.matchId, [{
         playerId,
@@ -194,13 +194,13 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
         coinsAwarded: claim.amount,
       }]);
     }
-  }, [creditVerifiedReward]);
+  }, [creditVerifiedReward,refreshCoins]);
 
   useEffect(() => {
     let active = true;
     let nextSocket: Socket | null = null;
     let removeListeners: (() => void) | null = null;
-    void connectOnlineSocket(profile.name).then((socket) => {
+    void refreshCoins().then(()=>connectOnlineSocket(profile.name)).then((socket) => {
       if (!active) {
         disconnectOnlineSocket();
         return;
@@ -280,7 +280,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
         });
       };
       const onWalletReward = (data: { matchId: string;entryFee?:number;balance?:number; coinsAwarded: number }) => {
-        if((data.entryFee??0)>0){if(Number.isSafeInteger(data.balance)&&data.balance!>=0)setOnlineCoins(data.balance!);return;}
+        if((data.entryFee??0)>0){if(Number.isSafeInteger(data.balance)&&data.balance!>=0)setOnlineCoins(data.balance!);void refreshCoins().catch(()=>{});return;}
         if (!principalIdRef.current || !Number.isInteger(data.coinsAwarded) || data.coinsAwarded < 0) return;
         void creditVerifiedReward(data.matchId, [{
           playerId: principalIdRef.current,
@@ -293,7 +293,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
           setError(t.onlineUnavailable);
         });
       };
-      const onBalance=(data:{balance:number})=>{if(Number.isSafeInteger(data.balance)&&data.balance>=0)setOnlineCoins(data.balance);};
+      const onBalance=(data:{balance:number})=>{if(Number.isSafeInteger(data.balance)&&data.balance>=0){setOnlineCoins(data.balance);void refreshCoins().catch(()=>{});}};
       const onCancelled = (data: { reason?: string }) => {
         setSearching(false);
         setCountdown(null);
@@ -302,7 +302,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
         translateServerError(data.reason === "ready_timeout" ? "ready_timeout" : "match_cancelled");
       };
       const onReconnecting = () => setError(t.reconnecting);
-      const onServerError = (data: { code?: string }) => {if(data.code==="insufficient_online_coins")setError("رصيد الأونلاين غير كافٍ لهذه القاعة. اختر مبلغاً أقل أو التدريب المجاني.");else if(data.code==="settlement_pending")setError("جارٍ تأكيد العملات. المبلغ محفوظ؛ لا تبدأ مباراة أخرى حتى تكتمل التسوية.");else if(data.code==="teams_require_four")setError("يتطلب وضع الفرق أربعة لاعبين، اثنين في كل فريق.");else if(data.code==="already_in_queue")setError("أنت في قائمة انتظار وضع آخر. ألغِ البحث الأول قبل البدء.");else if(data.code==="not_in_room")setError("يجب الانضمام إلى الغرفة أولاً.");else translateServerError(data.code ?? "connection_error");};
+      const onServerError = (data: { code?: string }) => {if(data.code==="insufficient_online_coins")setError("رصيد العملات غير كافٍ لهذه القاعة. اختر مبلغاً أقل أو التدريب المجاني.");else if(data.code==="settlement_pending")setError("جارٍ تأكيد العملات. المبلغ محفوظ؛ لا تبدأ مباراة أخرى حتى تكتمل التسوية.");else if(data.code==="teams_require_four")setError("يتطلب وضع الفرق أربعة لاعبين، اثنين في كل فريق.");else if(data.code==="already_in_queue")setError("أنت في قائمة انتظار وضع آخر. ألغِ البحث الأول قبل البدء.");else if(data.code==="not_in_room")setError("يجب الانضمام إلى الغرفة أولاً.");else translateServerError(data.code ?? "connection_error");};
 
       socket.on("connect", onConnect);
       socket.on("disconnect", onDisconnect);
@@ -360,7 +360,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
       nextSocket?.disconnect();
       disconnectOnlineSocket();
     };
-  }, [creditVerifiedReward, profile.name, queueMode, syncOnlineWallet, t, translateServerError]);
+  }, [creditVerifiedReward, profile.name, queueMode, refreshCoins, syncOnlineWallet, t, translateServerError]);
 
   useEffect(() => {
     if (!match?.deadline || match.phase !== "playing") {
@@ -611,12 +611,12 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
                 <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{PUBLIC_MODE_COPY[queueMode][isRTL?"ar":"en"]}</Text>
                 <Text style={[styles.bodyText, { color: theme.textSecondary }]}>{t.readyToPlay}</Text>
                 <Text style={[styles.bodyText,{color:theme.textSecondary}]}>اختر مبلغ الدخول؛ المطابقة مع لاعبين اختاروا المبلغ نفسه</Text>
-                <Text style={[styles.sectionTitle,{color:GOLD}]}>رصيد الأونلاين: {onlineCoins===null?"…":onlineCoins} 🪙 {localCoins?"(تجريبي)":""}</Text>
+                <Text style={[styles.sectionTitle,{color:GOLD}]}>رصيد العملات: {onlineCoins===null?"…":onlineCoins} 🪙 {localCoins?"(تجريبي)":""}</Text>
                 <View style={[styles.choiceRow,{flexWrap:"wrap",flexDirection:"row-reverse"}]}>{ENTRY_FEES.map(fee=><Pressable key={fee} accessibilityRole="button" accessibilityLabel={"دخول "+fee+" عملة"} accessibilityState={{selected:fee===entryFee}} disabled={searching} onPress={()=>setEntryFee(fee)} style={[styles.choice,{borderColor:fee===entryFee?GOLD:theme.cardBorder,backgroundColor:fee===entryFee?GOLD+"28":theme.card}]}><Text style={{color:fee===entryFee?GOLD:theme.textPrimary,fontWeight:"700"}}>{fee} 🪙</Text></Pressable>)}</View>
                 <Text style={[styles.bodyText,{color:theme.textSecondary}]}>{entryFee>0?"المجموع: "+entryFee*publicQueueSize(queueMode)+" · نصيب الرابح: "+entryFee*(queueMode==="four"?4:2)+" عملة، متضمناً دخوله":"التدريب المجاني · مكافآت الأونلاين السابقة"}</Text>
                 <Text style={[styles.bodyText,{color:theme.textSecondary}]}>التعادل يعيد الدخول للجميع · الإلغاء قبل البداية بلا خصم · لا عمولة</Text>
                 {entryFee>0&&!entrySupported?<Text style={[styles.bodyText,{color:GOLD}]}>قاعات العملات تحتاج تحديث الخادم. التدريب المجاني متاح.</Text>:null}
-                {entryFee>0&&onlineCoins!==null&&onlineCoins<entryFee?<Text style={[styles.bodyText,{color:GOLD}]}>رصيد الأونلاين غير كافٍ. رصيد القائمة لا يُنقل تلقائياً؛ يمكنك التدريب المجاني لجمع عملات الأونلاين.</Text>:null}
+                {entryFee>0&&onlineCoins!==null&&onlineCoins<entryFee?<Text style={[styles.bodyText,{color:GOLD}]}>رصيدك غير كافٍ لمبلغ الدخول المختار. اختر مبلغاً أقل أو التدريب المجاني.</Text>:null}
                 {renderButton(entryFee===0?"تم اختيار التدريب المجاني":"تدريب مجاني",()=>setEntryFee(0),{disabled:searching,color:CYAN})}
                 {searching ? (
                   <View style={styles.searchingRow}>

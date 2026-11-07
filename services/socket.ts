@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { io, type Socket } from "socket.io-client";
 import { getApiUrl } from "@/lib/query-client";
+import {setApiBearer} from "@/lib/api-auth";
 
 const SESSION_TOKEN_KEY = "online_guest_token_v1";
 let socket: Socket | null = null;
@@ -42,7 +43,7 @@ async function readToken(): Promise<string | null> {
 }
 
 async function writeToken(token: string): Promise<void> {
-  sessionToken = token;
+  sessionToken = token;setApiBearer(token);
   if (Platform.OS === "web") {
     await AsyncStorage.setItem(SESSION_TOKEN_KEY, token);
     return;
@@ -51,7 +52,7 @@ async function writeToken(token: string): Promise<void> {
 }
 
 async function deleteToken(): Promise<void> {
-  sessionToken = null;
+  sessionToken = null;setApiBearer(null);
   if (Platform.OS === "web") {
     await AsyncStorage.removeItem(SESSION_TOKEN_KEY);
     return;
@@ -82,7 +83,7 @@ async function getGuestToken(): Promise<string> {
   guestTokenInFlight = (async () => {
     const existing = await readToken();
     const token = existing ?? await createGuestSession();
-    sessionToken = token;
+    sessionToken = token;setApiBearer(token);
     return token;
   })();
   try {
@@ -93,6 +94,11 @@ async function getGuestToken(): Promise<string> {
 }
 
 export async function getOnlineGuestToken(): Promise<string> {
+  return getGuestToken();
+}
+
+export async function refreshOnlineGuestToken(): Promise<string> {
+  await deleteToken();
   return getGuestToken();
 }
 

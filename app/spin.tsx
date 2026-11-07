@@ -10,6 +10,7 @@ import {
   Easing,
   Platform,
   useWindowDimensions,
+  Alert,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -54,7 +55,7 @@ export default function SpinScreen() {
   const { width } = useWindowDimensions();
   const { isRTL } = useLanguage();
   const reduceMotion = useReducedMotion();
-  const { profile, playerId, addCoins, addXp, updateProfile, addPowerCard } = usePlayer();
+  const { profile, playerId, updateProfile } = usePlayer();
   const { theme } = useTheme();
   const [spinning, setSpinning]     = useState(false);
   const [reward, setReward]         = useState<{ type: string; amount: number; label: string; icon: string } | null>(null);
@@ -170,6 +171,7 @@ export default function SpinScreen() {
         return;
       }
 
+      if(!res.ok)throw Error("spin_unavailable");
       let targetIdx = -1;
       if (res.ok) {
         const data = await res.json();
@@ -182,6 +184,7 @@ export default function SpinScreen() {
             xp:         data.profile.xp,
             level:      data.profile.level,
             lastSpinAt: data.profile.lastSpinAt,
+            powerCards: data.profile.powerCards,
           });
         }
 
@@ -193,16 +196,11 @@ export default function SpinScreen() {
         }
       }
 
-      // Fallback: pick a random segment if server didn't match any
-      if (targetIdx < 0) {
-        targetIdx = Math.floor(Math.random() * SEG_COUNT);
-      }
-
+      if(targetIdx<0)throw Error("invalid_spin_reward");
       runSpinAnimation(targetIdx);
     } catch {
-      // Network error — still spin to a random reward so the screen doesn't freeze
-      const targetIdx = Math.floor(Math.random() * SEG_COUNT);
-      runSpinAnimation(targetIdx);
+      setSpinning(false);startPulse();
+      Alert.alert("تعذر تدوير العجلة", "تحقق من اتصالك ثم أعد المحاولة. لن تُمنح مكافأة قبل تأكيدها.");
     }
   };
 
@@ -233,15 +231,7 @@ export default function SpinScreen() {
       const finalReward = { type: seg.type, amount: seg.amount, label: seg.label, icon: seg.icon };
       setReward(finalReward);
 
-      // Apply reward locally as a UI-layer safety net
-      try {
-        if (seg.type === "coins")     addCoins(seg.amount);
-        else if (seg.type === "xp")   addXp(seg.amount);
-        else if (seg.type === "powerCard") {
-          const cards: ("time" | "freeze" | "hint")[] = ["time", "freeze", "hint"];
-          addPowerCard(cards[Math.floor(Math.random() * cards.length)], 1);
-        }
-      } catch {}
+
 
       setSpinning(false);
       setCanSpin(false);

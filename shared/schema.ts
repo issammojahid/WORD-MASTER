@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, jsonb, boolean, uniqueIndex, index, check } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, jsonb, boolean, uniqueIndex, index, check, primaryKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -536,3 +536,8 @@ export const socialNotifications = pgTable("social_notifications", {
   unread: index("social_notifications_unread_idx").on(t.playerId, t.readAt),
   typeValues: check("social_notifications_type_values", sql`${t.type} IN ('friend_request', 'friend_accepted', 'message', 'game_invite', 'invite_response')`),
 }));
+
+// Canonical authenticated wallet; legacy beta wallets are retained separately.
+export const gameWalletAccounts=pgTable("game_wallet_accounts",{playerId:varchar("player_id").primaryKey().references(()=>playerProfiles.id),createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow()});
+export const gameWalletOperations=pgTable("game_wallet_operations",{playerId:varchar("player_id").notNull().references(()=>gameWalletAccounts.playerId),operationId:text("operation_id").notNull(),kind:text("kind").notNull(),amount:integer("amount").notNull(),result:jsonb("result").notNull().default({}),createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow()},t=>[primaryKey({columns:[t.playerId,t.operationId]})]);
+export const playerSeasonalInventory=pgTable("player_seasonal_inventory",{playerId:varchar("player_id").notNull().references(()=>playerProfiles.id,{onDelete:"cascade"}),seasonId:text("season_id").notNull(),state:jsonb("state").notNull().default({owned:[],equipped:{},giftItemId:null}),createdAt:timestamp("created_at",{withTimezone:true}).notNull().defaultNow(),updatedAt:timestamp("updated_at",{withTimezone:true}).notNull().defaultNow()},t=>[primaryKey({columns:[t.playerId,t.seasonId]}),check("player_seasonal_inventory_state_check",sql`jsonb_typeof(${t.state})='object'`)]);

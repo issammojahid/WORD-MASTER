@@ -1,12 +1,13 @@
 import {isEntryFee,type EntryFee} from "../shared/coin-entry";
 import {isPublicQueueMode,type PublicQueueMode} from "../shared/public-game";
 import {coinEntryPayouts,type EntryPlayer} from "./coin-entry-logic";
+import {readGameCoins,changeGameCoins} from "./game-wallet-ledger";
 export type CoinSql={query(text:string,values?:unknown[]):Promise<{rows:Record<string,unknown>[]}>};
 export type CoinDatabase={transaction<T>(operation:(tx:CoinSql)=>Promise<T>):Promise<T>};
 export type EntryMatch={id:string;settings:{entryFee?:number;matchmakingMode?:PublicQueueMode};players:EntryPlayer[]};
 export type CoinPayment={amount:number;balance:number};
 const day=()=>new Date().toISOString().slice(0,10);
-async function balance(tx:CoinSql,id:string){const r=await tx.query('SELECT coins FROM online_guest_wallets WHERE player_id=$1',[id]);return Number(r.rows[0]?.coins??0);}
+async function balance(tx:CoinSql,id:string){return readGameCoins(tx,id);}
 export async function reserveCoinEntry(db:CoinDatabase,match:EntryMatch):Promise<Map<string,CoinPayment>>{
  const fee=match.settings.entryFee;if(!isEntryFee(fee)||!isPublicQueueMode(match.settings.matchmakingMode))throw Error("invalid_entry_match");coinEntryPayouts(match.players,match.settings.matchmakingMode,fee);
  return db.transaction(async tx=>{
@@ -14,11 +15,10 @@ export async function reserveCoinEntry(db:CoinDatabase,match:EntryMatch):Promise
   const payments=new Map<string,CoinPayment>();
   // Stable lock order also prevents deadlocks if two workers try to reserve the same players.
   for(const player of [...match.players].sort((a,b)=>a.id.localeCompare(b.id))){
-   await tx.query('INSERT INTO online_guest_wallets(player_id) VALUES($1) ON CONFLICT DO NOTHING',[player.id]);
-   const result=await tx.query('UPDATE online_guest_wallets SET coins=coins-$2,updated_at=now() WHERE player_id=$1 AND coins >= $2 RETURNING coins',[player.id,fee]);if(!result.rows.length)throw Error("insufficient_online_coins");
+   const remaining=await changeGameCoins(tx,player.id,-fee);
    await tx.query("INSERT INTO online_reward_claims(match_id,player_id,reward_type,amount,reward_date) VALUES($1,$2,'entry_debit',$3,$4)",[match.id,player.id,fee,day()]);
    await tx.query('INSERT INTO online_match_participants(match_id,player_id,display_name,active) VALUES($1,$2,$3,true)',[match.id,player.id,player.name]);
-   payments.set(player.id,{amount:-fee,balance:Number(result.rows[0].coins)});
+   payments.set(player.id,{amount:-fee,balance:remaining});
   }return payments;
  });
 }
@@ -36,7 +36,7 @@ export async function settleCoinEntry(db:CoinDatabase,match:EntryMatch,results:u
   for(const p of [...match.players].sort((a,b)=>a.id.localeCompare(b.id))){const amount=payouts.get(p.id)!;
    const debit=(await tx.query("SELECT amount FROM online_reward_claims WHERE match_id=$1 AND player_id=$2 AND reward_type='entry_debit'",[match.id,p.id])).rows[0];if(Number(debit?.amount)!==fee)throw Error("entry_debit_missing");
    const receipt=await tx.query("INSERT INTO online_reward_claims(match_id,player_id,reward_type,amount,reward_date) VALUES($1,$2,'entry_payout',$3,$4) ON CONFLICT DO NOTHING RETURNING amount",[match.id,p.id,amount,day()]);
-   if(receipt.rows.length&&amount>0)await tx.query('UPDATE online_guest_wallets SET coins=coins+$2,updated_at=now() WHERE player_id=$1',[p.id,amount]);
+   if(receipt.rows.length&&amount>0)await changeGameCoins(tx,p.id,amount);
    payments.set(p.id,{amount,balance:await balance(tx,p.id)});
    await tx.query('UPDATE online_match_participants SET active=false,abandoned=$3,score=$4 WHERE match_id=$1 AND player_id=$2',[match.id,p.id,p.abandoned,p.score]);
   }
@@ -47,7 +47,7 @@ export async function refundInterruptedCoinEntries(db:CoinDatabase):Promise<void
  await db.transaction(async tx=>{
   const interrupted=await tx.query("SELECT id FROM online_matches WHERE status='active' AND (settings->>'entryFee')::integer > 0 ORDER BY id FOR UPDATE");
   for(const row of interrupted.rows){const matchId=String(row.id),debits=await tx.query("SELECT player_id,amount FROM online_reward_claims WHERE match_id=$1 AND reward_type='entry_debit' ORDER BY player_id",[matchId]);
-   for(const debit of debits.rows){const id=String(debit.player_id),fee=Number(debit.amount);const receipt=await tx.query("INSERT INTO online_reward_claims(match_id,player_id,reward_type,amount,reward_date) VALUES($1,$2,'entry_payout',$3,$4) ON CONFLICT DO NOTHING RETURNING amount",[matchId,id,fee,day()]);if(receipt.rows.length)await tx.query('UPDATE online_guest_wallets SET coins=coins+$2,updated_at=now() WHERE player_id=$1',[id,fee]);}
+   for(const debit of debits.rows){const id=String(debit.player_id),fee=Number(debit.amount);const receipt=await tx.query("INSERT INTO online_reward_claims(match_id,player_id,reward_type,amount,reward_date) VALUES($1,$2,'entry_payout',$3,$4) ON CONFLICT DO NOTHING RETURNING amount",[matchId,id,fee,day()]);if(receipt.rows.length)await changeGameCoins(tx,id,fee);}
    await tx.query("UPDATE online_matches SET status='cancelled',completed_at=now() WHERE id=$1",[matchId]);await tx.query('UPDATE online_match_participants SET active=false WHERE match_id=$1',[matchId]);
   }
  });
