@@ -28,3 +28,11 @@ Read-only production preflight found three duplicate-name groups, with 20 later 
 Tests use isolated in-memory PostgreSQL (PGlite) for the actual migration and HTTP rename routes, and real local Socket.IO clients for legacy-room compatibility and 2v2 room behavior. They do not import the production server startup or write production data. The PGlite HTTP adapter serializes its single connection; the actual unique index remains active, while advisory locks themselves are not modeled by that adapter.
 
 The existing profile rename endpoint identifies the profile through its existing request format. This patch does not introduce a new identity/authentication system or change match rewards.
+
+## Approved production cleanup, 7 November 2026
+
+The owner subsequently authorized the production update and requested replacing in-game player names containing `aissam` (case-insensitive, including compatibility-width forms) with available random names. Emails, GitHub/Expo account names, messages and game answers are outside this cleanup scope. No Android package build is authorized for this step.
+
+`scripts/cleanup-player-display-names.ts` requires a private backup directory outside the repository and an explicit `--apply-approved` flag to commit. It first saves the old name cells, locks the affected tables, resolves duplicates and retired names, creates the unique name index, and verifies that non-name profile fields are unchanged. Without the flag, it exercises the transaction and rolls back.
+
+The applied run changed 22 player-profile name cells, four social-profile names, two historical participant names and one result JSON document. It verified zero duplicate profile names and zero retired names in the inspected player-name columns. The private rollback data remains outside Git. Runtime social/socket handling prevents an old client cache from restoring the retired display name to online rooms. An old APK can still display its own local cached profile name; changing server data does not rewrite app storage.

@@ -1,6 +1,7 @@
 import { cleanPlayerName } from "../shared/player-name";
 import type { Express } from "express";
 import type { Pool } from "pg";
+import { isRetiredPlayerName } from "../shared/game-player-name";
 
 export const PLAYER_NAME_KEY_SQL="lower(btrim(regexp_replace(normalize(name, NFKC), '[[:space:]]+', ' ', 'g')))";
 export function isPlayerNameConflict(error:unknown):boolean{
@@ -10,6 +11,7 @@ export function isPlayerNameConflict(error:unknown):boolean{
 }
 export async function renamePlayer(pool:Pick<Pool,"connect">,playerId:string,value:unknown){
  const name=cleanPlayerName(value);
+ if(isRetiredPlayerName(name))throw new Error("name_not_allowed");
  const client=await pool.connect();
  try{
   await client.query("BEGIN");
@@ -32,7 +34,7 @@ export function registerPlayerNameRoute(app:Express,pool:Pick<Pool,"connect">){
    if("error" in result)return res.status(result.error==="name_taken"?409:404).json(result);
    return res.json(result);
   }catch(error){
-   if(error instanceof Error&&error.message==="invalid_name")return res.status(400).json({error:"invalid_name"});
+   if(error instanceof Error&&["invalid_name","name_not_allowed"].includes(error.message))return res.status(400).json({error:error.message});
    console.error("[player-name] rename failed");return res.status(500).json({error:"server_error"});
   }
  });

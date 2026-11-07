@@ -17,6 +17,7 @@ import {
 } from "@shared/schema";
 import type { SocialMessagePayload, SocialNotificationPayload, SocialPresence } from "@shared/social-events";
 import { db } from "./db";
+import { safeOnlineDisplayName } from "./online-display-name";
 import {
   canMessage,
   canSendFriendRequest,
@@ -79,9 +80,10 @@ function getPresence(playerId: string): PresenceState {
 }
 
 async function ensureProfile(playerId: string, displayName?: string): Promise<void> {
+  const safeName=await safeOnlineDisplayName(playerId,displayName);
   await db.insert(socialProfiles).values({
     playerId,
-    ...(displayName ? { displayName: displayName.replace(/[<>]/g, "") } : {}),
+    displayName:safeName,
   }).onConflictDoNothing();
 }
 
@@ -229,12 +231,13 @@ export function registerSocialRoutes(app: Express): void {
       res.status(400).json({ error: "invalid_payload" });
       return;
     }
+    const safeName=await safeOnlineDisplayName(playerId,parsed.data.displayName);
     await db.insert(socialProfiles).values({
       playerId,
-      displayName: parsed.data.displayName.replace(/[<>]/g, ""),
+      displayName:safeName,
     }).onConflictDoUpdate({
       target: socialProfiles.playerId,
-      set: { displayName: parsed.data.displayName.replace(/[<>]/g, ""), updatedAt: new Date() },
+      set: { displayName:safeName, updatedAt: new Date() },
     });
     res.json(await getPlayerProfile(playerId));
   }));

@@ -611,7 +611,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ────────────────────────────────────────────────────────────────────────────
 
   app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString() });
+    res.json({ status: "ok", timestamp: new Date().toISOString(),release:process.env.RENDER_GIT_COMMIT??"local",privateRoomTeams:true,coinEntryRooms:true });
   });
 
   const LOGIN_STREAK_REWARDS: Record<number, number> = {

@@ -2,6 +2,7 @@ import {isEntryFee,isQueueFee} from "../shared/coin-entry";
 import {reserveCoinEntry,settleCoinEntry,refundInterruptedCoinEntries} from "./coin-entry-ledger";
 import {coinDatabase} from "./coin-entry-postgres";
 import { createRoomVoice } from "./room-voice";
+import { safeOnlineDisplayName } from "./online-display-name";
 import { PublicMatchmaking,getPublicMatchBaseRewards } from "./public-matchmaking";
 import { PUBLIC_QUEUE_MODES,isPublicQueueMode,publicQueueSize } from "../shared/public-game";
 import { friendRoomSettingsSchema, roomTeamAssignment, roomTeamScores, roomTeamsValid, isQuickMessageId, type TeamId, type QuickRoomMessage } from "../shared/friends-room";
@@ -816,13 +817,13 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
         eq(onlineGuestSessions.tokenHash, hashToken(auth.data.token)),
         gte(onlineGuestSessions.expiresAt, new Date()),
       ))
-      .then(([session]) => {
+      .then(async ([session]) => {
         if (!session) {
           next(new Error("unauthorized"));
           return;
         }
         socket.data.playerId = session.id;
-        socket.data.displayName = safeDisplayName(auth.data.displayName);
+        socket.data.displayName = await safeOnlineDisplayName(session.id,safeDisplayName(auth.data.displayName));
         next();
       })
       .catch((error: unknown) => {
