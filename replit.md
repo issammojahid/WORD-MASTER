@@ -1,26 +1,53 @@
 # حروف المغرب - Huroof Al Maghrib
 
-A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" game format.
+A mobile Arabic word game inspired by the "Categories/Stop" game format.
 
 ## Architecture
 
 - **Frontend**: React Native with Expo (SDK 54), Expo Router v6, TypeScript
-- **Backend**: Express.js with Socket.io for real-time multiplayer
+- **Backend**: Express.js REST API and Socket.IO multiplayer server
 - **State**: AsyncStorage for persistence, React Context for shared state
 - **Fonts**: Cairo (Arabic-friendly Google Font)
-- **Audio**: expo-av (v15.0.x) for voice chat (mic recording + playback)
-- **File I/O**: expo-file-system/legacy for base64 audio chunk encoding
+- **Audio**: expo-av for local gameplay sound effects
 
-## Recent Features Added
+## Current Product Scope
+
+- Offline single-player gameplay with local bot opponents and authenticated Online multiplayer are the two main game modes.
+- Online supports server-managed random 1v1 matches and private rooms for 2, 4, 6, or 8 players. Private rooms never award match coins.
+- Guest identities are server-generated and authenticated by opaque, expiring tokens. The token is stored in the native secure store; no client-supplied player ID is accepted as the socket identity.
+- Match letters, timers, answer validation, scoring, match completion, and Random Match coin rewards are controlled by the server.
+- Online match state is in memory; on restart, persisted active matches are cancelled without rewards. Reconnection grace is 30 seconds.
+- Missions, achievements, the separate daily challenge, clans, coins, and rewards remain available.
+- The Friends System is removed. Private rooms remain accessible through manually shared room codes; no friendship records are used by rooms or matchmaking.
+- Legacy database records are intentionally retained. The Online schema is additive and has no destructive migration.
+- Apply `server/migrations/001_online_multiplayer.sql` once with `psql $env:DATABASE_URL -f server\migrations\001_online_multiplayer.sql` before starting the backend.
+- `server/migrations/002_optional_remove_friends.sql` is an optional, destructive cleanup for review only. If applied, it drops `friends` and `friend_requests`, deleting friendship edges and all friend-request records while leaving player profiles and other game data untouched. It has not been run.
+- Configure `DATABASE_URL` for PostgreSQL and `ALLOWED_ORIGIN` as a comma-separated origin allowlist when hosting outside the built-in local/Render/Replit origin rules.
+- On Windows PowerShell, configure and start the backend:
+  ```powershell
+  $env:DATABASE_URL = "postgresql://..."
+  psql $env:DATABASE_URL -f server\migrations\001_online_multiplayer.sql
+  npx tsx server\index.ts
+  ```
+- In another terminal, point the app to the local backend and start Expo:
+  ```powershell
+  $env:EXPO_PUBLIC_API_URL = "http://localhost:5000"
+  npx expo start --web --localhost --port 8082
+  ```
+- Run focused game rules tests with `npm run test:online`.
+
+## Historical Feature Notes
+
+The entries below document past development and may describe screens or features that are no longer part of the current app.
 
 - **Battle Pass Overhaul (Task #11)**:
-  - **Railway DB seeded**: 1 active season (`موسم أبريل 2026`) + 30 `battle_pass_tiers` rows on Railway production. One-shot script: `scripts/seed-railway-bp.ts` (run with `DATABASE_URL=$RAILWAY_DATABASE_URL npx tsx scripts/seed-railway-bp.ts`). Idempotent — safe to re-run.
+  - **Railway DB seeded**: 1 active season (`موسم أبريل 2026`) + 30 `battle_pass_tiers` rows on Railway production. One-shot script: `scripts/seed-battle-pass.ts` (run with `npx tsx scripts/seed-battle-pass.ts`). Idempotent — safe to re-run.
   - **Backend IAP scaffolding** (`server/routes.ts`):
     - New constants: `BP_IAP_PRODUCT_ID = "battle_pass_premium_s1"`, `BP_IAP_BASE_PRICE = €1.99`, `BP_IAP_ENABLED` (true only when `REVENUECAT_SECRET_API_KEY` env var is set)
     - `GET /api/battle-pass/:playerId` response now includes `iap: { enabled, productId, price: { amount, currency, display } }`
     - New endpoint `POST /api/battle-pass/:playerId/unlock-premium-iap` — verifies entitlement via RevenueCat REST API (`https://api.revenuecat.com/v1/subscribers/{userId}`, entitlement key `battle_pass_premium`) before flipping `premium_unlocked = true`. Returns 503 `iap_not_configured` when keys missing
     - Legacy `/buy-premium` (1000 coins) **deprecated** — now returns `410 Gone` so old clients fail loudly and prompt update
-    - Seed script `scripts/seed-railway-bp.ts` now **creates an active season if missing** (30-day window, name = `موسم {شهر سنة}`) before seeding tiers — fully production-ready
+    - Seed script `scripts/seed-battle-pass.ts` now **creates an active season if missing** (30-day window, name = `موسم {شهر سنة}`) before seeding tiers — fully production-ready
   - **Mobile IAP integration** (`lib/iap.ts` + `app/_layout.tsx`):
     - Installed `react-native-purchases`. New `lib/iap.ts` exports `initIAP(playerId)`, `purchaseBattlePassPremium(playerId)`, `restorePurchases(playerId)`. SDK is lazy-loaded so it degrades gracefully on web/Expo Go.
     - `<IapInitializer />` mounted in `RootLayoutNav` calls `Purchases.configure({ apiKey, appUserID: playerId })` on app boot, ensuring RevenueCat App User ID always equals our in-game playerId (security binding for the server-side verify endpoint).
@@ -41,7 +68,7 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
     1. User provides RevenueCat V2 secret key → store as `REVENUECAT_API_KEY` secret → run seed script → copy logged keys into env vars
     2. Set `EXPO_PUBLIC_REVENUECAT_TEST_API_KEY`, `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`, `EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY` from seed script output
     3. Set `REVENUECAT_PROJECT_ID`, `REVENUECAT_TEST_STORE_APP_ID`, etc. from seed script output
-    4. Set `REVENUECAT_SECRET_API_KEY` on Railway (server-side entitlement verification)
+    4. Set `REVENUECAT_SECRET_API_KEY` on Render (server-side entitlement verification)
     5. Create product `battle_pass_premium_s1` in Google Play Console (€1.99 base, non-consumable)
     6. Submit fresh EAS build (v2.7.0) to Play internal track and verify purchase + restore
 
@@ -108,13 +135,6 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
   - `app/_layout.tsx` calls `preloadAllSounds()` during the splash screen period so all 7 sounds are cached before gameplay starts
   - Freeze/unfreeze sounds in `game.tsx` use `window.AudioContext` (web-only) and already have proper `typeof window === "undefined"` guards — safe on native
 
-- **Friends System Fix**: Fixed three broken flows in `app/friends.tsx` and `server/routes.ts`:
-  - **Search** now searches by both player name AND WM code (`playerCode` via ILIKE) — users can type "WM-XXXXXX" to find friends directly
-  - **Friends list** endpoint now returns `playerCode` and `playerTag` for each friend (previously missing)
-  - **Send request `onSuccess`** was crashing on 400 responses (null `data`) — fixed null-safety, added success/already-exists alerts and an `onError` handler
-  - Search placeholder updated to "ابحث بالاسم أو الكود (WM-XXXXXX)"
-  - Player cards now show WM code (or #tag) as the primary identifier in the subtitle
-
 - **Shop Complete Redesign (Light Theme)**: Full rewrite of `app/shop.tsx` with:
   - Light theme replacing dark mode: `#EEF2FF→#F5F3FF→#F0FDF4` gradient background, white cards, soft shadows
   - New tab structure: العروض / الأفاتار / تأثيرات / ألقاب / صناديق / العجلة / حزم (removed backgrounds tab)
@@ -130,7 +150,6 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
 
 - **Player Code System**: Each player profile now gets a unique `playerCode` (WM-XXXXXX format) generated on creation. Stored in `player_profiles.player_code` column. New players also get a random English name (e.g. Lion_482, Atlas_771) instead of the default Arabic "لاعب".
 - **Change Name Endpoint**: `PATCH /api/player/change-name` accepts `{ player_id, new_name }` body and updates the player name in the DB.
-- **Friends System**: Search players by name OR playerCode (WM-XXXXXX), send/accept/reject/remove friend requests. DB table `friends` with requesterId/receiverId/status. REST endpoints: `/api/players/search`, `/api/friends/:id`, `/api/friends/:id/request/:target`, `/api/friends/request/:id/:action`, `/api/friends/:id/:friendId`. Additional body-style endpoints: `POST /api/friends/request` and `POST /api/friends/accept`. Frontend: `app/friends.tsx` with 3 tabs (friends/search/requests) + Create/Join Room buttons.
 - **Real Leaderboard**: `/api/leaderboard?type=score|wins|xp` queries DB sorted by field. Frontend updated to use real data, shows local player highlighted.
 - **Daily Tasks**: DB tables `daily_tasks` (static definitions, seeded on startup) + `player_daily_tasks` (per-player progress). 3 task defs (win_3, play_5, score_200). Endpoints: `GET /api/daily-tasks` (definitions list, no auth), `GET /api/tasks/:id` (player progress, auto-creates player if missing), `POST /api/tasks/:id/:key/claim`. Frontend: `app/tasks.tsx` with claim buttons.
 - **Achievements**: DB tables `achievements` (static definitions, seeded on startup) + `player_achievements` (per-player progress). 8 achievement defs (first_win, win_10/50, play_10/100, level_5/10, streak_3). Endpoints: `GET /api/achievements` (definitions list, no auth), `GET /api/achievements/:id` (player progress, auto-creates player if missing), `POST /api/achievements/:id/claim/:key`. Frontend: `app/achievements.tsx` with filter tabs. Player-specific endpoints no longer return 404 for unknown players — they auto-create the profile instead.
@@ -139,12 +158,10 @@ A full-featured multiplayer Arabic word game inspired by the "Categories/Stop" g
 - **Weekly Challenge**: `WEEKLY_TASK_POOL` (4 tasks), deterministic `getWeekId()`/`pickWeeklyTask()` helpers. Weekly task appears as first item in tasks list with purple gradient border. Uses same claim endpoint with weekly key format (`weekly_key_YYYY-WNN`).
 - **Expanded Achievements**: 20 achievement definitions (was 8): added win_25, win_100, play_50, play_500, streak_5, streak_10, level_15, level_20, login_7, login_30, score_5000, first_tournament. `syncAchievementProgress` updated for `login_streak` and `total_score` types.
 - **Share Result Card**: Share button on game-over screen using React Native `Share.share()` API. Generates Arabic text with rank, score, and hashtag.
-- **Nav bar updated**: الأصدقاء→/friends, المهام→/tasks, الإنجازات→/achievements
 - **Tournament Mode**: Knockout tournaments supporting 4/8/16 players. Create Room button with size picker (4/8/16 لاعب), 100 coin entry fee, host player name shown in room list, real-time player count (X/Y), join button per room, empty state "لا توجد بطولات حالياً", auto-start when full, adaptive bracket (semi/final for 4p; quarter/semi/final for 8p; round1/quarter/semi/final for 16p). DB: `tournaments.max_players` column added. Server: `getTournamentRounds()` helper, generic `generateTournamentBracket()` and `advanceTournamentWinner()`. Socket events: `tournament_created`/`tournament_started`/`tournament_player_joined`/`tournament_player_left`/`tournament_update`/`tournament_cancelled`. Screen: `app/tournament.tsx`
 - **Rapid Mode**: Best-of-5 speed rounds (10s each), first correct word wins the round, separate matchmaking queue (`rapid_join`/`rapid_cancel`/`rapid_word`/`rapid_leave` socket events), `app/rapid.tsx` game screen, server validation enforces room membership + category match
-- **Home screen**: Swipeable FlatList game modes carousel (مباراة سريعة / الوضع السريع / البطولة / غرفة أصدقاء / وضع محلي) with dot indicators, coins badge → shop navigation, profile/XP bar
+- **Home screen**: Swipeable FlatList game modes carousel with dot indicators, coins badge → shop navigation, profile/XP bar
 - **Quick chat**: Preset Arabic message bubbles in game (floating overlay, 3.5s auto-dismiss), speech bubble icon button, received from opponents via socket relay
-- **Voice chat**: Push-to-talk voice in friend rooms (lobby), mic permission request, real-time chunk streaming via socket, speaking indicators per player, mute toggle
 - **Server relays**: `quick_chat` and `voice_data` socket events added to routes.ts (relay-only, no game logic touched)
 
 ## Project Structure
@@ -158,7 +175,6 @@ app/               # Expo Router screens
   tournament.tsx   # Tournament bracket screen (8 players, 3 rounds)
   offline.tsx      # Offline mode with AI opponents
   leaderboard.tsx  # Player rankings (real DB data)
-  friends.tsx      # Friends system (search/add/remove + Create/Join room)
   tasks.tsx        # Daily tasks with claim rewards
   achievements.tsx # Achievement gallery with claim rewards
   shop.tsx         # Skin shop
@@ -202,40 +218,28 @@ constants/
 
 ## Running Locally
 
-Backend runs on port 5000, Frontend on port 8081.
+Backend API runs on port 5000, Frontend on port 8081.
 
 Workflows:
-- `Start Backend` - Express + Socket.io server
+- `Start Backend` - Express REST API server
 - `Start Frontend` - Expo dev server with HMR
 
-## Deploying to Railway (Online Server)
+## Deploying the REST API to Render
 
-The backend Express server can be deployed to Railway so the multiplayer works online.
+Production API: `https://word-master-backend.onrender.com`.
+The existing Render service tracks the `supabase-render-backend` branch.
 
-### Files Added
-- `railway.toml` — tells Railway how to build and start the server automatically
+- Build: `npm ci --include=dev && npm run server:build`
+- Start: `node server_dist/index.js`
+- Health check: `/api/health`
+- Set `DATABASE_URL` to the existing Supabase database connection in Render.
+- Render supplies `PORT` and `RENDER_EXTERNAL_URL`.
+- Additional trusted origins can be listed in `ALLOWED_ORIGIN`.
+- All EAS profiles use `EXPO_PUBLIC_API_URL=https://word-master-backend.onrender.com`.
 
-### Steps
-1. Push your code to GitHub
-2. In Railway: **New Project → Deploy from GitHub repo**
-3. Railway will automatically read `railway.toml` and:
-   - **Build**: `npm install && npm run server:build && cp -r server/data server_dist/data`
-   - **Start**: `npm run server:prod`
+CORS accepts the exact `RENDER_EXTERNAL_URL` origin, configured origins, and existing local/Replit development origins. It does not grant access to arbitrary hosting domains.
 
-### Environment Variables (set in Railway dashboard → Variables tab)
-| Variable | Value |
-|----------|-------|
-| `NODE_ENV` | `production` |
-| `PORT` | Set automatically by Railway — do NOT set manually |
-
-### Update Expo App to Point to Railway
-In your Expo app, change the server URL to your Railway domain:
-- Railway will give you a domain like: `word-master-production.up.railway.app`
-- Update `EXPO_PUBLIC_DOMAIN` in your Expo build config or in the app settings
-
-### CORS
-The server automatically allows all `*.railway.app` and `*.up.railway.app` domains.
-No extra configuration needed for CORS.
+A free Render instance may sleep when inactive. Verify health, authenticated socket connection and a complete multiplayer round before publishing a mobile release.
 
 ## Config Files Note
 

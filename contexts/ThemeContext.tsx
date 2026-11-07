@@ -24,43 +24,43 @@ export type ThemeColors = {
 };
 
 const darkColors: ThemeColors = {
-  background: "#0A0A1A",
-  backgroundSecondary: "#0E0E24",
-  backgroundTertiary: "#14142E",
-  card: "#12122A",
-  cardBorder: "#1E1E3A",
-  textPrimary: "#E8E8FF",
-  textSecondary: "#9898CC",
-  textMuted: "#5A5A88",
-  inputBg: "#0E0E24",
-  inputBorder: "#1E1E3A",
-  inputBorderFocus: "#00F5FF",
-  inputText: "#E8E8FF",
-  inputPlaceholder: "#3A3A66",
-  overlay: "rgba(0,0,0,0.85)",
-  overlayLight: "rgba(10,10,26,0.92)",
-  modalBg: "#0E0E24",
+  background: "#180C27",
+  backgroundSecondary: "#261435",
+  backgroundTertiary: "#352044",
+  card: "#30203F",
+  cardBorder: "#B38C57",
+  textPrimary: "#FFF0D6",
+  textSecondary: "#E1CFEA",
+  textMuted: "#BDABCD",
+  inputBg: "#241333",
+  inputBorder: "#92704F",
+  inputBorderFocus: "#39CFC5",
+  inputText: "#FFF0D6",
+  inputPlaceholder: "#BDABCD",
+  overlay: "rgba(10,4,20,0.86)",
+  overlayLight: "rgba(24,12,39,0.97)",
+  modalBg: "#30203F",
   statusBar: "light",
 };
 
 const lightColors: ThemeColors = {
-  background: "#0A0A1A",
-  backgroundSecondary: "#0E0E24",
-  backgroundTertiary: "#14142E",
-  card: "#12122A",
-  cardBorder: "#1E1E3A",
-  textPrimary: "#E8E8FF",
-  textSecondary: "#9898CC",
-  textMuted: "#5A5A88",
-  inputBg: "#0E0E24",
-  inputBorder: "#1E1E3A",
-  inputBorderFocus: "#00F5FF",
-  inputText: "#E8E8FF",
-  inputPlaceholder: "#3A3A66",
-  overlay: "rgba(0,0,0,0.85)",
-  overlayLight: "rgba(10,10,26,0.92)",
-  modalBg: "#0E0E24",
-  statusBar: "light",
+  background: "#F7EEDA",
+  backgroundSecondary: "#F0E2CB",
+  backgroundTertiary: "#EAD9C4",
+  card: "#FFF8EC",
+  cardBorder: "#B18A55",
+  textPrimary: "#352044",
+  textSecondary: "#695071",
+  textMuted: "#806C88",
+  inputBg: "#FFFBF3",
+  inputBorder: "#BE9A69",
+  inputBorderFocus: "#087F8C",
+  inputText: "#352044",
+  inputPlaceholder: "#806C88",
+  overlay: "rgba(51,36,59,0.58)",
+  overlayLight: "rgba(255,254,252,0.97)",
+  modalBg: "#FFF8EC",
+  statusBar: "dark",
 };
 
 type ThemeContextType = {
@@ -81,7 +81,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then((val) => {
-        if (val === "light") setIsDark(false);
+        if (val === "dark") setIsDark(true);
+        else if (val === "light") setIsDark(false);
       })
       .catch(() => {});
   }, []);

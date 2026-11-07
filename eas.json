@@ -9,21 +9,37 @@
       "distribution": "internal",
       "channel": "development",
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "word-master-production-6928.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://word-master-backend.onrender.com",
+        "EXPO_PUBLIC_DOMAIN": "word-master-backend.onrender.com",
+        "EXPO_PUBLIC_ADMOB_MODE": "test"
       }
     },
     "preview": {
       "distribution": "internal",
       "channel": "preview",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "word-master-production-6928.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://word-master-backend.onrender.com",
+        "EXPO_PUBLIC_DOMAIN": "word-master-backend.onrender.com",
+        "EXPO_PUBLIC_ADMOB_MODE": "test"
       }
     },
     "production": {
       "autoIncrement": true,
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "word-master-production-6928.up.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://word-master-backend.onrender.com",
+        "EXPO_PUBLIC_DOMAIN": "word-master-backend.onrender.com",
+        "EXPO_PUBLIC_ADMOB_MODE": "production"
+      }
+    },
+    "production-apk": {
+      "extends": "production",
+      "autoIncrement": false,
+      "android": {
+        "buildType": "apk"
       }
     }
   },

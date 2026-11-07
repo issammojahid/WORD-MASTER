@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, jsonb, boolean, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, jsonb, boolean, uniqueIndex, index, check } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -29,6 +29,8 @@ export const playerProfiles = pgTable("player_profiles", {
   level: integer("level").notNull().default(1),
   equippedSkin: text("equipped_skin").notNull().default("student"),
   ownedSkins: jsonb("owned_skins").$type<string[]>().notNull().default(sql`'["student"]'::jsonb`),
+  ownedCosmetics: jsonb("owned_cosmetics").$type<Record<string, string[]>>().notNull().default(sql`'{"frame":["basic_frame"],"background":["basic_background"],"nameplate":["basic_nameplate"],"victory":["no_victory_effect"],"seasonal":["no_seasonal"]}'::jsonb`),
+  equippedCosmetics: jsonb("equipped_cosmetics").$type<Record<string, string>>().notNull().default(sql`'{"frame":"basic_frame","background":"basic_background","nameplate":"basic_nameplate","victory":"no_victory_effect","seasonal":"no_seasonal"}'::jsonb`),
   equippedTitle: text("equipped_title").default("beginner"),
   ownedTitles: jsonb("owned_titles").$type<string[]>().notNull().default(sql`'["beginner"]'::jsonb`),
   totalScore: integer("total_score").notNull().default(0),
@@ -62,7 +64,9 @@ export const playerProfiles = pgTable("player_profiles", {
   seasonLosses: integer("season_losses").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
-});
+},table=>({
+  uniquePlayerName:uniqueIndex("player_profiles_name_key_unique").on(sql`lower(btrim(regexp_replace(normalize(${table.name}, NFKC), '[[:space:]]+', ' ', 'g')))`),
+}));
 
 // ── RANKED SEASONS ──────────────────────────────────────────────────────────
 export const seasons = pgTable("seasons", {
@@ -145,28 +149,6 @@ export const tournamentMatches = pgTable("tournament_matches", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   completedAt: timestamp("completed_at"),
 });
-
-// ── FRIENDS SYSTEM ─────────────────────────────────────────────────────────
-// Confirmed friendships only (bidirectional — one row per pair)
-export const friends = pgTable("friends", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  playerId: varchar("player_id").notNull(),
-  friendId: varchar("friend_id").notNull(),
-  createdAt: timestamp("created_at").notNull().default(sql`now()`),
-});
-
-export type Friend = typeof friends.$inferSelect;
-
-// Friend requests (pending / accepted / declined)
-export const friendRequests = pgTable("friend_requests", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  senderId: varchar("sender_id").notNull(),
-  receiverId: varchar("receiver_id").notNull(),
-  status: text("status").notNull().default("pending"), // pending | accepted | declined
-  createdAt: timestamp("created_at").notNull().default(sql`now()`),
-});
-
-export type FriendRequest = typeof friendRequests.$inferSelect;
 
 // ── DAILY TASK DEFINITIONS ─────────────────────────────────────────────────
 export const dailyTaskDefs = pgTable("daily_tasks", {
@@ -352,3 +334,205 @@ export const dailyChallengeEntries = pgTable("daily_challenge_entries", {
 }));
 
 export type DailyChallengeEntry = typeof dailyChallengeEntries.$inferSelect;
+
+export const onlineGuestSessions = pgTable("online_guest_sessions", {
+  id: varchar("id").primaryKey(),
+  tokenHash: text("token_hash").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  expiresAt: timestamp("expires_at").notNull(),
+}, (t) => ({
+  uniqueTokenHash: uniqueIndex("online_guest_sessions_token_hash_unique").on(t.tokenHash),
+}));
+
+export const onlineGuestWallets = pgTable("online_guest_wallets", {
+  playerId: varchar("player_id").primaryKey(),
+  coins: integer("coins").notNull().default(0),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+});
+
+export const onlineMatches = pgTable("online_matches", {
+  id: varchar("id").primaryKey(),
+  mode: text("mode").notNull(),
+  status: text("status").notNull(),
+  settings: jsonb("settings").notNull().default(sql`'{}'::jsonb`),
+  results: jsonb("results"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  completedAt: timestamp("completed_at"),
+});
+
+export const onlineMatchParticipants = pgTable("online_match_participants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  matchId: varchar("match_id").notNull(),
+  playerId: varchar("player_id").notNull(),
+  displayName: text("display_name").notNull(),
+  score: integer("score").notNull().default(0),
+  active: boolean("active").notNull().default(false),
+  abandoned: boolean("abandoned").notNull().default(false),
+  finalRank: integer("final_rank"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, (t) => ({
+  uniqMatchPlayer: uniqueIndex("online_match_participants_match_player_unique").on(t.matchId, t.playerId),
+  oneActiveMatchPerPlayer: uniqueIndex("online_one_active_match_per_player")
+    .on(t.playerId)
+    .where(sql`${t.active} = true`),
+  playerMatches: index("online_match_participants_player_idx").on(t.playerId, t.createdAt),
+}));
+
+export const onlineRewardClaims = pgTable("online_reward_claims", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  matchId: varchar("match_id").notNull(),
+  playerId: varchar("player_id").notNull(),
+  rewardType: text("reward_type").notNull(),
+  amount: integer("amount").notNull().default(0),
+  rewardDate: text("reward_date").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, (t) => ({
+  uniqMatchPlayerReward: uniqueIndex("online_reward_claims_match_player_type_unique")
+    .on(t.matchId, t.playerId, t.rewardType),
+}));
+
+export const onlineDailyMatchCounters = pgTable("online_daily_match_counters", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: varchar("player_id").notNull(),
+  rewardDate: text("reward_date").notNull(),
+  completedMatches: integer("completed_matches").notNull().default(0),
+}, (t) => ({
+  uniqPlayerDate: uniqueIndex("online_daily_match_counters_player_date_unique").on(t.playerId, t.rewardDate),
+}));
+
+export const onlineMatchFlags = pgTable("online_match_flags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  matchId: varchar("match_id").notNull(),
+  playerId: varchar("player_id").notNull(),
+  reason: text("reason").notNull(),
+  details: jsonb("details").notNull().default(sql`'{}'::jsonb`),
+  reviewed: boolean("reviewed").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
+export const socialProfiles = pgTable("social_profiles", {
+  playerId: varchar("player_id").primaryKey().references(() => onlineGuestSessions.id),
+  displayName: text("display_name").notNull().default("لاعب"),
+  allowFriendRequests: boolean("allow_friend_requests").notNull().default(true),
+  allowGameInvites: boolean("allow_game_invites").notNull().default(true),
+  showPresence: boolean("show_presence").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+}, (t) => ({
+  displayNameLength: check("social_profiles_display_name_length", sql`char_length(${t.displayName}) BETWEEN 1 AND 24`),
+}));
+
+export const socialFriendRequests = pgTable("social_friend_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  senderId: varchar("sender_id").notNull().references(() => onlineGuestSessions.id),
+  receiverId: varchar("receiver_id").notNull().references(() => onlineGuestSessions.id),
+  pairLow: varchar("pair_low").notNull().references(() => onlineGuestSessions.id),
+  pairHigh: varchar("pair_high").notNull().references(() => onlineGuestSessions.id),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+}, (t) => ({
+  pendingPair: uniqueIndex("social_friend_requests_pending_pair_unique")
+    .on(t.pairLow, t.pairHigh)
+    .where(sql`${t.status} = 'pending'`),
+  receiverStatus: index("social_friend_requests_receiver_status_idx").on(t.receiverId, t.status, t.createdAt),
+  senderStatus: index("social_friend_requests_sender_status_idx").on(t.senderId, t.status, t.createdAt),
+  pairOrder: check("social_friend_requests_pair_order", sql`
+    ${t.pairLow} < ${t.pairHigh}
+    AND ${t.pairLow} = LEAST(${t.senderId}, ${t.receiverId})
+    AND ${t.pairHigh} = GREATEST(${t.senderId}, ${t.receiverId})
+  `),
+  notSelf: check("social_friend_requests_not_self", sql`${t.senderId} <> ${t.receiverId}`),
+  statusValues: check("social_friend_requests_status_values", sql`${t.status} IN ('pending', 'accepted', 'declined', 'cancelled')`),
+}));
+
+export const socialFriendships = pgTable("social_friendships", {
+  playerLow: varchar("player_low").notNull().references(() => onlineGuestSessions.id),
+  playerHigh: varchar("player_high").notNull().references(() => onlineGuestSessions.id),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, (t) => ({
+  pair: uniqueIndex("social_friendships_pair_unique").on(t.playerLow, t.playerHigh),
+  lowPlayer: index("social_friendships_low_player_idx").on(t.playerLow, t.createdAt),
+  highPlayer: index("social_friendships_high_player_idx").on(t.playerHigh, t.createdAt),
+  pairOrder: check("social_friendships_pair_order", sql`${t.playerLow} < ${t.playerHigh}`),
+}));
+
+export const socialBlocks = pgTable("social_blocks", {
+  blockerId: varchar("blocker_id").notNull().references(() => onlineGuestSessions.id),
+  blockedId: varchar("blocked_id").notNull().references(() => onlineGuestSessions.id),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, (t) => ({
+  pair: uniqueIndex("social_blocks_pair_unique").on(t.blockerId, t.blockedId),
+  blockedPlayer: index("social_blocks_blocked_player_idx").on(t.blockedId),
+  notSelf: check("social_blocks_not_self", sql`${t.blockerId} <> ${t.blockedId}`),
+}));
+
+export const socialConversations = pgTable("social_conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerLow: varchar("player_low").notNull().references(() => onlineGuestSessions.id),
+  playerHigh: varchar("player_high").notNull().references(() => onlineGuestSessions.id),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
+}, (t) => ({
+  pair: uniqueIndex("social_conversations_pair_unique").on(t.playerLow, t.playerHigh),
+  lowActivity: index("social_conversations_low_activity_idx").on(t.playerLow, t.updatedAt),
+  highActivity: index("social_conversations_high_activity_idx").on(t.playerHigh, t.updatedAt),
+  pairOrder: check("social_conversations_pair_order", sql`${t.playerLow} < ${t.playerHigh}`),
+}));
+
+export const socialMessages = pgTable("social_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: varchar("conversation_id").notNull().references(() => socialConversations.id),
+  senderId: varchar("sender_id").notNull().references(() => onlineGuestSessions.id),
+  idempotencyKey: varchar("idempotency_key").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  readAt: timestamp("read_at"),
+}, (t) => ({
+  idempotency: uniqueIndex("social_messages_sender_idempotency_unique").on(t.senderId, t.idempotencyKey),
+  conversationHistory: index("social_messages_conversation_history_idx").on(t.conversationId, t.createdAt, t.id),
+  unread: index("social_messages_unread_idx").on(t.conversationId, t.senderId, t.readAt),
+  contentLength: check("social_messages_content_length", sql`char_length(${t.content}) BETWEEN 1 AND 1000`),
+  idempotencyLength: check("social_messages_idempotency_length", sql`char_length(${t.idempotencyKey}) BETWEEN 8 AND 128`),
+}));
+
+export type SocialMessage = typeof socialMessages.$inferSelect;
+
+export const socialGameInvites = pgTable("social_game_invites", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  senderId: varchar("sender_id").notNull().references(() => onlineGuestSessions.id),
+  receiverId: varchar("receiver_id").notNull().references(() => onlineGuestSessions.id),
+  pairLow: varchar("pair_low").notNull().references(() => onlineGuestSessions.id),
+  pairHigh: varchar("pair_high").notNull().references(() => onlineGuestSessions.id),
+  roomCode: varchar("room_code").notNull(),
+  status: text("status").notNull().default("pending"),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, (t) => ({
+  pendingPair: uniqueIndex("social_game_invites_pending_pair_unique")
+    .on(t.pairLow, t.pairHigh, t.roomCode)
+    .where(sql`${t.status} = 'pending'`),
+  receiverStatus: index("social_game_invites_receiver_status_idx").on(t.receiverId, t.status, t.expiresAt),
+  pairOrder: check("social_game_invites_pair_order", sql`
+    ${t.pairLow} < ${t.pairHigh}
+    AND ${t.pairLow} = LEAST(${t.senderId}, ${t.receiverId})
+    AND ${t.pairHigh} = GREATEST(${t.senderId}, ${t.receiverId})
+  `),
+  notSelf: check("social_game_invites_not_self", sql`${t.senderId} <> ${t.receiverId}`),
+  statusValues: check("social_game_invites_status_values", sql`${t.status} IN ('pending', 'accepted', 'declined', 'expired')`),
+}));
+
+export const socialNotifications = pgTable("social_notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  playerId: varchar("player_id").notNull().references(() => onlineGuestSessions.id),
+  type: text("type").notNull(),
+  actorId: varchar("actor_id").references(() => onlineGuestSessions.id),
+  entityId: varchar("entity_id"),
+  payload: jsonb("payload").$type<Record<string, string>>().notNull().default(sql`'{}'::jsonb`),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+}, (t) => ({
+  playerFeed: index("social_notifications_player_feed_idx").on(t.playerId, t.createdAt, t.id),
+  unread: index("social_notifications_unread_idx").on(t.playerId, t.readAt),
+  typeValues: check("social_notifications_type_values", sql`${t.type} IN ('friend_request', 'friend_accepted', 'message', 'game_invite', 'invite_response')`),
+}));

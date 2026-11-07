@@ -33,8 +33,8 @@ function setupCors(app: express.Application) {
       });
     }
 
-    if (process.env.RAILWAY_PUBLIC_DOMAIN) {
-      origins.add(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
+    if (process.env.RENDER_EXTERNAL_URL) {
+      origins.add(new URL(process.env.RENDER_EXTERNAL_URL).origin);
     }
 
     const origin = req.header("origin");
@@ -43,16 +43,15 @@ function setupCors(app: express.Application) {
       origin?.startsWith("http://localhost:") ||
       origin?.startsWith("http://127.0.0.1:");
 
-    const isRailwayDomain = origin?.endsWith(".railway.app") || origin?.endsWith(".up.railway.app");
     const isReplitApp = origin?.endsWith(".replit.app");
 
-    if (origin && (origins.has(origin) || isLocalhost || isRailwayDomain || isReplitApp)) {
+    if (origin && (origins.has(origin) || isLocalhost || isReplitApp)) {
       res.header("Access-Control-Allow-Origin", origin);
       res.header(
         "Access-Control-Allow-Methods",
         "GET, POST, PUT, DELETE, OPTIONS",
       );
-      res.header("Access-Control-Allow-Headers", "Content-Type");
+      res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
       res.header("Access-Control-Allow-Credentials", "true");
     }
 
@@ -253,7 +252,7 @@ function setupErrorHandler(app: express.Application) {
     {
       port,
       host: "0.0.0.0",
-      reusePort: true,
+      reusePort: process.platform !== "win32",
     },
     () => {
       log(`express server serving on port ${port}`);

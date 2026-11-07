@@ -6,10 +6,19 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
  * @returns {string} The API base URL
  */
 export function getApiUrl(): string {
+  const configuredApiUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (configuredApiUrl) {
+    const url = new URL(configuredApiUrl);
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      throw new Error("EXPO_PUBLIC_API_URL must use HTTP or HTTPS.");
+    }
+    return url.origin;
+  }
+
   let host = process.env.EXPO_PUBLIC_DOMAIN;
 
   if (!host) {
-    host = "word-master-production-6928.up.railway.app";
+    host = "word-master-backend.onrender.com";
   }
 
   let url = new URL(`https://${host}`);

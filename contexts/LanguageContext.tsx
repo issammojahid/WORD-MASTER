@@ -11,6 +11,7 @@ type LanguageContextType = {
   setSoundEffects: (v: boolean) => void;
   musicEnabled: boolean;
   setMusicEnabled: (v: boolean) => void;
+  audioPreferencesReady: boolean;
 };
 
 const LanguageContext = createContext<LanguageContextType | null>(null);
@@ -19,6 +20,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>("ar");
   const [soundEffects, setSoundEffectsState] = useState(true);
   const [musicEnabled, setMusicEnabledState] = useState(true);
+  const [audioPreferencesReady, setAudioPreferencesReady] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -29,7 +31,11 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         if (storedLang === "ar" || storedLang === "en") setLanguageState(storedLang);
         if (storedSfx !== null) setSoundEffectsState(storedSfx === "true");
         if (storedMus !== null) setMusicEnabledState(storedMus === "true");
-      } catch {}
+      } catch (error) {
+        if (__DEV__) console.warn("[preferences] unable to load language and audio settings", error);
+      } finally {
+        setAudioPreferencesReady(true);
+      }
     })();
   }, []);
 
@@ -55,6 +61,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         setLanguage, isRTL: language === "ar",
         soundEffects, setSoundEffects,
         musicEnabled, setMusicEnabled,
+        audioPreferencesReady,
       }}
     >
       {children}

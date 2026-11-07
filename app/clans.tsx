@@ -1,3 +1,4 @@
+import { FantasySectionBanner } from "@/components/FantasySectionBanner";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   View,
@@ -8,12 +9,8 @@ import {
   TextInput,
   Modal,
   ActivityIndicator,
-  Animated,
-  FlatList,
   Alert,
-  ImageBackground,
 } from "react-native";
-const BG_CLANS = require("@/assets/images/bg_clans.png");
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,6 +20,9 @@ import { usePlayer } from "@/contexts/PlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getApiUrl } from "@/lib/query-client";
 import { fetch } from "expo/fetch";
+import { CoinBalance, GameHeader, GameScreenBackground } from "@/components/GameUi";
+import { GameIcon as FeatureIcon } from "@/components/GameIcon";
+import { gameDesign } from "@/constants/game-design";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type ClanMemberInfo = {
@@ -32,7 +32,6 @@ type ClanMemberInfo = {
   role: string;
   joinedAt: string;
   name: string;
-  equippedSkin: string;
   level: number;
 };
 
@@ -44,7 +43,6 @@ type ClanDetail = {
   totalWarScore: number;
   createdAt: string;
   members: ClanMemberInfo[];
-  rank: number;
 };
 
 type ClanListItem = {
@@ -53,38 +51,21 @@ type ClanListItem = {
   emoji: string;
   leaderId: string;
   totalWarScore: number;
-  rank: number;
   memberCount: number;
 };
-
-// ── Clan rank medal ───────────────────────────────────────────────────────────
-function rankMedal(rank: number): string {
-  if (rank === 1) return "🥇";
-  if (rank === 2) return "🥈";
-  if (rank === 3) return "🥉";
-  return `#${rank}`;
-}
 
 // ── EMOJI PICKER ─────────────────────────────────────────────────────────────
 const CLAN_EMOJIS = ["⚔️", "🛡️", "🔥", "💀", "🦁", "🐉", "🦅", "🌙", "⚡", "🌊", "🏹", "💎", "🌟", "🎯", "🗡️", "👑", "🦊", "🐺", "🦇", "🌑"];
 
 // ── MAIN COMPONENT ────────────────────────────────────────────────────────────
 export default function ClansScreen() {
-  const { theme, isDark } = useTheme();
+  const { theme } = useTheme();
   const { profile, playerId } = usePlayer();
   const insets = useSafeAreaInsets();
-
-  const [activeTab, setActiveTab] = useState<"mine" | "leaderboard">("mine");
-  const tabAnim = useRef(new Animated.Value(0)).current;
 
   // My clan state
   const [myClan, setMyClan] = useState<ClanDetail | null>(null);
   const [loadingMyClan, setLoadingMyClan] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  // Leaderboard state
-  const [leaderboard, setLeaderboard] = useState<ClanListItem[]>([]);
-  const [loadingBoard, setLoadingBoard] = useState(false);
 
   // Create clan modal
   const [showCreate, setShowCreate] = useState(false);
@@ -119,27 +100,10 @@ export default function ClansScreen() {
       setMyClan(null);
     } finally {
       setLoadingMyClan(false);
-      setRefreshing(false);
     }
   }, [playerId, BASE]);
 
-  const fetchLeaderboard = useCallback(async () => {
-    setLoadingBoard(true);
-    try {
-      const res = await fetch(new URL("/api/clans/leaderboard", BASE).toString());
-      if (res.ok) setLeaderboard(await res.json());
-    } catch {}
-    setLoadingBoard(false);
-  }, [BASE]);
-
   useEffect(() => { fetchMyClan(); }, [fetchMyClan]);
-  useEffect(() => { if (activeTab === "leaderboard") fetchLeaderboard(); }, [activeTab, fetchLeaderboard]);
-
-  const switchTab = (tab: "mine" | "leaderboard") => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setActiveTab(tab);
-    Animated.spring(tabAnim, { toValue: tab === "mine" ? 0 : 1, useNativeDriver: false, tension: 60, friction: 10 }).start();
-  };
 
   // ── Search ────────────────────────────────────────────────────────────────
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -328,79 +292,53 @@ export default function ClansScreen() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <ImageBackground source={BG_CLANS} style={[styles.container]} resizeMode="cover">
-      <LinearGradient colors={["rgba(0,0,0,0.72)", "rgba(0,0,0,0.58)", "rgba(0,0,0,0.72)"]} style={StyleSheet.absoluteFillObject} />
-      {/* Header */}
-      <LinearGradient
-        colors={isDark ? ["#0F0A2E", "#1A0A3E"] : ["#1A1040", "#2D1060"]}
-        style={[styles.header, { paddingTop: insets.top + 8 }]}
-      >
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>⚔️ العصابات</Text>
-        <View style={{ width: 40 }} />
-      </LinearGradient>
-
-      {/* Tab bar */}
-      <View style={[styles.tabBar, { backgroundColor: theme.card, borderBottomColor: theme.cardBorder }]}>
-        {(["mine", "leaderboard"] as const).map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tabBtn, activeTab === tab && styles.tabBtnActive]}
-            onPress={() => switchTab(tab)}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.tabLabel, { color: activeTab === tab ? "#BF00FF" : theme.textSecondary }]}>
-              {tab === "mine" ? "⚔️ عصابتي" : "🏆 الترتيب"}
-            </Text>
-          </TouchableOpacity>
-        ))}
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <GameScreenBackground accent="online" />
+      <View style={{ paddingTop: insets.top + 8 }}>
+        <GameHeader
+          title="العشائر"
+          onBack={() => router.back()}
+          icon={<FeatureIcon name="clans" size={23} color={gameDesign.colors.clans} />}
+          trailing={<View style={styles.headerBalance}><CoinBalance amount={profile.coins} /></View>}
+        />
+        <FantasySectionBanner kind="clans" />
       </View>
 
       {/* Content */}
-      {activeTab === "mine" ? (
-        <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false}>
-          {loadingMyClan ? (
-            <ActivityIndicator size="large" color="#BF00FF" style={{ marginTop: 60 }} />
-          ) : myClan ? (
-            <MyClanView
-              clan={myClan}
-              playerId={playerId}
-              isLeader={isLeader}
-              myWarScore={myWarScore}
-              theme={theme}
-              onLeave={handleLeave}
-              onKick={handleKick}
-              onRename={() => { setRenameInput(myClan.name); setShowRename(true); }}
-              onRefresh={async () => { setRefreshing(true); await fetchMyClan(); }}
-            />
-          ) : (
-            <NoClanView
-              profile={profile}
-              theme={theme}
-              onCreate={() => setShowCreate(true)}
-              onJoin={() => setShowJoin(true)}
-            />
-          )}
-        </ScrollView>
-      ) : (
-        <LeaderboardView
-          data={leaderboard}
-          loading={loadingBoard}
-          playerId={playerId}
-          myClanId={myClan?.id ?? null}
-          theme={theme}
-          insets={insets}
-        />
-      )}
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false}>
+        {loadingMyClan ? (
+          <ActivityIndicator size="large" color={gameDesign.colors.clans} style={{ marginTop: 60 }} />
+        ) : myClan ? (
+          <MyClanView
+            clan={myClan}
+            playerId={playerId}
+            isLeader={isLeader}
+            myWarScore={myWarScore}
+            theme={theme}
+            onLeave={handleLeave}
+            onKick={handleKick}
+            onRename={() => { setRenameInput(myClan.name); setShowRename(true); }}
+            onRefresh={fetchMyClan}
+          />
+        ) : (
+          <NoClanView
+            profile={profile}
+            theme={theme}
+            onCreate={() => setShowCreate(true)}
+            onJoin={() => setShowJoin(true)}
+          />
+        )}
+      </ScrollView>
 
       {/* Create Clan Modal */}
       <Modal visible={showCreate} transparent animationType="fade" onRequestClose={() => setShowCreate(false)}>
         <View style={[styles.modalOverlay, { backgroundColor: "rgba(0,0,0,0.75)" }]}>
           <View style={[styles.modalCard, { backgroundColor: theme.modalBg }]}>
             <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>إنشاء عصابة جديدة</Text>
-            <Text style={[styles.modalSubtitle, { color: theme.textSecondary }]}>التكلفة: 500 عملة 🪙</Text>
+            <View style={styles.modalCost}>
+              <Text style={[styles.modalSubtitle, { color: theme.textSecondary }]}>التكلفة: 500 عملة</Text>
+              <FeatureIcon name="coins" size={18} color={gameDesign.colors.coins} />
+            </View>
 
             <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>اسم العصابة</Text>
             <TextInput
@@ -435,7 +373,7 @@ export default function ClansScreen() {
                 onPress={handleCreate}
                 disabled={!createName.trim() || creating}
               >
-                {creating ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.confirmBtnText}>إنشاء 🗡️</Text>}
+                {creating ? <ActivityIndicator size="small" color="#fff" /> : <><Ionicons name="shield-outline" size={17} color="#fff" /><Text style={styles.confirmBtnText}>إنشاء</Text></>}
               </TouchableOpacity>
             </View>
           </View>
@@ -467,7 +405,7 @@ export default function ClansScreen() {
                 onPress={handleRename}
                 disabled={!renameInput.trim() || renaming}
               >
-                {renaming ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.confirmBtnText}>حفظ ✅</Text>}
+                {renaming ? <ActivityIndicator size="small" color="#fff" /> : <><Ionicons name="checkmark" size={17} color="#fff" /><Text style={styles.confirmBtnText}>حفظ</Text></>}
               </TouchableOpacity>
             </View>
           </View>
@@ -488,7 +426,7 @@ export default function ClansScreen() {
               textAlign="right"
               autoFocus
             />
-            {searching && <ActivityIndicator size="small" color="#BF00FF" style={{ marginVertical: 8 }} />}
+            {searching && <ActivityIndicator size="small" color={gameDesign.colors.clans} style={{ marginVertical: 8 }} />}
             <ScrollView style={styles.searchList} showsVerticalScrollIndicator={false}>
               {searchResults.map((c) => (
                 <TouchableOpacity
@@ -503,7 +441,7 @@ export default function ClansScreen() {
                     <Text style={[styles.searchItemMeta, { color: theme.textSecondary }]}>{c.memberCount}/20 عضو · {c.totalWarScore} نقطة</Text>
                   </View>
                   {joining === c.id ? (
-                    <ActivityIndicator size="small" color="#BF00FF" />
+                    <ActivityIndicator size="small" color={gameDesign.colors.clans} />
                   ) : (
                     <Text style={styles.joinBtnText}>انضم</Text>
                   )}
@@ -519,7 +457,7 @@ export default function ClansScreen() {
           </View>
         </View>
       </Modal>
-    </ImageBackground>
+    </View>
   );
 }
 
@@ -528,38 +466,49 @@ export default function ClansScreen() {
 function NoClanView({ profile, theme, onCreate, onJoin }: { profile: ReturnType<typeof usePlayer>["profile"]; theme: ReturnType<typeof useTheme>["theme"]; onCreate: () => void; onJoin: () => void }) {
   return (
     <View style={styles.noClanContainer}>
-      <Text style={styles.noClanEmoji}>⚔️</Text>
+      <View style={styles.noClanIcon}>
+        <FeatureIcon name="clans" size={54} color={gameDesign.colors.clans} />
+      </View>
       <Text style={[styles.noClanTitle, { color: theme.textPrimary }]}>لست في أي عصابة</Text>
       <Text style={[styles.noClanDesc, { color: theme.textSecondary }]}>
         انضم لعصابة أو أنشئ عصابتك الخاصة وشارك في حروب العصابات الأسبوعية!
       </Text>
 
       <View style={styles.rewardInfo}>
-        <Text style={[styles.rewardInfoTitle, { color: "#F5C842" }]}>🏆 مكافآت أسبوعية</Text>
-        <View style={styles.rewardRow}>
-          <Text style={[styles.rewardItem, { color: theme.textSecondary }]}>🥇 المركز الأول: <Text style={{ color: "#F5C842", fontFamily: "Cairo_700Bold" }}>300 عملة للعضو</Text></Text>
+        <View style={styles.rewardInfoTitle}>
+          <Ionicons name="trophy-outline" size={18} color={gameDesign.colors.coins} />
+          <Text style={styles.rewardInfoTitleText}>مكافآت أسبوعية</Text>
         </View>
         <View style={styles.rewardRow}>
-          <Text style={[styles.rewardItem, { color: theme.textSecondary }]}>🥈 المركز الثاني: <Text style={{ color: "#C0C0C0", fontFamily: "Cairo_700Bold" }}>150 عملة للعضو</Text></Text>
+          <Text style={[styles.rewardItem, { color: theme.textSecondary }]}>المركز الأول: <Text style={{ color: gameDesign.colors.coins, fontFamily: "Cairo_700Bold" }}>300 عملة للعضو</Text></Text>
         </View>
         <View style={styles.rewardRow}>
-          <Text style={[styles.rewardItem, { color: theme.textSecondary }]}>🥉 المركز الثالث: <Text style={{ color: "#CD7F32", fontFamily: "Cairo_700Bold" }}>75 عملة للعضو</Text></Text>
+          <FeatureIcon name="achievements" size={17} color="#C0C0C0" />
+          <Text style={[styles.rewardItem, { color: theme.textSecondary }]}>المركز الثاني: <Text style={{ color: "#C0C0C0", fontFamily: "Cairo_700Bold" }}>150 عملة للعضو</Text></Text>
+        </View>
+        <View style={styles.rewardRow}>
+          <FeatureIcon name="achievements" size={17} color="#D59A3F" />
+          <Text style={[styles.rewardItem, { color: theme.textSecondary }]}>المركز الثالث: <Text style={{ color: "#D59A3F", fontFamily: "Cairo_700Bold" }}>75 عملة للعضو</Text></Text>
         </View>
       </View>
 
       <TouchableOpacity style={styles.createBtn} onPress={onCreate} activeOpacity={0.85}>
-        <LinearGradient colors={["#8B00FF", "#BF00FF"]} style={styles.createBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+        <LinearGradient colors={[gameDesign.colors.clans, "#966BC4"]} style={styles.createBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
           <Ionicons name="add-circle" size={20} color="#fff" />
-          <Text style={styles.createBtnText}>إنشاء عصابة (500 🪙)</Text>
+          <Text style={styles.createBtnText}>إنشاء عصابة (500 عملة)</Text>
+          <FeatureIcon name="coins" size={18} color={gameDesign.colors.coins} />
         </LinearGradient>
       </TouchableOpacity>
       <Text style={[styles.orText, { color: theme.textMuted }]}>— أو —</Text>
       <TouchableOpacity style={[styles.joinBtn, { backgroundColor: theme.card, borderColor: theme.cardBorder }]} onPress={onJoin} activeOpacity={0.85}>
-        <Ionicons name="search" size={18} color="#BF00FF" />
-        <Text style={[styles.joinBtnTextLarge, { color: "#BF00FF" }]}>البحث عن عصابة والانضمام</Text>
+        <Ionicons name="search" size={18} color={gameDesign.colors.clans} />
+        <Text style={[styles.joinBtnTextLarge, { color: gameDesign.colors.clans }]}>البحث عن عصابة والانضمام</Text>
       </TouchableOpacity>
 
-      <Text style={[styles.coinsNote, { color: theme.textMuted }]}>رصيدك الحالي: {profile.coins} 🪙</Text>
+      <View style={styles.balanceNote}>
+        <Text style={[styles.coinsNote, { color: theme.textMuted }]}>رصيدك الحالي: {profile.coins}</Text>
+        <FeatureIcon name="coins" size={16} color={gameDesign.colors.coins} />
+      </View>
     </View>
   );
 }
@@ -581,18 +530,13 @@ function MyClanView({
     <View style={styles.myClanContainer}>
       {/* Clan header card */}
       <LinearGradient
-        colors={["#1A003D", "#2D006B", "#1A003D"]}
+        colors={["#087C91", "#24559A", "#7046A3"]}
         style={styles.clanCard}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
       >
         <Text style={styles.clanEmoji}>{clan.emoji}</Text>
         <Text style={styles.clanName}>{clan.name}</Text>
         <View style={styles.clanStatsRow}>
-          <View style={styles.clanStat}>
-            <Text style={styles.clanStatValue}>{rankMedal(clan.rank)}</Text>
-            <Text style={styles.clanStatLabel}>الترتيب</Text>
-          </View>
-          <View style={styles.clanStatDivider} />
           <View style={styles.clanStat}>
             <Text style={styles.clanStatValue}>{clan.totalWarScore}</Text>
             <Text style={styles.clanStatLabel}>نقاط الحرب</Text>
@@ -606,20 +550,27 @@ function MyClanView({
         {isLeader && (
           <View style={styles.leaderRow}>
             <View style={styles.leaderBadge}>
-              <Text style={styles.leaderBadgeText}>👑 القائد</Text>
+              <Ionicons name="ribbon-outline" size={16} color={gameDesign.colors.coins} />
+              <Text style={styles.leaderBadgeText}>القائد</Text>
             </View>
             <TouchableOpacity style={styles.renameBtn} onPress={onRename} activeOpacity={0.8}>
-              <Ionicons name="pencil" size={14} color="#BF00FF" />
+              <Ionicons name="pencil" size={14} color={gameDesign.colors.clans} />
               <Text style={styles.renameBtnText}>تغيير الاسم</Text>
             </TouchableOpacity>
           </View>
         )}
-        <Text style={styles.myWarScore}>نقاطك: {myWarScore} ⚔️</Text>
+        <View style={styles.myWarScoreRow}>
+          <Ionicons name="flash-outline" size={16} color="#FFB454" />
+          <Text style={styles.myWarScore}>نقاطك: {myWarScore}</Text>
+        </View>
       </LinearGradient>
 
       {/* Weekly war info */}
       <View style={[styles.warInfoCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-        <Text style={[styles.warInfoTitle, { color: "#F5C842" }]}>⏱️ حرب هذا الأسبوع</Text>
+        <View style={styles.warTitleRow}>
+          <Ionicons name="time-outline" size={17} color={gameDesign.colors.coins} />
+          <Text style={[styles.warInfoTitle, { color: gameDesign.colors.coins }]}>حرب هذا الأسبوع</Text>
+        </View>
         <Text style={[styles.warInfoDesc, { color: theme.textSecondary }]}>
           كل انتصار يُضيف نقطة لعصابتك. العصابة الأولى تفوز بـ 300 عملة لكل عضو!
         </Text>
@@ -627,20 +578,20 @@ function MyClanView({
 
       {/* Members list */}
       <Text style={[styles.membersTitle, { color: theme.textPrimary }]}>الأعضاء ({clan.members.length})</Text>
-      {clan.members.map((m, idx) => (
+      {clan.members.map((m) => (
         <View key={m.id} style={[styles.memberRow, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-          <Text style={styles.memberRank}>{idx + 1}</Text>
           <View style={styles.memberInfo}>
             <Text style={[styles.memberName, { color: theme.textPrimary }]}>
-              {m.role === "leader" ? "👑 " : ""}{m.name}
+              {m.role === "leader" ? "القائد · " : ""}{m.name}
             </Text>
             <Text style={[styles.memberLevel, { color: theme.textSecondary }]}>مستوى {m.level}</Text>
           </View>
           <View style={styles.memberScoreCol}>
-            <Text style={styles.memberWarScore}>{m.warScore} ⚔️</Text>
+            <Ionicons name="flash-outline" size={15} color="#FFB454" />
+            <Text style={styles.memberWarScore}>{m.warScore}</Text>
             {isLeader && m.playerId !== playerId && (
               <TouchableOpacity onPress={() => onKick(m.playerId, m.name)} style={styles.kickBtn}>
-                <Ionicons name="remove-circle" size={18} color="#FF3B3B" />
+                <Ionicons name="remove-circle" size={18} color={gameDesign.colors.danger} />
               </TouchableOpacity>
             )}
           </View>
@@ -649,61 +600,10 @@ function MyClanView({
 
       {/* Leave button */}
       <TouchableOpacity style={styles.leaveBtn} onPress={onLeave} activeOpacity={0.8}>
-        <Ionicons name="exit-outline" size={18} color="#FF3B3B" />
+        <Ionicons name="exit-outline" size={18} color={gameDesign.colors.danger} />
         <Text style={styles.leaveBtnText}>مغادرة العصابة</Text>
       </TouchableOpacity>
     </View>
-  );
-}
-
-function LeaderboardView({
-  data, loading, playerId, myClanId, theme, insets,
-}: {
-  data: ClanListItem[];
-  loading: boolean;
-  playerId: string;
-  myClanId: string | null;
-  theme: ReturnType<typeof useTheme>["theme"];
-  insets: ReturnType<typeof useSafeAreaInsets>;
-}) {
-  if (loading) return <ActivityIndicator size="large" color="#BF00FF" style={{ marginTop: 60 }} />;
-
-  if (data.length === 0) {
-    return (
-      <View style={styles.emptyBoard}>
-        <Text style={styles.noClanEmoji}>🏆</Text>
-        <Text style={[styles.noClanTitle, { color: theme.textPrimary }]}>لا توجد عصابات بعد</Text>
-        <Text style={[styles.noClanDesc, { color: theme.textSecondary }]}>كن أول من ينشئ عصابة!</Text>
-      </View>
-    );
-  }
-
-  return (
-    <FlatList
-      data={data}
-      keyExtractor={(item) => item.id}
-      contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: insets.bottom + 24 }}
-      renderItem={({ item }) => {
-        const isMe = item.id === myClanId;
-        return (
-          <LinearGradient
-            colors={item.rank === 1 ? ["#3D2900", "#2B1A00"] : item.rank === 2 ? ["#2B2B2B", "#1A1A1A"] : item.rank === 3 ? ["#2A1800", "#180E00"] : [theme.card, theme.card]}
-            style={[styles.boardRow, { borderColor: isMe ? "#BF00FF" : theme.cardBorder, borderWidth: isMe ? 2 : 1 }]}
-          >
-            <Text style={styles.boardRank}>{rankMedal(item.rank)}</Text>
-            <Text style={styles.boardEmoji}>{item.emoji}</Text>
-            <View style={styles.boardInfo}>
-              <Text style={[styles.boardName, { color: theme.textPrimary }]}>{item.name}{isMe ? " (عصابتي)" : ""}</Text>
-              <Text style={[styles.boardMeta, { color: theme.textSecondary }]}>{item.memberCount} عضو</Text>
-            </View>
-            <View style={styles.boardScoreCol}>
-              <Text style={styles.boardScore}>{item.totalWarScore}</Text>
-              <Text style={[styles.boardScoreLabel, { color: theme.textSecondary }]}>نقطة</Text>
-            </View>
-          </LinearGradient>
-        );
-      }}
-    />
   );
 }
 
@@ -719,21 +619,10 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 40, height: 40, justifyContent: "center", alignItems: "center" },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#fff" },
-
-  tabBar: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-  },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  tabBtnActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: "#BF00FF",
-  },
-  tabLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 15 },
+  headerBalance: { minWidth: 48, alignItems: "flex-end" },
+  modalCost: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  noClanIcon: { width: 86, height: 86, borderRadius: 28, alignItems: "center", justifyContent: "center", backgroundColor: `${gameDesign.colors.clans}18`, marginBottom: 12 },
+  balanceNote: { flexDirection: "row", alignItems: "center", gap: 6 },
 
   scrollContent: { paddingHorizontal: 16, paddingTop: 20 },
 
@@ -743,10 +632,11 @@ const styles = StyleSheet.create({
   noClanTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, marginBottom: 8 },
   noClanDesc: { fontFamily: "Cairo_400Regular", fontSize: 14, textAlign: "center", lineHeight: 22, marginBottom: 24, paddingHorizontal: 20 },
   rewardInfo: {
-    width: "100%", borderRadius: 16, backgroundColor: "#F5C84215",
-    borderWidth: 1, borderColor: "#F5C84230", padding: 16, marginBottom: 24,
+    width: "100%", borderRadius: 16, backgroundColor: `${gameDesign.colors.coins}15`,
+    borderWidth: 1, borderColor: `${gameDesign.colors.coins}30`, padding: 16, marginBottom: 24,
   },
-  rewardInfoTitle: { fontFamily: "Cairo_700Bold", fontSize: 16, marginBottom: 8, textAlign: "center" },
+  rewardInfoTitle: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, marginBottom: 8 },
+  rewardInfoTitleText: { fontFamily: "Cairo_700Bold", fontSize: 16, color: gameDesign.colors.coins },
   rewardRow: { marginBottom: 4 },
   rewardItem: { fontFamily: "Cairo_400Regular", fontSize: 13 },
   createBtn: { width: "100%", borderRadius: 16, overflow: "hidden", marginBottom: 12 },
@@ -764,8 +654,8 @@ const styles = StyleSheet.create({
   myClanContainer: { paddingBottom: 20 },
   clanCard: {
     borderRadius: 20, padding: 20, alignItems: "center",
-    marginBottom: 16, borderWidth: 1.5, borderColor: "#BF00FF40",
-    shadowColor: "#BF00FF", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
+    marginBottom: 16, borderWidth: 1.5, borderColor: `${gameDesign.colors.clans}40`,
+    shadowColor: gameDesign.colors.clans, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
   },
   clanEmoji: { fontSize: 52, marginBottom: 8 },
   clanName: { fontFamily: "Cairo_700Bold", fontSize: 22, color: "#fff", marginBottom: 14 },
@@ -776,17 +666,19 @@ const styles = StyleSheet.create({
   clanStatDivider: { width: 1, height: 32, backgroundColor: "rgba(255,255,255,0.2)" },
   leaderRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 },
   leaderBadge: {
-    backgroundColor: "#F5C84220", borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4,
-    borderWidth: 1, borderColor: "#F5C84240",
+    backgroundColor: `${gameDesign.colors.coins}20`, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4,
+    borderWidth: 1, borderColor: `${gameDesign.colors.coins}40`, flexDirection: "row", alignItems: "center", gap: 5,
   },
-  leaderBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: "#F5C842" },
+  leaderBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: gameDesign.colors.coins },
   renameBtn: {
     flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: "#BF00FF15", borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4,
-    borderWidth: 1, borderColor: "#BF00FF30",
+    backgroundColor: `${gameDesign.colors.clans}15`, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4,
+    borderWidth: 1, borderColor: `${gameDesign.colors.clans}30`,
   },
-  renameBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: "#BF00FF" },
+  renameBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 12, color: gameDesign.colors.clans },
+  warTitleRow: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 6 },
   myWarScore: { fontFamily: "Cairo_600SemiBold", fontSize: 14, color: "rgba(255,255,255,0.75)" },
+  myWarScoreRow: { flexDirection: "row", alignItems: "center", gap: 6 },
 
   warInfoCard: {
     borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 20,
@@ -799,34 +691,18 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", padding: 12,
     borderRadius: 12, borderWidth: 1, marginBottom: 8,
   },
-  memberRank: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#BF00FF", width: 26 },
   memberInfo: { flex: 1 },
   memberName: { fontFamily: "Cairo_600SemiBold", fontSize: 14 },
   memberLevel: { fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 2 },
   memberScoreCol: { flexDirection: "row", alignItems: "center", gap: 8 },
-  memberWarScore: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#FF6B00" },
+  memberWarScore: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#FFB454" },
   kickBtn: { padding: 4 },
   leaveBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    paddingVertical: 13, borderRadius: 14, borderWidth: 1.5, borderColor: "#FF3B3B40",
-    backgroundColor: "#FF3B3B12", marginTop: 16,
+    paddingVertical: 13, borderRadius: 14, borderWidth: 1.5, borderColor: `${gameDesign.colors.danger}40`,
+    backgroundColor: `${gameDesign.colors.danger}12`, marginTop: 16,
   },
-  leaveBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: "#FF3B3B" },
-
-  // Leaderboard
-  emptyBoard: { flex: 1, alignItems: "center", paddingTop: 60 },
-  boardRow: {
-    flexDirection: "row", alignItems: "center", padding: 14,
-    borderRadius: 14, marginBottom: 10, gap: 4,
-  },
-  boardRank: { fontFamily: "Cairo_700Bold", fontSize: 18, width: 40, textAlign: "center" },
-  boardEmoji: { fontSize: 28, marginRight: 4 },
-  boardInfo: { flex: 1, marginLeft: 6 },
-  boardName: { fontFamily: "Cairo_700Bold", fontSize: 15 },
-  boardMeta: { fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 2 },
-  boardScoreCol: { alignItems: "center" },
-  boardScore: { fontFamily: "Cairo_700Bold", fontSize: 18, color: "#F5C842" },
-  boardScoreLabel: { fontFamily: "Cairo_400Regular", fontSize: 11, marginTop: 1 },
+  leaveBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 15, color: gameDesign.colors.danger },
 
   // Modal
   modalOverlay: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
@@ -843,12 +719,12 @@ const styles = StyleSheet.create({
     width: 44, height: 44, borderRadius: 10, alignItems: "center", justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.06)", borderWidth: 1.5, borderColor: "transparent",
   },
-  emojiSelected: { borderColor: "#BF00FF", backgroundColor: "#BF00FF20" },
+  emojiSelected: { borderColor: gameDesign.colors.clans, backgroundColor: `${gameDesign.colors.clans}20` },
   emojiText: { fontSize: 22 },
   modalActions: { flexDirection: "row", gap: 10 },
   cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: "center" },
   cancelBtnText: { fontFamily: "Cairo_600SemiBold", fontSize: 15 },
-  confirmBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: "center", backgroundColor: "#BF00FF" },
+  confirmBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6, backgroundColor: gameDesign.colors.clans },
   confirmBtnDisabled: { opacity: 0.5 },
   confirmBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#fff" },
   searchList: { maxHeight: 280, marginBottom: 8 },
@@ -860,6 +736,6 @@ const styles = StyleSheet.create({
   searchItemInfo: { flex: 1 },
   searchItemName: { fontFamily: "Cairo_600SemiBold", fontSize: 14 },
   searchItemMeta: { fontFamily: "Cairo_400Regular", fontSize: 12, marginTop: 2 },
-  joinBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#BF00FF" },
+  joinBtnText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: gameDesign.colors.clans },
   emptyText: { fontFamily: "Cairo_400Regular", fontSize: 14, textAlign: "center", marginTop: 20 },
 });

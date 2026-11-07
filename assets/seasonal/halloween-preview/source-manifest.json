@@ -1,0 +1,207 @@
+{
+  "title": "Horof Morocco Halloween concept preview crops",
+  "production_ready": false,
+  "notes": "Cropped from one composed concept sheet. Includes baked-in backgrounds, borders, and possible neighboring pixels. Not transparent isolated assets. Replace with individually generated/exported transparent assets before shipping. Victory effects are static previews, not animations.",
+  "items": [
+    {
+      "category": "avatars",
+      "file": "avatars/avatars_01.png",
+      "preview_only": true
+    },
+    {
+      "category": "avatars",
+      "file": "avatars/avatars_02.png",
+      "preview_only": true
+    },
+    {
+      "category": "avatars",
+      "file": "avatars/avatars_03.png",
+      "preview_only": true
+    },
+    {
+      "category": "avatars",
+      "file": "avatars/avatars_04.png",
+      "preview_only": true
+    },
+    {
+      "category": "avatars",
+      "file": "avatars/avatars_05.png",
+      "preview_only": true
+    },
+    {
+      "category": "avatars",
+      "file": "avatars/avatars_06.png",
+      "preview_only": true
+    },
+    {
+      "category": "avatars",
+      "file": "avatars/avatars_07.png",
+      "preview_only": true
+    },
+    {
+      "category": "avatars",
+      "file": "avatars/avatars_08.png",
+      "preview_only": true
+    },
+    {
+      "category": "avatars",
+      "file": "avatars/avatars_09.png",
+      "preview_only": true
+    },
+    {
+      "category": "avatars",
+      "file": "avatars/avatars_10.png",
+      "preview_only": true
+    },
+    {
+      "category": "frames",
+      "file": "frames/frames_01.png",
+      "preview_only": true
+    },
+    {
+      "category": "frames",
+      "file": "frames/frames_02.png",
+      "preview_only": true
+    },
+    {
+      "category": "frames",
+      "file": "frames/frames_03.png",
+      "preview_only": true
+    },
+    {
+      "category": "frames",
+      "file": "frames/frames_04.png",
+      "preview_only": true
+    },
+    {
+      "category": "frames",
+      "file": "frames/frames_05.png",
+      "preview_only": true
+    },
+    {
+      "category": "frames",
+      "file": "frames/frames_06.png",
+      "preview_only": true
+    },
+    {
+      "category": "nameplates",
+      "file": "nameplates/nameplates_01.png",
+      "preview_only": true
+    },
+    {
+      "category": "nameplates",
+      "file": "nameplates/nameplates_02.png",
+      "preview_only": true
+    },
+    {
+      "category": "nameplates",
+      "file": "nameplates/nameplates_03.png",
+      "preview_only": true
+    },
+    {
+      "category": "nameplates",
+      "file": "nameplates/nameplates_04.png",
+      "preview_only": true
+    },
+    {
+      "category": "backgrounds",
+      "file": "backgrounds/backgrounds_01.png",
+      "preview_only": true
+    },
+    {
+      "category": "backgrounds",
+      "file": "backgrounds/backgrounds_02.png",
+      "preview_only": true
+    },
+    {
+      "category": "backgrounds",
+      "file": "backgrounds/backgrounds_03.png",
+      "preview_only": true
+    },
+    {
+      "category": "backgrounds",
+      "file": "backgrounds/backgrounds_04.png",
+      "preview_only": true
+    },
+    {
+      "category": "victory_effects",
+      "file": "victory_effects/victory_effects_01.png",
+      "preview_only": true
+    },
+    {
+      "category": "victory_effects",
+      "file": "victory_effects/victory_effects_02.png",
+      "preview_only": true
+    },
+    {
+      "category": "victory_effects",
+      "file": "victory_effects/victory_effects_03.png",
+      "preview_only": true
+    },
+    {
+      "category": "victory_effects",
+      "file": "victory_effects/victory_effects_04.png",
+      "preview_only": true
+    },
+    {
+      "category": "icons",
+      "file": "icons/icons_01.png",
+      "preview_only": true
+    },
+    {
+      "category": "icons",
+      "file": "icons/icons_02.png",
+      "preview_only": true
+    },
+    {
+      "category": "icons",
+      "file": "icons/icons_03.png",
+      "preview_only": true
+    },
+    {
+      "category": "icons",
+      "file": "icons/icons_04.png",
+      "preview_only": true
+    },
+    {
+      "category": "icons",
+      "file": "icons/icons_05.png",
+      "preview_only": true
+    },
+    {
+      "category": "icons",
+      "file": "icons/icons_06.png",
+      "preview_only": true
+    },
+    {
+      "category": "icons",
+      "file": "icons/icons_07.png",
+      "preview_only": true
+    },
+    {
+      "category": "icons",
+      "file": "icons/icons_08.png",
+      "preview_only": true
+    },
+    {
+      "category": "icons",
+      "file": "icons/icons_09.png",
+      "preview_only": true
+    },
+    {
+      "category": "icons",
+      "file": "icons/icons_10.png",
+      "preview_only": true
+    },
+    {
+      "category": "icons",
+      "file": "icons/icons_11.png",
+      "preview_only": true
+    },
+    {
+      "category": "icons",
+      "file": "icons/icons_12.png",
+      "preview_only": true
+    }
+  ]
+}
