@@ -2,7 +2,7 @@
   "expo": {
     "name": "حروف المغرب",
     "slug": "huroof-al-maghrib",
-    "version": "2.8.0",
+    "version": "2.8.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "huroofalmaghrib",
@@ -34,7 +34,7 @@
     },
     "android": {
       "package": "com.huroofalmaghrib",
-      "versionCode": 4,
+      "versionCode": 17,
       "adaptiveIcon": {
         "backgroundColor": "#100B24",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
