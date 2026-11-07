@@ -1,0 +1,402 @@
+[
+  {
+    "file": "avatars/avatars_01.png",
+    "width": 151,
+    "height": 143,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "41a2ba861cfdd3dc8087ab4ffc59d927162bafbe975bb717d94dec540d6b2220"
+  },
+  {
+    "file": "avatars/avatars_02.png",
+    "width": 151,
+    "height": 143,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "665f5cb4018600bf711791142800796050cfaf29eacafa722d22c9591dbc0cf9"
+  },
+  {
+    "file": "avatars/avatars_03.png",
+    "width": 151,
+    "height": 143,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "a18ce157d991a72ec42e9b9de3c9fcd99409baf5f95af531d7694cd61cbc3103"
+  },
+  {
+    "file": "avatars/avatars_04.png",
+    "width": 151,
+    "height": 143,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "de13680d9a1c713958fcd50cf312ea6304775a59ef87ac4c1dc823120c047461"
+  },
+  {
+    "file": "avatars/avatars_05.png",
+    "width": 151,
+    "height": 143,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "6b0d0c02e0730319771260763aab04a62cf1c467d404f85737609278a6eb8c95"
+  },
+  {
+    "file": "avatars/avatars_06.png",
+    "width": 152,
+    "height": 143,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "503be1a12106f899441e60222e3e3e7e409f6935133504f69cbf033c3c37f017"
+  },
+  {
+    "file": "avatars/avatars_07.png",
+    "width": 151,
+    "height": 143,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "34250beb871ef2bd739adf00b6af2679f3b2b7cc266cca7de78a293910da4783"
+  },
+  {
+    "file": "avatars/avatars_08.png",
+    "width": 151,
+    "height": 143,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "21ee0f43a3fc13157265932a68ce7ca2ce38b755817c05a840c8b7a31c5d5630"
+  },
+  {
+    "file": "avatars/avatars_09.png",
+    "width": 151,
+    "height": 143,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "02ec00f2380d4b2040a601c548101d07e916cfff32b31c31e7cc53cc8f4c14ed"
+  },
+  {
+    "file": "avatars/avatars_10.png",
+    "width": 151,
+    "height": 143,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "9436b7d3118b9d5223f0e8f5d9faf25e681c0372694e22cbf9192ba1a0761d29"
+  },
+  {
+    "file": "frames/frames_01.png",
+    "width": 137,
+    "height": 140,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "0aea117e4eb11084f0bd9e788c468e0af499880ce2e086721d2f2cae1ad05ca2"
+  },
+  {
+    "file": "frames/frames_02.png",
+    "width": 137,
+    "height": 140,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "1c1647aa8ddb9575d79bf5e3dd7b72d5d48fbe1d06abfbbe4e69c258f19372be"
+  },
+  {
+    "file": "frames/frames_03.png",
+    "width": 137,
+    "height": 140,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "beba54625d4189c117b57c8a7de13d05a6b8660f10b1997472782387975b4dc2"
+  },
+  {
+    "file": "frames/frames_04.png",
+    "width": 137,
+    "height": 140,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "43b9915dd8be5b9812d86a35de812c34e4a9db5fb8e790b5b505034847a4b932"
+  },
+  {
+    "file": "frames/frames_05.png",
+    "width": 137,
+    "height": 140,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "f66cece1fd69ad46ebecfc57b8dc59a2d51bc290a5d539063f5a86ed5794501e"
+  },
+  {
+    "file": "frames/frames_06.png",
+    "width": 137,
+    "height": 140,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "cd1fb361cc5fc84e1c07f626742c7ba9b37923fe696c6648ac8833b2156da224"
+  },
+  {
+    "file": "nameplates/nameplates_01.png",
+    "width": 273,
+    "height": 69,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "43e83affd80cd8d7e0806f21d7d182838b9d53ec6e610d271e1fbf2cf78a0ff0"
+  },
+  {
+    "file": "nameplates/nameplates_02.png",
+    "width": 297,
+    "height": 69,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "abc4b2428006c4b08310c488773f2b2659cb34daf282065c40b3bc4b609f4d0a"
+  },
+  {
+    "file": "nameplates/nameplates_03.png",
+    "width": 273,
+    "height": 80,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "750491697d9e50ec862ec2324bc829d92f8620ccf7bd68f202f078d5080e0d3b"
+  },
+  {
+    "file": "nameplates/nameplates_04.png",
+    "width": 297,
+    "height": 80,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "6da8defb865fadfaf79fbf0a24bc1dedec92e524a92d696b74ab0db2cee77bb0"
+  },
+  {
+    "file": "backgrounds/backgrounds_01.png",
+    "width": 368,
+    "height": 129,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "67702e8ffe44ef978d4f01a2b217c1c141788c433638f6e0314f7ed001eb4be2"
+  },
+  {
+    "file": "backgrounds/backgrounds_02.png",
+    "width": 349,
+    "height": 129,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "2998511b95cd3e77f9cd5f391b759bc3134bb93392b30a486759aa0d6eb2c9e8"
+  },
+  {
+    "file": "backgrounds/backgrounds_03.png",
+    "width": 372,
+    "height": 129,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "dbd77d405302d82574173727e06a795d651b2f5d72b4e3a338f28b0e915bc201"
+  },
+  {
+    "file": "backgrounds/backgrounds_04.png",
+    "width": 338,
+    "height": 129,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "5f645a15c7874449e59e313b5a981e5cedbaa29bf2acdbcad743d08f3bdba8c7"
+  },
+  {
+    "file": "victory_effects/victory_effects_01.png",
+    "width": 199,
+    "height": 195,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "1ddf20e2c307403cd7c2730db2529b6c0c65c6ef66ec2ab79bc3dd425067162e"
+  },
+  {
+    "file": "victory_effects/victory_effects_02.png",
+    "width": 189,
+    "height": 195,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "8718210653f7ea45213a946a953ae6fee27c47b5feceb9ebc8e49e95c4e7f0a9"
+  },
+  {
+    "file": "victory_effects/victory_effects_03.png",
+    "width": 182,
+    "height": 195,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "97ac992a84daae82d5b055d438f38a0225cf3c3dc7ad246403abaf11a9b8216a"
+  },
+  {
+    "file": "victory_effects/victory_effects_04.png",
+    "width": 202,
+    "height": 195,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "91ba49b15783c3c28e4a2ed59868b6af786d46dd008c01f4f74f3b6f3ca27070"
+  },
+  {
+    "file": "icons/icons_01.png",
+    "width": 90,
+    "height": 84,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "ea6a7e706a22172aa43a82db40d9ef56639d45db0dee53109933455b82042a27"
+  },
+  {
+    "file": "icons/icons_02.png",
+    "width": 90,
+    "height": 84,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "15e75dba048dab324e814ad42a49d6667838bd3074ffce966b656ed43da2339d"
+  },
+  {
+    "file": "icons/icons_03.png",
+    "width": 90,
+    "height": 84,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "d925f3730bcfed394d5a7729c80a8221f2ba5db3dbae1e4f78a64116a584a194"
+  },
+  {
+    "file": "icons/icons_04.png",
+    "width": 90,
+    "height": 84,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "5a3ba3649f2e7b8dc18731b95e9c506b1018945f357683f5de0bb74e5d030c4d"
+  },
+  {
+    "file": "icons/icons_05.png",
+    "width": 90,
+    "height": 84,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "91449ea4965c7bfc16706e39592a9672bd4ac272e53d1adfe4dc671d02a98a78"
+  },
+  {
+    "file": "icons/icons_06.png",
+    "width": 90,
+    "height": 84,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "977cad8f27dc34be08d8fcb09ed1d2adfb805f756693e8e4db3e19a9fc0d5cef"
+  },
+  {
+    "file": "icons/icons_07.png",
+    "width": 90,
+    "height": 84,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "d68270520daea23e38420eeb9c2e386295fc5d188aa09197a0b5fc33b391941f"
+  },
+  {
+    "file": "icons/icons_08.png",
+    "width": 90,
+    "height": 84,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "2c44598616ee1c908ea7bdcb0c6e4f535d71fcfd85bb86ea454e54ededf3b43a"
+  },
+  {
+    "file": "icons/icons_09.png",
+    "width": 90,
+    "height": 84,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "7c1dca74a3f2dbda5ac8923b87b41338c2f00f0d2d3313e10c6d5c304327b061"
+  },
+  {
+    "file": "icons/icons_10.png",
+    "width": 90,
+    "height": 84,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "7ca68ec1238502b1bc872a472f8e7c3b93eccde8be42af8f2fb0be54f9c7f417"
+  },
+  {
+    "file": "icons/icons_11.png",
+    "width": 90,
+    "height": 84,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "d32ddfd9fd264e9afed5ea84168cffa63f5ed7c9f9fa298372a925f6d9d01a4e"
+  },
+  {
+    "file": "icons/icons_12.png",
+    "width": 90,
+    "height": 84,
+    "bitDepth": 8,
+    "colorType": 6,
+    "hasAlphaChannel": true,
+    "hasTransparencyChunk": false,
+    "sha256": "704372f9f989c6c21139fc5f55cc66c499fd1c019ff8c919bb6ea2898651876a"
+  }
+]

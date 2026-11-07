@@ -1,3 +1,4 @@
+import { FantasySectionBanner } from "@/components/FantasySectionBanner";
 import React, { useState, useEffect, useCallback, useRef, memo } from "react";
 import {
   View,
@@ -236,7 +237,7 @@ function TasksScreenInner() {
   const qc = useQueryClient();
   const countdown = useMidnightCountdown();
 
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
+  const topInset = Platform.OS === "web" ? 20 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
   const { data: tasksRaw, isLoading, refetch } = useQuery<Task[]>({
@@ -258,7 +259,7 @@ function TasksScreenInner() {
       const url = new URL(`/api/tasks/${playerId}/${taskKey}/claim`, getApiUrl());
       return apiFetch(url.toString(), { method: "POST" });
     },
-    onSuccess: (data) => {
+    onSuccess: (data, taskKey) => {
       if (!data) {
         Alert.alert("خطأ في الاتصال", "تعذّر الاتصال بالخادم. تحقق من اتصالك وحاول مجدداً.");
         return;
@@ -277,6 +278,7 @@ function TasksScreenInner() {
       }
       if ((data.coinsEarned ?? 0) > 0) addCoins(data.coinsEarned);
       if ((data.xpEarned ?? 0) > 0) addXp(data.xpEarned);
+
       qc.invalidateQueries({ queryKey: ["/api/tasks", playerId] });
       const parts: string[] = [];
       if ((data.coinsEarned ?? 0) > 0) parts.push(`+${data.coinsEarned} عملة`);
@@ -307,6 +309,7 @@ function TasksScreenInner() {
             </TouchableOpacity>
           }
         />
+        <FantasySectionBanner kind="tasks" />
 
         <LinearGradient
           colors={[theme.card, theme.backgroundSecondary]}

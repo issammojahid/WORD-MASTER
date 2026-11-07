@@ -1,3 +1,7 @@
+import { applyDeviceHalloween, recordDeviceHalloweenClaims, type DeviceHalloween } from "@shared/halloween-update";
+import { prepareHalloweenObjectives } from "@shared/halloween-objectives";
+import type { SeasonAction, SeasonSnapshot } from "@shared/halloween";
+import { cleanPlayerName, suggestPlayerName } from "@shared/player-name";
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApiUrl } from "@/lib/query-client";
@@ -50,6 +54,7 @@ export const LEVEL_REWARDS: { level: number; coins?: number; skinId?: SkinId; la
 
 // ── Player Profile ────────────────────────────────────────────────────────────
 export type PlayerProfile = {
+  halloween2026?: DeviceHalloween;
   name: string;
   playerTag: number | null;
   coins: number;
@@ -101,9 +106,12 @@ type PlayerContextType = {
   isReady: boolean;
   hasLocalProfileError: boolean;
   updateProfile: (updates: Partial<PlayerProfile>) => void;
+  applyHalloweenAction: (action:SeasonAction) => Promise<SeasonSnapshot>;
+  recordHalloweenClaims: (source:"task"|"achievement",keys:string[]) => void;
   addCoins: (amount: number) => void;
   addXp: (amount: number) => void;
-  setPlayerName: (name: string) => void;
+  setPlayerName: (name: string) => Promise<void>;
+  needsName: boolean;
   syncToServer: () => Promise<void>;
   reportGameResult: (won: boolean, score: number, coinsEarned: number, xpEarned: number) => Promise<{ streakBonus: number }>;
   consumeCard: (cardId: keyof PowerCards) => boolean;
@@ -116,6 +124,11 @@ const STORAGE_KEY = "player_profile_v3";
 const PLAYER_ID_KEY = "player_id_v1";
 const FIRST_LAUNCH_KEY = "player_first_launch_v1";
 const STARTING_COINS = 1000;
+let profileWriteQueue:Promise<void>=Promise.resolve();
+function persistPlayerProfile(profile:PlayerProfile){
+ const write=profileWriteQueue.catch(()=>{}).then(()=>AsyncStorage.setItem(STORAGE_KEY,JSON.stringify(profile)));
+ profileWriteQueue=write;return write;
+}
 
 const defaultProfile: PlayerProfile = {
   name: "لاعب",
@@ -217,8 +230,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<PlayerProfile>(defaultProfile);
   const [playerId, setPlayerId] = useState<string>("");
   const [isReady, setIsReady] = useState(false);
+  const [needsName, setNeedsName] = useState(false);
   const [hasLocalProfileError, setHasLocalProfileError] = useState(false);
   const profileRef = useRef(defaultProfile);
+  const nameRevisionRef = useRef(0);
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -258,10 +273,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const localProfile = !stored && isNewPlayer
           ? mergeProfile({ coins: STARTING_COINS, xp: 0, level: 1 })
           : mergeProfile(parsed || {});
+        if (!stored) localProfile.name = suggestPlayerName();
+        setNeedsName(!stored || await AsyncStorage.getItem("@horof_name_pending") === "1");
+        if (!stored) await AsyncStorage.setItem("@horof_name_pending", "1");
         parsed = localProfile;
         profileRef.current = localProfile;
         setProfile(localProfile);
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(localProfile));
+        await persistPlayerProfile(localProfile);
         setPlayerId(id);
         setIsReady(true);
         localStateReady = true;
@@ -271,6 +289,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         const serverSyncStartedAt = startupNow();
         try {
           const baseUrl = getApiUrl();
+          const serverNameRevision=nameRevisionRef.current;
           const res = await fetchWithTimeout(new URL(`/api/player/${id}`, baseUrl).toString());
           if (res.ok) {
             const sp = await res.json();
@@ -278,12 +297,13 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
             // Merge against the latest local state so a game played while the
             // initial request is pending cannot lose its earned progress.
-            const serverCoins: number = isNewPlayer
+            const serverCoins: number = latestLocal.halloween2026?.walletPending ? latestLocal.coins : isNewPlayer
               ? Math.max(STARTING_COINS, latestLocal.coins)
               : Math.max(sp.coins ?? 0, latestLocal.coins);
 
             const merged: PlayerProfile = {
-              name: latestLocal.name || sp.name || defaultProfile.name,
+              halloween2026: latestLocal.halloween2026,
+              name: nameRevisionRef.current!==serverNameRevision ? latestLocal.name : sp.name || latestLocal.name || defaultProfile.name,
               coins: serverCoins,
               xp: isNewPlayer ? latestLocal.xp : Math.max(sp.xp ?? 0, latestLocal.xp),
               level: isNewPlayer ? latestLocal.level : calculateLevel(Math.max(sp.xp ?? 0, latestLocal.xp)),
@@ -333,7 +353,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
             profileRef.current = merged;
             setProfile(merged);
-            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+            await persistPlayerProfile(merged);
 
             // Sync the starting bonus back to the server so the DB reflects it.
             if (isNewPlayer) {
@@ -367,7 +387,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const saveProfile = async (p: PlayerProfile) => {
-    try { await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch {}
+    try { await persistPlayerProfile(p); } catch {}
   };
 
   const debouncedSync = useCallback((p: PlayerProfile) => {
@@ -376,14 +396,39 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       if (!playerId) return;
       try {
         const baseUrl = getApiUrl();
-        await fetch(new URL(`/api/player/${playerId}`, baseUrl).toString(), {
+        const payload={...p};delete payload.halloween2026;
+        const response=await fetch(new URL(`/api/player/${playerId}`, baseUrl).toString(), {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(p),
+          body: JSON.stringify(payload),
         });
+        if(response.ok&&p.halloween2026?.walletPending&&profileRef.current.coins===p.coins){
+          const current=profileRef.current;
+          const confirmed={...current,halloween2026:{...current.halloween2026!,walletPending:false}};
+          profileRef.current=confirmed;setProfile(confirmed);await persistPlayerProfile(confirmed);
+        }
       } catch {}
     }, 2000);
   }, [playerId]);
+
+  const applyHalloweenAction = useCallback(async (action:SeasonAction) => {
+    const previous=profileRef.current;
+    const seasonal=prepareHalloweenObjectives(previous.halloween2026,previous);
+    const result=applyDeviceHalloween(previous.coins,seasonal,action);
+    const next:PlayerProfile={...previous,coins:result.coins,halloween2026:{state:result.state,claimedTasks:result.claimedTasks,claimedAchievements:result.claimedAchievements,objectiveBaseline:seasonal?.objectiveBaseline,walletPending:previous.halloween2026?.walletPending||result.coins!==previous.coins}};
+    profileRef.current=next;setProfile(next);
+    await persistPlayerProfile(next);
+    // Reuse only the game's existing wallet sync; seasonal ownership stays on device.
+    if(result.coins!==previous.coins)debouncedSync(next);
+    return result;
+  },[debouncedSync]);
+  const recordHalloweenClaims = useCallback((source:"task"|"achievement",keys:string[])=>{
+    if(!keys.length)return;
+    const previous=profileRef.current;
+    const saved=recordDeviceHalloweenClaims(previous.coins,previous.halloween2026,source,keys);
+    if(JSON.stringify(saved)===JSON.stringify(previous.halloween2026))return;
+    const next={...previous,halloween2026:saved};profileRef.current=next;setProfile(next);void persistPlayerProfile(next).catch(()=>{});
+  },[]);
 
   const updateProfile = (updates: Partial<PlayerProfile>) => {
     setProfile((prev) => {
@@ -431,7 +476,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const setPlayerName = (name: string) => { updateProfile({ name }); };
+  const setPlayerName = async (value: string) => {
+    const name = cleanPlayerName(value);
+    const response = await fetchWithTimeout(new URL("/api/player/change-name", getApiUrl()), {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ player_id: playerId, new_name: name }),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success) throw new Error(data.error || "network_error");
+    nameRevisionRef.current++;
+    updateProfile({ name: data.name });
+    await AsyncStorage.removeItem("@horof_name_pending");
+    setNeedsName(false);
+  };
 
   const consumeCard = (cardId: keyof PowerCards): boolean => {
     const currentCount = profile.powerCards[cardId];
@@ -439,6 +496,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const newPowerCards: PowerCards = { ...profile.powerCards, [cardId]: currentCount - 1 };
     setProfile((prev) => {
       const updated = { ...prev, powerCards: newPowerCards };
+      profileRef.current=updated;
       saveProfile(updated);
       debouncedSync(updated);
       return updated;
@@ -449,6 +507,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const addPowerCard = (cardId: keyof PowerCards, count = 1) => {
     setProfile((prev) => {
       const updated = { ...prev, powerCards: { ...prev.powerCards, [cardId]: prev.powerCards[cardId] + count } };
+      profileRef.current=updated;
       saveProfile(updated);
       debouncedSync(updated);
       return updated;
@@ -460,7 +519,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     try {
       const baseUrl = getApiUrl();
       await fetch(new URL(`/api/player/${playerId}`, baseUrl).toString(), {
-        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(profile),
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify((({halloween2026:deviceOnly,...serverProfile})=>{void deviceOnly;return serverProfile;})(profile)),
       });
     } catch {}
   };
@@ -478,6 +537,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (data.profile) {
           const sp = data.profile;
           const merged: PlayerProfile = {
+            halloween2026: profileRef.current.halloween2026,
             name: sp.name || profile.name,
             coins: sp.coins ?? profile.coins,
             xp: sp.xp ?? profile.xp,
@@ -525,6 +585,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             isVip: sp.isVip ?? profile.isVip ?? false,
             vipExpiresAt: sp.vipExpiresAt ?? profile.vipExpiresAt ?? null,
           };
+          profileRef.current=merged;
           setProfile(merged);
           saveProfile(merged);
         }
@@ -556,7 +617,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <PlayerContext.Provider value={{
-      profile, playerId, isReady, hasLocalProfileError, updateProfile, addCoins, addXp,
+      profile, playerId, isReady, needsName, hasLocalProfileError, updateProfile, applyHalloweenAction, recordHalloweenClaims, addCoins, addXp,
       setPlayerName, syncToServer, reportGameResult, consumeCard,
       addPowerCard,
     }}>

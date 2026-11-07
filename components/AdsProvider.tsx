@@ -1,6 +1,14 @@
 import React, { createContext, useContext } from "react";
 
 type AdsContextValue = {
+  adRequestVersion: number;
+  diagnosticReport: string;
+  retryAds: () => Promise<void>;
+  reportAdEvent: (
+    format: "consent" | "sdk" | "appOpen" | "banner",
+    status: string,
+    error?: unknown,
+  ) => void;
   canRequestAds: boolean;
   isFullScreenAdActive: boolean;
   privacyOptionsRequired: boolean;
@@ -8,6 +16,10 @@ type AdsContextValue = {
 };
 
 const AdsContext = createContext<AdsContextValue>({
+  adRequestVersion: 0,
+  diagnosticReport: "الإعلانات غير متاحة في المتصفح",
+  retryAds: async () => {},
+  reportAdEvent: () => {},
   canRequestAds: false,
   isFullScreenAdActive: false,
   privacyOptionsRequired: false,
@@ -18,6 +30,10 @@ const AdsContext = createContext<AdsContextValue>({
 
 export function AdsProvider({ children }: React.PropsWithChildren) {
   const value: AdsContextValue = {
+    adRequestVersion: 0,
+    diagnosticReport: "الإعلانات غير متاحة في المتصفح",
+    retryAds: async () => {},
+    reportAdEvent: () => {},
     canRequestAds: false,
     isFullScreenAdActive: false,
     privacyOptionsRequired: false,

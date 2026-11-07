@@ -1,6 +1,8 @@
+import Svg, { Path, Circle } from "react-native-svg";
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
+  ScrollView,
   Text,
   StyleSheet,
   TouchableOpacity,
@@ -68,7 +70,7 @@ export default function SpinScreen() {
   const rewardScale   = useRef(new Animated.Value(0)).current;
   const rewardOpacity = useRef(new Animated.Value(0)).current;
 
-  const topInset    = Platform.OS === "web" ? 67 : insets.top;
+  const topInset    = Platform.OS === "web" ? 20 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
   const wheelSize = Math.min(Math.max(width - 48, 236), 280);
 
@@ -270,17 +272,20 @@ export default function SpinScreen() {
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
       <GameScreenBackground accent="reward" />
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:theme.background+"A8"}]}/>
       <GameHeader
-        title={isRTL ? "العجلة اليومية" : "Daily Spin"}
+        title={isRTL ? "عجلة الحظ" : "Daily Spin"}
+        subtitle={isRTL?"دورة مجانية واحدة كل يوم":"One free spin every day"}
         onBack={() => router.back()}
         icon={<Ionicons name="gift-outline" size={23} color={LOGO.yellow} />}
         trailing={<View style={styles.headerBalance}><GameIcon name="coins" size={21} color={LOGO.yellow} /><Text style={[styles.headerCoins, { color: theme.textPrimary }]}>{profile.coins.toLocaleString()}</Text></View>}
       />
 
-      <View style={styles.content}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <Text style={[styles.introTitle,{color:theme.textPrimary}]}>{isRTL?"مكافأتك اليومية تنتظرك":"Your daily reward awaits"}</Text>
 
         {/* Wheel */}
-        <View style={styles.wheelContainer}>
+        <View style={[styles.wheelContainer,{width:wheelSize,height:wheelSize,marginVertical:8}]}>
           {/* Pointer triangle */}
           <View style={styles.pointerContainer}>
             <View style={styles.pointer} />
@@ -293,6 +298,10 @@ export default function SpinScreen() {
               { transform: [{ rotate: spinRotation }, { scale: pulseAnim }] },
             ]}
           >
+            <Svg width={wheelSize} height={wheelSize} viewBox="0 0 280 280" style={StyleSheet.absoluteFill}>
+              {WHEEL_SEGMENTS.map((_,index)=>{const start=(index*360/SEG_COUNT-90-180/SEG_COUNT)*Math.PI/180,end=(index*360/SEG_COUNT-90+180/SEG_COUNT)*Math.PI/180;return <Path key={index} d={"M140 140 L"+(140+132*Math.cos(start))+" "+(140+132*Math.sin(start))+" A132 132 0 0 1 "+(140+132*Math.cos(end))+" "+(140+132*Math.sin(end))+" Z"} fill={index%2?"#382246":"#193B48"} stroke="#B28B57" strokeWidth={1}/>;})}
+              <Circle cx={140} cy={140} r={133} fill="none" stroke="#F2D18D" strokeWidth={3}/>
+            </Svg>
             {WHEEL_SEGMENTS.map((seg, idx) => {
               const angle = (idx * 360) / SEG_COUNT;
               return (
@@ -304,14 +313,14 @@ export default function SpinScreen() {
                       width: wheelSize * 0.31,
                       height: wheelSize * 0.15,
                       transform: [{ rotate: `${angle}deg` }, { translateY: -wheelSize * 0.314 }],
-                      backgroundColor: seg.color,
+                      backgroundColor: "transparent",
                     },
                   ]}
                 >
                   {seg.icon === "coins"
                     ? <GameIcon name="coins" size={15} color={seg.textColor} />
                     : <Ionicons name={seg.icon === "sparkles" ? "sparkles-outline" : "flash-outline"} size={15} color={seg.textColor} />}
-                  <Text style={[styles.segmentText, { color: seg.textColor }]}>{seg.label}</Text>
+                  <Text style={[styles.segmentText, { color: seg.textColor }]}>{isRTL?seg.label.replace("XP","خبرة"):seg.label}</Text>
                 </View>
               );
             })}
@@ -340,7 +349,7 @@ export default function SpinScreen() {
                 {reward.type === "powerCard"
                   ? (isRTL ? "بطاقة قوة إضافية!" : "Power card earned!")
                   : reward.type === "xp"
-                  ? `+${reward.amount} XP`
+                  ? `+${reward.amount} ${isRTL?"نقطة خبرة":"XP"}`
                   : `+${reward.amount} ${isRTL ? "عملة" : "coins"}`}
               </Text>
             </View>
@@ -369,7 +378,7 @@ export default function SpinScreen() {
           activeOpacity={0.85}
         >
           <LinearGradient
-            colors={canSpin && !spinning ? [LOGO.yellow, LOGO.pink] : ["#333", "#222"]}
+            colors={canSpin && !spinning ? [LOGO.yellow, "#DCA557"] : ["#333", "#222"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.spinBtn}
@@ -389,7 +398,7 @@ export default function SpinScreen() {
         <View style={styles.infoRow}>
           {[
             { icon: "coins", label: isRTL ? "50-500 عملة" : "50-500 coins" },
-            { icon: "sparkles", label: isRTL ? "نقاط XP" : "Bonus XP" },
+            { icon: "sparkles", label: isRTL ? "نقاط خبرة" : "Bonus XP" },
             { icon: "flash", label: isRTL ? "بطاقة قوة" : "Power card" },
           ].map((item, i) => (
             <View key={i} style={styles.infoItem}>
@@ -401,7 +410,7 @@ export default function SpinScreen() {
           ))}
         </View>
 
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -419,7 +428,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.08)", justifyContent: "center", alignItems: "center",
   },
   title: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F6F7FF" },
-  content: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 20, gap: 20 },
+  content: { flexGrow:1,width:"100%",maxWidth:560,alignSelf:"center",alignItems:"center",padding:20,paddingBottom:28,gap:20 },
+  introTitle:{fontFamily:"Cairo_700Bold",fontSize:19,textAlign:"center",marginVertical:4},
 
   wheelContainer: { width: 300, height: 300, alignItems: "center", justifyContent: "center" },
   pointerContainer: { position: "absolute", top: -12, zIndex: 10, alignItems: "center" },
@@ -431,10 +441,10 @@ const styles = StyleSheet.create({
   },
   wheel: {
     backgroundColor: "rgba(255,255,255,0.04)",
-    borderWidth: 4, borderColor: LOGO.purple + "88",
+    borderWidth: 0, borderColor: "#E2BB75",
     alignItems: "center", justifyContent: "center",
     shadowColor: LOGO.purple, shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9, shadowRadius: 32, elevation: 20,
+    shadowOpacity: 0.35, shadowRadius: 20, elevation: 20,
   },
   segment: {
     position: "absolute", borderRadius: 10,

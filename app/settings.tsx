@@ -1,3 +1,4 @@
+import { FantasySettingsSection } from "@/components/FantasySettingsSection";
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -47,7 +48,7 @@ export default function SettingsScreen() {
   const { t, language, setLanguage, soundEffects, setSoundEffects, musicEnabled, setMusicEnabled } = useLanguage();
   const { playerId, profile, addCoins, updateProfile } = usePlayer();
   const { theme } = useTheme();
-  const { privacyOptionsRequired, showPrivacyOptions } = useAds();
+  const { privacyOptionsRequired, showPrivacyOptions,diagnosticReport,retryAds } = useAds();
   const [showExitModal, setShowExitModal] = useState(false);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
@@ -60,7 +61,7 @@ export default function SettingsScreen() {
   const [refEligible, setRefEligible] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
+  const topInset = Platform.OS === "web" ? 20 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
   const myDisplayCode = getPlayerDisplayId(profile.playerTag);
@@ -170,9 +171,11 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
-      <GameScreenBackground />
+      <GameScreenBackground accent="online" />
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:theme.background+"A8"}]}/>
       <GameHeader
         title={t.settings}
+        subtitle="تفضيلات اللعب والحساب"
         onBack={() => router.back()}
         icon={<GameIcon name="settings" size={23} color={LOGO.cyan} />}
       />
@@ -180,11 +183,69 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
         {/* ── Country ──────────────────────────────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="earth-outline" size={20} color={LOGO.cyan} />
-            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>بلدك</Text>
+        <FantasySettingsSection title={<>الصوت والموسيقى</>} defaultExpanded>
+
+
+          <View style={[styles.toggleCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <Ionicons name="musical-note" size={20} color={LOGO.cyan} />
+                <View style={styles.toggleTexts}>
+                  <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>المؤثرات الصوتية</Text>
+                  <Text style={[styles.toggleSub, { color: theme.textMuted }]}>أصوات الزر والتحذير</Text>
+                </View>
+              </View>
+              <Switch
+                value={soundEffects}
+                onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSoundEffects(v); }}
+                trackColor={{ false: theme.cardBorder, true: LOGO.cyan + "80" }}
+                thumbColor={soundEffects ? LOGO.cyan : theme.textMuted}
+              />
+            </View>
+
+            <View style={[styles.toggleDivider, { backgroundColor: theme.cardBorder }]} />
+
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <Ionicons name="headset" size={20} color={LOGO.purple} />
+                <View style={styles.toggleTexts}>
+                  <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>الموسيقى</Text>
+                  <Text style={[styles.toggleSub, { color: theme.textMuted }]}>موسيقى الخلفية</Text>
+                </View>
+              </View>
+              <Switch
+                value={musicEnabled}
+                onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMusicEnabled(v); }}
+                trackColor={{ false: theme.cardBorder, true: LOGO.purple + "80" }}
+                thumbColor={musicEnabled ? LOGO.purple : theme.textMuted}
+              />
+            </View>
           </View>
+        </FantasySettingsSection>
+
+        {/* ── Player Code ─────────────────────────────── */}
+        <FantasySettingsSection title={<>{t.language}</>}>
+
+          <View style={styles.optionsRow}>
+            {(["ar", "en"] as Language[]).map((lang) => (
+              <TouchableOpacity
+                key={lang}
+                style={[styles.languageOption, { backgroundColor: theme.card, borderColor: theme.cardBorder }, language === lang && styles.languageOptionActive]}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setLanguage(lang); }}
+              >
+                <Text style={styles.languageFlag}>{lang === "ar" ? "🇲🇦" : "🇺🇸"}</Text>
+                <Text style={[styles.languageLabel, { color: theme.textSecondary }, language === lang && styles.languageLabelActive]}>
+                  {lang === "ar" ? t.arabic : t.english}
+                </Text>
+                {language === lang && <Ionicons name="checkmark-circle" size={16} color={LOGO.yellow} />}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </FantasySettingsSection>
+
+        {/* ── Referral System ──────────────────────────── */}
+        <FantasySettingsSection title={<>بلدك</>}>
+
           <TouchableOpacity
             style={[styles.settingRow, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
             onPress={() => setShowCountryPicker(true)}
@@ -199,14 +260,34 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
           </TouchableOpacity>
-        </View>
+        </FantasySettingsSection>
 
-        {/* ── Player Code ─────────────────────────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="id-card" size={20} color={LOGO.pink} />
-            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>كود اللاعب</Text>
+        {/* ── Language ────────────────────────────────── */}
+        <FantasySettingsSection title={<>الإشعارات</>}>
+
+
+          <View style={[styles.toggleCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleLeft}>
+                <Ionicons name="notifications-outline" size={20} color={gameDesign.colors.online} />
+                <View style={styles.toggleTexts}>
+                  <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>إشعارات اللعبة</Text>
+                  <Text style={[styles.toggleSub, { color: theme.textMuted }]}>مكافآت وتذكيرات يومية</Text>
+                </View>
+              </View>
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={handleToggleNotifications}
+                trackColor={{ false: theme.cardBorder, true: `${gameDesign.colors.online}80` }}
+                thumbColor={notificationsEnabled ? gameDesign.colors.online : theme.textMuted}
+              />
+            </View>
           </View>
+        </FantasySettingsSection>
+
+        {/* ── Sound Settings ──────────────────────────── */}
+        <FantasySettingsSection title={<>معرّف اللاعب</>}>
+
           <TouchableOpacity style={[styles.codeCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]} onPress={handleCopyCode} activeOpacity={0.7}>
             <Text style={styles.codeValue}>{myDisplayCode}</Text>
             <View style={styles.codeCopyBtn}>
@@ -216,14 +297,32 @@ export default function SettingsScreen() {
               </Text>
             </View>
           </TouchableOpacity>
-        </View>
+        </FantasySettingsSection>
 
-        {/* ── Referral System ──────────────────────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="gift" size={20} color={Colors.emerald} />
-            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>نظام الإحالة</Text>
-          </View>
+        {Platform.OS!=="web"?<FantasySettingsSection title={<>الإعلانات</>}><TouchableOpacity accessibilityRole="button" accessibilityLabel="حالة الإعلانات" style={[styles.settingRow,{backgroundColor:theme.card,borderColor:theme.cardBorder}]} onPress={()=>Alert.alert("حالة الإعلانات",diagnosticReport,[{text:"نسخ التقرير",onPress:()=>{void Clipboard.setStringAsync(diagnosticReport);}},{text:"إعادة المحاولة",onPress:()=>{void retryAds().catch(()=>Alert.alert("الإعلانات","تعذر إعادة المحاولة حالياً."));}},{text:"إغلاق",style:"cancel"}])}><View style={{flex:1,gap:2}}><Text style={[styles.toggleTitle,{color:theme.textPrimary}]}>حالة الإعلانات</Text><Text style={[styles.toggleSub,{color:theme.textMuted}]}>راجع الحالة أو انسخ التقرير للدعم</Text></View><Ionicons name="information-circle-outline" size={22} color={theme.textMuted}/></TouchableOpacity></FantasySettingsSection>:null}
+        {Platform.OS !== "web" && privacyOptionsRequired && (
+          <FantasySettingsSection title={<>{t.privacyOptions}</>}>
+
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t.privacyOptions}
+              accessibilityHint={t.privacyOptionsHint}
+              style={[styles.settingRow, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+              onPress={handlePrivacyOptions}
+              activeOpacity={0.75}
+            >
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>{t.privacyOptions}</Text>
+                <Text style={[styles.toggleSub, { color: theme.textMuted }]}>{t.privacyOptionsHint}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
+            </TouchableOpacity>
+          </FantasySettingsSection>
+        )}
+
+        {/* ── Notifications ─────────────────────────── */}
+        <FantasySettingsSection title={<>نظام الإحالة</>}>
+
           <View style={[styles.refCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
             <Text style={[styles.refLabel, { color: theme.textMuted }]}>كود الإحالة الخاص بك:</Text>
             <View style={styles.refCodeRow}>
@@ -275,130 +374,11 @@ export default function SettingsScreen() {
               لقد استخدمت كود إحالة من قبل
             </Text>
           ) : null}
-        </View>
-
-        {/* ── Language ────────────────────────────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="language" size={20} color={LOGO.yellow} />
-            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{t.language}</Text>
-          </View>
-          <View style={styles.optionsRow}>
-            {(["ar", "en"] as Language[]).map((lang) => (
-              <TouchableOpacity
-                key={lang}
-                style={[styles.languageOption, { backgroundColor: theme.card, borderColor: theme.cardBorder }, language === lang && styles.languageOptionActive]}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setLanguage(lang); }}
-              >
-                <Text style={styles.languageFlag}>{lang === "ar" ? "🇲🇦" : "🇺🇸"}</Text>
-                <Text style={[styles.languageLabel, { color: theme.textSecondary }, language === lang && styles.languageLabelActive]}>
-                  {lang === "ar" ? t.arabic : t.english}
-                </Text>
-                {language === lang && <Ionicons name="checkmark-circle" size={16} color={LOGO.yellow} />}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* ── Sound Settings ──────────────────────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="volume-high" size={20} color={LOGO.cyan} />
-            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>الصوت والموسيقى</Text>
-          </View>
-
-          <View style={[styles.toggleCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleLeft}>
-                <Ionicons name="musical-note" size={20} color={LOGO.cyan} />
-                <View style={styles.toggleTexts}>
-                  <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>المؤثرات الصوتية</Text>
-                  <Text style={[styles.toggleSub, { color: theme.textMuted }]}>أصوات الزر والتحذير</Text>
-                </View>
-              </View>
-              <Switch
-                value={soundEffects}
-                onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSoundEffects(v); }}
-                trackColor={{ false: theme.cardBorder, true: LOGO.cyan + "80" }}
-                thumbColor={soundEffects ? LOGO.cyan : theme.textMuted}
-              />
-            </View>
-
-            <View style={[styles.toggleDivider, { backgroundColor: theme.cardBorder }]} />
-
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleLeft}>
-                <Ionicons name="headset" size={20} color={LOGO.purple} />
-                <View style={styles.toggleTexts}>
-                  <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>الموسيقى</Text>
-                  <Text style={[styles.toggleSub, { color: theme.textMuted }]}>موسيقى الخلفية</Text>
-                </View>
-              </View>
-              <Switch
-                value={musicEnabled}
-                onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMusicEnabled(v); }}
-                trackColor={{ false: theme.cardBorder, true: LOGO.purple + "80" }}
-                thumbColor={musicEnabled ? LOGO.purple : theme.textMuted}
-              />
-            </View>
-          </View>
-        </View>
-
-        {Platform.OS !== "web" && privacyOptionsRequired && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="shield-checkmark-outline" size={20} color={LOGO.cyan} />
-              <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{t.privacyOptions}</Text>
-            </View>
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel={t.privacyOptions}
-              accessibilityHint={t.privacyOptionsHint}
-              style={[styles.settingRow, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
-              onPress={handlePrivacyOptions}
-              activeOpacity={0.75}
-            >
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>{t.privacyOptions}</Text>
-                <Text style={[styles.toggleSub, { color: theme.textMuted }]}>{t.privacyOptionsHint}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* ── Notifications ─────────────────────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="notifications" size={20} color={gameDesign.colors.online} />
-            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>الإشعارات</Text>
-          </View>
-
-          <View style={[styles.toggleCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleLeft}>
-                <Ionicons name="notifications-outline" size={20} color={gameDesign.colors.online} />
-                <View style={styles.toggleTexts}>
-                  <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>إشعارات اللعبة</Text>
-                  <Text style={[styles.toggleSub, { color: theme.textMuted }]}>مكافآت وتذكيرات يومية</Text>
-                </View>
-              </View>
-              <Switch
-                value={notificationsEnabled}
-                onValueChange={handleToggleNotifications}
-                trackColor={{ false: theme.cardBorder, true: `${gameDesign.colors.online}80` }}
-                thumbColor={notificationsEnabled ? gameDesign.colors.online : theme.textMuted}
-              />
-            </View>
-          </View>
-        </View>
+        </FantasySettingsSection>
 
         {/* ── Game Rules ─────────────────────────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="help-circle" size={20} color={Colors.sapphire} />
-            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>كيفية اللعب</Text>
-          </View>
+        <FantasySettingsSection title={<>كيفية اللعب</>}>
+
           <View style={[styles.rulesList, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
             {([
               { icon: "text" as const,         text: "سيظهر حرف عشوائي باللغة العربية",    color: LOGO.yellow },
@@ -414,14 +394,11 @@ export default function SettingsScreen() {
               </View>
             ))}
           </View>
-        </View>
+        </FantasySettingsSection>
 
         {/* ── Coin Rewards ───────────────────────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="ribbon" size={20} color={Colors.ruby} />
-            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>نظام النقود</Text>
-          </View>
+        <FantasySettingsSection title={<>نظام النقود</>}>
+
           <View style={styles.coinRulesGrid}>
             {[
               { rank: "1",  coins: "20", color: Colors.rank1 },
@@ -438,14 +415,11 @@ export default function SettingsScreen() {
               </View>
             ))}
           </View>
-        </View>
+        </FantasySettingsSection>
 
         {/* ── Level Rewards ──────────────────────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="trending-up" size={20} color={LOGO.purple} />
-            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>مكافآت المستويات</Text>
-          </View>
+        <FantasySettingsSection title={<>مكافآت المستويات</>}>
+
           <View style={[styles.rulesList, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
             {[
               { level: 5,  reward: "+300 عملة", icon: "coins" as GameIconName },
@@ -466,7 +440,7 @@ export default function SettingsScreen() {
               </View>
             ))}
           </View>
-        </View>
+        </FantasySettingsSection>
 
         {/* ── Exit Button ────────────────────────────── */}
         <TouchableOpacity
@@ -523,7 +497,7 @@ const styles = StyleSheet.create({
   headerCenter: { flexDirection: "row", alignItems: "center", gap: 8 },
   headerEmoji: { fontSize: 20 },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F6F7FF" },
-  content: { padding: 16, gap: 20, paddingBottom: 40 },
+  content: { width:"100%", maxWidth:592, alignSelf:"center", padding:16, gap:10, paddingBottom:32 },
 
   section: { gap: 12 },
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8 },

@@ -64,7 +64,9 @@ export const playerProfiles = pgTable("player_profiles", {
   seasonLosses: integer("season_losses").notNull().default(0),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
   updatedAt: timestamp("updated_at").notNull().default(sql`now()`),
-});
+},table=>({
+  uniquePlayerName:uniqueIndex("player_profiles_name_key_unique").on(sql`lower(btrim(regexp_replace(normalize(${table.name}, NFKC), '[[:space:]]+', ' ', 'g')))`),
+}));
 
 // ── RANKED SEASONS ──────────────────────────────────────────────────────────
 export const seasons = pgTable("seasons", {

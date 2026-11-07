@@ -1,3 +1,4 @@
+import { displayError } from "@/lib/display-error";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -270,7 +271,7 @@ export default function ChatScreen() {
       {!!error && (
         <View style={styles.errorBanner}>
           <Ionicons name="alert-circle-outline" size={16} color={RED} />
-          <Text style={styles.errorText}>{error}</Text>
+          <Text style={styles.errorText}>{displayError(error,isRTL)}</Text>
         </View>
       )}
       {!socketConnected && (

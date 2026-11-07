@@ -1,3 +1,5 @@
+import type { PublicQueueMode } from "../shared/public-game";
+import type { TeamMode } from "../shared/friends-room";
 import { randomBytes } from "node:crypto";
 import {
   ARABIC_LETTERS,
@@ -12,6 +14,9 @@ export type RoundCount = 3 | 5 | 7;
 export type RoundDuration = 45 | 60 | 90;
 
 export type OnlineRoomSettings = {
+  teamMode?: TeamMode;
+  matchmakingMode?:PublicQueueMode;
+  entryFee?:number;
   maxPlayers: RoomCapacity;
   rounds: RoundCount;
   secondsPerRound: RoundDuration;

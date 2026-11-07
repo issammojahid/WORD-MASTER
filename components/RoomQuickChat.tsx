@@ -1,0 +1,16 @@
+import React,{useEffect,useRef,useState} from "react";
+import { View,Text,Pressable,StyleSheet } from "react-native";
+import type { Socket } from "socket.io-client";
+import { QUICK_MESSAGES,type QuickRoomMessage } from "@shared/friends-room";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+const EMPTY_HISTORY:QuickRoomMessage[]=[];
+export function RoomQuickChat({socket,matchId,history=EMPTY_HISTORY,connected}:{socket:Socket|null;matchId:string;history?:QuickRoomMessage[];connected:boolean}){
+ const {theme}=useTheme(),{isRTL}=useLanguage(),[messages,setMessages]=useState<QuickRoomMessage[]>(history),[muted,setMuted]=useState(false),[cooldown,setCooldown]=useState(false),timer=useRef<ReturnType<typeof setTimeout>|null>(null);
+ useEffect(()=>{setMessages([]);setCooldown(false);return()=>{if(timer.current)clearTimeout(timer.current);};},[matchId]);
+ useEffect(()=>{setMessages(current=>[...new Map([...current,...history].map(m=>[m.id,m])).values()].sort((a,b)=>a.createdAt-b.createdAt).slice(-12));},[history]);
+ useEffect(()=>{const receive=(message:QuickRoomMessage)=>{if(message.matchId!==matchId||!QUICK_MESSAGES.some(m=>m.id===message.messageId))return;setMessages(current=>[...current.filter(m=>m.id!==message.id),message].slice(-12));};socket?.on("room:quick-message",receive);return()=>{socket?.off("room:quick-message",receive);};},[socket,matchId]);
+ function send(messageId:string){if(!socket||!connected||cooldown)return;socket.emit("room:quick-message",{matchId,messageId});setCooldown(true);timer.current=setTimeout(()=>setCooldown(false),2000);}
+ return <View style={[s.panel,{backgroundColor:theme.card,borderColor:theme.cardBorder}]}><View style={s.heading}><Pressable accessibilityRole="button" onPress={()=>setMuted(v=>!v)} style={s.mute}><Text style={{color:theme.textSecondary}}>{muted?"إظهار الرسائل":"كتم الرسائل"}</Text></Pressable><Text style={[s.title,{color:theme.textPrimary}]}>رسائل سريعة</Text></View>{!muted?<><View style={s.history}>{messages.length?messages.slice(-4).map(message=><Text key={message.id} style={[s.message,{color:theme.textSecondary}]}><Text style={{color:theme.textPrimary}}>{message.playerName}: </Text>{QUICK_MESSAGES.find(m=>m.id===message.messageId)?.[isRTL?"ar":"en"]}</Text>):<Text style={[s.message,{color:theme.textSecondary}]}>تواصل مع لاعبي غرفتك برسالة جاهزة</Text>}</View><View style={s.options}>{QUICK_MESSAGES.map(message=><Pressable key={message.id} accessibilityRole="button" disabled={cooldown||!connected} onPress={()=>send(message.id)} style={[s.chip,{borderColor:theme.cardBorder,opacity:cooldown||!connected?0.5:1}]}><Text style={[s.label,{color:theme.textPrimary}]}>{message[isRTL?"ar":"en"]}</Text></Pressable>)}</View></>:null}</View>;
+}
+const s=StyleSheet.create({panel:{padding:12,borderRadius:18,borderWidth:1,gap:8},heading:{flexDirection:"row",alignItems:"center",justifyContent:"space-between"},title:{fontFamily:"Cairo_700Bold",fontSize:15},mute:{minHeight:44,justifyContent:"center"},history:{gap:5},message:{fontFamily:"Cairo_400Regular",fontSize:12,lineHeight:21,textAlign:"right"},options:{flexDirection:"row-reverse",flexWrap:"wrap",gap:6},chip:{minHeight:44,paddingHorizontal:12,justifyContent:"center",borderWidth:1,borderRadius:14},label:{fontFamily:"Cairo_600SemiBold",fontSize:12}});

@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+import { registerPlayerNameRoute } from "./player-name-store";
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
 import { validateWord, CATEGORY_MAP, getWordsForLetter, type WordCategory } from "./wordDatabase";
@@ -9,6 +11,9 @@ import cron from "node-cron";
 import { sendDailyTaskReminders, sendStreakResetWarnings } from "./notifications";
 import { registerOnlineMultiplayer } from "./online-multiplayer";
 import { registerSocialRoutes } from "./social";
+import { registerHalloweenRoutes } from "./halloween-routes";
+import { postgresHalloweenRepository } from "./halloween-postgres";
+import { pool } from "./db";
 import {
   AVATAR_CATALOG,
   COSMETIC_CATALOG,
@@ -70,7 +75,7 @@ function generatePlayerCode(): string {
 
 function generateRandomPlayerName(): string {
   const word = RANDOM_NAME_WORDS[Math.floor(Math.random() * RANDOM_NAME_WORDS.length)];
-  const num = Math.floor(100 + Math.random() * 900);
+  const num = randomBytes(5).toString("hex");
   return `${word}_${num}`;
 }
 
@@ -361,6 +366,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   await registerOnlineMultiplayer(app, httpServer);
   registerSocialRoutes(app);
+  registerHalloweenRoutes(app, postgresHalloweenRepository(pool), { enabled: () => process.env.HALLOWEEN_COMMERCE_ENABLED === "1" });
 
   // On startup: seed static definitions and fix any players missing playerCode
   seedTaskAndAchievementDefs();
@@ -698,7 +704,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           playerCode,
           playerTag,
           referralCode: refCode,
-          name: data.name || generateRandomPlayerName(),
+          name: generateRandomPlayerName(),
           coins: data.coins ?? 100,
           xp: data.xp ?? 0,
           level: data.level ?? 1,
@@ -753,7 +759,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!existing.playerCode) updateData.playerCode = await ensurePlayerCode(id);
       if (!existing.playerTag) updateData.playerTag = await generateUniquePlayerTag();
       if (!existing.referralCode) updateData.referralCode = await generateUniqueReferralCode();
-      const allowedFields = ["name", "coins", "xp", "level", "equippedSkin", "ownedSkins", "equippedTitle", "ownedTitles", "totalScore", "gamesPlayed", "wins", "winStreak", "bestStreak", "lastStreakReward", "powerCards", "country"];
+      const allowedFields = [ "coins", "xp", "level", "equippedSkin", "ownedSkins", "equippedTitle", "ownedTitles", "totalScore", "gamesPlayed", "wins", "winStreak", "bestStreak", "lastStreakReward", "powerCards", "country"];
       for (const key of allowedFields) {
         if (data[key] !== undefined) {
           // Never overwrite country with null — DB default "MA" is the fallback
@@ -854,24 +860,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/player/change-name", async (req, res) => {
-    try {
-      const { player_id, new_name } = req.body as { player_id: string; new_name: string };
-      if (!player_id || !new_name || new_name.trim().length === 0) {
-        return res.status(400).json({ error: "missing_fields" });
-      }
-      const trimmed = new_name.trim();
-      const [updated] = await db.update(playerProfiles)
-        .set({ name: trimmed, updatedAt: new Date() })
-        .where(eq(playerProfiles.id, player_id))
-        .returning();
-      if (!updated) return res.status(404).json({ error: "player_not_found" });
-      res.json({ success: true, name: updated.name });
-    } catch (e) {
-      console.error("PATCH /api/player/change-name error:", e);
-      res.status(500).json({ error: "server_error" });
-    }
-  });
+  registerPlayerNameRoute(app,pool);
 
   app.post("/api/player/:id/spin", async (req, res) => {
     try {

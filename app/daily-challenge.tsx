@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "@/lib/network";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
@@ -52,10 +53,12 @@ export default function DailyChallengeScreen() {
   const { theme } = useTheme();
   const { width } = useWindowDimensions();
   const reduceMotion = useReducedMotion();
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
+  const topInset = Platform.OS === "web" ? 20 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [localPreview,setLocalPreview]=useState(false);
   const [letter, setLetter] = useState("");
   const [wordLength, setWordLength] = useState(4);
   const [completedGuesses, setCompletedGuesses] = useState<ColoringEntry[][]>([]);
@@ -70,6 +73,7 @@ export default function DailyChallengeScreen() {
   const [countdown, setCountdown] = useState("");
   const [letterGuessMap, setLetterGuessMap] = useState<Record<string, LetterStatus>>({});
 
+  const challengeDate=useRef("");
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const winAnim = useRef(new Animated.Value(0)).current;
 
@@ -93,8 +97,11 @@ export default function DailyChallengeScreen() {
     Animated.spring(winAnim, { toValue: 1, tension: 60, friction: 6, useNativeDriver: true }).start();
   }, [reduceMotion, winAnim]);
 
+  const loadChallengeRef = useRef(loadChallenge);
+  loadChallengeRef.current = loadChallenge;
+  useEffect(() => { if (playerId) void loadChallengeRef.current(); }, [playerId]);
+
   useEffect(() => {
-    loadChallenge();
     const interval = setInterval(updateCountdown, 1000);
     updateCountdown();
     return () => clearInterval(interval);
@@ -102,6 +109,8 @@ export default function DailyChallengeScreen() {
 
   function updateCountdown() {
     const now = new Date();
+    const today=now.toISOString().slice(0,10);
+    if(challengeDate.current&&challengeDate.current!==today){challengeDate.current=today;void loadChallengeRef.current();}
     const tomorrow = new Date();
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
     tomorrow.setUTCHours(0, 0, 0, 0);
@@ -114,12 +123,17 @@ export default function DailyChallengeScreen() {
 
   async function loadChallenge() {
     setLoading(true);
+    setLoadError(false);
     try {
       const url = new URL(`/api/daily-challenge`, getApiUrl());
       url.searchParams.set("playerId", playerId);
-      const res = await fetch(url.toString());
+      const res = await fetchWithTimeout(url.toString());
       if (!res.ok) throw new Error("server error");
       const data = await res.json();
+      if(typeof data.letter!=="string"||!data.letter||!Number.isInteger(data.wordLength)||data.wordLength<3||data.wordLength>7)throw new Error("invalid challenge");
+      challengeDate.current=data.date;
+      setLocalPreview(data.local===true);
+      setCompleted(false);setWon(false);setRevealedWord(null);setCompletedGuesses([]);setLetterGuessMap({});setCurrentInput("");setResultModal(false);setCoinsAwarded(0);setGuessError(null);
       setLetter(data.letter || "");
       setWordLength(data.wordLength || 4);
       if (data.entry) {
@@ -130,7 +144,7 @@ export default function DailyChallengeScreen() {
             setWon(entry.won);
             setRevealedWord(data.word);
             const target = data.word || "";
-            const prevGuesses: ColoringEntry[][] = entry.guesses.map((g: string) =>
+            const prevGuesses: ColoringEntry[][] = entry.coloring ?? entry.guesses.map((g: string) =>
               applyColoring(g, target)
             );
             setCompletedGuesses(prevGuesses);
@@ -147,6 +161,7 @@ export default function DailyChallengeScreen() {
         }
       }
     } catch (e) {
+      setLoadError(true);
       console.error("[daily-challenge] load error:", e);
     }
     setLoading(false);
@@ -201,6 +216,7 @@ export default function DailyChallengeScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
+    const activeDate=challengeDate.current;
     setSubmitting(true);
     setGuessError(null);
     try {
@@ -211,6 +227,7 @@ export default function DailyChallengeScreen() {
         body: JSON.stringify({ playerId, guess: trimmed }),
       });
       const data = await res.json();
+      if(activeDate!==challengeDate.current){setSubmitting(false);return;}
       if (!res.ok || data.error) {
         if (data.error === "wrong_length") {
           setGuessError(`الكلمة يجب أن تكون ${data.expected} أحرف`);
@@ -286,9 +303,9 @@ export default function DailyChallengeScreen() {
           cellLetter = chars[j] || "";
           status = cellLetter ? "typing" : "empty";
         }
-        const colors = STATUS_COLORS[status];
+        const colors = status === "empty" || status === "typing" ? { bg:theme.card, border:status === "typing" ? gameDesign.colors.coins : theme.cardBorder, text:theme.textPrimary } : STATUS_COLORS[status];
         cells.push(
-          <View key={j} style={[styles.cell, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+          <View key={j} style={[styles.cell, { width:Math.min(46,(width-56)/wordLength-8), backgroundColor: colors.bg, borderColor: colors.border }]}>
             <Text style={[styles.cellText, { color: colors.text }]}>{cellLetter}</Text>
           </View>
         );
@@ -311,7 +328,7 @@ export default function DailyChallengeScreen() {
         <View key={ri} style={[styles.keyRow, { maxWidth: width - 32 }]}>
           {row.map(key => {
             const status = letterGuessMap[key];
-            const colors = status ? STATUS_COLORS[status] : { bg: "#D5F6FA", border: "#BDEAF0", text: gameDesign.colors.textPrimary };
+            const colors = status ? STATUS_COLORS[status] : { bg:theme.card, border:theme.cardBorder, text:theme.textPrimary };
             return (
               <TouchableOpacity
                 key={key}
@@ -334,6 +351,7 @@ export default function DailyChallengeScreen() {
     return (
       <View style={[styles.container, styles.centerContent, { paddingTop: topInset, backgroundColor: theme.background }]}>
         <GameScreenBackground accent="offline" />
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:theme.background+"A8"}]}/>
         <ActivityIndicator size="large" color={Colors.emerald} />
         <Text style={[styles.loadingText, { color: theme.textSecondary }]}>جاري تحميل تحدي اليوم...</Text>
       </View>
@@ -345,12 +363,15 @@ export default function DailyChallengeScreen() {
       <GameScreenBackground accent="offline" />
       <GameHeader
         title="تحدي اليوم"
-        subtitle={`الحرف: ${letter} · التالي: ${countdown}`}
+        subtitle="كلمة واحدة، ست محاولات"
         onBack={() => router.back()}
         icon={<GameIcon name="dailyChallenge" size={23} color={Colors.emerald} />}
       />
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always">
+          <View style={styles.challengeHeading}><Text style={[styles.challengeTitle,{color:theme.textPrimary}]}>اكتشف كلمة اليوم</Text><Text style={[styles.challengeHint,{color:theme.textSecondary}]}>التحدي التالي خلال {countdown}</Text></View>
+          {localPreview&&!loadError?<Text style={[styles.challengeHint,{color:theme.textSecondary}]}>تحدٍّ محلي للتجربة · دون مكافآت العملات</Text>:null}
+          {loadError ? <View style={[styles.completedBanner,{backgroundColor:theme.card,borderColor:theme.cardBorder}]}><GameIllustration name="reward" size={52}/><Text accessibilityRole="alert" style={[styles.challengeHint,{color:theme.textSecondary}]}>تعذر تحميل التحدي. تحقق من اتصالك ثم أعد المحاولة.</Text><TouchableOpacity accessibilityRole="button" onPress={()=>void loadChallenge()} style={styles.submitBtn}><Text style={styles.submitBtnText}>إعادة المحاولة</Text></TouchableOpacity></View> : <>
           {/* Info */}
           <View style={styles.infoRow}>
             <View style={[styles.infoBadge, { backgroundColor: Colors.emerald + "15", borderColor: Colors.emerald + "40" }]}>
@@ -413,6 +434,8 @@ export default function DailyChallengeScreen() {
 
           {/* Keyboard */}
           {!completed && renderKeyboard()}
+          <View style={styles.legend}>{[{color:"#087C74",label:"حرف في موضعه"},{color:"#926900",label:"حرف في موضع آخر"},{color:"#667887",label:"حرف غير موجود"}].map(item=><View key={item.label} style={styles.legendItem}><View style={[styles.legendDot,{backgroundColor:item.color}]}/><Text style={[styles.legendText,{color:theme.textSecondary}]}>{item.label}</Text></View>)}</View>
+          </>}
         </ScrollView>
 
       {/* Result Modal */}
@@ -476,7 +499,8 @@ const styles = StyleSheet.create({
     width: 40, height: 40, borderRadius: 12,
     backgroundColor: "#102A29", justifyContent: "center", alignItems: "center",
   },
-  content: { padding: 16, gap: 16, paddingBottom: 32 },
+  content: { width:"100%", maxWidth:560, alignSelf:"center", padding:16, gap:14, paddingBottom:32 },
+  challengeHeading:{alignItems:"center",gap:4,paddingVertical:6},challengeTitle:{fontFamily:"Cairo_700Bold",fontSize:20},challengeHint:{fontFamily:"Cairo_400Regular",fontSize:12,textAlign:"center",lineHeight:22},legend:{flexDirection:"row-reverse",flexWrap:"wrap",gap:12,justifyContent:"center"},legendItem:{flexDirection:"row-reverse",gap:5,alignItems:"center"},legendDot:{width:8,height:8,borderRadius:3},legendText:{fontFamily:"Cairo_400Regular",fontSize:10},
   infoRow: { flexDirection: "row", gap: 8, justifyContent: "center" },
   infoBadge: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1 },
   infoBadgeText: { fontFamily: "Cairo_600SemiBold", fontSize: 13 },
@@ -489,10 +513,10 @@ const styles = StyleSheet.create({
   cellText: { fontFamily: "Cairo_700Bold", fontSize: 22, textAlign: "center" },
   guessError: { fontFamily: "Cairo_600SemiBold", fontSize: 13, color: Colors.ruby, textAlign: "center" },
   submitBtn: {
-    backgroundColor: Colors.emerald + "20", borderRadius: 14, paddingVertical: 14,
+    backgroundColor: gameDesign.colors.coins, borderRadius: 14, minHeight:48, paddingHorizontal:16, paddingVertical: 12,
     alignItems: "center", borderWidth: 1.5, borderColor: Colors.emerald + "60",
   },
-  submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: Colors.emerald },
+  submitBtnText: { fontFamily: "Cairo_700Bold", fontSize: 15, color: "#21152F" },
   completedBanner: {
     borderRadius: 16, padding: 20, alignItems: "center", borderWidth: 1.5, gap: 8,
   },

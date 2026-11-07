@@ -1,3 +1,4 @@
+import { displayError } from "@/lib/display-error";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -309,7 +310,7 @@ export default function FriendsScreen() {
     } catch (actionError) {
       const message = actionError instanceof Error ? actionError.message : labels.error;
       setError(message);
-      Alert.alert(labels.error, message);
+      Alert.alert(labels.error, displayError(message,isRTL));
     } finally {
       setBusyId("");
     }
@@ -358,7 +359,7 @@ export default function FriendsScreen() {
     } catch (chatError) {
       const message = chatError instanceof Error ? chatError.message : labels.error;
       setError(message);
-      Alert.alert(labels.error, message);
+      Alert.alert(labels.error, displayError(message,isRTL));
     }
   };
 
@@ -380,7 +381,7 @@ export default function FriendsScreen() {
     }
     const activeSocket = socket;
     if (!socketConnected || !activeSocket) {
-      Alert.alert(labels.error, "online_unavailable");
+      Alert.alert(labels.error, displayError("online_unavailable",isRTL));
       return;
     }
     setBusyId(friend.playerId);
@@ -395,7 +396,7 @@ export default function FriendsScreen() {
         const code = typeof result === "object" && result !== null && "error" in result
           ? String(result.error)
           : labels.error;
-        Alert.alert(labels.error, code);
+        Alert.alert(labels.error, displayError(code,isRTL));
       }
     });
   };
@@ -403,7 +404,7 @@ export default function FriendsScreen() {
   const respondInvite = (invite: SocialInvite, accept: boolean) => {
     const activeSocket = socket;
     if (!socketConnected || !activeSocket) {
-      Alert.alert(labels.error, "online_unavailable");
+      Alert.alert(labels.error, displayError("online_unavailable",isRTL));
       return;
     }
     setBusyId(invite.id);
@@ -413,7 +414,7 @@ export default function FriendsScreen() {
         const code = typeof result === "object" && result !== null && "error" in result
           ? String(result.error)
           : labels.error;
-        Alert.alert(labels.error, code);
+        Alert.alert(labels.error, displayError(code,isRTL));
         return;
       }
       setInvitations((current) => current.filter((item) => item.id !== invite.id));
@@ -510,6 +511,8 @@ export default function FriendsScreen() {
   ) => (
     <Pressable
       key={key}
+      accessibilityRole="tab"
+      accessibilityState={{selected:activeSection===key}}
       onPress={() => setActiveSection(key)}
       style={[styles.tabButton, { backgroundColor: theme.card, borderColor: activeSection === key ? CYAN : theme.cardBorder }]}
     >
@@ -522,14 +525,16 @@ export default function FriendsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 12) }]}>
       <GameScreenBackground accent="online" />
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:theme.background+"A8"}]}/>
       <GameHeader
-        title={labels.title}
+        title={activeSection==="notifications"?labels.notifications:labels.title}
+        subtitle={activeSection==="notifications"?"دعواتك وآخر أخبار أصدقائك":"تواصل والعب مع أصدقائك"}
         onBack={() => router.back()}
-        icon={<GameIcon name="friends" size={24} color={CYAN} />}
+        icon={activeSection==="notifications"?<Ionicons name="notifications-outline" size={24} color={GOLD}/>:<GameIcon name="friends" size={24} color={CYAN} />}
       />
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {myPlayerId ? (
+        {myPlayerId && activeSection!=="notifications" ? (
           <Pressable
             accessibilityRole="button"
             onPress={() => void Clipboard.setStringAsync(myPlayerId).then(() => Alert.alert(labels.copied))}
@@ -543,7 +548,7 @@ export default function FriendsScreen() {
           </Pressable>
         ) : null}
 
-        <View style={[styles.searchBox, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+        {activeSection!=="notifications" && <View style={[styles.searchBox, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
           <Ionicons name="search" size={19} color={theme.textMuted} />
           <TextInput
             accessibilityLabel={labels.search}
@@ -555,9 +560,9 @@ export default function FriendsScreen() {
             style={[styles.searchInput, { color: theme.textPrimary, textAlign: isRTL ? "right" : "left" }]}
             value={search}
           />
-        </View>
+        </View>}
 
-        {search.trim().length >= 2 && (
+        {activeSection!=="notifications" && search.trim().length >= 2 && (
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{labels.search}</Text>
             {searchResults.length === 0
@@ -568,19 +573,19 @@ export default function FriendsScreen() {
           </View>
         )}
 
-        {!!error && (
+        {!!error && activeSection!=="notifications" && (
           <View style={styles.errorBanner}>
             <Ionicons name="alert-circle-outline" size={18} color={RED} />
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={styles.errorText}>{displayError(error,isRTL)}</Text>
           </View>
         )}
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+          {sectionButton("notifications", labels.notifications, unreadNotifications)}
           {sectionButton("friends", labels.friends)}
           {sectionButton("chats", labels.chats, conversations.reduce((sum, item) => sum + item.unreadCount, 0))}
           {sectionButton("requests", `${labels.incoming}/${labels.outgoing}`, incoming.length)}
           {sectionButton("inbox", labels.inbox, invitations.length + unreadNotifications)}
-          {sectionButton("notifications", labels.notifications, unreadNotifications)}
           {sectionButton("privacy", labels.privacy)}
         </ScrollView>
 
@@ -678,7 +683,7 @@ export default function FriendsScreen() {
           <View style={styles.section}>
             <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{labels.notifications}</Text>
             {notifications.length === 0
-              ? <Text style={[styles.empty, { color: theme.textSecondary }]}>{labels.notificationEmpty}</Text>
+              ? <View style={[styles.notificationEmpty,{backgroundColor:theme.card,borderColor:theme.cardBorder}]}><View style={styles.bellCircle}><Ionicons name="notifications-outline" size={36} color={GOLD}/></View><Text style={[styles.notificationTitle,{color:theme.textPrimary}]}>{error?"تعذر تحميل الإشعارات":"أنت مطّلع على كل جديد"}</Text><Text style={[styles.notificationHint,{color:theme.textSecondary}]}>{error?"تحقق من اتصالك، ثم أعد المحاولة.":labels.notificationEmpty}</Text><Text style={[styles.notificationHint,{color:theme.textSecondary}]}>ستظهر هنا دعوات اللعب وطلبات الصداقة.</Text>{error?<Pressable accessibilityRole="button" onPress={()=>void loadData()} style={[styles.actionButton,{minHeight:44,justifyContent:"center",borderColor:GOLD}]}><Text style={{color:GOLD}}>إعادة المحاولة</Text></Pressable>:null}</View>
               : notifications.map((item) => (
                 <Pressable
                   key={item.id}
@@ -692,7 +697,7 @@ export default function FriendsScreen() {
                       {item.actorName ? `${item.actorName} ` : ""}{notificationText(item.type)}
                     </Text>
                     <Text style={[styles.subline, { color: theme.textSecondary }]}>
-                      {new Date(item.createdAt).toLocaleString()}
+                      {new Date(item.createdAt).toLocaleString(isRTL?"ar":"en")}
                     </Text>
                   </View>
                   <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={16} color={theme.textMuted} />
@@ -737,13 +742,13 @@ const styles = StyleSheet.create({
   backButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center" },
   title: { flex: 1, fontSize: 22, fontWeight: "900" },
   headerIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: `${CYAN}18` },
-  content: { width: "100%", maxWidth: 760, alignSelf: "center", padding: 18, paddingBottom: 36, gap: 14 },
+  content: { width: "100%", maxWidth: 592, alignSelf: "center", padding: 18, paddingBottom: 36, gap: 14 },
   searchBox: { minHeight: 52, borderWidth: 1, borderRadius: 17, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 10 },
   playerCode: { minHeight: 60, borderWidth: 1, borderRadius: 16, paddingHorizontal: 13, paddingVertical: 9, flexDirection: "row", alignItems: "center", gap: 12 },
   playerCodeText: { fontSize: 11, fontWeight: "700" },
   searchInput: { flex: 1, fontSize: 15 },
   tabs: { gap: 8, paddingVertical: 3 },
-  tabButton: { paddingHorizontal: 13, paddingVertical: 10, borderWidth: 1, borderRadius: 14, backgroundColor: "#15213A" },
+  tabButton: { minHeight:44, justifyContent:"center", paddingHorizontal: 13, paddingVertical: 10, borderWidth: 1, borderRadius: 999, backgroundColor: "#2D1B3A" },
   section: { gap: 10 },
   sectionTitle: { fontSize: 18, fontWeight: "800", marginBottom: 2 },
   emptyState: { alignItems: "center", gap: 8, paddingVertical: 12 },
@@ -760,6 +765,7 @@ const styles = StyleSheet.create({
   errorBanner: { backgroundColor: "#5A2938", borderRadius: 13, padding: 11, flexDirection: "row", gap: 8, alignItems: "center" },
   errorText: { color: "#FFC0CB", flex: 1, fontSize: 12 },
   privacyRow: { minHeight: 58, borderWidth: 1, borderRadius: 15, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  notificationEmpty:{alignItems:"center",padding:28,gap:10,borderRadius:22,borderWidth:1},bellCircle:{width:76,height:76,borderRadius:38,backgroundColor:"#CBA47018",alignItems:"center",justifyContent:"center"},notificationTitle:{fontFamily:"Cairo_700Bold",fontSize:19,textAlign:"center"},notificationHint:{fontFamily:"Cairo_400Regular",fontSize:12,lineHeight:22,textAlign:"center"},
   notificationCard: { minHeight: 64, borderWidth: 1, borderRadius: 15, padding: 11, flexDirection: "row", alignItems: "center", gap: 10 },
   privacyLabel: { flex: 1, fontSize: 14, fontWeight: "700" },
 });

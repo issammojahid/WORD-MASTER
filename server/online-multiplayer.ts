@@ -1,3 +1,10 @@
+import {isEntryFee,isQueueFee} from "../shared/coin-entry";
+import {reserveCoinEntry,settleCoinEntry,refundInterruptedCoinEntries} from "./coin-entry-ledger";
+import {coinDatabase} from "./coin-entry-postgres";
+import { createRoomVoice } from "./room-voice";
+import { PublicMatchmaking,getPublicMatchBaseRewards } from "./public-matchmaking";
+import { PUBLIC_QUEUE_MODES,isPublicQueueMode,publicQueueSize } from "../shared/public-game";
+import { friendRoomSettingsSchema, roomTeamAssignment, roomTeamScores, roomTeamsValid, isQuickMessageId, type TeamId, type QuickRoomMessage } from "../shared/friends-room";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { clearInterval as clearNodeInterval, setInterval as setNodeInterval } from "node:timers";
 import type { Express } from "express";
@@ -26,8 +33,6 @@ import {
   applyDailyRewardLimit,
   createRoomCode,
   getRandomLetter,
-  getRandomMatchBaseRewards,
-  OnlineMatchQueue,
   scoreOnlineRound,
   type OnlineMode,
   type OnlinePlayerAnswer,
@@ -43,11 +48,7 @@ const COUNTDOWN_SECONDS = 3;
 const RESULT_DISPLAY_MS = 4_000;
 const MAX_SOCKET_PAYLOAD_BYTES = 16 * 1024;
 const displayNameSchema = z.string().trim().min(1).max(24);
-const roomSettingsSchema = z.object({
-  maxPlayers: z.union([z.literal(2), z.literal(4), z.literal(6), z.literal(8)]),
-  rounds: z.union([z.literal(3), z.literal(5), z.literal(7)]),
-  secondsPerRound: z.union([z.literal(45), z.literal(60), z.literal(90)]),
-}).strict();
+const roomSettingsSchema=friendRoomSettingsSchema;
 const matchIdSchema = z.string().uuid();
 const matchEventSchema = z.object({ matchId: matchIdSchema }).strict();
 const submitSchema = z.object({
@@ -62,6 +63,7 @@ const settingsEventSchema = z.object({
 
 type OnlineSocket = Socket & { data: { playerId?: string; displayName?: string } };
 type PlayerSlot = {
+  teamId?:TeamId|null;
   id: string;
   name: string;
   socketId: string | null;
@@ -82,6 +84,7 @@ type FinalMatchPlayer = {
   walletBalance: number;
 };
 type MatchState = {
+  messages:QuickRoomMessage[];
   id: string;
   mode: OnlineMode;
   phase: MatchPhase;
@@ -103,7 +106,7 @@ type MatchState = {
   finalResults: FinalMatchPlayer[] | null;
 };
 
-const waitingQueue = new OnlineMatchQueue<QueueEntry>();
+const waitingQueue = new PublicMatchmaking<QueueEntry>();
 const activeMatchByPlayer = new Map<string, MatchState>();
 const finishedMatchByPlayer = new Map<string, MatchState>();
 const matchesById = new Map<string, MatchState>();
@@ -162,22 +165,28 @@ function snapshot(match: MatchState) {
     roomCode: match.roomCode,
     hostId: match.hostId,
     settings: match.settings,
+    queueMode:match.mode==="random"?match.settings.matchmakingMode??"solo":undefined,
     round: match.round,
     totalRounds: match.settings.rounds,
     letter: match.letter,
     deadline: match.deadline,
+    teams:roomTeamScores(match.players,match.settings.teamMode),
+    messages:match.messages,
     players: match.players.map((player) => ({
       id: player.id,
+      teamId:player.teamId??null,
       name: player.name,
       ready: player.ready,
       host: player.id === match.hostId,
       connected: player.socketId !== null,
+      abandoned:player.abandoned,
       score: player.score,
     })),
   };
 }
 
 function emitRoomUpdate(io: SocketServer, match: MatchState): void {
+  if(match.mode==="private"&&match.phase==="waiting"){const assignments=roomTeamAssignment(match.players,match.settings.teamMode);for(const player of match.players)player.teamId=assignments.get(player.id); }
   io.to(match.id).emit("room:update", snapshot(match));
 }
 
@@ -202,6 +211,9 @@ function clearMatchTimers(match: MatchState): void {
   match.cleanupTimer = null;
 }
 
+function notifyPublicQueues(io:SocketServer){
+ for(const mode of PUBLIC_QUEUE_MODES){const entries=waitingQueue.entriesFor(mode);for(const [id,entry] of entries)for(const sid of socketsByPlayer.get(id)??new Set(entry.player.socketId?[entry.player.socketId]:[]))io.to(sid).emit("match:queued",{mode,entryFee:waitingQueue.feeFor(id)??0,players:waitingQueue.entriesFor(mode,waitingQueue.feeFor(id)??0).length,needed:publicQueueSize(mode)});}
+}
 function removeFromQueue(playerId: string): boolean {
   const entry = waitingQueue.cancel(playerId);
   if (!entry) return false;
@@ -242,6 +254,7 @@ function makePlayer(id: string, name: string, socketId: string): PlayerSlot {
 function makeMatch(mode: OnlineMode, host: PlayerSlot, settings: OnlineRoomSettings): MatchState {
   const match: MatchState = {
     id: randomUUID(),
+    messages:[],
     mode,
     phase: mode === "random" ? "match_found" : "waiting",
     roomCode: null,
@@ -274,6 +287,8 @@ function attachPlayer(io: SocketServer, match: MatchState, player: PlayerSlot, s
 }
 
 async function persistMatchStart(match: MatchState): Promise<void> {
+  if(match.players.some(p=>!p.socketId||p.abandoned))throw Error("players_not_ready");
+  if(match.mode==="random"&&isEntryFee(match.settings.entryFee)){await reserveCoinEntry(coinDatabase,match);return;}
   await db.transaction(async (tx) => {
     await tx.insert(onlineMatches).values({
       id: match.id,
@@ -296,7 +311,7 @@ async function persistAndPayMatch(match: MatchState, forfeitedPlayerId?: string)
   let priorScore: number | null = null;
   let priorRank = 0;
   const results = [...match.players]
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => Number(a.abandoned)-Number(b.abandoned)||b.score - a.score)
     .map((player, index) => {
       if (priorScore !== player.score) priorRank = index + 1;
       priorScore = player.score;
@@ -304,13 +319,17 @@ async function persistAndPayMatch(match: MatchState, forfeitedPlayerId?: string)
         playerId: player.id,
         name: player.name,
         score: player.score,
-        rank: priorRank,
+        rank:match.settings.teamMode==="duo"?roomTeamScores(match.players,"duo").find(team=>team.playerIds.includes(player.id))!.rank:player.abandoned?match.players.length:priorRank,
         abandoned: player.abandoned,
       };
-    });
+    }).sort((a,b)=>a.rank-b.rank||b.score-a.score);
 
+  if(match.mode==="random"&&isEntryFee(match.settings.entryFee)){
+    const payments=await settleCoinEntry(coinDatabase,match,{rounds:match.roundResults,final:results,forfeitedPlayerId:forfeitedPlayerId??null});
+    return results.map(result=>({...result,coinsAwarded:payments.get(result.playerId)?.amount??0,walletBalance:payments.get(result.playerId)?.balance??0}));
+  }
   const payouts = match.mode === "random"
-    ? getRandomMatchBaseRewards(match.players)
+    ? getPublicMatchBaseRewards(match.players,match.settings.matchmakingMode??"solo")
     : new Map(match.players.map((player) => [player.id, 0]));
   const rewardDate = new Date().toISOString().slice(0, 10);
   const wallets = new Map<string, { coinsAwarded: number; balance: number }>();
@@ -491,6 +510,8 @@ async function finishMatch(
     io.to(match.id).emit("match:finished", {
       matchId: match.id,
       mode: match.mode,
+      entryFee:match.settings.entryFee??0,
+      teams:roomTeamScores(match.players,match.settings.teamMode),
       players: publicPlayers,
       forfeitedPlayerId: forfeitedPlayerId ?? null,
       coinsAwarded: match.mode === "private" ? 0 : undefined,
@@ -500,6 +521,7 @@ async function finishMatch(
       if (socketId) {
         io.to(socketId).emit("match:wallet", {
           matchId: match.id,
+          entryFee:match.settings.entryFee??0,
           coinsAwarded: player.coinsAwarded,
           balance: player.walletBalance,
         });
@@ -508,6 +530,11 @@ async function finishMatch(
     emitRoomUpdate(io, match);
     match.cleanupTimer = setTimeout(() => deleteMatch(match), match.mode === "private" ? 15 * 60_000 : 60_000);
   } catch (error) {
+    if(isEntryFee(match.settings.entryFee)){
+      console.error("[online] Entry payout pending; keeping the pot reserved:",error);
+      io.to(match.id).emit("online:error",{code:"settlement_pending"});emitRoomUpdate(io,match);
+      match.cleanupTimer=setTimeout(()=>{match.phase="results";void finishMatch(io,match,forfeitedPlayerId);},5000);return;
+    }
     console.error("[online] Match settlement failed; canceling without rewards:", error);
     await db.update(onlineMatches)
       .set({ status: "cancelled", completedAt: new Date() })
@@ -526,7 +553,7 @@ async function finishMatch(
 
 async function finishRound(io: SocketServer, match: MatchState): Promise<void> {
   if (match.phase !== "playing") return;
-  if (Date.now() < match.deadline && match.players.every((player) => match.answers.has(player.id))) {
+  if (Date.now() < match.deadline && match.players.filter(player=>!player.abandoned).every((player) => match.answers.has(player.id))) {
     // All players submitted; finish immediately.
   } else if (Date.now() < match.deadline) {
     return;
@@ -550,6 +577,7 @@ async function finishRound(io: SocketServer, match: MatchState): Promise<void> {
     matchId: match.id,
     round: match.round,
     letter: match.letter,
+    teams:roomTeamScores(match.players,match.settings.teamMode),
     results: results.map((result) => ({
       ...result,
       totalScore: getPlayer(match, result.playerId)?.score ?? result.roundTotal,
@@ -581,19 +609,20 @@ function beginCountdown(io: SocketServer, match: MatchState): void {
     void (async () => {
       try {
         await persistMatchStart(match);
+        for(const player of match.players){try{const [wallet]=await db.select({coins:onlineGuestWallets.coins}).from(onlineGuestWallets).where(eq(onlineGuestWallets.playerId,player.id)).limit(1);for(const sid of socketsByPlayer.get(player.id)??[])io.to(sid).emit("match:balance",{balance:wallet?.coins??0});}catch{}}
         match.startedAt = Date.now();
         beginRound(io, match);
       } catch (error) {
         console.error("[online] Could not reserve match players:", error);
-        io.to(match.id).emit("match:cancelled", { reason: "active_match_conflict" });
+        io.to(match.id).emit("match:cancelled", { reason: error instanceof Error&&error.message==="insufficient_online_coins"?"insufficient_online_coins":"active_match_conflict" });
         deleteMatch(match);
       }
     })();
   }, 1000);
 }
 
-function cancelUnreadyMatch(io: SocketServer, match: MatchState): void {
-  io.to(match.id).emit("match:cancelled", { reason: "ready_timeout" });
+function cancelUnreadyMatch(io: SocketServer, match: MatchState, reason="ready_timeout"): void {
+  io.to(match.id).emit("match:cancelled", { reason });
   deleteMatch(match);
 }
 
@@ -640,6 +669,8 @@ function markDisconnected(io: SocketServer, playerId: string, socketId: string):
       }
       return;
     }
+    if(match.mode==="random"&&match.settings.matchmakingMode==="four"&&isEntryFee(match.settings.entryFee)&&match.players.filter(p=>!p.abandoned).length>1){emitRoomUpdate(io,match);return;}
+    if(match.startedAt===0){cancelUnreadyMatch(io,match);return;}
     void finishMatch(io, match, playerId);
   }, RECONNECT_GRACE_MS);
 }
@@ -696,11 +727,12 @@ async function createGuestSession(app: Express): Promise<void> {
         amount: onlineRewardClaims.amount,
       })
         .from(onlineRewardClaims)
-        .where(eq(onlineRewardClaims.playerId, session.id))
+        .where(and(eq(onlineRewardClaims.playerId, session.id),eq(onlineRewardClaims.rewardType,"random_match")))
         .orderBy(desc(onlineRewardClaims.createdAt))
         .limit(100);
       return res.json({
         coins: wallet?.coins ?? 0,
+        entryFees:true,
         claims: claims.filter((claim) => claim.amount > 0),
       });
     } catch (error) {
@@ -711,6 +743,7 @@ async function createGuestSession(app: Express): Promise<void> {
 }
 
 async function cancelInterruptedMatches(): Promise<void> {
+  await refundInterruptedCoinEntries(coinDatabase);
   const interrupted = await db.select({ id: onlineMatches.id })
     .from(onlineMatches)
     .where(eq(onlineMatches.status, "active"));
@@ -761,6 +794,7 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
   const bucketCleanup = setNodeInterval(cleanRateBuckets, 60_000);
   httpServer.once("close", () => clearNodeInterval(bucketCleanup));
 
+  const voice=createRoomVoice(io,(socket,matchId)=>{const room=matchesById.get(matchId),player=room&&getPlayer(room,socket.data.playerId);return !!room&&room.mode==="private"&&!!player&&!player.abandoned&&socket.rooms.has(matchId)&&(activeMatchByPlayer.get(player.id)===room||finishedMatchByPlayer.get(player.id)===room);});
   io.use((socket, next) => {
     const ip = getClientAddress(socket);
     cleanRateBuckets();
@@ -804,6 +838,7 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
       socket.disconnect(true);
       return;
     }
+    voice.attach(socket,playerId);
     socketByPlayer.set(playerId, socket.id);
     const playerSockets = socketsByPlayer.get(playerId) ?? new Set<string>();
     playerSockets.add(socket.id);
@@ -835,12 +870,15 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
           socket.emit("match:finished", {
             matchId: existingMatch.id,
             mode: existingMatch.mode,
+            entryFee:existingMatch.settings.entryFee??0,
+            teams:roomTeamScores(existingMatch.players,existingMatch.settings.teamMode),
             players: publicPlayers,
           });
           const ownResult = existingMatch.finalResults.find((result) => result.playerId === playerId);
           if (ownResult) {
             socket.emit("match:wallet", {
               matchId: existingMatch.id,
+              entryFee:existingMatch.settings.entryFee??0,
               coinsAwarded: ownResult.coinsAwarded,
               balance: ownResult.walletBalance,
             });
@@ -868,58 +906,38 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
       return parsed.data;
     }
 
-    socket.on("match:find", () => {
-      if (!eventAllowed("match:find", 5, 60_000)) return;
-      if (activeMatchByPlayer.has(playerId)) {
-        emitError(socket, "already_in_match");
-        return;
-      }
-      if (waitingQueue.has(playerId)) {
-        socket.emit("match:queued");
-        return;
-      }
-      const entryPlayer = makePlayer(playerId, socket.data.displayName ?? "", socket.id);
-      const currentEntry: QueueEntry = {
-        player: entryPlayer,
-        queuedAt: Date.now(),
-        timeout: setTimeout(() => {
-          removeFromQueue(playerId);
-          socket.emit("match:queue-timeout");
-        }, 120_000),
-      };
-      const pairing = waitingQueue.enqueue(playerId, currentEntry);
-      if (pairing.status === "duplicate") {
-        clearTimeout(currentEntry.timeout);
-        socket.emit("match:queued");
-        return;
-      }
-      if (pairing.status === "queued") {
-        socket.emit("match:queued");
-        return;
-      }
-
-      const { opponent: opponentEntry } = pairing;
-      const opponentSocket = io.sockets.sockets.get(opponentEntry.player.socketId!);
-      if (!opponentSocket) {
-        clearTimeout(opponentEntry.timeout);
-        waitingQueue.enqueue(playerId, currentEntry);
-        socket.emit("match:queued");
-        return;
-      }
-      clearTimeout(currentEntry.timeout);
-      clearTimeout(opponentEntry.timeout);
-      const match = makeMatch("random", opponentEntry.player, emptySettings);
-      match.players.push(entryPlayer);
-      activeMatchByPlayer.set(playerId, match);
-      attachPlayer(io, match, opponentEntry.player, opponentSocket as OnlineSocket);
-      attachPlayer(io, match, entryPlayer, socket);
-      startReadyTimeout(io, match);
-      io.to(match.id).emit("match:found", snapshot(match));
+    socket.on("match:find",async(payload?:unknown)=>{
+      if(!eventAllowed("match:find",5,60000))return;
+      const requested=payload===undefined?"solo":payload&&typeof payload==="object"?(payload as {mode?:unknown}).mode:undefined;
+      const entryFee=payload&&typeof payload==="object"?(payload as {entryFee?:unknown}).entryFee??0:0;
+      if(!isPublicQueueMode(requested)||!isQueueFee(entryFee)){emitError(socket,"invalid_payload");return;}
+      if(entryFee>0){try{const [wallet]=await db.select({coins:onlineGuestWallets.coins}).from(onlineGuestWallets).where(eq(onlineGuestWallets.playerId,playerId)).limit(1);if((wallet?.coins??0)<entryFee){emitError(socket,"insufficient_online_coins");return;}}catch{emitError(socket,"online_unavailable");return;}}
+      if(!socket.connected)return;
+      if(activeMatchByPlayer.has(playerId)){emitError(socket,"already_in_match");return;}
+      const prior=waitingQueue.modeFor(playerId);if(prior&&(prior!==requested||waitingQueue.feeFor(playerId)!==entryFee)){emitError(socket,"already_in_queue");return;}
+      if(prior){notifyPublicQueues(io);return;}
+      for(const [queuedId,entry] of waitingQueue.entriesList()){if(!entry.player.socketId||!io.sockets.sockets.get(entry.player.socketId)?.connected)removeFromQueue(queuedId);}
+      const currentEntry:QueueEntry={player:makePlayer(playerId,socket.data.displayName??"",socket.id),queuedAt:Date.now(),timeout:setTimeout(()=>{removeFromQueue(playerId);for(const sid of socketsByPlayer.get(playerId)??[])io.to(sid).emit("match:queue-timeout");notifyPublicQueues(io);},120000)};
+      const result=waitingQueue.enqueue(playerId,currentEntry,requested,entryFee);
+      if(result.status!=="matched"){notifyPublicQueues(io);return;}
+      const settings:OnlineRoomSettings={...emptySettings,maxPlayers:publicQueueSize(requested),teamMode:requested==="team"?"duo":"solo",matchmakingMode:requested,entryFee};
+      const players=result.entries.map(([,entry])=>{clearTimeout(entry.timeout);return entry.player;});
+      const match=makeMatch("random",players[0],settings);match.players=players;
+      const assignments=roomTeamAssignment(players,settings.teamMode);
+      for(const player of players){player.teamId=assignments.get(player.id);activeMatchByPlayer.set(player.id,match);const member=io.sockets.sockets.get(player.socketId!);if(member)attachPlayer(io,match,player,member as OnlineSocket);for(const sid of socketsByPlayer.get(player.id)??[])io.sockets.sockets.get(sid)?.join(match.id);}
+      startReadyTimeout(io,match);io.to(match.id).emit("match:found",snapshot(match));notifyPublicQueues(io);
     });
 
     socket.on("match:cancel-search", () => {
       if (!eventAllowed("match:cancel-search", 10, 60_000)) return;
-      if (removeFromQueue(playerId)) socket.emit("match:search-cancelled");
+      removeFromQueue(playerId);for(const sid of socketsByPlayer.get(playerId)??[])io.to(sid).emit("match:search-cancelled");
+      notifyPublicQueues(io);
+    });
+
+    socket.on("match:decline",(payload:unknown)=>{
+      const data=parsePayload(matchEventSchema,payload);if(!data)return;const match=matchesById.get(data.matchId);
+      if(!match||match.mode!=="random"||match.phase!=="match_found"||!getPlayer(match,playerId))return;
+      cancelUnreadyMatch(io,match,"match_cancelled");
     });
 
     socket.on("match:ready", (payload: unknown) => {
@@ -934,7 +952,7 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
       }
       player.ready = true;
       emitRoomUpdate(io, match);
-      if (match.players.length === 2 && match.players.every((item) => item.ready)) {
+      if (match.players.length === match.settings.maxPlayers && match.players.every((item) => item.ready&&item.socketId!==null)) {
         beginCountdown(io, match);
       }
     });
@@ -951,6 +969,7 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
         ack?.({ ok: false, error: "already_in_match" });
         return;
       }
+      if(waitingQueue.has(playerId)){ack?.({ok:false,error:"already_in_queue"});return;}
       let code = createRoomCode();
       while (roomsByCode.has(code)) code = createRoomCode();
       const host = makePlayer(playerId, socket.data.displayName ?? "", socket.id);
@@ -993,6 +1012,7 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
         ack?.({ ok: false, error: "room_full" });
         return;
       }
+      if(waitingQueue.has(playerId)){ack?.({ok:false,error:"already_in_queue"});return;}
       const player = makePlayer(playerId, socket.data.displayName ?? "", socket.id);
       match.players.push(player);
       activeMatchByPlayer.set(playerId, match);
@@ -1019,6 +1039,17 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
       emitRoomUpdate(io, match);
     });
 
+    socket.on("room:quick-message",(payload:unknown)=>{
+      if(!eventAllowed("room:quick-message",3,5000))return;
+      if(!payload||typeof payload!=="object")return;
+      const data=payload as {matchId?:unknown;messageId?:unknown};
+      if(typeof data.matchId!=="string"||!isQuickMessageId(data.messageId)){emitError(socket,"invalid_payload");return;}
+      const room=matchesById.get(data.matchId),player=room&&getPlayer(room,playerId);
+      if(!room||room.mode!=="private"||!player||!socket.rooms.has(room.id)||player.abandoned){emitError(socket,"not_in_room");return;}
+      const message:QuickRoomMessage={id:randomUUID(),matchId:room.id,playerId,playerName:player.name,messageId:data.messageId,createdAt:Date.now()};
+      room.messages=[...room.messages,message].slice(-20);io.to(room.id).emit("room:quick-message",message);
+    });
+
     socket.on("room:ready", (payload: unknown) => {
       if (!eventAllowed("room:ready", 12, 30_000)) return;
       const data = parsePayload(matchEventSchema, payload);
@@ -1042,6 +1073,7 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
         emitError(socket, "host_only");
         return;
       }
+      if(match.settings.teamMode==="duo"&&!roomTeamsValid(match.players)){emitError(socket,"teams_require_four");return;}
       if (match.players.length < 2) {
         emitError(socket, "need_more_players");
         return;
@@ -1083,6 +1115,7 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
       match.deadline = 0;
       match.answers.clear();
       match.roundResults = [];
+      match.messages=[];
       match.timer = null;
       match.readyTimer = null;
       match.countdownTimer = null;
@@ -1109,7 +1142,7 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
       const data = parsePayload(submitSchema, payload);
       if (!data) return;
       const match = matchesById.get(data.matchId);
-      if (!match || match.phase !== "playing" || !getPlayer(match, playerId)) {
+      if (!match || match.phase !== "playing" || !getPlayer(match, playerId)||getPlayer(match,playerId)!.abandoned) {
         emitError(socket, "match_not_playing");
         return;
       }
@@ -1145,6 +1178,7 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
         return;
       }
       player.abandoned = true;
+      if(match.settings.matchmakingMode==="four"&&isEntryFee(match.settings.entryFee)&&match.players.filter(p=>!p.abandoned).length>1){emitRoomUpdate(io,match);return;}
       void finishMatch(io, match, playerId);
     });
 
@@ -1154,7 +1188,10 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
       if (!data) return;
       const match = matchesById.get(data.matchId);
       const player = match && getPlayer(match, playerId);
-      if (!match || !player || match.mode !== "private" || match.phase !== "waiting") return;
+      if (!match || !player || match.mode !== "private") return;
+      if(["playing","results","countdown"].includes(match.phase)){player.abandoned=true;void finishMatch(io,match,playerId);return;}
+      if(match.phase==="finished"){socket.leave(match.id);player.socketId=null;if(finishedMatchByPlayer.get(playerId)===match)finishedMatchByPlayer.delete(playerId);if(match.hostId===playerId)setRoomHost(match);emitRoomUpdate(io,match);return;}
+      if(match.phase!=="waiting")return;
       match.players = match.players.filter((candidate) => candidate.id !== playerId);
       activeMatchByPlayer.delete(playerId);
       socket.leave(match.id);
@@ -1176,6 +1213,7 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
         .find((socketId) => io.sockets.sockets.get(socketId)?.connected);
       if (fallbackSocketId) {
         socketByPlayer.set(playerId, fallbackSocketId);
+        const queueMode=waitingQueue.modeFor(playerId);const queued=queueMode?waitingQueue.entriesFor(queueMode).find(([id])=>id===playerId)?.[1]:undefined;if(queued)queued.player.socketId=fallbackSocketId;
         const match = activeMatchByPlayer.get(playerId) ?? finishedMatchByPlayer.get(playerId);
         const player = match && getPlayer(match, playerId);
         if (player?.socketId === socket.id) {
@@ -1188,7 +1226,7 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
 
       socketByPlayer.delete(playerId);
       const queued = removeFromQueue(playerId);
-      if (queued) return;
+      if (queued){notifyPublicQueues(io);return;}
       markDisconnected(io, playerId, socket.id);
     });
   });

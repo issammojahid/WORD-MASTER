@@ -1,3 +1,4 @@
+import { PlayerNameForm } from "@/components/PlayerNameForm";
 import {
   Cairo_400Regular,
   Cairo_600SemiBold,
@@ -19,11 +20,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AdsProvider } from "@/components/AdsProvider";
-import { useReducedMotion } from "@/components/GameUi";
+import { GameModal, useReducedMotion } from "@/components/GameUi";
 import { queryClient } from "@/lib/query-client";
 import { markStartup } from "@/lib/startup-performance";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { PlayerProvider, usePlayer } from "@/contexts/PlayerContext";
+import { HalloweenProvider } from "@/contexts/HalloweenContext";
+import { HalloweenLaunchPopup } from "@/components/HalloweenLaunchPopup";
 import { StartupProvider } from "@/contexts/StartupContext";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import SplashOverlay from "@/components/SplashOverlay";
@@ -158,6 +161,8 @@ function RootLayoutNav() {
           <Stack.Screen name="store" options={{ animation: transition("slide_from_bottom") }} />
           <Stack.Screen name="offline" options={{ animation: transition("fade") }} />
           <Stack.Screen name="online" options={{ animation: transition("fade") }} />
+          <Stack.Screen name="team-up" options={{ animation: transition("fade") }} />
+          <Stack.Screen name="four-players" options={{ animation: transition("fade") }} />
           <Stack.Screen name="private-room" options={{ animation: transition("slide_from_right") }} />
           <Stack.Screen name="friends" options={{ animation: transition("slide_from_right") }} />
           <Stack.Screen name="chat/[conversationId]" options={{ animation: transition("slide_from_right") }} />
@@ -183,12 +188,13 @@ const styles = StyleSheet.create({
 
 function StartupShell({ fontsReady }: { fontsReady: boolean }) {
   const router = useRouter();
-  const { isReady: playerReady } = usePlayer();
+  const { isReady: playerReady, needsName } = usePlayer();
   const { theme } = useTheme();
   const reduceMotion = useReducedMotion();
   const [navigationReady, setNavigationReady] = useState(false);
   const [splashVisible, setSplashVisible] = useState(true);
   const [introVisible, setIntroVisible] = useState(false);
+  const [introChecked, setIntroChecked] = useState(false);
   const introCheckStarted = useRef(false);
   const splashOpacity = useRef(new Animated.Value(1)).current;
   const startupReady = fontsReady && playerReady && navigationReady;
@@ -236,7 +242,7 @@ function StartupShell({ fontsReady }: { fontsReady: boolean }) {
     }).catch((error: unknown) => {
       if (__DEV__) console.warn("[startup] unable to read intro completion", error);
       setIntroVisible(true);
-    });
+    }).finally(() => setIntroChecked(true));
   }, [splashVisible, startupReady]);
 
   const closeIntro = useCallback(() => {
@@ -245,7 +251,7 @@ function StartupShell({ fontsReady }: { fontsReady: boolean }) {
   }, [router]);
 
   return (
-    <StartupProvider ready={!splashVisible}>
+    <StartupProvider ready={!splashVisible && introChecked && !introVisible && !needsName}>
       <View
         style={[styles.navigationFrame, { backgroundColor: theme.background }]}
         onLayout={() => {
@@ -270,6 +276,8 @@ function StartupShell({ fontsReady }: { fontsReady: boolean }) {
           </Animated.View>
         )}
         {introVisible && !splashVisible && <CinematicIntro onFinish={closeIntro} />}
+        <GameModal visible={!splashVisible && introChecked && !introVisible && needsName} onRequestClose={() => {}}><PlayerNameForm /></GameModal>
+        <HalloweenLaunchPopup />
       </View>
     </StartupProvider>
   );
@@ -310,7 +318,7 @@ export default function RootLayout() {
               <GestureHandlerRootView style={{ flex: 1, backgroundColor: gameDesign.colors.background }}>
                 <KeyboardProvider>
                   <AdsProvider>
-                    <StartupShell fontsReady={fontsReady} />
+                    <HalloweenProvider><StartupShell fontsReady={fontsReady} /></HalloweenProvider>
                   </AdsProvider>
                 </KeyboardProvider>
               </GestureHandlerRootView>

@@ -1,3 +1,4 @@
+import { FantasySectionBanner } from "@/components/FantasySectionBanner";
 import React, { useState, useCallback, useRef, useEffect, memo } from "react";
 import {
   View,
@@ -237,7 +238,7 @@ function AchievementsScreenInner() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState<"all" | "unlocked" | "locked">("all");
 
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
+  const topInset = Platform.OS === "web" ? 20 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
 
   const { data: achievementsRaw, isLoading, refetch } = useQuery<Achievement[]>({
@@ -260,7 +261,7 @@ function AchievementsScreenInner() {
       const data = await apiFetch(url.toString(), { method: "POST" });
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, key) => {
       if (!data) {
         Alert.alert("خطأ في الاتصال", "تعذّر الاتصال بالخادم. تحقق من اتصالك بالإنترنت وحاول مجدداً.");
         return;
@@ -279,6 +280,7 @@ function AchievementsScreenInner() {
       }
       if (data.coinsEarned > 0) addCoins(data.coinsEarned);
       if (data.xpEarned > 0) addXp(data.xpEarned);
+
       qc.invalidateQueries({ queryKey: ["/api/achievements", playerId] });
       const parts: string[] = [];
       if (data.coinsEarned > 0) parts.push(`+${data.coinsEarned} عملة`);
@@ -317,6 +319,7 @@ function AchievementsScreenInner() {
             </TouchableOpacity>
           }
         />
+        <FantasySectionBanner kind="achievements" />
 
         <LinearGradient
           colors={[theme.card, theme.backgroundSecondary]}

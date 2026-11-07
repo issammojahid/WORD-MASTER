@@ -96,14 +96,14 @@ export async function getOnlineGuestToken(): Promise<string> {
   return getGuestToken();
 }
 
-export async function fetchOnlineWallet(): Promise<{ coins: number; claims: { matchId: string; amount: number }[] }> {
+export async function fetchOnlineWallet(): Promise<{ coins: number; entryFees:boolean; local:boolean; claims: { matchId: string; amount: number }[] }> {
   const token = await readToken();
   if (!token) throw new Error("guest_session_missing");
   const response = await fetch(new URL("/api/online/wallet", getApiUrl()), {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) throw new Error(response.status === 401 ? "unauthorized" : "online_unavailable");
-  const result = await response.json() as { coins?: unknown; claims?: unknown };
+  const result = await response.json() as { coins?: unknown;entryFees?:unknown;local?:unknown; claims?: unknown };
   if (
     !isNonnegativeInteger(result.coins)
     || !Array.isArray(result.claims)
@@ -111,7 +111,7 @@ export async function fetchOnlineWallet(): Promise<{ coins: number; claims: { ma
   ) {
     throw new Error("invalid_wallet_response");
   }
-  return { coins: result.coins, claims: result.claims };
+  return { coins: result.coins,entryFees:result.entryFees===true,local:result.local===true, claims: result.claims };
 }
 
 export async function connectOnlineSocket(displayName: string): Promise<Socket> {

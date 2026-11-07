@@ -2,9 +2,11 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   AccessibilityInfo,
+  Image,
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -15,7 +17,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import Svg, { Circle, Path, Rect } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -44,41 +46,16 @@ export function useReducedMotion() {
 
 export function GameScreenBackground({ accent = "online" }: { accent?: "online" | "offline" | "reward" }) {
   const { theme, isDark } = useTheme();
-  const pixelColor = gameDesign.colors[accent === "reward" ? "coins" : accent];
-  return (
-    <View style={[StyleSheet.absoluteFill, { overflow: "hidden", pointerEvents: "none" }]}>
-      <LinearGradient
-        colors={isDark ? ["#0D091C", "#1A102F", "#241047"] : [theme.background, theme.backgroundSecondary, theme.backgroundTertiary]}
-        locations={[0, 0.56, 1]}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={[styles.ambientOrb, styles.ambientTop, { backgroundColor: pixelColor, opacity: isDark ? 0.08 : 0.05 }]} />
-      <View style={[styles.ambientOrb, styles.ambientSide, { backgroundColor: gameDesign.colors.missions, opacity: isDark ? 0.05 : 0.03 }]} />
-      <Svg
-        width="100%"
-        height={286}
-        viewBox="0 0 400 286"
-        preserveAspectRatio="xMidYMax slice"
-        style={[styles.fantasyScene, { opacity: isDark ? 0.78 : 0.42 }]}
-      >
-        <Circle cx="312" cy="68" r="25" fill="#D9C6FF" opacity={0.14} />
-        <Circle cx="312" cy="68" r="15" fill="#F5EFFF" opacity={0.62} />
-        <Path d="M0 166 48 124l35 25 48-57 50 54 46-37 47 45 45-61 81 66v127H0Z" fill="#38215B" opacity={0.58} />
-        <Path d="m0 194 64-46 43 29 55-42 55 47 46-30 47 38 47-42 43 28v141H0Z" fill="#24143F" opacity={0.8} />
-        <Path d="M0 222c55-24 96-20 142 0 47-32 89-27 128-4 44-27 84-26 130-4v72H0Z" fill="#170F2D" />
-        <Path d="M151 223v-46l19-14v-33l17 15v-24l14-17 14 17v24l17-15v33l19 14v46" fill="#120C24" stroke="#7D52B3" strokeOpacity={0.45} strokeWidth="2" />
-        <Path d="M194 222v-34a18 18 0 0 1 36 0v34M207 177h10v13h-10z" fill="#251342" stroke="#A778E8" strokeOpacity={0.42} strokeWidth="2" />
-        <Rect x="171" y="188" width="12" height="24" rx="6" fill="#22D9E5" opacity={0.23} />
-        <Rect x="240" y="188" width="12" height="24" rx="6" fill="#F34FAE" opacity={0.2} />
-        <Path d="M54 227V178m0 4c-15-2-22-12-24-25 14 1 23 8 26 20m-2-8c3-16 13-25 27-29 0 15-8 26-24 33m265 54v-46m0 2c-15-2-22-12-24-25 14 1 23 8 26 20m-2-8c3-16 13-25 27-29 0 15-8 26-24 33" fill="none" stroke="#120C24" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
-        <Circle cx="79" cy="57" r="2" fill="#FFFFFF" opacity={0.8} />
-        <Circle cx="122" cy="82" r="1.5" fill="#75F4F2" opacity={0.9} />
-        <Circle cx="244" cy="43" r="2" fill="#F9D7FF" opacity={0.9} />
-        <Circle cx="357" cy="115" r="1.5" fill="#FFFFFF" opacity={0.75} />
-        <Path d="m96 107 3 6 6 2-6 2-3 6-2-6-6-2 6-2zm196 35 2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="#A879F0" opacity={0.75} />
-      </Svg>
-    </View>
-  );
+  const art = accent === "reward" ? require("../assets/fantasy-menu/offline.png") : accent === "offline" ? require("../assets/fantasy-menu/hero.png") : require("../assets/fantasy-menu/online.png");
+  return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: "hidden" }]}>
+    <LinearGradient colors={[theme.background, theme.backgroundSecondary, theme.backgroundTertiary]} style={StyleSheet.absoluteFill} />
+    <Image source={art} resizeMode="cover" style={{position:"absolute",top:0,left:0,width:"100%",height:430,opacity:isDark?0.38:0.15}} />
+    <LinearGradient colors={isDark?["#180C2766","#180C27BB","#180C27F5"]:["#F7EEDA55","#F7EEDACC","#F7EEDA"]} locations={[0,0.5,1]} style={StyleSheet.absoluteFill} />
+    <Svg width="100%" height="100%" viewBox="0 0 400 800" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
+      <Path d="M10 130V48q0-20 20-20h54M390 130V48q0-20-20-20h-54M10 670v80q0 22 22 22h50M390 670v80q0 22-22 22h-50" fill="none" stroke={isDark?"#D5AE69":"#A97D45"} strokeWidth="1" opacity="0.35" />
+      <Path d="m10 150 4 7-4 7-4-7zM390 150l4 7-4 7-4-7zM10 644l4 7-4 7-4-7zM390 644l4 7-4 7-4-7z" fill="#D5AE69" opacity="0.5" />
+    </Svg>
+  </View>;
 }
 
 export function GameHeader({
@@ -94,7 +71,7 @@ export function GameHeader({
   trailing?: React.ReactNode;
   icon?: React.ReactNode;
 }) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const { isRTL, t } = useLanguage();
   const backButton = onBack ? (
     <Pressable
@@ -108,12 +85,12 @@ export function GameHeader({
   ) : <View style={styles.headerSlot} />;
 
   return (
-    <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
+    <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row", backgroundColor: isDark ? "#2B183ACC" : "#FFF5E0DD", borderColor: theme.cardBorder, borderWidth: 1, borderRadius: 22 }]}>
       {backButton}
       <View style={[styles.headerCopy, { alignItems: isRTL ? "flex-end" : "flex-start" }]}>
         <View style={[styles.headerTitleRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
           {icon}
-          <Text style={[styles.headerTitle, { color: theme.textPrimary }]} numberOfLines={1}>{title}</Text>
+          <Text style={[styles.headerTitle, { color: isDark ? "#FFE3A6" : theme.textPrimary }]} numberOfLines={1}>{title}</Text>
         </View>
         {subtitle ? <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]} numberOfLines={2}>{subtitle}</Text> : null}
       </View>
@@ -125,7 +102,7 @@ export function GameHeader({
 export function GameCard({ children, style, accent }: { children: React.ReactNode; style?: StyleProp<ViewStyle>; accent?: string }) {
   const { theme } = useTheme();
   return (
-    <View style={[styles.card, { backgroundColor: theme.card, borderColor: accent ? `${accent}55` : theme.cardBorder }, style]}>
+    <View style={[styles.card, { backgroundColor: theme.card, borderColor: accent ? `${accent}AA` : theme.cardBorder }, style]}>
       {children}
     </View>
   );
@@ -178,7 +155,7 @@ export function GameButton({
       ]}
       {...props}
     >
-      {children ?? <Text style={[styles.buttonText, { color: variant === "secondary" ? color : color === gameDesign.colors.primary ? gameDesign.colors.textPrimary : "#FFFFFF" }]}>{label}</Text>}
+      {children ?? <Text style={[styles.buttonText, { color: variant === "secondary" ? color : color === gameDesign.colors.primary ? "#271537" : "#FFFFFF" }]}>{label}</Text>}
     </Pressable>
   );
 }
@@ -244,7 +221,7 @@ export function VictoryCosmeticEffect({ effectId }: { effectId: string }) {
 export function CoinBalance({ amount, label, compact = false }: { amount: number; label?: string; compact?: boolean }) {
   const { theme } = useTheme();
   return (
-    <View accessible accessibilityLabel={`${label ?? "Coins"}: ${amount}`} style={[styles.coinBalance, compact && styles.compactCoinBalance]}>
+    <View accessible accessibilityLabel={`${label ?? "العملات"}: ${amount}`} style={[styles.coinBalance, compact && styles.compactCoinBalance]}>
       <GameIcon name="coins" size={compact ? 17 : 21} color={gameDesign.colors.coins} secondaryColor="#FFE2A3" />
       <Text style={[styles.coinAmount, compact && styles.compactCoinAmount, { color: theme.textPrimary }]}>{amount.toLocaleString()}</Text>
     </View>
@@ -314,7 +291,9 @@ export function GameModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onRequestClose}>
       <View style={[styles.modalBackdrop, { backgroundColor: theme.overlay }]}>
         <View style={[styles.modal, { backgroundColor: theme.modalBg, borderColor: theme.cardBorder }]}>
-          {children}
+          <ScrollView style={{flexShrink:1}} contentContainerStyle={{gap:12}} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            {children}
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -333,7 +312,7 @@ const styles = StyleSheet.create({
   headerTitleRow: { alignItems: "center", gap: 8 },
   headerTitle: { fontFamily: gameDesign.typography.fontFamily.bold, fontSize: 19, lineHeight: 27 },
   headerSubtitle: { fontFamily: gameDesign.typography.fontFamily.regular, fontSize: 12 },
-  card: { borderWidth: 1, borderRadius: 18, padding: 18, gap: 12, overflow: "hidden", shadowColor: "#080615", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.28, shadowRadius: 14, elevation: 6 },
+  card: { borderWidth: 1.5, borderRadius: 22, padding: 18, gap: 12, overflow: "hidden", shadowColor: "#080615", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.28, shadowRadius: 14, elevation: 6 },
   button: { minHeight: 48, borderRadius: 14, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 10, alignItems: "center", justifyContent: "center" },
   buttonText: { fontFamily: gameDesign.typography.fontFamily.bold, fontSize: 15 },
   input: { minHeight: 48, borderRadius: 13, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 11, fontFamily: gameDesign.typography.fontFamily.regular, fontSize: 15 },

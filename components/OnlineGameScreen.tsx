@@ -1,3 +1,10 @@
+import {ENTRY_FEES} from "@shared/coin-entry";
+import { RoomVoiceChat } from "@/components/RoomVoiceChat";
+import { PUBLIC_MODE_COPY,publicQueueSize,type PublicQueueMode } from "@shared/public-game";
+import { RoomQuickChat } from "@/components/RoomQuickChat";
+import { RoomTeamBoard } from "@/components/RoomTeamBoard";
+import type { TeamMode, TeamId, RoomTeamScore, QuickRoomMessage } from "@shared/friends-room";
+import { privateRoomPayload } from "@shared/friends-room";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -24,9 +31,13 @@ import { GAME_CATEGORIES, type GameCategory } from "@/constants/i18n";
 import { connectOnlineSocket, disconnectOnlineSocket, fetchOnlineWallet } from "@/services/socket";
 import { GameButton, GameHeader, GameScreenBackground, GameInput, StatusBadge, VictoryCosmeticEffect } from "@/components/GameUi";
 
-type OnlineSettings = { maxPlayers: 2 | 4 | 6 | 8; rounds: 3 | 5 | 7; secondsPerRound: 45 | 60 | 90 };
-type RoomPlayer = { id: string; name: string; ready: boolean; host: boolean; connected: boolean; score: number };
+type OnlineSettings = { entryFee?:number; teamMode?:TeamMode; matchmakingMode?:PublicQueueMode; maxPlayers: 2 | 4 | 6 | 8; rounds: 3 | 5 | 7; secondsPerRound: 45 | 60 | 90 };
+type RoomPlayer = { abandoned?:boolean; teamId?:TeamId|null; id: string; name: string; ready: boolean; host: boolean; connected: boolean; score: number };
 type MatchSnapshot = {
+  queueMode?:PublicQueueMode;
+  teams?:RoomTeamScore[];
+  messages?:QuickRoomMessage[];
+  local?:boolean;
   matchId: string;
   mode: "random" | "private";
   phase: string;
@@ -40,6 +51,7 @@ type MatchSnapshot = {
   players: RoomPlayer[];
 };
 type RoundResult = {
+  teams?:RoomTeamScore[];
   round: number;
   letter: string;
   results: {
@@ -59,7 +71,7 @@ const GOLD = gameDesign.colors.coins;
 const CYAN = gameDesign.colors.online;
 const GREEN = gameDesign.colors.success;
 const REWARDED_MATCHES_KEY = "online_rewarded_matches_v1";
-const DEFAULT_SETTINGS: OnlineSettings = { maxPlayers: 4, rounds: 5, secondsPerRound: 60 };
+const DEFAULT_SETTINGS: OnlineSettings = { maxPlayers: 4, rounds: 5, secondsPerRound: 60, teamMode:"solo" };
 
 const SERVER_ERROR_TRANSLATIONS: Record<string, keyof ReturnType<typeof useLanguage>["t"]> = {
   rate_limited: "rateLimited",
@@ -91,9 +103,10 @@ function isAck(value: unknown): value is SocketAck {
 
 type Props = {
   mode: "online" | "private";
+  queueMode?:PublicQueueMode;
 };
 
-export default function OnlineGameScreen({ mode }: Props) {
+export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
   const isPrivateRoomScreen = mode === "private";
   const insets = useSafeAreaInsets();
   const { t, isRTL } = useLanguage();
@@ -110,6 +123,7 @@ export default function OnlineGameScreen({ mode }: Props) {
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(true);
   const [searching, setSearching] = useState(false);
+  const [queuePlayers,setQueuePlayers]=useState(0);
   const [match, setMatch] = useState<MatchSnapshot | null>(null);
   const [principalId, setPrincipalId] = useState("");
   const [roundResult, setRoundResult] = useState<RoundResult | null>(null);
@@ -122,6 +136,9 @@ export default function OnlineGameScreen({ mode }: Props) {
   const autoJoinRoomRef = useRef("");
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [error, setError] = useState("");
+  const [entryFee,setEntryFee]=useState<number>(100);
+  const feeRef=useRef(entryFee);feeRef.current=entryFee;
+  const [onlineCoins,setOnlineCoins]=useState<number|null>(null),[entrySupported,setEntrySupported]=useState(false),[localCoins,setLocalCoins]=useState(false);
   principalIdRef.current = principalId;
 
   const roomPlayer = useMemo(
@@ -130,7 +147,7 @@ export default function OnlineGameScreen({ mode }: Props) {
   );
   const isHost = !!roomPlayer?.host;
   const isLobby = !!match && match.phase === "waiting";
-  const isPlaying = !!match && match.phase === "playing";
+  const isPlaying = !!match && match.phase === "playing"&&!roomPlayer?.abandoned;
   const isRoundResults = !!match && match.phase === "results";
   const isFinished = !!match && match.phase === "finished";
 
@@ -167,6 +184,7 @@ export default function OnlineGameScreen({ mode }: Props) {
 
   const syncOnlineWallet = useCallback(async (playerId: string) => {
     const wallet = await fetchOnlineWallet();
+    setOnlineCoins(wallet.coins);setEntrySupported(wallet.entryFees);setLocalCoins(wallet.local);
     for (const claim of wallet.claims) {
       await creditVerifiedReward(claim.matchId, [{
         playerId,
@@ -194,7 +212,7 @@ export default function OnlineGameScreen({ mode }: Props) {
         setConnecting(false);
         setError("");
       };
-      const onDisconnect = () => setConnected(false);
+      const onDisconnect = () => {setConnected(false);setSearching(false);setQueuePlayers(0);};
       const onConnectError = () => {
         setConnecting(false);
         setConnected(false);
@@ -210,14 +228,16 @@ export default function OnlineGameScreen({ mode }: Props) {
           });
         }
       };
-      const onQueued = () => {
+      const onQueued = (data?:{players?:number;mode?:PublicQueueMode;entryFee?:number}) => {
+        if((data?.mode&&data.mode!==queueMode)||(data?.entryFee!==undefined&&data.entryFee!==feeRef.current)){setSearching(false);setError("أنت في قائمة انتظار وضع آخر. ألغِ البحث الأول قبل البدء.");return;}
+        setQueuePlayers(data?.players??1);
         setSearching(true);
         setError("");
       };
       const onSearchCancelled = () => setSearching(false);
       const onQueueTimeout = () => {
         setSearching(false);
-        setError(t.opponentDisconnected);
+        setError(queueMode==="solo"?t.opponentDisconnected:"لم يكتمل عدد اللاعبين. أعد البحث.");
       };
       const onFound = (data: MatchSnapshot) => {
         setSearching(false);
@@ -248,17 +268,19 @@ export default function OnlineGameScreen({ mode }: Props) {
       const onRoundResults = (data: RoundResult & { matchId: string }) => {
         setRoundResult(data);
         setSubmitted(true);
-        setMatch((current) => current ? { ...current, phase: "results" } : current);
+        setMatch((current) => current ? { ...current, phase: "results", teams:data.teams??current.teams } : current);
       };
-      const onFinished = (data: { matchId: string; players: FinalPlayer[] }) => {
+      const onFinished = (data: { matchId: string; entryFee?:number;players: FinalPlayer[];teams?:RoomTeamScore[] }) => {
         setFinalPlayers(data.players);
-        setMatch((current) => current ? { ...current, phase: "finished" } : current);
+        setMatch((current) => current ? { ...current, phase: "finished",teams:data.teams??current.teams } : current);
+        if((data.entryFee??0)>0){void syncOnlineWallet(principalIdRef.current).catch(()=>setError(t.onlineUnavailable));return;}
         void creditVerifiedReward(data.matchId, data.players).catch((creditError: unknown) => {
           console.error("[online] Could not store reward receipt:", creditError);
           setError(t.onlineUnavailable);
         });
       };
-      const onWalletReward = (data: { matchId: string; coinsAwarded: number }) => {
+      const onWalletReward = (data: { matchId: string;entryFee?:number;balance?:number; coinsAwarded: number }) => {
+        if((data.entryFee??0)>0){if(Number.isSafeInteger(data.balance)&&data.balance!>=0)setOnlineCoins(data.balance!);return;}
         if (!principalIdRef.current || !Number.isInteger(data.coinsAwarded) || data.coinsAwarded < 0) return;
         void creditVerifiedReward(data.matchId, [{
           playerId: principalIdRef.current,
@@ -271,14 +293,16 @@ export default function OnlineGameScreen({ mode }: Props) {
           setError(t.onlineUnavailable);
         });
       };
+      const onBalance=(data:{balance:number})=>{if(Number.isSafeInteger(data.balance)&&data.balance>=0)setOnlineCoins(data.balance);};
       const onCancelled = (data: { reason?: string }) => {
         setSearching(false);
         setCountdown(null);
         setMatch(null);
+        if(data.reason==="insufficient_online_coins"){setError("الرصيد غير كافٍ عند البداية. لم يُخصم الدخول من أي لاعب.");return;}
         translateServerError(data.reason === "ready_timeout" ? "ready_timeout" : "match_cancelled");
       };
       const onReconnecting = () => setError(t.reconnecting);
-      const onServerError = (data: { code?: string }) => translateServerError(data.code ?? "connection_error");
+      const onServerError = (data: { code?: string }) => {if(data.code==="insufficient_online_coins")setError("رصيد الأونلاين غير كافٍ لهذه القاعة. اختر مبلغاً أقل أو التدريب المجاني.");else if(data.code==="settlement_pending")setError("جارٍ تأكيد العملات. المبلغ محفوظ؛ لا تبدأ مباراة أخرى حتى تكتمل التسوية.");else if(data.code==="teams_require_four")setError("يتطلب وضع الفرق أربعة لاعبين، اثنين في كل فريق.");else if(data.code==="already_in_queue")setError("أنت في قائمة انتظار وضع آخر. ألغِ البحث الأول قبل البدء.");else if(data.code==="not_in_room")setError("يجب الانضمام إلى الغرفة أولاً.");else translateServerError(data.code ?? "connection_error");};
 
       socket.on("connect", onConnect);
       socket.on("disconnect", onDisconnect);
@@ -295,6 +319,7 @@ export default function OnlineGameScreen({ mode }: Props) {
       socket.on("match:round-results", onRoundResults);
       socket.on("match:finished", onFinished);
       socket.on("match:wallet", onWalletReward);
+      socket.on("match:balance",onBalance);
       socket.on("match:cancelled", onCancelled);
       socket.on("match:reconnecting", onReconnecting);
       socket.on("online:error", onServerError);
@@ -315,6 +340,7 @@ export default function OnlineGameScreen({ mode }: Props) {
         socket.off("match:round-results", onRoundResults);
         socket.off("match:finished", onFinished);
         socket.off("match:wallet", onWalletReward);
+        socket.off("match:balance",onBalance);
         socket.off("match:cancelled", onCancelled);
         socket.off("match:reconnecting", onReconnecting);
         socket.off("online:error", onServerError);
@@ -334,7 +360,7 @@ export default function OnlineGameScreen({ mode }: Props) {
       nextSocket?.disconnect();
       disconnectOnlineSocket();
     };
-  }, [creditVerifiedReward, profile.name, syncOnlineWallet, t, translateServerError]);
+  }, [creditVerifiedReward, profile.name, queueMode, syncOnlineWallet, t, translateServerError]);
 
   useEffect(() => {
     if (!match?.deadline || match.phase !== "playing") {
@@ -371,7 +397,13 @@ export default function OnlineGameScreen({ mode }: Props) {
   }, [t.connectionError, translateServerError]);
 
   const createRoom = () => {
-    emit("room:create", settings, handleRoomAck);
+    try { emit("room:create", privateRoomPayload(settings), response=>{
+      if(isAck(response)&&!response.ok&&response.error==="invalid_settings"&&settings.teamMode==="duo"){
+        setError("الخادم الحالي لا يقبل إعدادات 2 ضد 2. يلزم تحديث الخادم؛ يمكنك إنشاء غرفة «كل لاعب لنفسه» الآن.");
+        return;
+      }
+      handleRoomAck(response);
+    }); } catch {setError("اختر إعدادات صالحة: 2 أو 4 أو 6 أو 8 لاعبين، و3 أو 5 أو 7 جولات، و45 أو 60 أو 90 ثانية. الفرق تتطلب 4 لاعبين.");}
   };
 
   const joinRoom = () => {
@@ -392,16 +424,18 @@ export default function OnlineGameScreen({ mode }: Props) {
 
   const leaveCurrentMatch = () => {
     if (!match) return;
+    if(match.mode==="random"&&match.phase==="match_found"){emit("match:decline",{matchId:match.matchId});return;}
+    if(match.mode==="random"&&match.phase==="countdown"){setError("انتظر بداية الجولة، ثم يمكنك الانسحاب.");return;}
     if (match.mode === "private" && match.phase === "waiting") {
       emit("room:leave", { matchId: match.matchId });
       setMatch(null);
       setRoomCodeInput("");
       return;
     }
-    if (match.mode === "random" && ["playing", "results"].includes(match.phase)) {
+    if (["playing", "results", "countdown"].includes(match.phase)) {
       Alert.alert(t.forfeitMatch, t.forfeitMatch, [
         { text: t.cancel, style: "cancel" },
-        { text: t.confirm, style: "destructive", onPress: () => emit("match:forfeit", { matchId: match.matchId }) },
+        { text: t.confirm, style: "destructive", onPress: () => emit(match.mode==="private"?"room:leave":"match:forfeit", { matchId: match.matchId }) },
       ]);
     }
   };
@@ -425,12 +459,16 @@ export default function OnlineGameScreen({ mode }: Props) {
     const currentSettings = match?.mode === "private" && match.phase === "waiting"
       ? match.settings
       : settings;
-    const next = { ...currentSettings, [key]: value };
+    const next = { maxPlayers:currentSettings.maxPlayers,rounds:currentSettings.rounds,secondsPerRound:currentSettings.secondsPerRound,teamMode:currentSettings.teamMode??"solo", [key]: value };
+    if(key==="teamMode"&&value==="duo")next.maxPlayers=4;
+    if(key==="maxPlayers"&&value!==4)next.teamMode="solo";
     setSettings(next);
     if (match?.mode === "private" && match.phase === "waiting" && isHost && match.roomCode) {
-      emit("room:update-settings", { roomCode: match.roomCode, settings: next });
+      emit("room:update-settings", { roomCode: match.roomCode, settings: privateRoomPayload(next) });
     }
   };
+
+  const renderTeamMode=(current:OnlineSettings)=><View style={{gap:8}}><Text style={[styles.settingLabel,{color:theme.textPrimary,textAlign:"right"}]}>طريقة اللعب</Text><View style={[styles.choiceRow,{flexDirection:"row-reverse"}]}>{(["solo","duo"] as const).map(value=><Pressable key={value} accessibilityRole="radio" accessibilityState={{checked:(current.teamMode??"solo")===value}} onPress={()=>updateSetting("teamMode",value)} style={[styles.choice,{flex:1,borderColor:(current.teamMode??"solo")===value?GOLD:theme.cardBorder,backgroundColor:theme.card}]}><Text style={{color:theme.textPrimary,fontFamily:"Cairo_700Bold"}}>{value==="duo"?"فريقان · 2 ضد 2":"كل لاعب لنفسه"}</Text></Pressable>)}</View>{current.teamMode==="duo"?<Text style={[styles.bodyText,{color:theme.textSecondary}]}>أربعة لاعبين · توزيع تلقائي متوازن · تُجمع نقاط كل زميلين</Text>:null}</View>;
 
   const renderButton = (
     label: string,
@@ -479,30 +517,36 @@ export default function OnlineGameScreen({ mode }: Props) {
     </View>
   );
 
+  const ownTeam=match?.teams?.find(team=>team.playerIds.includes(principalId));
+  const ownWinner=match?.settings.teamMode==="duo"?ownTeam?.rank===1&&!ownTeam.forfeited:finalPlayers?.find(player=>player.playerId===principalId)?.rank===1;
   const pageTitle = match?.phase === "playing"
     ? `${t.round} ${match.round}/${match.totalRounds}`
     : match?.phase === "finished"
       ? t.onlineResult
-      : isPrivateRoomScreen ? t.privateRooms : t.onlineMode;
+      : (match?match.mode==="private":isPrivateRoomScreen) ? t.privateRooms : PUBLIC_MODE_COPY[match?.queueMode??queueMode][isRTL?"ar":"en"];
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 12) }]}>
       <GameScreenBackground accent="online" />
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:theme.background+"A8"}]}/>
       <GameHeader
         title={pageTitle}
         onBack={() => {
-          if (match && match.phase !== "finished") leaveCurrentMatch();
+          if (match && match.phase !== "finished"){leaveCurrentMatch();return;}
           router.back();
         }}
         icon={isPrivateRoomScreen
           ? <Ionicons name="people-outline" size={23} color={CYAN} />
           : <GameIcon name="online" size={23} color={CYAN} />}
         trailing={
-          <StatusBadge label={connected ? t.onlineMode : t.connectionError} tone={connected ? "success" : "warning"} />
+          <View style={{flexDirection:"row",alignItems:"center",gap:8}}>{match?.mode==="private"?<RoomVoiceChat socket={socketRef.current} matchId={match.matchId} connected={connected} players={match.players}/>:null}<StatusBadge label={connected ? isRTL?"متصل":"Connected" : t.connectionError} tone={connected ? "success" : "warning"} /></View>
         }
       />
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {roomPlayer?.abandoned&&match?.phase!=="finished"?<Text style={[styles.bodyText,{color:GOLD}]}>انسحبت من المباراة. يبقى الدخول محسوباً؛ انتظر نهايتها لتأكيد النتيجة.</Text>:null}
+        {match&&match.settings.teamMode==="duo"&&match.teams?<RoomTeamBoard teams={match.teams} players={match.players} finished={match.phase==="finished"}/>:null}
+        {match?.local?<Text style={[styles.bodyText,{color:theme.textSecondary}]}>معاينة محلية · عملات الأونلاين هنا تجريبية</Text>:null}
         {connecting ? (
           <View style={styles.centerPanel}>
             <ActivityIndicator size="large" color={CYAN} />
@@ -524,10 +568,10 @@ export default function OnlineGameScreen({ mode }: Props) {
                 ? <Ionicons name="people-outline" size={62} color={CYAN} />
                 : <GameIllustration name="matchmaking" size={110} />}
               <Text style={[styles.heroTitle, { color: theme.textPrimary }]}>
-                {isPrivateRoomScreen ? t.privateRooms : t.onlineMode}
+                {isPrivateRoomScreen ? t.privateRooms : PUBLIC_MODE_COPY[queueMode][isRTL?"ar":"en"]}
               </Text>
               <Text style={[styles.bodyText, { color: theme.textSecondary }]}>
-                {isPrivateRoomScreen ? t.privateRoomsInternetRequired : t.onlineModeHint}
+                {isPrivateRoomScreen ? t.privateRoomsInternetRequired : isRTL?PUBLIC_MODE_COPY[queueMode].description:t.onlineModeHint}
               </Text>
             </View>
 
@@ -536,7 +580,8 @@ export default function OnlineGameScreen({ mode }: Props) {
                 <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
                   <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{t.createRoom}</Text>
                   <Text style={[styles.bodyText, { color: theme.textSecondary }]}>{t.noMatchCoins}</Text>
-                  {renderChoiceRow(t.maxPlayers, [2, 4, 6, 8] as const, settings.maxPlayers, (value) => updateSetting("maxPlayers", value))}
+                  {renderTeamMode(settings)}
+                  {renderChoiceRow(t.maxPlayers, (settings.teamMode==="duo"?[4]:[2,4,6,8]) as (2|4|6|8)[], settings.maxPlayers, (value) => updateSetting("maxPlayers", value))}
                   {renderChoiceRow(t.rounds, [3, 5, 7] as const, settings.rounds, (value) => updateSetting("rounds", value))}
                   {renderChoiceRow(t.secondsPerRound, [45, 60, 90] as const, settings.secondsPerRound, (value) => updateSetting("secondsPerRound", value))}
                   {renderButton(t.createRoom, createRoom, { color: CYAN, disabled: !connected, icon: "add-circle-outline" })}
@@ -563,18 +608,26 @@ export default function OnlineGameScreen({ mode }: Props) {
               </>
             ) : (
               <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-                <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{t.randomMatch}</Text>
+                <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{PUBLIC_MODE_COPY[queueMode][isRTL?"ar":"en"]}</Text>
                 <Text style={[styles.bodyText, { color: theme.textSecondary }]}>{t.readyToPlay}</Text>
+                <Text style={[styles.bodyText,{color:theme.textSecondary}]}>اختر مبلغ الدخول؛ المطابقة مع لاعبين اختاروا المبلغ نفسه</Text>
+                <Text style={[styles.sectionTitle,{color:GOLD}]}>رصيد الأونلاين: {onlineCoins===null?"…":onlineCoins} 🪙 {localCoins?"(تجريبي)":""}</Text>
+                <View style={[styles.choiceRow,{flexWrap:"wrap",flexDirection:"row-reverse"}]}>{ENTRY_FEES.map(fee=><Pressable key={fee} accessibilityRole="button" accessibilityLabel={"دخول "+fee+" عملة"} accessibilityState={{selected:fee===entryFee}} disabled={searching} onPress={()=>setEntryFee(fee)} style={[styles.choice,{borderColor:fee===entryFee?GOLD:theme.cardBorder,backgroundColor:fee===entryFee?GOLD+"28":theme.card}]}><Text style={{color:fee===entryFee?GOLD:theme.textPrimary,fontWeight:"700"}}>{fee} 🪙</Text></Pressable>)}</View>
+                <Text style={[styles.bodyText,{color:theme.textSecondary}]}>{entryFee>0?"المجموع: "+entryFee*publicQueueSize(queueMode)+" · نصيب الرابح: "+entryFee*(queueMode==="four"?4:2)+" عملة، متضمناً دخوله":"التدريب المجاني · مكافآت الأونلاين السابقة"}</Text>
+                <Text style={[styles.bodyText,{color:theme.textSecondary}]}>التعادل يعيد الدخول للجميع · الإلغاء قبل البداية بلا خصم · لا عمولة</Text>
+                {entryFee>0&&!entrySupported?<Text style={[styles.bodyText,{color:GOLD}]}>قاعات العملات تحتاج تحديث الخادم. التدريب المجاني متاح.</Text>:null}
+                {entryFee>0&&onlineCoins!==null&&onlineCoins<entryFee?<Text style={[styles.bodyText,{color:GOLD}]}>رصيد الأونلاين غير كافٍ. رصيد القائمة لا يُنقل تلقائياً؛ يمكنك التدريب المجاني لجمع عملات الأونلاين.</Text>:null}
+                {renderButton(entryFee===0?"تم اختيار التدريب المجاني":"تدريب مجاني",()=>setEntryFee(0),{disabled:searching,color:CYAN})}
                 {searching ? (
                   <View style={styles.searchingRow}>
                     <GameIllustration name="matchmaking" size={70} />
-                    <Text style={[styles.bodyText, { color: CYAN, flex: 1 }]}>{t.searchingOpponent}</Text>
+                    <Text style={[styles.bodyText, { color: CYAN, flex: 1 }]}>{queueMode==="solo"?t.searchingOpponent:(isRTL?"في انتظار اللاعبين":"Waiting for players")+" · "+queuePlayers+" / "+publicQueueSize(queueMode)}</Text>
                     {renderButton(t.cancelSearch, () => emit("match:cancel-search"), { color: "#FF738D" })}
                   </View>
-                ) : renderButton(t.findOpponent, () => {
+                ) : renderButton(queueMode==="solo"?t.findOpponent:isRTL?"ابحث عن لاعبين":"Find players", () => {
                   setError("");
-                  emit("match:find");
-                }, { icon: "search-outline", disabled: !connected })}
+                  emit("match:find",{mode:queueMode,entryFee});
+                }, { icon: "search-outline", disabled: !connected||(entryFee>0&&(!entrySupported||onlineCoins===null||onlineCoins<entryFee)) })}
               </View>
             )}
           </>
@@ -583,12 +636,12 @@ export default function OnlineGameScreen({ mode }: Props) {
         {match?.phase === "match_found" && (
           <View style={[styles.card, styles.centerPanel, { backgroundColor: theme.card, borderColor: `${CYAN}66` }]}>
             <GameIllustration name="matchmaking" size={92} />
-            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{t.matchFound}</Text>
-            <Text style={[styles.bodyText, { color: theme.textSecondary }]}>{t.readyToPlay}</Text>
-            {match.players.filter((player) => player.id !== principalId).map((player) => (
-              <Text key={player.id} style={[styles.opponentName, { color: CYAN }]}>{player.name}</Text>
+            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{match.settings.maxPlayers===4?"اكتمل عدد اللاعبين":t.matchFound}</Text>
+            <Text style={[styles.bodyText, { color: theme.textSecondary }]}>{(match.settings.entryFee??0)>0?"التأكيد يحجز "+match.settings.entryFee+" عملة من رصيد الأونلاين عند اكتمال استعداد الجميع. المجموع "+match.settings.entryFee!*match.settings.maxPlayers:t.readyToPlay}</Text>
+            {(match.settings.maxPlayers===4?match.players:match.players.filter((player) => player.id !== principalId)).map((player) => (
+              <Text key={player.id} style={[styles.opponentName, { color: CYAN }]}>{player.name}{player.id===principalId?" (أنت)":""}</Text>
             ))}
-            {renderButton(roomPlayer?.ready ? t.waitingForPlayers : t.ready, () => emit("match:ready", { matchId: match.matchId }), {
+            {renderButton(roomPlayer?.ready ? t.waitingForPlayers : (match.settings.entryFee??0)>0?"أوافق وأستعد · "+match.settings.entryFee+" 🪙":t.ready, () => emit("match:ready", { matchId: match.matchId }), {
               disabled: !connected || roomPlayer?.ready,
               icon: "checkmark-circle-outline",
             })}
@@ -644,16 +697,17 @@ export default function OnlineGameScreen({ mode }: Props) {
             {match.players.map((player) => (
               <View key={player.id} style={[styles.playerRow, { borderColor: theme.cardBorder, flexDirection: isRTL ? "row-reverse" : "row" }]}>
                 <Ionicons name={player.connected ? "person-circle-outline" : "cloud-offline-outline"} size={22} color={player.connected ? CYAN : GOLD} />
-                <Text style={[styles.playerName, { color: theme.textPrimary }]}>{player.name}</Text>
-                {player.host ? <Text style={styles.hostLabel}>{t.host}</Text> : null}
-                <Text style={[styles.readyLabel, { color: player.ready ? GREEN : theme.textMuted }]}>
-                  {player.ready ? t.ready : t.waitingForPlayers}
-                </Text>
+                <View style={{flex:1,minWidth:100,gap:3,alignItems:isRTL?"flex-end":"flex-start"}}>
+                  <Text style={{color:theme.textPrimary,fontFamily:"Cairo_700Bold",fontSize:14}} numberOfLines={2}>{player.name}</Text>
+                  <View style={{flexDirection:isRTL?"row-reverse":"row",gap:8,flexWrap:"wrap"}}>{player.teamId?<Text style={styles.hostLabel}>{player.teamId==="sun"?"☀ الشمس":"☾ القمر"}</Text>:null}{player.host?<Text style={styles.hostLabel}>{t.host}</Text>:null}</View>
+                </View>
+                <Text style={[styles.readyLabel,{color:player.ready?GREEN:theme.textMuted,maxWidth:90,textAlign:"center"}]}>{player.ready?t.ready:isRTL?"غير مستعد":"Not ready"}</Text>
               </View>
             ))}
             {isHost ? (
               <>
-                {renderChoiceRow(t.maxPlayers, [2, 4, 6, 8] as const, match.settings.maxPlayers, (value) => updateSetting("maxPlayers", value))}
+                {renderTeamMode(match.settings)}
+                {renderChoiceRow(t.maxPlayers, (match.settings.teamMode==="duo"?[4]:[2,4,6,8]) as (2|4|6|8)[], match.settings.maxPlayers, (value) => updateSetting("maxPlayers", value))}
                 {renderChoiceRow(t.rounds, [3, 5, 7] as const, match.settings.rounds, (value) => updateSetting("rounds", value))}
                 {renderChoiceRow(t.secondsPerRound, [45, 60, 90] as const, match.settings.secondsPerRound, (value) => updateSetting("secondsPerRound", value))}
                 {renderButton(roomPlayer?.ready ? t.waitingForPlayers : t.ready, () => emit("room:ready", { matchId: match.matchId }), {
@@ -663,7 +717,7 @@ export default function OnlineGameScreen({ mode }: Props) {
                 })}
                 {renderButton(t.startMatch, () => emit("room:start", { matchId: match.matchId }), {
                   color: GREEN,
-                  disabled: match.players.length < 2 || !match.players.every((player) => player.ready && player.connected),
+                  disabled: (match.settings.teamMode==="duo"&&match.players.length!==4) || match.players.length < 2 || !match.players.every((player) => player.ready && player.connected),
                 })}
               </>
             ) : renderButton(t.ready, () => emit("room:ready", { matchId: match.matchId }), {
@@ -748,7 +802,7 @@ export default function OnlineGameScreen({ mode }: Props) {
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
             <View style={styles.onlineResultHero}>
               <GameIllustration
-                name={finalPlayers?.find((player) => player.playerId === principalId)?.rank === 1 ? "victory" : "defeat"}
+                name={ownWinner ? "victory" : "defeat"}
                 size={92}
               />
             </View>
@@ -785,6 +839,7 @@ export default function OnlineGameScreen({ mode }: Props) {
             <Text style={[styles.bodyText, { color: theme.textSecondary }]}>{t.loading}</Text>
           </View>
         )}
+        {match?.mode==="private"?<RoomQuickChat socket={socketRef.current} matchId={match.matchId} history={match.messages} connected={connected}/>:null}
       </ScrollView>
     </View>
   );
@@ -798,34 +853,34 @@ const styles = StyleSheet.create({
   connectionPill: { minHeight: 36, borderWidth: 2, borderRadius: 4, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 6 },
   connectionDot: { width: 7, height: 7, borderRadius: 4 },
   content: { padding: 16, paddingBottom: 36, gap: 16, width: "100%", maxWidth: 760, alignSelf: "center" },
-  hero: { alignItems: "center", padding: 22, borderWidth: 2, borderRadius: 5, gap: 8 },
+  hero: { alignItems: "center", padding: 22, borderWidth: 2, borderRadius: 22, gap: 8 },
   heroIcon: { width: 56, height: 56, borderRadius: 4, alignItems: "center", justifyContent: "center", backgroundColor: `${CYAN}20` },
   heroTitle: { fontSize: 25, fontWeight: "900", textAlign: "center" },
   bodyText: { fontSize: 14, lineHeight: 21, textAlign: "center" },
-  card: { borderWidth: 2, borderRadius: 5, padding: 18, gap: 14 },
+  card: { borderWidth: 2, borderRadius: 20, padding: 18, gap: 14 },
   sectionTitle: { fontSize: 20, fontWeight: "800", textAlign: "center" },
   settingGroup: { gap: 8 },
   settingLabel: { fontSize: 14, fontWeight: "700" },
-  choiceRow: { flexDirection: "row", gap: 8 },
+  choiceRow: { flexDirection: "row", flexWrap:"wrap", gap: 8 },
   choice: { minWidth: 48, minHeight: 44, paddingHorizontal: 12, borderWidth: 2, borderRadius: 4, alignItems: "center", justifyContent: "center" },
   button: { minHeight: 48, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 4, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },
   buttonText: { color: "#071A17", fontSize: 15, fontWeight: "800", textAlign: "center" },
   divider: { height: 1, backgroundColor: "#D7D1CC", marginVertical: 2 },
-  joinRow: { alignItems: "center", gap: 8 },
-  roomInput: { flex: 1, minHeight: 48, borderWidth: 2, borderRadius: 4, paddingHorizontal: 12, fontSize: 16, letterSpacing: 2, fontWeight: "800" },
+  joinRow: { alignItems: "center", flexWrap:"wrap", gap: 8 },
+  roomInput: { flex: 1, minWidth:120, minHeight: 48, borderWidth: 2, borderRadius: 4, paddingHorizontal: 12, fontSize: 16, letterSpacing: 2, fontWeight: "800" },
   errorBanner: { minHeight: 44, padding: 11, borderWidth: 1, borderRadius: 4, flexDirection: "row", alignItems: "center", gap: 8 },
   errorText: { flex: 1, fontSize: 13, fontWeight: "600" },
   searchingRow: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 10 },
   centerPanel: { alignItems: "center", justifyContent: "center", gap: 16, paddingVertical: 30 },
   onlineResultHero: { alignItems: "center", justifyContent: "center", minHeight: 100 },
   opponentName: { fontSize: 20, fontWeight: "800" },
-  lobbyHeader: { alignItems: "center", justifyContent: "space-between", gap: 10 },
+  lobbyHeader: { flexWrap:"wrap", alignItems: "center", justifyContent: "space-between", gap: 10 },
   codeBadge: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, borderRadius: 4, borderWidth: 2 },
   codeActions: { flexDirection: "row", alignItems: "center", gap: 8 },
   shareButton: { width: 44, height: 44, borderRadius: 4, borderWidth: 2, alignItems: "center", justifyContent: "center" },
   codeText: { color: CYAN, fontSize: 18, fontWeight: "900", letterSpacing: 2 },
-  playerRow: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 8, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 6 },
-  playerName: { flex: 1, fontSize: 15, fontWeight: "700" },
+  playerRow: { minHeight: 48, flexDirection: "row", flexWrap:"wrap", alignItems: "center", gap: 8, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 6 },
+  playerName: { flex: 1, minWidth:60, fontSize: 15, fontWeight: "700" },
   hostLabel: { color: GOLD, fontSize: 12, fontWeight: "800" },
   readyLabel: { fontSize: 12, fontWeight: "700" },
   countdown: { fontSize: 70, lineHeight: 84, fontWeight: "900" },

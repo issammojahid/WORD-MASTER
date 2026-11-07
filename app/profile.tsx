@@ -1,369 +1,54 @@
-import React, { useState, useRef, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Platform,
-  TextInput,
-  Alert,
-} from "react-native";
-import { router, type Href } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
+import { View, Text, StyleSheet, Pressable, ScrollView, Platform, type DimensionValue } from "react-native";
+import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
 import { usePlayer, getXpProgress } from "@/contexts/PlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { CoinBalance, GameHeader, GameModal, GameScreenBackground, PlayerAvatar } from "@/components/GameUi";
+import { GameHeader, GameModal, GameScreenBackground, CoinBalance, PlayerAvatar } from "@/components/GameUi";
+import { HalloweenAvatar, HalloweenProfileLook, HalloweenNameplate, useHalloweenAppearance } from "@/components/HalloweenAppearance";
 import { CosmeticArtwork } from "@/components/CosmeticArtwork";
-import { getPlayerDisplayId, getDisplayCode } from "@/lib/player-code";
+import { PlayerNameForm } from "@/components/PlayerNameForm";
+import { getDisplayCode, getPlayerDisplayId } from "@/lib/player-code";
+import { getCountryInfo } from "@/lib/countries";
 import { gameDesign } from "@/constants/game-design";
-import { getAvatarCosmetic, getCosmetic } from "@shared/cosmetics";
-
-const LOGO = {
-  cyan: gameDesign.colors.profile,
-  pink: gameDesign.colors.danger,
-  purple: gameDesign.colors.online,
-  yellow: gameDesign.colors.coins,
-  green: gameDesign.colors.success,
-};
-
 export default function ProfileScreen() {
-  const insets = useSafeAreaInsets();
-  const { profile, playerId, setPlayerName } = usePlayer();
-  const { theme } = useTheme();
-
-  const [codeCopied, setCodeCopied] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [nameInput, setNameInput] = useState(profile.name);
-  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-    };
-  }, []);
-
-  const topInset = Platform.OS === "web" ? 67 : insets.top;
-  const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
-
-  const xpData = getXpProgress(profile.xp);
-  const avatarCosmetic = getAvatarCosmetic(profile.equippedSkin);
-  const profileBackground = getCosmetic("background", profile.equippedCosmetics.background);
-  const nameplate = getCosmetic("nameplate", profile.equippedCosmetics.nameplate);
-  const seasonalCosmetic = getCosmetic("seasonal", profile.equippedCosmetics.seasonal);
-
-  const displayId = getPlayerDisplayId(profile.playerTag);
-  const displayCode = getDisplayCode(profile.name, playerId, profile.playerTag);
-
-  const winRate = profile.gamesPlayed > 0
-    ? Math.round((profile.wins / profile.gamesPlayed) * 100)
-    : 0;
-  const losses = profile.gamesPlayed - profile.wins;
-
-  const handleCopyId = async () => {
-    await Clipboard.setStringAsync(displayId || displayCode);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setCodeCopied(true);
-    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-    copyTimeoutRef.current = setTimeout(() => setCodeCopied(false), 2000);
-  };
-
-  const handleSaveName = () => {
-    if (nameInput.trim().length < 2) {
-      Alert.alert("", "الاسم يجب أن يكون حرفين على الأقل");
-      return;
-    }
-    setPlayerName(nameInput.trim());
-    setShowEditModal(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  };
-
-  const STATS = [
-    { label: "مباريات", value: profile.gamesPlayed, color: LOGO.cyan,   icon: "game-controller" as const },
-    { label: "انتصارات", value: profile.wins,         color: LOGO.green,  icon: "trophy" as const },
-    { label: "خسارات",  value: losses,                color: LOGO.pink,   icon: "close-circle" as const },
-    { label: "نسبة الفوز", value: `${winRate}%`,      color: LOGO.yellow, icon: "stats-chart" as const },
-  ];
-
-  return (
-    <View style={[s.container, { paddingTop: topInset, paddingBottom: bottomInset }]}>
-      <GameScreenBackground accent="online" />
-      <GameHeader
-        title="بروفايلي"
-        onBack={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }}
-        icon={<Ionicons name="person-circle-outline" size={23} color={LOGO.cyan} />}
-        trailing={<View style={s.headerTrailing}><CoinBalance amount={profile.coins} /></View>}
-      />
-
-      <ScrollView
-        contentContainerStyle={s.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Avatar + Name */}
-        <View style={[s.avatarSection, profileBackground ? { backgroundColor: `${profileBackground.colors[0]}18` } : null]}>
-          {profileBackground ? (
-            <View style={[s.profileBackgroundArtwork, { pointerEvents: "none" }]}>
-              <CosmeticArtwork kind="background" itemId={profile.equippedCosmetics.background} size={190} height={136} />
-            </View>
-          ) : null}
-          <View style={[s.avatarOuter, { borderColor: avatarCosmetic.colors[0], shadowColor: avatarCosmetic.colors[0] }]}>
-            <PlayerAvatar size={88} skinId={profile.equippedSkin} frameId={profile.equippedCosmetics.frame} accessibilityLabel={profile.name} />
-          </View>
-
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={`Edit player name: ${profile.name}`}
-            style={s.nameRow}
-            onPress={() => { setNameInput(profile.name); setShowEditModal(true); }}
-            activeOpacity={0.8}
-          >
-            {nameplate ? (
-              <View style={[StyleSheet.absoluteFill, { pointerEvents: "none" }]}>
-                <CosmeticArtwork kind="nameplate" itemId={profile.equippedCosmetics.nameplate} size={240} height={68} />
-              </View>
-            ) : null}
-            <Text style={[s.playerName, { color: theme.textPrimary }]} numberOfLines={1}>{profile.name}</Text>
-            <Ionicons name="pencil" size={14} color={LOGO.cyan} />
-          </TouchableOpacity>
-          {seasonalCosmetic && profile.equippedCosmetics.seasonal !== "no_seasonal" ? (
-            <View style={[s.seasonalBadge, { backgroundColor: `${seasonalCosmetic.colors[0]}20` }]}>
-              <CosmeticArtwork kind="seasonal" itemId={profile.equippedCosmetics.seasonal} size={28} />
-              <Text style={[s.seasonalText, { color: theme.textSecondary }]}>{profile.equippedCosmetics.seasonal.replace(/_/g, " ")}</Text>
-            </View>
-          ) : null}
-
-        </View>
-
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel="فتح متجر المظاهر"
-          style={[s.storeCard, { backgroundColor: theme.card, borderColor: `${gameDesign.colors.coins}70` }]}
-          onPress={() => router.push("/store" as Href)}
-          activeOpacity={0.82}
-        >
-          <View style={[s.storeIcon, { backgroundColor: `${gameDesign.colors.coins}20` }]}>
-            <Ionicons name="color-palette-outline" size={22} color={gameDesign.colors.coinsText} />
-          </View>
-          <View style={s.storeCopy}>
-            <Text style={[s.storeTitle, { color: theme.textPrimary }]}>متجر المظاهر</Text>
-            <Text style={[s.storeDescription, { color: theme.textSecondary }]}>أفاتارات أصلية وإطارات بتأثيرات جميلة</Text>
-          </View>
-          <CoinBalance amount={profile.coins} />
-          <Ionicons name="chevron-back" size={18} color={theme.textMuted} />
-        </TouchableOpacity>
-
-        {/* Player ID */}
-        <View style={[s.idCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-          <View style={s.idRow}>
-            <Ionicons name="id-card" size={18} color={LOGO.cyan} />
-            <Text style={[s.idLabel, { color: theme.textMuted }]}>كود اللاعب</Text>
-          </View>
-          <View style={s.idValueRow}>
-            <Text style={s.idValue}>{displayId || displayCode}</Text>
-            <TouchableOpacity style={s.copyBtn} onPress={handleCopyId} activeOpacity={0.7}>
-              <Ionicons
-                name={codeCopied ? "checkmark-circle" : "copy-outline"}
-                size={20}
-                color={codeCopied ? LOGO.green : theme.textMuted}
-              />
-              <Text style={[s.copyText, { color: codeCopied ? LOGO.green : theme.textMuted }]}>
-                {codeCopied ? "تم النسخ" : "نسخ"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Stats 2x2 grid */}
-        <View style={s.statsGrid}>
-          {STATS.map((stat, i) => (
-            <View
-              key={i}
-              style={[s.statCell, { backgroundColor: stat.color + "12", borderColor: stat.color + "40" }]}
-            >
-              <Ionicons name={stat.icon} size={20} color={stat.color} style={{ marginBottom: 4 }} />
-              <Text style={[s.statValue, { color: stat.color }]}>{stat.value}</Text>
-              <Text style={[s.statLabel, { color: theme.textMuted }]}>{stat.label}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Level + XP */}
-        <View style={[s.levelCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-          <View style={s.levelHeader}>
-            <LinearGradient
-              colors={[LOGO.yellow + "30", LOGO.yellow + "18"]}
-              style={s.levelBadge}
-            >
-              <Text style={s.levelBadgeText}>Lv.{profile.level}</Text>
-            </LinearGradient>
-            <Text style={[s.levelTitle, { color: theme.textPrimary }]}>المستوى والتقدم</Text>
-            <Text style={[s.xpLabel, { color: theme.textMuted }]}>
-              {xpData.current} / {xpData.needed} XP
-            </Text>
-          </View>
-          <View style={s.xpBarBg}>
-            <LinearGradient
-              colors={[LOGO.cyan, LOGO.purple]}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={[s.xpBarFill, { width: `${xpData.progress * 100}%` as `${number}%` }]}
-            />
-          </View>
-          <Text style={[s.xpHint, { color: theme.textMuted }]}>
-            {xpData.needed - xpData.current} XP للمستوى {profile.level + 1}
-          </Text>
-        </View>
-
-      </ScrollView>
-
-      {/* Edit Name Modal */}
-      <GameModal
-        visible={showEditModal}
-        onRequestClose={() => setShowEditModal(false)}
-      >
-        <Text style={s.modalTitle}>تغيير الاسم</Text>
-        <TextInput
-          style={[s.nameInput, { color: theme.inputText, backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}
-          value={nameInput}
-          onChangeText={setNameInput}
-          maxLength={20}
-          textAlign="right"
-          autoFocus
-          selectTextOnFocus
-          placeholderTextColor={theme.inputPlaceholder}
-          placeholder="اكتب اسمك..."
-        />
-        <View style={s.modalBtns}>
-          <TouchableOpacity
-            style={s.modalCancel}
-            onPress={() => setShowEditModal(false)}
-          >
-            <Text style={s.modalCancelText}>إلغاء</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.modalConfirm} onPress={handleSaveName}>
-            <Text style={s.modalConfirmText}>حفظ</Text>
-          </TouchableOpacity>
-          </View>
-      </GameModal>
-    </View>
-  );
+ const {profile,playerId}=usePlayer(),{theme}=useTheme(),halloween=useHalloweenAppearance(),insets=useSafeAreaInsets();
+ const [editing,setEditing]=useState(false),[copied,setCopied]=useState(false);
+ const timer=useRef<ReturnType<typeof setTimeout>|null>(null);
+ useEffect(()=>()=>{if(timer.current)clearTimeout(timer.current);},[]);
+ const xp=getXpProgress(profile.xp),code=getPlayerDisplayId(profile.playerTag)||getDisplayCode(profile.name,playerId,profile.playerTag),country=getCountryInfo(profile.country||"MA");
+ async function copy(){await Clipboard.setStringAsync(code);setCopied(true);if(timer.current)clearTimeout(timer.current);timer.current=setTimeout(()=>setCopied(false),2000);}
+ const stats=[{label:"مباريات",value:profile.gamesPlayed},{label:"انتصارات",value:profile.wins},{label:"خسارات",value:Math.max(0,profile.gamesPlayed-profile.wins)},{label:"نسبة الفوز",value:(profile.gamesPlayed?Math.round(profile.wins/profile.gamesPlayed*100):0)+"%"}];
+ return <View style={{flex:1,paddingTop:Platform.OS==="web"?20:insets.top,backgroundColor:theme.background}}>
+  <GameScreenBackground accent="online"/>
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:theme.background+"A8"}]}/>
+  <GameHeader title="الملف الشخصي" onBack={()=>router.back()} trailing={<CoinBalance amount={halloween.commerce?halloween.coins??profile.coins:profile.coins}/>}/>
+  <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.content,{paddingBottom:Math.max(20,insets.bottom)}]}>
+   <View style={s.identity}>
+    {halloween.active?<HalloweenProfileLook name={profile.name} skinId={profile.equippedSkin} compact/>:<View style={s.portrait}><View pointerEvents="none" style={[StyleSheet.absoluteFill,{opacity:profile.equippedCosmetics.background==="basic_background"?0:0.3}]}><CosmeticArtwork kind="background" itemId={profile.equippedCosmetics.background} size={280} height={190}/></View><PlayerAvatar size={148} skinId={profile.equippedSkin} frameId={profile.equippedCosmetics.frame}/></View>}
+    <View style={[s.badge,{backgroundColor:theme.card,borderColor:gameDesign.colors.coins}]}><Text style={s.gold}>المستوى {profile.level}</Text></View>
+    <Pressable accessibilityRole="button" accessibilityLabel="تعديل اسم اللاعب" onPress={()=>setEditing(true)} style={s.nameRow}>
+     <Ionicons name="pencil-outline" size={17} color={gameDesign.colors.coins}/>
+     {halloween.active&&halloween.asset("nameplate")?<HalloweenNameplate name={profile.name}/>:<View style={s.nameWrap}>{!halloween.active&&profile.equippedCosmetics.nameplate!=="basic_nameplate"?<View pointerEvents="none" style={StyleSheet.absoluteFill}><CosmeticArtwork kind="nameplate" itemId={profile.equippedCosmetics.nameplate} size={224} height={52}/></View>:null}<Text numberOfLines={1} style={[s.name,{color:theme.textPrimary}]}>{profile.name}</Text></View>}
+    </Pressable>
+    <Pressable accessibilityRole="button" accessibilityLabel="نسخ معرّف اللاعب" onPress={()=>void copy()} style={s.code}><Text style={[s.codeText,{color:theme.textSecondary}]}>{copied?"تم النسخ":code}</Text><Ionicons name={copied?"checkmark-circle":"copy-outline"} size={17} color={theme.textSecondary}/></Pressable>
+   </View>
+   <View style={s.progress}>
+    <View style={s.progressLabels}><Text style={[s.small,{color:theme.textSecondary}]}>{xp.current} / {xp.needed} نقطة خبرة</Text><Text style={s.gold}>المستوى {profile.level}</Text></View>
+    <View accessibilityRole="progressbar" accessibilityValue={{min:0,max:xp.needed,now:xp.current}} style={[s.track,{backgroundColor:theme.card}]}><LinearGradient colors={["#0B8D91","#7CE0CE"]} start={{x:0,y:0}} end={{x:1,y:0}} style={{height:"100%",width:(Math.max(0,Math.min(1,xp.progress))*100+"%") as DimensionValue}}/></View>
+   </View>
+   <View style={[s.stats,{backgroundColor:theme.card,borderColor:theme.cardBorder}]}>{stats.map((stat,i)=><View key={stat.label} style={[s.stat,i>0&&{borderLeftWidth:1,borderColor:theme.cardBorder}]}><Text style={[s.small,{color:theme.textSecondary}]}>{stat.label}</Text><Text style={[s.value,{color:theme.textPrimary}]}>{stat.value}</Text></View>)}</View>
+   <Pressable accessibilityRole="button" accessibilityLabel="تخصيص المظهر في المتجر" onPress={()=>router.push("/store")} style={[s.custom,{backgroundColor:theme.card,borderColor:theme.cardBorder}]}>
+    <View style={s.customButton}><Text style={s.customText}>تخصيص</Text></View><View style={s.customCopy}><Text style={[s.rowTitle,{color:theme.textPrimary}]}>مظهري</Text><Text style={[s.small,{color:theme.textSecondary}]}>الشخصيات والإطارات والخلفيات</Text></View>{halloween.active?<HalloweenAvatar size={47} skinId={profile.equippedSkin}/>:<PlayerAvatar size={47} skinId={profile.equippedSkin} frameId={profile.equippedCosmetics.frame}/>}
+   </Pressable>
+   {!halloween.active&&profile.equippedCosmetics.seasonal!=="no_seasonal"?<View style={s.ornament}><CosmeticArtwork kind="seasonal" itemId={profile.equippedCosmetics.seasonal} size={32}/><Text style={[s.small,{color:theme.textSecondary}]}>الزينة الموسمية المجهزة</Text></View>:null}
+   {halloween.active&&!halloween.equipped?<Pressable accessibilityRole="button" onPress={halloween.reset} style={s.code}><Text style={s.gold}>إلغاء معاينة هالوين</Text></Pressable>:null}
+   <View style={[s.footer,{borderColor:theme.cardBorder}]}><Pressable accessibilityRole="button" onPress={()=>router.push("/achievements")} style={s.footerLink}><Ionicons name="medal-outline" size={24} color={gameDesign.colors.coins}/><Text style={[s.small,{color:theme.textPrimary}]}>إنجازاتي</Text></Pressable><View style={s.footerLink}><Text style={s.flag}>{country.flag}</Text><Text style={[s.small,{color:theme.textPrimary}]}>{country.nameAr}</Text></View></View>
+  </ScrollView>
+  <GameModal visible={editing} onRequestClose={()=>setEditing(false)}><PlayerNameForm onSaved={()=>setEditing(false)}/><Pressable accessibilityRole="button" onPress={()=>setEditing(false)} style={s.code}><Text style={{color:theme.textSecondary}}>إلغاء</Text></Pressable></GameModal>
+ </View>;
 }
-
-const s = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 16, paddingVertical: 12,
-  },
-  backBtn: {
-    width: 44, height: 44, borderRadius: 22,
-    justifyContent: "center", alignItems: "center", overflow: "hidden",
-    borderWidth: 2, borderColor: "rgba(255,255,255,0.14)",
-  },
-  headerTitle: {
-    fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F6F7FF",
-  },
-  headerTrailing: { minWidth: 48, alignItems: "flex-end" },
-  content: { paddingHorizontal: 16, paddingBottom: 32, gap: 16 },
-
-  avatarSection: { alignItems: "center", paddingVertical: 12, gap: 10, borderRadius: 24, overflow: "hidden" },
-  profileBackgroundArtwork: { position: "absolute", top: 0, width: 190, height: 136, opacity: 0.3 },
-  seasonalBadge: { minHeight: 36, flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-  seasonalText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
-  avatarOuter: {
-    width: 96, height: 96, borderRadius: 48,
-    borderWidth: 3,
-    shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 16, elevation: 10,
-    justifyContent: "center", alignItems: "center",
-  },
-  avatarInner: {
-    width: 88, height: 88, borderRadius: 44,
-    justifyContent: "center", alignItems: "center",
-  },
-  nameRow: {
-    width: 240, minHeight: 62, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    paddingHorizontal: 32, paddingVertical: 8, borderRadius: 16, overflow: "hidden",
-  },
-  playerName: { maxWidth: 160, fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F6F7FF" },
-  storeCard: { minHeight: 76, flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: 18, borderWidth: 1.5 },
-  storeIcon: { width: 44, height: 44, borderRadius: 15, alignItems: "center", justifyContent: "center" },
-  storeCopy: { flex: 1, gap: 2 },
-  storeTitle: { fontFamily: "Cairo_700Bold", fontSize: 14 },
-  storeDescription: { fontFamily: "Cairo_400Regular", fontSize: 10 },
-
-  idCard: {
-    borderRadius: 20, padding: 16,
-    borderWidth: 2, borderColor: "rgba(255,255,255,0.10)",
-    gap: 8,
-  },
-  idRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  idLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
-  idValueRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  idValue: {
-    fontFamily: "Cairo_700Bold", fontSize: 18, color: LOGO.cyan,
-    letterSpacing: 1,
-  },
-  copyBtn: { flexDirection: "row", alignItems: "center", gap: 4, padding: 6 },
-  copyText: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
-
-  statsGrid: {
-    flexDirection: "row", flexWrap: "wrap", gap: 10,
-  },
-  statCell: {
-    flex: 1, minWidth: "45%",
-    borderRadius: 18, padding: 16,
-    borderWidth: 2,
-    alignItems: "center", gap: 2,
-  },
-  statValue: { fontFamily: "Cairo_700Bold", fontSize: 26 },
-  statLabel: { fontFamily: "Cairo_400Regular", fontSize: 11 },
-
-  levelCard: {
-    borderRadius: 20, padding: 16,
-    borderWidth: 2,
-    gap: 10,
-  },
-  levelHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
-  levelBadge: {
-    borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4,
-  },
-  levelBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: LOGO.yellow },
-  levelTitle: { fontFamily: "Cairo_700Bold", fontSize: 15, flex: 1 },
-  xpLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 12 },
-  xpBarBg: {
-    height: 8, borderRadius: 4,
-    backgroundColor: "rgba(255,255,255,0.10)",
-    overflow: "hidden",
-  },
-  xpBarFill: { height: "100%", borderRadius: 4 },
-  xpHint: { fontFamily: "Cairo_400Regular", fontSize: 11, textAlign: "center" },
-
-
-  modalTitle: {
-    fontFamily: "Cairo_700Bold", fontSize: 20, color: LOGO.cyan, textAlign: "center",
-  },
-  nameInput: {
-    borderWidth: 2.5, borderColor: LOGO.cyan + "60", borderRadius: 16,
-    borderBottomWidth: 4, borderBottomColor: LOGO.cyan + "99",
-    padding: 14, fontFamily: "Cairo_400Regular", fontSize: 16,
-    color: "#F6F7FF", backgroundColor: "rgba(255,255,255,0.06)",
-  },
-  modalBtns: { flexDirection: "row", gap: 12 },
-  modalCancel: {
-    flex: 1, paddingVertical: 14, borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.08)", alignItems: "center",
-    borderWidth: 2.5, borderColor: "rgba(255,255,255,0.18)",
-    borderBottomWidth: 4, borderBottomColor: "rgba(0,0,0,0.25)",
-  },
-  modalCancelText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#9898CC" },
-  modalConfirm: {
-    flex: 1, paddingVertical: 14, borderRadius: 18,
-    backgroundColor: LOGO.yellow, alignItems: "center",
-    borderWidth: 2.5, borderColor: "rgba(255,255,255,0.30)",
-    borderBottomWidth: 4, borderBottomColor: "#D59A3F",
-  },
-  modalConfirmText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: "#000" },
-});
+const s=StyleSheet.create({content:{width:"100%",maxWidth:592,alignSelf:"center",paddingHorizontal:20,gap:12},identity:{alignItems:"center",paddingTop:8,gap:2},portrait:{width:"100%",height:164,alignItems:"center",justifyContent:"center",overflow:"hidden",borderRadius:30},badge:{marginTop:-16,paddingHorizontal:14,paddingVertical:3,borderWidth:1,borderRadius:15},gold:{fontFamily:"Cairo_700Bold",color:gameDesign.colors.coinsText,fontSize:12},nameRow:{minHeight:48,flexDirection:"row",gap:7,alignItems:"center",justifyContent:"center",maxWidth:"100%"},nameWrap:{maxWidth:240,minHeight:48,justifyContent:"center",paddingHorizontal:12},name:{fontFamily:"Cairo_700Bold",fontSize:23,textAlign:"center"},code:{minHeight:36,flexDirection:"row",gap:8,alignItems:"center",justifyContent:"center"},codeText:{fontSize:13,fontFamily:"Cairo_600SemiBold"},progress:{gap:7},progressLabels:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},small:{fontFamily:"Cairo_400Regular",fontSize:11,lineHeight:18},track:{height:8,borderRadius:8,overflow:"hidden"},stats:{flexDirection:"row-reverse",borderWidth:1,borderRadius:20,paddingVertical:10},stat:{flex:1,alignItems:"center",gap:3},value:{fontFamily:"Cairo_700Bold",fontSize:21},custom:{borderRadius:20,borderWidth:1,padding:12,flexDirection:"row",alignItems:"center",gap:10,minHeight:82},customCopy:{flex:1,alignItems:"flex-end"},rowTitle:{fontFamily:"Cairo_700Bold",fontSize:16},customButton:{minHeight:44,paddingHorizontal:14,borderRadius:13,backgroundColor:"#14747C",alignItems:"center",justifyContent:"center"},customText:{fontFamily:"Cairo_700Bold",color:"#FFF0CB",fontSize:13},footer:{borderTopWidth:1,flexDirection:"row",paddingTop:12},footerLink:{flex:1,minHeight:44,flexDirection:"row",gap:8,alignItems:"center",justifyContent:"center"},flag:{fontSize:25},ornament:{flexDirection:"row",alignItems:"center",justifyContent:"center",gap:8}});

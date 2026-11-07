@@ -1,3 +1,4 @@
+import { FantasySectionBanner } from "@/components/FantasySectionBanner";
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   View,
@@ -300,6 +301,7 @@ export default function ClansScreen() {
           icon={<FeatureIcon name="clans" size={23} color={gameDesign.colors.clans} />}
           trailing={<View style={styles.headerBalance}><CoinBalance amount={profile.coins} /></View>}
         />
+        <FantasySectionBanner kind="clans" />
       </View>
 
       {/* Content */}
