@@ -36,3 +36,7 @@ The owner subsequently authorized the production update and requested replacing 
 `scripts/cleanup-player-display-names.ts` requires a private backup directory outside the repository and an explicit `--apply-approved` flag to commit. It first saves the old name cells, locks the affected tables, resolves duplicates and retired names, creates the unique name index, and verifies that non-name profile fields are unchanged. Without the flag, it exercises the transaction and rolls back.
 
 The applied run changed 22 player-profile name cells, four social-profile names, two historical participant names and one result JSON document. It verified zero duplicate profile names and zero retired names in the inspected player-name columns. The private rollback data remains outside Git. Runtime social/socket handling prevents an old client cache from restoring the retired display name to online rooms. An old APK can still display its own local cached profile name; changing server data does not rewrite app storage.
+
+## Name policy correction, 7 November 2026
+
+The owner clarified that Aissam must be accepted like any other valid player name. The runtime substring restriction and online display-name replacement have been removed. Normal validation and case/spacing/Unicode-aware uniqueness remain. The earlier one-time cleanup is not rerun or reversed; no player records change in this correction. The cleanup utility remains a manual historical tool, never part of server startup. This correction needs only a server deployment, with no APK/AAB build.

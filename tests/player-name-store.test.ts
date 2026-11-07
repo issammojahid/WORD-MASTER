@@ -47,7 +47,10 @@ test("two HTTP clients cannot claim the same normalized name; same owner can ret
   assert.equal((await rename({},'Valid')).status,400);
   assert.equal((await rename('a',{})).status,400);
   assert.equal((await rename('a','<script>')).status,400);
-  assert.equal((await rename('a','King_AISSAM')).status,400);
+  assert.equal((await rename('a','King_AISSAM')).status,200);
+  assert.equal((await rename('b','king_aissam')).status,409);
+  assert.equal((await rename('a','Aissam')).status,200);
+  assert.equal((await rename('b','ＡＩＳＳＡＭ')).status,409);
   assert.equal(isPlayerNameConflict({cause:{code:'23505',constraint:'player_profiles_name_key_unique'}}),true);
   assert.equal(isPlayerNameConflict({code:'23505',constraint:'another_constraint'}),false);
  }finally{if(server)await new Promise<void>((r,j)=>server!.close(e=>e?j(e):r()));await db.close();}
