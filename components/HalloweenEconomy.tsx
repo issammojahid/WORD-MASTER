@@ -46,8 +46,8 @@ export function HalloweenEntry({compact=false}:{compact?:boolean}={}){
 
 export function HalloweenAccountStatus({compact=false}:{compact?:boolean}={}){
  const {enabled,seasonActive,account,busy,error,refresh}=useHalloweenAccount();
- useFocusEffect(useCallback(()=>{if(enabled)void refresh();},[enabled,refresh]));
- if(!enabled)return null;
+ useFocusEffect(useCallback(()=>{if(enabled&&(seasonActive||!!account?.state.owned.length))void refresh();},[enabled,seasonActive,account?.state.owned.length,refresh]));
+ if(!enabled||(!seasonActive&&!account?.state.owned.length))return null;
  if(compact)return <View style={{gap:4}}><View style={{minHeight:44,flexDirection:"row-reverse",alignItems:"center",justifyContent:"space-between",gap:10}}><Text style={s.note}>{account?"العناصر المملوكة: "+account.state.owned.length+(account.local?" · محفوظة على الجهاز":""):"المجموعة غير متاحة"}</Text><Pressable accessibilityRole="button" accessibilityLabel="تحديث المجموعة" disabled={busy} onPress={()=>void refresh()} style={{minHeight:44,justifyContent:"center",paddingHorizontal:8}}><Text style={s.link}>{busy?"جارٍ التحديث…":"تحديث"}</Text></Pressable></View>{error?<Text accessibilityRole="alert" style={s.error}>{error}</Text>:null}</View>;
 
  return <View style={[s.banner,compact&&{padding:10,gap:5,marginVertical:0}]}>

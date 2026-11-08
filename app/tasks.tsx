@@ -1,4 +1,3 @@
-import { FantasySectionBanner } from "@/components/FantasySectionBanner";
 import React, { useState, useEffect, useCallback, useRef, memo } from "react";
 import {
   View,
@@ -211,17 +210,17 @@ function TaskCard({ task, onClaim, isPending, theme }: { task: Task; onClaim: ()
 }
 const tc = StyleSheet.create({
   card: {
-    flexDirection: "row", alignItems: "center",
-    borderRadius: 20, padding: 14, borderWidth: 1, gap: 12,
+    flexDirection: "column", alignItems: "stretch",
+    borderRadius: 18, padding: 12, borderWidth: 1, gap: 8, minHeight:210,
   },
   iconWrap: { width: 50, height: 50, borderRadius: 25, justifyContent: "center", alignItems: "center" },
   icon: { fontSize: 26 },
-  content: { flex: 1, gap: 4 },
-  title: { fontFamily: "Cairo_700Bold", fontSize: 14 },
-  desc: { fontFamily: "Cairo_400Regular", fontSize: 11 },
+  content: { gap: 4, width:"100%" },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 13, textAlign:"right" },
+  desc: { fontFamily: "Cairo_400Regular", fontSize: 11, textAlign:"right" },
   progressRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
   progressNum: { fontFamily: "Cairo_400Regular", fontSize: 10, minWidth: 32, textAlign: "right" },
-  rewards: { flexDirection: "row", gap: 6, marginTop: 5 },
+  rewards: { flexDirection: "row", flexWrap:"wrap", gap: 6, marginTop: 5 },
   rewardPill: { backgroundColor: ACCENT.gold + "18", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, flexDirection: "row", alignItems: "center", gap: 4 },
   rewardIcon: { alignItems: "center", justifyContent: "center" },
   rewardText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: ACCENT.gold },
@@ -309,7 +308,7 @@ function TasksScreenInner() {
             </TouchableOpacity>
           }
         />
-        <FantasySectionBanner kind="tasks" />
+
 
         <LinearGradient
           colors={[theme.card, theme.backgroundSecondary]}
@@ -375,15 +374,16 @@ function TasksScreenInner() {
               <Ionicons name="today" size={16} color={ACCENT.cyan} />
               <Text style={[s.sectionTitle, { color: ACCENT.cyan }]}>المهام اليومية</Text>
             </View>
-            {tasks.filter(t => !t.isWeekly).map((task) => (
+            <View style={{flexDirection:"row-reverse",flexWrap:"wrap",gap:10}}>{tasks.filter(t => !t.isWeekly).map((task) => (
+              <View key={task.key} style={{width:"48%"}}>
               <TaskCard
                 key={task.key}
                 task={task}
                 onClaim={() => claimTask.mutate(task.key)}
                 isPending={claimTask.isPending}
                 theme={theme}
-              />
-            ))}
+              /></View>
+            ))}</View>
           </ScrollView>
         )}
       </View>
@@ -414,7 +414,7 @@ const s = StyleSheet.create({
 
   summaryCard: {
     marginHorizontal: 16, marginBottom: 16,
-    borderRadius: 22, padding: 18,
+    borderRadius: 18, padding: 12,
     borderWidth: 1, borderColor: "rgba(87,200,245,0.18)",
   },
   summaryTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },

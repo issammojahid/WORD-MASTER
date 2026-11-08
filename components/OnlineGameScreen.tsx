@@ -1,7 +1,12 @@
-import {ENTRY_FEES} from "@shared/coin-entry";
+import {RoomSettingsSummary} from "@/components/RoomSettingsSummary";
+import {AnswerSheet} from "@/components/AnswerSheet";
+import {EntryFeePicker} from "@/components/EntryFeePicker";
+import {RoomLobbyRoster} from "@/components/RoomLobbyRoster";
+import {MatchRoster} from "@/components/MatchRoster";
+import {RoomQuickChatButton} from "@/components/RoomQuickChatButton";
+import {KeyboardAwareScrollViewCompat} from "@/components/KeyboardAwareScrollViewCompat";
 import { RoomVoiceChat } from "@/components/RoomVoiceChat";
 import { PUBLIC_MODE_COPY,publicQueueSize,type PublicQueueMode } from "@shared/public-game";
-import { RoomQuickChat } from "@/components/RoomQuickChat";
 import { RoomTeamBoard } from "@/components/RoomTeamBoard";
 import type { TeamMode, TeamId, RoomTeamScore, QuickRoomMessage } from "@shared/friends-room";
 import { privateRoomPayload } from "@shared/friends-room";
@@ -10,7 +15,6 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  ScrollView,
   Share,
   StyleSheet,
   Text,
@@ -68,7 +72,7 @@ type FinalPlayer = { playerId: string; name: string; score: number; rank: number
 type SocketAck = { ok: boolean; error?: string; roomCode?: string; match?: MatchSnapshot };
 
 const GOLD = gameDesign.colors.coins;
-const CYAN = gameDesign.colors.online;
+const CYAN = gameDesign.colors.offline;
 const GREEN = gameDesign.colors.success;
 const REWARDED_MATCHES_KEY = "online_rewarded_matches_v1";
 const DEFAULT_SETTINGS: OnlineSettings = { maxPlayers: 4, rounds: 5, secondsPerRound: 60, teamMode:"solo" };
@@ -114,7 +118,6 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
   const { theme } = useTheme();
   const routeParams = useLocalSearchParams<{ roomCode?: string }>();
   const socketRef = useRef<Socket | null>(null);
-  const answerInputRefs = useRef<(import("react-native").TextInput | null)[]>([]);
   const creditedMatchesRef = useRef<Set<string>>(new Set());
   const creditInFlightRef = useRef<Set<string>>(new Set());
   const addCoinsRef = useRef(addCoins);
@@ -138,7 +141,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
   const [error, setError] = useState("");
   const [entryFee,setEntryFee]=useState<number>(100);
   const feeRef=useRef(entryFee);feeRef.current=entryFee;
-  const [onlineCoins,setOnlineCoins]=useState<number|null>(null),[entrySupported,setEntrySupported]=useState(false),[localCoins,setLocalCoins]=useState(false);
+  const [onlineCoins,setOnlineCoins]=useState<number|null>(null),[entrySupported,setEntrySupported]=useState(false);
   principalIdRef.current = principalId;
 
   const roomPlayer = useMemo(
@@ -184,7 +187,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
 
   const syncOnlineWallet = useCallback(async (playerId: string) => {
     const wallet = await fetchOnlineWallet();
-    setOnlineCoins(wallet.coins);void refreshCoins().catch(()=>{});setEntrySupported(wallet.entryFees);setLocalCoins(wallet.local);
+    setOnlineCoins(wallet.coins);void refreshCoins().catch(()=>{});setEntrySupported(wallet.entryFees);
     for (const claim of wallet.claims) {
       await creditVerifiedReward(claim.matchId, [{
         playerId,
@@ -488,35 +491,6 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
     </GameButton>
   );
 
-  const renderChoiceRow = <T extends number>(
-    label: string,
-    values: readonly T[],
-    value: T,
-    onChange: (choice: T) => void,
-  ) => (
-    <View style={styles.settingGroup}>
-      <Text style={[styles.settingLabel, { color: theme.textSecondary, textAlign: isRTL ? "right" : "left" }]}>{label}</Text>
-      <View style={[styles.choiceRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>
-        {values.map((choice) => (
-          <Pressable
-            key={choice}
-            accessibilityRole="button"
-            accessibilityState={{ selected: choice === value }}
-            onPress={() => onChange(choice)}
-            style={[
-              styles.choice,
-              { borderColor: choice === value ? CYAN : theme.cardBorder, backgroundColor: choice === value ? `${CYAN}18` : theme.card },
-            ]}
-          >
-            <Text style={{ color: choice === value ? CYAN : theme.textPrimary, fontWeight: "700" }}>
-              {label === t.secondsPerRound ? `${choice}s` : choice}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  );
-
   const ownTeam=match?.teams?.find(team=>team.playerIds.includes(principalId));
   const ownWinner=match?.settings.teamMode==="duo"?ownTeam?.rank===1&&!ownTeam.forfeited:finalPlayers?.find(player=>player.playerId===principalId)?.rank===1;
   const pageTitle = match?.phase === "playing"
@@ -539,13 +513,13 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
           ? <Ionicons name="people-outline" size={23} color={CYAN} />
           : <GameIcon name="online" size={23} color={CYAN} />}
         trailing={
-          <View style={{flexDirection:"row",alignItems:"center",gap:8}}>{match?.mode==="private"?<RoomVoiceChat socket={socketRef.current} matchId={match.matchId} connected={connected} players={match.players}/>:null}<StatusBadge label={connected ? isRTL?"متصل":"Connected" : t.connectionError} tone={connected ? "success" : "warning"} /></View>
+          <View style={{flexDirection:"row",alignItems:"center",gap:8}}>{match?.mode==="private"?<><RoomQuickChatButton socket={socketRef.current} matchId={match.matchId} connected={connected} history={match.messages}/><RoomVoiceChat socket={socketRef.current} matchId={match.matchId} connected={connected} players={match.players}/></>:null}{!match?<StatusBadge label={connected ? isRTL?"متصل":"Connected" : t.connectionError} tone={connected ? "success" : "warning"} />:null}</View>
         }
       />
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardAwareScrollViewCompat contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" bottomOffset={30} showsVerticalScrollIndicator={false}>
         {roomPlayer?.abandoned&&match?.phase!=="finished"?<Text style={[styles.bodyText,{color:GOLD}]}>انسحبت من المباراة. يبقى الدخول محسوباً؛ انتظر نهايتها لتأكيد النتيجة.</Text>:null}
-        {match&&match.settings.teamMode==="duo"&&match.teams?<RoomTeamBoard teams={match.teams} players={match.players} finished={match.phase==="finished"}/>:null}
+        {match&&match.settings.teamMode==="duo"&&match.teams?<RoomTeamBoard ownId={principalId} teams={match.teams} players={match.players} finished={match.phase==="finished"}/>:null}
         {match?.local?<Text style={[styles.bodyText,{color:theme.textSecondary}]}>معاينة محلية · عملات الأونلاين هنا تجريبية</Text>:null}
         {connecting ? (
           <View style={styles.centerPanel}>
@@ -563,7 +537,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
 
         {!connecting && !match && (
           <>
-            <View style={[styles.hero, { backgroundColor: theme.card, borderColor: `${CYAN}55` }]}>
+            <View style={[styles.hero, { backgroundColor: theme.card, borderColor: `${CYAN}55`,display:isPrivateRoomScreen?"flex":"none" }]}>
               {isPrivateRoomScreen
                 ? <Ionicons name="people-outline" size={62} color={CYAN} />
                 : <GameIllustration name="matchmaking" size={110} />}
@@ -581,9 +555,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
                   <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{t.createRoom}</Text>
                   <Text style={[styles.bodyText, { color: theme.textSecondary }]}>{t.noMatchCoins}</Text>
                   {renderTeamMode(settings)}
-                  {renderChoiceRow(t.maxPlayers, (settings.teamMode==="duo"?[4]:[2,4,6,8]) as (2|4|6|8)[], settings.maxPlayers, (value) => updateSetting("maxPlayers", value))}
-                  {renderChoiceRow(t.rounds, [3, 5, 7] as const, settings.rounds, (value) => updateSetting("rounds", value))}
-                  {renderChoiceRow(t.secondsPerRound, [45, 60, 90] as const, settings.secondsPerRound, (value) => updateSetting("secondsPerRound", value))}
+                  <RoomSettingsSummary settings={settings} editable={connected} onSelect={(field,value)=>{if(field==="maxPlayers")updateSetting(field,value as 2|4|6|8);else if(field==="rounds")updateSetting(field,value as 3|5|7);else updateSetting(field,value as 45|60|90);}}/>
                   {renderButton(t.createRoom, createRoom, { color: CYAN, disabled: !connected, icon: "add-circle-outline" })}
                 </View>
 
@@ -608,13 +580,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
               </>
             ) : (
               <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-                <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>{PUBLIC_MODE_COPY[queueMode][isRTL?"ar":"en"]}</Text>
-                <Text style={[styles.bodyText, { color: theme.textSecondary }]}>{t.readyToPlay}</Text>
-                <Text style={[styles.bodyText,{color:theme.textSecondary}]}>اختر مبلغ الدخول؛ المطابقة مع لاعبين اختاروا المبلغ نفسه</Text>
-                <Text style={[styles.sectionTitle,{color:GOLD}]}>رصيد العملات: {onlineCoins===null?"…":onlineCoins} 🪙 {localCoins?"(تجريبي)":""}</Text>
-                <View style={[styles.choiceRow,{flexWrap:"wrap",flexDirection:"row-reverse"}]}>{ENTRY_FEES.map(fee=><Pressable key={fee} accessibilityRole="button" accessibilityLabel={"دخول "+fee+" عملة"} accessibilityState={{selected:fee===entryFee}} disabled={searching} onPress={()=>setEntryFee(fee)} style={[styles.choice,{borderColor:fee===entryFee?GOLD:theme.cardBorder,backgroundColor:fee===entryFee?GOLD+"28":theme.card}]}><Text style={{color:fee===entryFee?GOLD:theme.textPrimary,fontWeight:"700"}}>{fee} 🪙</Text></Pressable>)}</View>
-                <Text style={[styles.bodyText,{color:theme.textSecondary}]}>{entryFee>0?"المجموع: "+entryFee*publicQueueSize(queueMode)+" · نصيب الرابح: "+entryFee*(queueMode==="four"?4:2)+" عملة، متضمناً دخوله":"التدريب المجاني · مكافآت الأونلاين السابقة"}</Text>
-                <Text style={[styles.bodyText,{color:theme.textSecondary}]}>التعادل يعيد الدخول للجميع · الإلغاء قبل البداية بلا خصم · لا عمولة</Text>
+                <EntryFeePicker mode={queueMode} balance={onlineCoins} fee={entryFee} onSelect={setEntryFee} disabled={searching}/>
                 {entryFee>0&&!entrySupported?<Text style={[styles.bodyText,{color:GOLD}]}>قاعات العملات تحتاج تحديث الخادم. التدريب المجاني متاح.</Text>:null}
                 {entryFee>0&&onlineCoins!==null&&onlineCoins<entryFee?<Text style={[styles.bodyText,{color:GOLD}]}>رصيدك غير كافٍ لمبلغ الدخول المختار. اختر مبلغاً أقل أو التدريب المجاني.</Text>:null}
                 {renderButton(entryFee===0?"تم اختيار التدريب المجاني":"تدريب مجاني",()=>setEntryFee(0),{disabled:searching,color:CYAN})}
@@ -693,23 +659,12 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
                 </Pressable>
               </View>
             </View>
-            <Text style={[styles.settingLabel, { color: theme.textSecondary }]}>{t.connectedPlayers}</Text>
-            {match.players.map((player) => (
-              <View key={player.id} style={[styles.playerRow, { borderColor: theme.cardBorder, flexDirection: isRTL ? "row-reverse" : "row" }]}>
-                <Ionicons name={player.connected ? "person-circle-outline" : "cloud-offline-outline"} size={22} color={player.connected ? CYAN : GOLD} />
-                <View style={{flex:1,minWidth:100,gap:3,alignItems:isRTL?"flex-end":"flex-start"}}>
-                  <Text style={{color:theme.textPrimary,fontFamily:"Cairo_700Bold",fontSize:14}} numberOfLines={2}>{player.name}</Text>
-                  <View style={{flexDirection:isRTL?"row-reverse":"row",gap:8,flexWrap:"wrap"}}>{player.teamId?<Text style={styles.hostLabel}>{player.teamId==="sun"?"☀ الشمس":"☾ القمر"}</Text>:null}{player.host?<Text style={styles.hostLabel}>{t.host}</Text>:null}</View>
-                </View>
-                <Text style={[styles.readyLabel,{color:player.ready?GREEN:theme.textMuted,maxWidth:90,textAlign:"center"}]}>{player.ready?t.ready:isRTL?"غير مستعد":"Not ready"}</Text>
-              </View>
-            ))}
+            <RoomLobbyRoster players={match.players} ownId={principalId} capacity={match.settings.maxPlayers} onInvite={()=>{if(match.roomCode)router.push({pathname:"/friends",params:{roomCode:match.roomCode}});}}/>
+            <Text style={[styles.bodyText,{color:theme.textSecondary}]}>{match.players.length} / {match.settings.maxPlayers} · {match.players.filter(p=>p.ready).length} مستعدون</Text>
             {isHost ? (
               <>
                 {renderTeamMode(match.settings)}
-                {renderChoiceRow(t.maxPlayers, (match.settings.teamMode==="duo"?[4]:[2,4,6,8]) as (2|4|6|8)[], match.settings.maxPlayers, (value) => updateSetting("maxPlayers", value))}
-                {renderChoiceRow(t.rounds, [3, 5, 7] as const, match.settings.rounds, (value) => updateSetting("rounds", value))}
-                {renderChoiceRow(t.secondsPerRound, [45, 60, 90] as const, match.settings.secondsPerRound, (value) => updateSetting("secondsPerRound", value))}
+                <RoomSettingsSummary settings={match.settings} editable={connected} onSelect={(field,value)=>{if(field==="maxPlayers")updateSetting(field,value as 2|4|6|8);else if(field==="rounds")updateSetting(field,value as 3|5|7);else updateSetting(field,value as 45|60|90);}}/>
                 {renderButton(roomPlayer?.ready ? t.waitingForPlayers : t.ready, () => emit("room:ready", { matchId: match.matchId }), {
                   color: CYAN,
                   disabled: !connected,
@@ -736,45 +691,14 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
           </View>
         )}
 
-        {isPlaying && match && (
-          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-            <View style={styles.gameMeta}>
-              <View style={[styles.letterBadge, { backgroundColor: `${CYAN}20` }]}>
-                <Text style={styles.letterText}>{match.letter}</Text>
-              </View>
-              <View style={[styles.timerBadge, { backgroundColor: theme.card }]}>
-                <Ionicons name="timer-outline" size={20} color={secondsLeft <= 10 ? "#FF738D" : CYAN} />
-                <Text style={[styles.timerText, { color: secondsLeft <= 10 ? "#FF738D" : theme.textPrimary }]}>{secondsLeft}s</Text>
-              </View>
-            </View>
-            <Text style={[styles.sectionTitle, { color: theme.textPrimary }]}>
-              {t.round} {match.round} / {match.totalRounds}
-            </Text>
-            {GAME_CATEGORIES.map((category, index) => (
-              <View key={category} style={styles.answerGroup}>
-                <Text style={[styles.settingLabel, { color: theme.textSecondary }]}>{t[category]}</Text>
-                <GameInput
-                  accessibilityLabel={t[category]}
-                  ref={(input) => { answerInputRefs.current[index] = input; }}
-                  editable={!submitted && connected && secondsLeft > 0}
-                  maxLength={80}
-                  onChangeText={(value) => setAnswers((current) => ({ ...current, [category]: value }))}
-                  placeholder={`${t.currentLetter}: ${match.letter}`}
-                  placeholderTextColor={theme.textMuted}
-                  returnKeyType="next"
-                  onSubmitEditing={() => {
-                    if (index < GAME_CATEGORIES.length - 1) answerInputRefs.current[index + 1]?.focus();
-                    else submitAnswers();
-                  }}
-                  style={[styles.answerInput, { color: theme.textPrimary, borderColor: theme.cardBorder }]}
-                  value={answers[category] ?? ""}
-                />
-              </View>
-            ))}
-            {renderButton(submitted ? t.waitingForPlayers : t.submit, submitAnswers, { disabled: submitted || !connected || secondsLeft <= 0 })}
-            {match.mode === "random" ? renderButton(t.forfeitMatch, leaveCurrentMatch, { color: "#873F4A" }) : null}
-          </View>
-        )}
+        {isPlaying && match && <View style={{gap:12}}>
+          {match.settings.teamMode!=="duo"?<MatchRoster players={match.players} ownId={principalId}/>:null}
+          <View style={{gap:7}}><View style={{flexDirection:"row",justifyContent:"space-between"}}><Text style={[styles.timerText,{color:secondsLeft<=10?"#FF8798":CYAN}]}>{secondsLeft}s</Text><Text style={[styles.bodyText,{color:theme.textSecondary}]}>{t.round} {match.round} / {match.totalRounds}</Text></View><View style={{height:8,borderRadius:8,overflow:"hidden",backgroundColor:theme.card}}><View style={{height:"100%",width:`${Math.max(0,Math.min(1,secondsLeft/match.settings.secondsPerRound))*100}%`,backgroundColor:secondsLeft<=10?"#FF8798":CYAN}}/></View></View>
+          <View style={[styles.gameMeta,{justifyContent:"center",gap:14}]}><Text style={[styles.settingLabel,{color:theme.textSecondary}]}>{t.currentLetter}</Text><View style={[styles.letterBadge,{borderColor:CYAN,backgroundColor:theme.card}]}><Text style={styles.letterText}>{match.letter}</Text></View></View>
+          <AnswerSheet answers={answers} onChange={(category,value)=>setAnswers(current=>({...current,[category]:value}))} onSubmit={submitAnswers} disabled={submitted||!connected||secondsLeft<=0}/>
+          {renderButton(submitted?t.waitingForPlayers:t.submit,submitAnswers,{disabled:submitted||!connected||secondsLeft<=0,color:CYAN})}
+          {match.mode==="random"?renderButton(t.forfeitMatch,leaveCurrentMatch,{color:"#5D314C"}):null}
+        </View>}
 
         {isRoundResults && roundResult && match && (
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
@@ -839,8 +763,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
             <Text style={[styles.bodyText, { color: theme.textSecondary }]}>{t.loading}</Text>
           </View>
         )}
-        {match?.mode==="private"?<RoomQuickChat socket={socketRef.current} matchId={match.matchId} history={match.messages} connected={connected}/>:null}
-      </ScrollView>
+      </KeyboardAwareScrollViewCompat>
     </View>
   );
 }
@@ -848,22 +771,22 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   topBar: { alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 10 },
-  backButton: { width: 48, height: 48, borderRadius: 4, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  backButton: { width: 48, height: 48, borderRadius: 14, borderWidth: 2, alignItems: "center", justifyContent: "center" },
   pageTitle: { flex: 1, fontSize: 20, fontWeight: "800", textAlign: "center" },
   connectionPill: { minHeight: 36, borderWidth: 2, borderRadius: 4, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 6 },
   connectionDot: { width: 7, height: 7, borderRadius: 4 },
-  content: { padding: 16, paddingBottom: 36, gap: 16, width: "100%", maxWidth: 760, alignSelf: "center" },
+  content: { padding: 12, paddingBottom: 36, gap: 16, width: "100%", maxWidth: 760, alignSelf: "center" },
   hero: { alignItems: "center", padding: 22, borderWidth: 2, borderRadius: 22, gap: 8 },
   heroIcon: { width: 56, height: 56, borderRadius: 4, alignItems: "center", justifyContent: "center", backgroundColor: `${CYAN}20` },
   heroTitle: { fontSize: 25, fontWeight: "900", textAlign: "center" },
   bodyText: { fontSize: 14, lineHeight: 21, textAlign: "center" },
-  card: { borderWidth: 2, borderRadius: 20, padding: 18, gap: 14 },
+  card: { borderWidth: 1, borderRadius: 20, padding: 14, gap: 14 },
   sectionTitle: { fontSize: 20, fontWeight: "800", textAlign: "center" },
   settingGroup: { gap: 8 },
   settingLabel: { fontSize: 14, fontWeight: "700" },
   choiceRow: { flexDirection: "row", flexWrap:"wrap", gap: 8 },
   choice: { minWidth: 48, minHeight: 44, paddingHorizontal: 12, borderWidth: 2, borderRadius: 4, alignItems: "center", justifyContent: "center" },
-  button: { minHeight: 48, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 4, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },
+  button: { minHeight: 50, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 4, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },
   buttonText: { color: "#071A17", fontSize: 15, fontWeight: "800", textAlign: "center" },
   divider: { height: 1, backgroundColor: "#D7D1CC", marginVertical: 2 },
   joinRow: { alignItems: "center", flexWrap:"wrap", gap: 8 },

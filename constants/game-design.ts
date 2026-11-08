@@ -1,14 +1,14 @@
 export const gameDesign = {
   colors: {
-    background: "#180C27",
+    background: "#151333",
     backgroundRaised: "#352044",
-    surface: "#30203F",
+    surface: "#28204A",
     surfaceRaised: "#3A254B",
     surfaceBorder: "#B38C57",
     textPrimary: "#FFF0D6",
     textSecondary: "#E1CFEA",
     textMuted: "#BDABCD",
-    primary: "#F2C773",
+    primary: "#21D8CC",
     offline: "#37DAD3",
     offlineDeep: "#087F8C",
     online: "#B99AFF",
@@ -62,7 +62,7 @@ export const gameDesign = {
     },
   },
   radii: {
-    card: 22,
+    card: 18,
     control: 14,
     compact: 10,
     pill: 999,
@@ -90,7 +90,7 @@ export const gameDesign = {
   gradients: {
     app: ["#100B24", "#241047", "#4B1685"] as const,
     offline: ["#116F68", "#18AA8D", "#36E0B0"] as const,
-    online: ["#5A237D", "#A82F8D", "#F34FAE"] as const,
+    online: ["#0C8E99", "#17C7C4", "#3CE5D7"] as const,
     reward: ["#A66B14", "#FFC928"] as const,
   },
 } as const;

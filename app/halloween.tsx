@@ -14,11 +14,11 @@ export default function HalloweenScreen(){
  const choosing=seasonActive&&!!account&&!account.state.giftItemId;
  return <View style={{flex:1,paddingTop:Platform.OS==="web"?20:insets.top,backgroundColor:theme.background}}>
   <GameScreenBackground accent="reward"/><View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:theme.background+"A8"}]}/>
-  <GameHeader title="موسم هالوين" subtitle="هدايا ومظاهر ومكافآت موسمية" onBack={()=>router.back()} trailing={account?<CoinBalance amount={account.coins}/>:null}/>
+  <GameHeader title={seasonActive?"موسم هالوين":"المجموعة السابقة"} subtitle={seasonActive?"هدايا ومظاهر ومكافآت موسمية":"انتهى الحدث · مظاهرك المكتسبة محفوظة"} onBack={()=>router.back()} trailing={account?<CoinBalance amount={account.coins}/>:null}/>
   <ScrollView ref={scroll} contentContainerStyle={[s.content,{paddingBottom:insets.bottom+24}]} showsVerticalScrollIndicator={false}>
-   <View style={s.hero}><Image source={require("../assets/seasonal/halloween-preview/backgrounds/backgrounds_01.png")} resizeMode="cover" style={[StyleSheet.absoluteFill,{width:"100%",height:"100%"}]}/><LinearGradient colors={["#24123622","#241236F5"]} style={StyleSheet.absoluteFill}/><View style={s.heroCopy}><Text style={s.title}>اكتشف سحر الموسم</Text><Text style={s.subtitle}>{choosing?"اكشف أربع بطاقات، ثم اختر هديتك المجانية":"أكمل مجموعتك وعبّر عن أسلوبك"}</Text></View></View>
-   <HalloweenCountdown/>
-   <HalloweenWelcome onSelectGift={()=>scroll.current?.scrollToEnd({animated:!reduced})}/>
+   {seasonActive&&<View style={s.hero}><Image source={require("../assets/seasonal/halloween-preview/backgrounds/backgrounds_01.png")} resizeMode="cover" style={[StyleSheet.absoluteFill,{width:"100%",height:"100%"}]}/><LinearGradient colors={["#24123622","#241236F5"]} style={StyleSheet.absoluteFill}/><View style={s.heroCopy}><Text style={s.title}>اكتشف سحر الموسم</Text><Text style={s.subtitle}>{choosing?"اكشف أربع بطاقات، ثم اختر هديتك المجانية":"أكمل مجموعتك وعبّر عن أسلوبك"}</Text></View></View>}
+   {seasonActive&&<HalloweenCountdown/>}
+   {seasonActive?<HalloweenWelcome onSelectGift={()=>scroll.current?.scrollToEnd({animated:!reduced})}/>:<Text style={[s.limit,{color:theme.textSecondary}]}>موسم هالوين مؤرشف. يمكنك تجهيز المظاهر التي تمتلكها من مجموعتك في المتجر.</Text>}
    {!choosing?<><HalloweenAccountStatus compact/>{seasonActive&&<><FantasySettingsSection title="مكافآت المهام"><HalloweenRewards source="task"/></FantasySettingsSection><FantasySettingsSection title="مكافآت الإنجازات"><HalloweenRewards source="achievement"/></FantasySettingsSection></>}</>:null}
    <Text style={[s.limit,{color:theme.textSecondary}]}>صور المظاهر نماذج تجريبية، مع حركات عرض خفيفة.</Text>
   </ScrollView>

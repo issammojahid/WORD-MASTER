@@ -1,3 +1,5 @@
+import {MatchRoster} from "@/components/MatchRoster";
+import {AnswerSheet} from "@/components/AnswerSheet";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Keyboard,
@@ -5,7 +7,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -14,7 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Ionicons } from "@expo/vector-icons";
 import { GameIcon, GameIllustration } from "@/components/GameIcon";
-import { GameHeader, GameInput, GameScreenBackground, RewardCard, VictoryCosmeticEffect } from "@/components/GameUi";
+import { GameHeader, GameScreenBackground, RewardCard, VictoryCosmeticEffect } from "@/components/GameUi";
 import { gameDesign } from "@/constants/game-design";
 import * as Haptics from "expo-haptics";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -78,7 +79,6 @@ export default function OfflineScreen() {
   const letterQueueRef = useRef(shuffleLetters(ARABIC_LETTERS));
   const letterIndexRef = useRef(0);
   const answersRef = useRef<Record<GameCategory, string>>({} as Record<GameCategory, string>);
-  const answerInputRefs = useRef<(TextInput | null)[]>([]);
   const submittedRef = useRef(false);
   const finishedRef = useRef(false);
 
@@ -339,7 +339,8 @@ export default function OfflineScreen() {
           keyboardShouldPersistTaps="handled"
           bottomOffset={24}
         >
-          <View style={[styles.timerCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+          <View style={{flexDirection:"row-reverse",gap:10,alignItems:"stretch"}}>
+          <View style={[styles.timerCard, {flex:1,justifyContent:"center",minWidth:0}, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
             <View style={styles.timerLabels}>
               <Text style={[styles.timerLabel, { color: theme.textSecondary }]}>{t.timeLeft}</Text>
               <Text style={[styles.timerNumber, { color: timerColor }]}>{timeLeft}s</Text>
@@ -349,57 +350,16 @@ export default function OfflineScreen() {
             </View>
           </View>
 
-          <View style={[styles.letterCard, { backgroundColor: "#D7F2DF", borderColor: gameDesign.colors.offline }]}>
-            <Text style={[styles.letterLabel, { color: gameDesign.colors.offlineDeep }]}>{t.currentLetter}</Text>
-            <Text style={[styles.letter, { color: gameDesign.colors.offlineDeep }]}>{currentLetter}</Text>
-            <Text style={[styles.instruction, { color: gameDesign.colors.offlineDeep }]}>{t.playOfflineHint}</Text>
+          <View style={[styles.letterCard, { backgroundColor: theme.card, borderColor: gameDesign.colors.offline }]}>
+            <Text style={[styles.letterLabel, { color: gameDesign.colors.coinsText }]}>{t.currentLetter}</Text>
+            <Text style={[styles.letter, { color: gameDesign.colors.coinsText }]}>{currentLetter}</Text>
+
           </View>
 
-          <View style={[styles.liveStandings, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-            <View style={styles.standingsHeading}>
-              <Ionicons name="podium-outline" size={17} color={gameDesign.colors.coins} />
-              <Text style={[styles.standingsTitle, { color: theme.textPrimary }]}>{t.matchStandings}</Text>
-            </View>
-            <View style={styles.standingsRow}>
-              <View style={styles.standingPlayer}>
-                <View style={[styles.standingDot, { backgroundColor: gameDesign.colors.coins }]} />
-                <Text style={[styles.standingName, { color: theme.textPrimary }]} numberOfLines={1}>{profile.name}</Text>
-                <Text style={[styles.standingScore, { color: theme.textPrimary }]}>{totalScore}</Text>
-              </View>
-              {BOT_PLAYERS.map((bot) => (
-                <View key={bot.id} style={styles.standingPlayer}>
-                  <View style={[styles.standingDot, { backgroundColor: bot.color }]} />
-                  <Text style={[styles.standingName, { color: theme.textSecondary }]} numberOfLines={1}>{t[bot.name]}</Text>
-                  <Text style={[styles.standingScore, { color: theme.textSecondary }]}>{botScores[bot.id]}</Text>
-                </View>
-              ))}
-            </View>
           </View>
+          <MatchRoster ownId="offline-self" compact players={[{id:"offline-self",name:profile.name,score:totalScore},...BOT_PLAYERS.map(bot=>({id:bot.id,name:t[bot.name],score:botScores[bot.id]}))]}/>
 
-          <View style={styles.categories}>
-            {GAME_CATEGORIES.map((category, index) => (
-              <View key={category} style={[styles.inputCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-                <Text style={[styles.inputLabel, { color: theme.textPrimary }]}>{t[category]}</Text>
-                <GameInput
-                  accessibilityLabel={t[category]}
-                  ref={(input) => { answerInputRefs.current[index] = input; }}
-                  style={[styles.answerInput, { color: theme.inputText, backgroundColor: theme.inputBg, borderColor: theme.inputBorder }]}
-                  value={answers[category] || ""}
-                  onChangeText={(text) => setAnswers((previous) => ({ ...previous, [category]: text }))}
-                  placeholder={t[category]}
-                  placeholderTextColor={theme.inputPlaceholder}
-                  returnKeyType="next"
-                  onSubmitEditing={() => {
-                    if (index < GAME_CATEGORIES.length - 1) answerInputRefs.current[index + 1]?.focus();
-                    else submitRound(answersRef.current);
-                  }}
-                  autoCapitalize="none"
-                  maxLength={40}
-                  textAlign="right"
-                />
-              </View>
-            ))}
-          </View>
+          <AnswerSheet answers={answers} maxLength={40} onChange={(category,value)=>setAnswers(previous=>({...previous,[category]:value}))} onSubmit={()=>submitRound(answersRef.current)}/>
 
           <TouchableOpacity
             accessibilityRole="button"
@@ -516,7 +476,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 18 },
   headerSubtitle: { fontFamily: "Cairo_400Regular", fontSize: 12 },
   roundBadge: { minWidth: 54, height: 40, borderRadius: 14, backgroundColor: `${gameDesign.colors.offline}20`, alignItems: "center", justifyContent: "center" },
-  roundBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: gameDesign.colors.offlineDeep },
+  roundBadgeText: { fontFamily: "Cairo_700Bold", fontSize: 14, color: gameDesign.colors.coinsText },
   setupContent: { width: "100%", maxWidth: 560, alignSelf: "center", padding: 18, gap: 14, paddingBottom: 30 },
   setupIntro: { alignItems: "center", paddingTop: 16, paddingBottom: 4, gap: 7 },
   setupIcon: { width: 66, height: 66, borderRadius: 22, backgroundColor: `${gameDesign.colors.friends}18`, alignItems: "center", justifyContent: "center" },
@@ -540,9 +500,9 @@ const styles = StyleSheet.create({
   timerNumber: { fontFamily: "Cairo_700Bold", fontSize: 17 },
   timerTrack: { height: 7, borderRadius: 4, overflow: "hidden" },
   timerProgress: { height: "100%", borderRadius: 4 },
-  letterCard: { minHeight: 164, borderRadius: 5, borderWidth: 2, overflow: "hidden", alignItems: "center", justifyContent: "center", padding: 16 },
-  letterLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13 },
-  letter: { fontFamily: "Cairo_700Bold", fontSize: 66, lineHeight: 82 },
+  letterCard: { width:84, minHeight: 86, borderRadius: 18, borderWidth: 2, overflow: "hidden", alignItems: "center", justifyContent: "center", padding: 5 },
+  letterLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 9 },
+  letter: { fontFamily: "Cairo_700Bold", fontSize: 42, lineHeight: 54 },
   instruction: { fontFamily: "Cairo_400Regular", fontSize: 12, textAlign: "center" },
   liveStandings: { borderRadius: 17, borderWidth: 1, padding: 12, gap: 8 },
   standingsHeading: { flexDirection: "row", alignItems: "center", gap: 7 },

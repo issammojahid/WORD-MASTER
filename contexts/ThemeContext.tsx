@@ -24,10 +24,10 @@ export type ThemeColors = {
 };
 
 const darkColors: ThemeColors = {
-  background: "#180C27",
-  backgroundSecondary: "#261435",
-  backgroundTertiary: "#352044",
-  card: "#30203F",
+  background: "#151333",
+  backgroundSecondary: "#211744",
+  backgroundTertiary: "#251B4B",
+  card: "#28204A",
   cardBorder: "#B38C57",
   textPrimary: "#FFF0D6",
   textSecondary: "#E1CFEA",

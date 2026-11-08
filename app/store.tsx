@@ -1,3 +1,4 @@
+import {SeasonCollectionBanner} from "@/components/SeasonCollectionBanner";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -10,16 +11,15 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { fetch } from "expo/fetch";
 import * as Haptics from "expo-haptics";
 import { AvatarArtwork } from "@/components/AvatarArtwork";
 import { CosmeticArtwork } from "@/components/CosmeticArtwork";
 import { HalloweenAvatar, HalloweenCategory, HalloweenProfileLook, useHalloweenAppearance } from "@/components/HalloweenAppearance";
-import { HalloweenAccountStatus, HalloweenEntry } from "@/components/HalloweenEconomy";
+import { HalloweenAccountStatus, HalloweenEntry, HalloweenAcquireButton } from "@/components/HalloweenEconomy";
 import { GameIcon } from "@/components/GameIcon";
 import { CoinBalance, GameHeader, GameModal, GameScreenBackground, PlayerAvatar, useReducedMotion } from "@/components/GameUi";
 import {
@@ -41,7 +41,7 @@ const COPY = {
     title: "متجر المظاهر",
     subtitle: "اختر المظاهر التي تعبّر عن أسلوبك",
     heading: "شخصيات وإطارات",
-    description: "مظاهر تجميلية فقط؛ ما كتأثرش على قواعد اللعب أو النقاط.",
+    description: "مظاهر تجميلية فقط؛ لا تؤثر على قواعد اللعب أو النقاط.",
     skins: "الشخصيات",
     frame: "الإطارات",
     background: "الخلفيات",
@@ -213,7 +213,7 @@ const COPY = {
 
 export default function StoreScreen() {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width,fontScale } = useWindowDimensions();
   const { isRTL, language } = useLanguage();
   const { profile, playerId, updateProfile } = usePlayer();
   const { theme } = useTheme();
@@ -227,12 +227,20 @@ export default function StoreScreen() {
   const showHalloween = halloween.active && !legacyPreview;
   const [selectedKind, setSelectedKind] = useState<"skin" | CosmeticKind>("skin");
   const [selectedItemId, setSelectedItemId] = useState<string>(profile.equippedSkin);
+  const {category}=useLocalSearchParams<{category?:string}>();
+  useEffect(()=>{
+    if(category==='skin'){setSelectedKind('skin');setSelectedItemId(AVATAR_CATALOG[0].id);}
+    else if(COSMETIC_KINDS.some(kind=>kind===category)){
+      const first=COSMETIC_CATALOG.find(item=>item.kind===category);
+      if(first){setSelectedKind(first.kind);setSelectedItemId(first.id);}
+    }
+  },[category]);
   const [buyingItemId, setBuyingItemId] = useState<string | null>(null);
   const [pendingPurchase, setPendingPurchase] = useState<{ id: string; kind: "skin" | CosmeticKind; price: number } | null>(null);
   const [feedback, setFeedback] = useState("");
   const [feedbackIsError, setFeedbackIsError] = useState(false);
   const previewScale = useRef(new Animated.Value(1)).current;
-  const columns = width >= 648 ? 5 : width >= 452 ? 4 : width >= 372 ? 3 : 2;
+  const columns = fontScale>1.3?3:5;
   const horizontalPadding = width >= 600 ? 24 : 16;
   const cardWidth = useMemo(
     () => (Math.min(width, 760) - horizontalPadding * 2 - 8 * (columns - 1)) / columns,
@@ -339,6 +347,7 @@ export default function StoreScreen() {
     void buyItem(item.id, item.kind, item.price);
   };
 
+  const selectionOwned=selectedKind==="skin"?profile.ownedSkins.includes(selectedItemId as SkinId):profile.ownedCosmetics[selectedKind].includes(selectedItemId);
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
       <GameScreenBackground accent="reward" />
@@ -354,11 +363,8 @@ export default function StoreScreen() {
       <ScrollView ref={collectionScroll} contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]} showsVerticalScrollIndicator={false}>
         <HalloweenEntry compact />
         <HalloweenAccountStatus compact />
-        <Pressable accessibilityRole="button" accessibilityState={{expanded:previewOpen}} onPress={()=>setPreviewOpen(v=>!v)} style={[styles.previewToggle,{backgroundColor:theme.card,borderColor:theme.cardBorder}]}>
-          {showHalloween?<HalloweenAvatar skinId={profile.equippedSkin} size={44}/>:<PlayerAvatar skinId={selectedSkin} size={44} frameId={profile.equippedCosmetics.frame}/>}
-          <View style={{flex:1,alignItems:"flex-end"}}><Text style={[styles.previewName,{fontSize:15,color:theme.textPrimary}]}>{text.profileLook}</Text><Text style={[styles.previewLabel,{color:theme.textSecondary}]}>{selectedName}</Text></View><Ionicons name={previewOpen?"chevron-up":"chevron-down"} size={18} color={theme.textSecondary}/>
-        </Pressable>
-        {previewOpen&&<LinearGradient
+        <SeasonCollectionBanner/>
+        <GameModal visible={previewOpen} onRequestClose={()=>setPreviewOpen(false)}><ScrollView style={{maxHeight:600}} contentContainerStyle={{gap:10}}><Pressable accessibilityRole="button" accessibilityLabel="إغلاق المعاينة" onPress={()=>setPreviewOpen(false)} style={{minHeight:44,alignSelf:"flex-start",justifyContent:"center"}}><Ionicons name="close" size={24} color={theme.textPrimary}/></Pressable><LinearGradient
           colors={[`${selectedColors[0]}30`, "#1A112D", theme.card]}
           locations={[0, 0.58, 1]}
           style={[styles.preview, { borderColor: `${selectedColors[0]}85` }]}
@@ -402,7 +408,10 @@ export default function StoreScreen() {
               <Text style={{ color: "#FFE6A5", fontFamily: "Cairo_700Bold" }}>{language === "ar" ? "عرض المظهر في الملف الشخصي" : "View on profile"}</Text>
             </Pressable>
           ) : null}
-        </LinearGradient>}
+        </LinearGradient>
+        {showHalloween&&halloween.asset(halloweenCategory)?<HalloweenAcquireButton assetKey={halloween.asset(halloweenCategory)!.previewKey}/>:null}
+        {!showHalloween&&<Pressable accessibilityRole="button" disabled={selectedEquipped||!!buyingItemId||!playerId} onPress={()=>{if(selectionOwned){if(selectedKind==="skin")equipSkin(selectedItemId as SkinId);else equipCosmetic(selectedKind,selectedItemId);}else {setPreviewOpen(false);setPendingPurchase({id:selectedItemId,kind:selectedKind,price:selectedProduct.price});}}} style={[styles.actionButton,{backgroundColor:gameDesign.colors.coins,opacity:selectedEquipped?.5:1}]}><Text style={[styles.actionText,{color:"#1C1231",fontSize:15}]}>{selectedEquipped?text.equipped:selectionOwned?text.equip:`${text.buy} · ${selectedProduct.price} ${text.coins}`}</Text></Pressable>}
+        </ScrollView></GameModal>
 
         {selectedKind==="seasonal"?<Text style={[styles.description,{color:theme.textSecondary}]}>{text.seasonalNote}</Text>:null}
 
@@ -475,7 +484,6 @@ export default function StoreScreen() {
             const selected = selectedItemId === item.id;
             const name = labels[item.id] ?? item.id;
             const description = labels[`${item.id}Desc`] ?? "";
-            const isBuying = buyingItemId === item.id;
             return (
               <View
                 key={item.id}
@@ -484,7 +492,7 @@ export default function StoreScreen() {
                   {
                     width: cardWidth,
                     backgroundColor: theme.card,
-                    borderColor: selected ? item.colors[0] : theme.cardBorder,
+                    borderColor: selected ? "#35E5D8" : "#A88859",
                     shadowColor: item.colors[0],
                     shadowOpacity: selected ? 0.18 : 0,
                     elevation: selected ? 5 : 1,
@@ -502,55 +510,25 @@ export default function StoreScreen() {
                   onPress={() => { halloween.reset(); setLegacyPreview(true); setSelectedItemId(item.id); setPreviewOpen(true); collectionScroll.current?.scrollTo({y:0,animated:!reduceMotion}); }}
                   style={({ pressed }) => [styles.productPreview, pressed && styles.pressed]}
                 >
-                  <View style={[styles.productState, { backgroundColor: `${item.colors[0]}24`, borderColor: `${item.colors[0]}65` }]}>
-                    <Ionicons
-                      name={equipped ? "checkmark-circle" : owned ? "checkmark" : "sparkles"}
-                      size={13}
-                      color={item.colors[1]}
-                    />
-                    <Text style={[styles.productStateText, { color: item.colors[1] }]}>
-                      {equipped ? text.equipped : owned ? text.owned : text.notOwned}
-                    </Text>
-                  </View>
-                  <View style={[styles.productAvatar, { backgroundColor: `${item.colors[0]}20` }]}>
+                  {owned?<View style={[styles.productState,{backgroundColor:equipped?"#087D83":"#48315F"}]}><Ionicons name={equipped?"checkmark-circle":"checkmark"} size={12} color="#ABFFF1"/></View>:null}
+                  <View style={[styles.productAvatar, { height:Math.max(42,cardWidth*0.85), backgroundColor: `${item.colors[0]}20` }]}>
                     {item.kind === "skin"
-                      ? <AvatarArtwork skinId={item.id as SkinId} size={Math.min(66, cardWidth - 22)} />
-                      : <CosmeticArtwork kind={item.kind} itemId={item.id} size={Math.min(66, cardWidth - 22)} />}
+                      ? <AvatarArtwork skinId={item.id as SkinId} size={Math.max(32,cardWidth-6)} />
+                      : <CosmeticArtwork kind={item.kind} itemId={item.id} size={Math.max(32,cardWidth-12)} />}
                   </View>
-                  <Text style={[styles.productName, { color: theme.textPrimary }]} numberOfLines={2}>{name}</Text>
-                  <Text style={[styles.productDescription, { color: theme.textSecondary }]} numberOfLines={2}>{description}</Text>
+                  <Text style={[styles.productName, { color: theme.textPrimary }]} numberOfLines={1}>{name}</Text>
+
                 </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={equipped ? text.equipped : owned ? text.equip : `${text.buy} ${item.price} ${text.coins}`}
-                  disabled={equipped || isBuying || (!owned && !playerId)}
-                  onPress={() => owned
-                    ? item.kind === "skin" ? equipSkin(item.id as SkinId) : equipCosmetic(item.kind, item.id)
-                    : setPendingPurchase({ id: item.id, kind: item.kind, price: item.price })}
-                  style={({ pressed }) => [
-                    styles.actionButton,
-                    {
-                      backgroundColor: equipped ? `${item.colors[0]}28` : owned ? `${item.colors[0]}16` : item.colors[1],
-                      borderColor: `${item.colors[0]}55`,
-                      opacity: equipped ? 0.8 : pressed ? 0.8 : 1,
-                    },
-                  ]}
-                >
-                  {isBuying ? (
-                    <ActivityIndicator size="small" color={item.colors[1]} />
-                  ) : (
-                    <>
-                      {!owned ? <GameIcon name="coins" size={17} color="#100B24" /> : null}
-                      <Text style={[styles.actionText, { color: owned ? theme.textPrimary : "#100B24" }]}>
-                        {equipped ? text.equipped : owned ? text.equip : item.price === 0 ? text.equip : `${item.price} ${text.coins}`}
-                      </Text>
-                    </>
-                  )}
-                </Pressable>
+                <Text style={{fontFamily:"Cairo_700Bold",fontSize:10,color:gameDesign.colors.coinsText,textAlign:"center"}}>{equipped?"✓":owned?text.owned:item.price}</Text>
+
               </View>
             );
           })}
         </View>
+        <Pressable accessibilityRole="button" accessibilityState={{expanded:previewOpen}} onPress={()=>setPreviewOpen(v=>!v)} style={[styles.previewToggle,{backgroundColor:theme.card,borderColor:theme.cardBorder}]}>
+          {showHalloween?<HalloweenAvatar skinId={profile.equippedSkin} size={70}/>:(selectedKind==="skin"||selectedKind==="frame"?<PlayerAvatar skinId={selectedSkin} size={70} frameId={selectedKind==="frame"?selectedItemId:profile.equippedCosmetics.frame}/>:<CosmeticArtwork kind={selectedKind} itemId={selectedItemId} size={70}/>)}
+          <View style={{flex:1,alignItems:"flex-end"}}><Text style={[styles.previewName,{fontSize:15,color:theme.textPrimary}]}>{selectedName}</Text><Text style={[styles.previewLabel,{color:theme.textSecondary}]}>{selectionOwned?text.owned:`${selectedProduct.price} ${text.coins}`}</Text><Text style={{color:"#65F0E4",fontFamily:"Cairo_700Bold",fontSize:12}}>معاينة وتجهيز</Text></View><Ionicons name={previewOpen?"expand-outline":"expand-outline"} size={18} color={theme.textSecondary}/>
+        </Pressable>
         <Text style={[styles.note, { color: theme.textMuted }]}>{text.onlineNote}</Text>
       </ScrollView>
 
@@ -613,7 +591,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { width: "100%", maxWidth: 760, alignSelf: "center", gap: 12, paddingTop: 8, paddingBottom: 32 },
   preview: { alignItems: "center", borderRadius: 26, borderWidth: 1.5, padding: 18, gap: 10, overflow: "hidden" },
-  previewToggle:{minHeight:68,padding:10,borderRadius:18,borderWidth:1,flexDirection:"row",alignItems:"center",gap:10},
+  previewToggle:{minHeight:110,padding:10,borderRadius:18,borderWidth:1,flexDirection:"row",alignItems:"center",gap:10},
   previewHeader: { width: "100%", flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 8 },
   previewHeading: { flex: 1, gap: 3 },
   previewLabel: { fontFamily: "Cairo_600SemiBold", fontSize: 13 },
@@ -630,14 +608,14 @@ const styles = StyleSheet.create({
   feedbackText: { flex: 1, fontFamily: "Cairo_600SemiBold", fontSize: 13 },
   catalog: { flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-start", gap: 8 },
   categoryRow: { flexDirection: "row", gap: 8, paddingVertical: 2 },
-  categoryChip: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderWidth: 1, borderRadius: 999, paddingHorizontal: 12 },
+  categoryChip: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, borderWidth: 1, borderRadius: 13, paddingHorizontal: 12 },
   categoryText: { fontFamily: "Cairo_700Bold", fontSize: 13 },
-  productCard: { alignItems: "center", borderRadius: 14, borderWidth: 1.5, padding: 8, gap: 6, overflow: "hidden" },
-  productPreview: { width: "100%", alignItems: "center", gap: 7 },
-  productState: { minHeight: 24, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, borderWidth: 1, borderRadius: 999, paddingHorizontal: 4, paddingVertical: 2 },
+  productCard: { alignItems: "center", borderRadius: 14, borderWidth: 1.5, padding: 2, gap: 0, overflow: "hidden" },
+  productPreview: { width: "100%", alignItems: "center", gap: 3 },
+  productState: { position:"absolute",top:2,right:2,zIndex:2,minHeight: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, borderWidth: 1, borderRadius: 999, paddingHorizontal: 4, paddingVertical: 2 },
   productStateText: { fontFamily: "Cairo_700Bold", fontSize: 9, lineHeight: 14 },
-  productAvatar: { width: "100%", height: 70, borderRadius: 18, alignItems: "center", justifyContent: "center" },
-  productName: { fontFamily: "Cairo_700Bold", fontSize: 11, lineHeight: 16, minHeight: 32, textAlign: "center" },
+  productAvatar: { width: "100%", height: 46, overflow:"hidden", borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  productName: { fontFamily: "Cairo_700Bold", fontSize: 9, lineHeight: 16, minHeight: 16, textAlign: "center" },
   productDescription: { minHeight: 32, fontFamily: "Cairo_400Regular", fontSize: 10, lineHeight: 16, textAlign: "center" },
   actionButton: { width: "100%", minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3, borderRadius: 9, borderWidth: 1, paddingHorizontal: 5 },
   actionText: { fontFamily: "Cairo_700Bold", fontSize: 11, textAlign: "center" },

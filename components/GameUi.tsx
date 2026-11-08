@@ -1,3 +1,4 @@
+import {useInterfacePreferences} from "@/lib/interface-preferences";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -41,15 +42,17 @@ export function useReducedMotion() {
       subscription.remove();
     };
   }, []);
-  return reduceMotion;
+  const preferences=useInterfacePreferences();
+  return reduceMotion||preferences.reduceMotion||preferences.quality==="low";
 }
 
-export function GameScreenBackground({ accent = "online" }: { accent?: "online" | "offline" | "reward" }) {
+export function GameScreenBackground(_props: { accent?: "online" | "offline" | "reward" }) {
   const { theme, isDark } = useTheme();
-  const art = accent === "reward" ? require("../assets/fantasy-menu/offline.png") : accent === "offline" ? require("../assets/fantasy-menu/hero.png") : require("../assets/fantasy-menu/online.png");
+  const preferences=useInterfacePreferences();
+  const art = require("../assets/ui-2027/play-background.png");
   return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: "hidden" }]}>
     <LinearGradient colors={[theme.background, theme.backgroundSecondary, theme.backgroundTertiary]} style={StyleSheet.absoluteFill} />
-    <Image source={art} resizeMode="cover" style={{position:"absolute",top:0,left:0,width:"100%",height:430,opacity:isDark?0.38:0.15}} />
+    {preferences.quality!=="low"&&<Image source={art} resizeMode="cover" style={{position:"absolute",top:0,left:0,width:"100%",height:"100%",opacity:isDark?0.7:0.1}} />}
     <LinearGradient colors={isDark?["#180C2766","#180C27BB","#180C27F5"]:["#F7EEDA55","#F7EEDACC","#F7EEDA"]} locations={[0,0.5,1]} style={StyleSheet.absoluteFill} />
     <Svg width="100%" height="100%" viewBox="0 0 400 800" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
       <Path d="M10 130V48q0-20 20-20h54M390 130V48q0-20-20-20h-54M10 670v80q0 22 22 22h50M390 670v80q0 22-22 22h-50" fill="none" stroke={isDark?"#D5AE69":"#A97D45"} strokeWidth="1" opacity="0.35" />
@@ -85,7 +88,7 @@ export function GameHeader({
   ) : <View style={styles.headerSlot} />;
 
   return (
-    <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row", backgroundColor: isDark ? "#2B183ACC" : "#FFF5E0DD", borderColor: theme.cardBorder, borderWidth: 1, borderRadius: 22 }]}>
+    <View style={[styles.header, { flexDirection: isRTL ? "row-reverse" : "row", backgroundColor: isDark ? "#2B183ACC" : "#FFF5E0DD", borderColor: theme.cardBorder, borderWidth: 1, borderRadius: 17 }]}>
       {backButton}
       <View style={[styles.headerCopy, { alignItems: isRTL ? "flex-end" : "flex-start" }]}>
         <View style={[styles.headerTitleRow, { flexDirection: isRTL ? "row-reverse" : "row" }]}>

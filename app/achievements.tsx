@@ -1,4 +1,3 @@
-import { FantasySectionBanner } from "@/components/FantasySectionBanner";
 import React, { useState, useCallback, useRef, useEffect, memo } from "react";
 import {
   View,
@@ -204,8 +203,8 @@ function AchCard({ ach, onClaim, isPending, theme }: { ach: Achievement; onClaim
 }
 const ac = StyleSheet.create({
   card: {
-    flexDirection: "row", alignItems: "center",
-    borderRadius: 20, padding: 14, borderWidth: 1, gap: 12,
+    flexDirection: "column", alignItems: "stretch",
+    borderRadius: 18, padding: 12, borderWidth: 1, gap: 8, minHeight:210,
   },
   iconWrap: {
     width: 54, height: 54, borderRadius: 27,
@@ -219,12 +218,12 @@ const ac = StyleSheet.create({
     backgroundColor: ACCENT.gold,
     borderWidth: 1.5,
   },
-  content: { flex: 1, gap: 4 },
-  title: { fontFamily: "Cairo_700Bold", fontSize: 14 },
-  desc: { fontFamily: "Cairo_400Regular", fontSize: 11 },
+  content: { gap: 4, width:"100%" },
+  title: { fontFamily: "Cairo_700Bold", fontSize: 13, textAlign:"right" },
+  desc: { fontFamily: "Cairo_400Regular", fontSize: 11, textAlign:"right" },
   progressRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
   progressNum: { fontFamily: "Cairo_400Regular", fontSize: 10, minWidth: 32, textAlign: "right" },
-  rewards: { flexDirection: "row", gap: 6, marginTop: 5 },
+  rewards: { flexDirection: "row", flexWrap:"wrap", gap: 6, marginTop: 5 },
   rewardPill: { backgroundColor: ACCENT.gold + "18", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, flexDirection: "row", alignItems: "center", gap: 4 },
   rewardText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: ACCENT.gold },
   action: { alignItems: "center", justifyContent: "center" },
@@ -319,7 +318,7 @@ function AchievementsScreenInner() {
             </TouchableOpacity>
           }
         />
-        <FantasySectionBanner kind="achievements" />
+
 
         <LinearGradient
           colors={[theme.card, theme.backgroundSecondary]}
@@ -376,15 +375,16 @@ function AchievementsScreenInner() {
           </View>
         ) : (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
-            {filtered.map((ach) => (
+            <View style={{flexDirection:"row-reverse",flexWrap:"wrap",gap:10}}>{filtered.map((ach) => (
+              <View key={ach.key} style={{width:"48%"}}>
               <AchCard
                 key={ach.key}
                 ach={ach}
                 onClaim={() => claimAchievement.mutate(ach.key)}
                 isPending={claimAchievement.isPending}
                 theme={theme}
-              />
-            ))}
+              /></View>
+            ))}</View>
           </ScrollView>
         )}
       </View>
@@ -420,7 +420,7 @@ const s = StyleSheet.create({
 
   summaryCard: {
     marginHorizontal: 16, marginBottom: 14,
-    borderRadius: 22, padding: 18,
+    borderRadius: 18, padding: 12,
     borderWidth: 1, borderColor: "rgba(156,140,255,0.20)",
     gap: 14,
   },

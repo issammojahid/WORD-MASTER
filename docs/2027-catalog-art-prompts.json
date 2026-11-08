@@ -1,0 +1,39 @@
+{
+  "method": "built-in image generation",
+  "prompt": "Use the supplied concept board as a strict visual design reference for its THIRTY cosmetic subjects. Produce a NEW CLEAN PRODUCTION TEXTURE ATLAS of these SAME 30 artworks, laid out exactly FIVE COLUMNS by SIX ROWS, 30 equal SQUARE cells, total canvas aspect ratio 5:6 portrait. NO title, NO headings, NO labels, NO numbers, NO grid lines, NO borders around cells, NO extra gutter or margin. The entire canvas is exactly the grid, row boundaries at sixths and column boundaries at fifths. Preserve the specific five designs in each row of the reference, in the same left-to-right order. Row1 five distinct bust avatar portraits, polished Moroccan fantasy 3D style, centered heads, fully inside own cell. Row2 five ornate avatar rings: centers MUST be fully TRANSPARENT alpha holes, not filled black or purple; isolated gold/colored frame designs on transparent space with 8% safe padding. Row3 five compact victory magic motifs, transparent background and isolated sparkles/bursts/spirals, not rectangular opaque pictures. Row4 five scenic backgrounds: each square scene is opaque FULL BLEED within its cell, no transparent gaps. Row5 five horizontal BLANK elegant player name plaques centered within each square, alpha around their outer silhouette, no words. Row6 five isolated collectible emblem icons on alpha with 8% padding. All other unused space of the sheet must have real transparent alpha, not white/gray/checkerboard paint. No object may cross a cell boundary. Keep coherent indigo, gold and turquoise detailing. This is a technical sprite atlas for use in a mobile game's existing UI, not a catalog board or a finished screenshot. Absolutely no Halloween.",
+  "layout": {
+    "columns": 5,
+    "rows": 6,
+    "order": [
+      "avatar",
+      "frame",
+      "victory",
+      "background",
+      "nameplate",
+      "icon"
+    ]
+  },
+  "sourceReferences": "C:/Users/aissa/Desktop/wm 2.9.0/december-2026-catalog-previews",
+  "outputs": [
+    {
+      "event": "atlas",
+      "path": "assets/seasons-2027/atlas/catalog-atlas.png"
+    },
+    {
+      "event": "arabic",
+      "path": "assets/seasons-2027/arabic/catalog-atlas.png"
+    },
+    {
+      "event": "winter",
+      "path": "assets/seasons-2027/winter/catalog-atlas.png"
+    },
+    {
+      "event": "gifts",
+      "path": "assets/seasons-2027/gifts/catalog-atlas.png"
+    },
+    {
+      "event": "newyear",
+      "path": "assets/seasons-2027/newyear/catalog-atlas.png"
+    }
+  ]
+}

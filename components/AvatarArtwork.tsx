@@ -1,5 +1,5 @@
 import React from "react";
-import { Image, type ImageSourcePropType } from "react-native";
+import { Image, View, type ImageSourcePropType } from "react-native";
 import type { SkinId } from "@/contexts/PlayerContext";
 
 const AVATAR_ARTWORK: Record<SkinId, ImageSourcePropType> = {
@@ -30,6 +30,11 @@ type AvatarArtworkProps = {
 };
 
 export function AvatarArtwork({ skinId = "student", size = 48 }: AvatarArtworkProps) {
+  // New visuals retain every legacy identity; uncommon earned skins keep their artwork.
+  const index = ["student", "djellaba", "sport", "amazigh", "astronaut", "ninja", "king", "champion"].indexOf(skinId);
+  if (index >= 0) return <View pointerEvents="none" style={{ width: size, height: size, overflow: "hidden", borderRadius: size * 0.16 }}>
+    <Image source={require("../assets/ui-2027/portraits-atlas.png")} fadeDuration={0} resizeMode="stretch" style={{ position: "absolute", width: size * 2, height: size * 4, left: -(index % 2) * size, top: -Math.floor(index / 2) * size }} />
+  </View>;
   return (
     <Image
       source={AVATAR_ARTWORK[skinId]}

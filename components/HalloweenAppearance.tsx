@@ -1,4 +1,5 @@
 import { isHalloweenSeasonActive } from "@shared/halloween-update";
+import {HALLOWEEN_PROMOTIONS_ENABLED} from "@/constants/release-content";
 import React, { useSyncExternalStore, useEffect, useRef, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { HalloweenFrame } from "@/components/HalloweenFrameArtwork";
@@ -11,16 +12,15 @@ import type { SkinId } from "@/contexts/PlayerContext";
 import type { CosmeticKind } from "@shared/cosmetics";
 import { HALLOWEEN_ITEMS } from "@shared/halloween";
 import { useHalloweenAccount } from "@/contexts/HalloweenContext";
-import { HalloweenAcquireButton } from "@/components/HalloweenEconomy";
 
 type Look = Partial<Record<HalloweenPreviewCategory, string>>;
 let look: Look = {};
 const listeners = new Set<() => void>();
 const empty: Look = {};
 const subscribe = (listener: () => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
-const enabled = () => isHalloweenSeasonActive();
-function choose(asset: HalloweenPreviewAsset) {
-  if (!enabled()) return;
+const enabled = () => HALLOWEEN_PROMOTIONS_ENABLED&&isHalloweenSeasonActive();
+function choose(asset: HalloweenPreviewAsset, owned: boolean) {
+  if (!enabled() && !owned) return;
   look = { ...look, [asset.category]: asset.previewKey };
   listeners.forEach(listener => listener());
 }
@@ -35,7 +35,7 @@ export function useHalloweenAppearance() {
       if (commerce.enabled) reset();
     }
   }, [commerce.enabled, equippedSignature]);
-  const selected = useSyncExternalStore(subscribe, () => enabled() ? look : empty, () => empty);
+  const selected = useSyncExternalStore(subscribe, () => enabled() || commerce.enabled ? look : empty, () => empty);
   const asset = (category: HalloweenPreviewCategory) => {
     const equippedId = commerce.account?.state.equipped[category];
     const equippedKey = HALLOWEEN_ITEMS.find(item => item.id === equippedId)?.assetKey;
@@ -82,9 +82,9 @@ export function HalloweenCategory({ kind, onSelect }: { kind: "skin" | CosmeticK
   const { language } = useLanguage();
   const ar = language === "ar";
   const [gridWidth, setGridWidth] = useState(0);
-  const columns = gridWidth >= 600 ? 5 : gridWidth >= 420 ? 4 : gridWidth >= 340 ? 3 : 2;
+  const columns = 5;
   const cardWidth = gridWidth > 0 ? (gridWidth - (columns - 1) * 8) / columns : 120;
-  const artSize = Math.min(66, cardWidth - 22);
+  const artSize = Math.max(30,Math.min(58,cardWidth-8));
   if (!appearance.enabled) return null;
   const category = kind === "skin" ? "avatar" : kind === "seasonal" ? "icon" : kind;
   const assets = HALLOWEEN_PREVIEW_ASSETS.filter(item => item.category === category && (commerce.seasonActive || commerce.account?.state.owned.some(id=>HALLOWEEN_ITEMS.some(product=>product.id===id&&product.assetKey===item.previewKey))));
@@ -92,19 +92,19 @@ export function HalloweenCategory({ kind, onSelect }: { kind: "skin" | CosmeticK
   const selected = appearance.asset(category);
   return <View style={s.section}>
     <View style={s.heading}>
-      <Text style={s.headingText}>{ar ? "مجموعة هالوين" : "Halloween collection"}</Text>
+      <Text style={s.headingText}>{ar ? commerce.seasonActive?"مجموعة هالوين":"مظاهري الموسمية السابقة" : "Seasonal collection"}</Text>
       {appearance.active && !appearance.equipped ? <Pressable accessibilityRole="button" onPress={appearance.reset}><Text style={s.reset}>{ar ? "إلغاء التجربة" : "Reset preview"}</Text></Pressable> : null}
     </View>
     <Text style={s.note}>{commerce.enabled ? (ar ? commerce.seasonActive ? "يمكن تجهيز العناصر المملوكة وشراء المظاهر بعملات اللعبة" : "انتهى الموسم · يمكنك تجهيز مظاهرك المكتسبة" : "Equip owned items · buy with game Coins") : ar ? "معاينة محلية للمظهر دون شراء" : "Local appearance preview · no purchase"}</Text>
     <View style={s.grid} onLayout={event => setGridWidth(event.nativeEvent.layout.width)}>
-      {assets.map((item) => <View key={item.previewKey} style={[s.card,{ width: cardWidth },selected?.previewKey===item.previewKey && s.selected]}><Pressable accessibilityRole="button" accessibilityLabel={item.label} accessibilityState={{selected:selected?.previewKey===item.previewKey}} onPress={()=>{choose(item);onSelect(item);}} style={{ alignItems: "center", gap: 5, width: "100%" }}>
+      {assets.map((item) => <View key={item.previewKey} style={[s.card,{ width: cardWidth },selected?.previewKey===item.previewKey && s.selected]}><Pressable accessibilityRole="button" accessibilityLabel={item.label} accessibilityState={{selected:selected?.previewKey===item.previewKey}} onPress={()=>{choose(item,!!commerce.account?.state.owned.some(id=>HALLOWEEN_ITEMS.some(product=>product.id===id&&product.assetKey===item.previewKey)));onSelect(item);}} style={{ alignItems: "center", gap: 5, width: "100%" }}>
         <View style={s.art}>
           {category === "frame" ? <HalloweenFrame asset={item} size={artSize} /> : category === "nameplate" ? <HalloweenNameplate name={ar ? "اسم اللاعب" : "Player name"} assetOverride={item} width={Math.min(124, cardWidth - 18)} /> : <Image source={item.source} accessibilityLabel={item.label} resizeMode={category==="avatar" ? "cover" : "contain"} style={[s.thumbnail,{width:artSize,height:artSize},category==="avatar" && {borderRadius:artSize/2},category==="background" && s.wide]} />}
         </View>
         <Text numberOfLines={2} style={s.itemName}>{item.label}</Text>
-        <Text style={s.action}>{selected?.previewKey===item.previewKey ? appearance.equipped ? ar ? "مجهز ✓" : "Equipped ✓" : ar ? "قيد التجربة ✓" : "Previewing ✓" : ar ? "جرّب المظهر" : "Try this look"}</Text>
+        <Text style={[s.action,{display:"none"}]}>{selected?.previewKey===item.previewKey ? appearance.equipped ? ar ? "مجهز ✓" : "Equipped ✓" : ar ? "قيد التجربة ✓" : "Previewing ✓" : ar ? "جرّب المظهر" : "Try this look"}</Text>
       </Pressable>
-      <HalloweenAcquireButton assetKey={item.previewKey} compact />
+      <Text style={{fontFamily:"Cairo_700Bold",fontSize:10,color:"#FFE3A6"}}>{HALLOWEEN_ITEMS.find(product=>product.assetKey===item.previewKey)?.price??"★"}</Text>
       </View>)}
     </View>
     <Text style={s.limit}>{ar ? "الصور تجريبية بحركات عرض خفيفة. التجهيز والملكية محفوظان عند التأكيد." : "Prototype images with presentation animations. Your account is unchanged."}</Text>
@@ -112,5 +112,5 @@ export function HalloweenCategory({ kind, onSelect }: { kind: "skin" | CosmeticK
 }
 
 const s=StyleSheet.create({
-  section:{gap:12,paddingVertical:16},heading:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:12},headingText:{fontFamily:"Cairo_700Bold",fontSize:20,color:"#FFE6A5"},reset:{fontFamily:"Cairo_600SemiBold",fontSize:12,color:"#C8B5F0"},note:{fontFamily:"Cairo_400Regular",fontSize:12,color:"#C8B5DC"},grid:{flexDirection:"row",flexWrap:"wrap",gap:8},card:{padding:8,gap:6,borderRadius:14,borderWidth:1,borderColor:"#543965",backgroundColor:"#241833",alignItems:"center"},selected:{borderColor:"#FFC46B",backgroundColor:"#392245"},art:{height:70,width:"100%",alignItems:"center",justifyContent:"center"},thumbnail:{width:92,height:92},round:{borderRadius:46},wide:{width:"100%",height:58},itemName:{fontFamily:"Cairo_600SemiBold",color:"#FFF3DD",fontSize:11,lineHeight:16,minHeight:32,textAlign:"center"},action:{fontFamily:"Cairo_700Bold",color:"#FFD489",fontSize:10,lineHeight:15},limit:{fontFamily:"Cairo_400Regular",fontSize:11,color:"#B7A5C9"},composition:{width:"100%",minHeight:250,borderRadius:24,overflow:"hidden",alignItems:"center",justifyContent:"center",padding:20,gap:8,backgroundColor:"#241139"},name:{fontFamily:"Cairo_700Bold",fontSize:22,color:"#FFF3DD"},icon:{position:"absolute",right:14,top:14,width:36,height:36},victory:{position:"absolute",left:10,bottom:10,width:56,height:56},plateSwatch:{width:"100%",height:42,borderWidth:2,borderRadius:12,backgroundColor:"#241139",alignItems:"center",justifyContent:"center"},plateText:{color:"#FFF3DD",fontFamily:"Cairo_600SemiBold",fontSize:12},
+  section:{gap:12,paddingVertical:16},heading:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:12},headingText:{fontFamily:"Cairo_700Bold",fontSize:20,color:"#FFE6A5"},reset:{fontFamily:"Cairo_600SemiBold",fontSize:12,color:"#C8B5F0"},note:{fontFamily:"Cairo_400Regular",fontSize:12,color:"#C8B5DC"},grid:{flexDirection:"row",flexWrap:"wrap",gap:8},card:{padding:3,gap:3,borderRadius:14,borderWidth:1,borderColor:"#543965",backgroundColor:"#241833",alignItems:"center"},selected:{borderColor:"#FFC46B",backgroundColor:"#392245"},art:{height:52,width:"100%",alignItems:"center",justifyContent:"center"},thumbnail:{width:92,height:92},round:{borderRadius:46},wide:{width:"100%",height:58},itemName:{fontFamily:"Cairo_600SemiBold",color:"#FFF3DD",fontSize:9,lineHeight:14,minHeight:28,textAlign:"center"},action:{fontFamily:"Cairo_700Bold",color:"#FFD489",fontSize:10,lineHeight:15},limit:{fontFamily:"Cairo_400Regular",fontSize:11,color:"#B7A5C9"},composition:{width:"100%",minHeight:250,borderRadius:24,overflow:"hidden",alignItems:"center",justifyContent:"center",padding:20,gap:8,backgroundColor:"#241139"},name:{fontFamily:"Cairo_700Bold",fontSize:22,color:"#FFF3DD"},icon:{position:"absolute",right:14,top:14,width:36,height:36},victory:{position:"absolute",left:10,bottom:10,width:56,height:56},plateSwatch:{width:"100%",height:42,borderWidth:2,borderRadius:12,backgroundColor:"#241139",alignItems:"center",justifyContent:"center"},plateText:{color:"#FFF3DD",fontFamily:"Cairo_600SemiBold",fontSize:12},
 });

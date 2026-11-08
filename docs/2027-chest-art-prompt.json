@@ -1,0 +1,15 @@
+{
+  "method": "built-in image generation",
+  "prompt": "Game animation texture atlas for Moroccan fantasy game. Create exactly 2 columns x 2 rows equal SQUARE cells, canvas square 1536x1536, transparent background alpha, NO grid lines, NO gutters, no text, no labels. FOUR SEQUENTIAL KEYFRAMES of the SAME premium ornate wooden treasure chest with indigo velvet panels, copper-gold hinges and rims, turquoise zellige inlays, eight-point Moroccan gold star lock, beautiful polished storybook 3D game art matching the reference. Each chest stays EXACTLY the same size, perspective, location and orientation: three-quarter FRONT view with body occupying lower center of every cell, bottom baseline 85% cell height. Chest outer width 76% cell. Camera never moves. Keep all lid and sparkle geometry inside cell. Cell1 top-left: CLOSED ornate arched lid, quiet soft gleam. Cell2 top-right: same chest lid opened about 25 degrees, small gold light emerging. Cell3 bottom-left: same chest lid opened about 65 degrees, rich golden light rising from inside. Cell4 bottom-right: same chest lid opened fully about 100 degrees, warmly glowing interior and a compact elegant sparkling golden light plume upward (no reward objects, no coins flying out). ALL empty space including behind chest and around light must be genuine transparency. Render shadows very subtle alpha only, no floor, no backdrop, no pedestal. Production animation frames, not UI, not screenshot.",
+  "output": "assets/ui-2027/chest-animation-atlas.png",
+  "layout": {
+    "columns": 2,
+    "rows": 2,
+    "order": [
+      "closed",
+      "opening",
+      "nearly-open",
+      "open"
+    ]
+  }
+}

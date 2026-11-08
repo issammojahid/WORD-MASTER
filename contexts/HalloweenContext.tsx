@@ -4,6 +4,7 @@ import { usePlayer } from "@/contexts/PlayerContext";
 import { HALLOWEEN_ITEMS, seasonView, type SeasonAction, type SeasonSnapshot } from "@shared/halloween";
 import { HALLOWEEN_START_AT, HALLOWEEN_END_AT, deviceHalloweenSnapshot, isHalloweenSeasonActive } from "@shared/halloween-update";
 import { prepareHalloweenObjectives } from "@shared/halloween-objectives";
+import {HALLOWEEN_PROMOTIONS_ENABLED} from "@/constants/release-content";
 export type HalloweenAccount=SeasonSnapshot&{claimable:string[];local:boolean};
 type AccountContext={enabled:boolean;seasonActive:boolean;account:HalloweenAccount|null;busy:boolean;error:string;refresh:()=>Promise<boolean>;act:(action:SeasonAction)=>Promise<boolean>;recordClaims:(source:"task"|"achievement",keys:string[])=>void};
 const fallback:AccountContext={enabled:false,seasonActive:false,account:null,busy:false,error:"",refresh:async()=>false,act:async()=>false,recordClaims:()=>{}};
@@ -12,7 +13,7 @@ const errors:Record<string,string>={insufficient_coins:"العملات غير ك
 export function HalloweenProvider({children}:{children:React.ReactNode}){
  const {profile,isReady,applyHalloweenAction,recordHalloweenClaims}=usePlayer();
  const [clock,setClock]=useState(Date.now),[busy,setBusy]=useState(false),[error,setError]=useState("");
- const lock=useRef(false),seasonActive=isHalloweenSeasonActive(clock);
+ const lock=useRef(false),seasonActive=HALLOWEEN_PROMOTIONS_ENABLED&&isHalloweenSeasonActive(clock);
  useEffect(()=>{
   const wake=()=>setClock(Date.now());
   const boundary=clock<Date.parse(HALLOWEEN_START_AT)?Date.parse(HALLOWEEN_START_AT):Date.parse(HALLOWEEN_END_AT);
@@ -29,6 +30,7 @@ export function HalloweenProvider({children}:{children:React.ReactNode}){
  },[isReady,profile,clock,seasonActive]);
  const act=useCallback(async(action:SeasonAction)=>{
   if(!isReady||lock.current)return false;
+  if(!HALLOWEEN_PROMOTIONS_ENABLED&&!["enter","equip","unequip"].includes(action.type)){setError(errors.season_ended);return false;}
   lock.current=true;setBusy(true);setError("");
   try{await applyHalloweenAction(action);return true;}
   catch(cause){const code=cause instanceof Error?cause.message:"";setError(errors[code]??"تعذر حفظ الموسم على هذا الجهاز. تحقق من مساحة التخزين وأعد المحاولة.");return false;}

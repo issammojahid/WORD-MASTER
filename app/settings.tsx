@@ -1,3 +1,4 @@
+import {SettingsQuickGrid} from "@/components/SettingsQuickGrid";
 import { FantasySettingsSection } from "@/components/FantasySettingsSection";
 import React, { useState, useEffect } from "react";
 import {
@@ -10,7 +11,6 @@ import {
   Modal,
   BackHandler,
   Alert,
-  Switch,
   TextInput,
   Share,
   ActivityIndicator,
@@ -24,10 +24,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
-import { type Language } from "@/constants/i18n";
 import { getPlayerDisplayId } from "@/lib/player-code";
 import { getApiUrl } from "@/lib/query-client";
-import { fetch } from "expo/fetch";
 import { updateNotificationSetting, getNotificationSettings } from "@/lib/notifications";
 import { getCountryInfo, CountryPickerModal } from "@/lib/countries";
 import { GameHeader, GameScreenBackground } from "@/components/GameUi";
@@ -45,7 +43,7 @@ const LOGO = {
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { t, language, setLanguage, soundEffects, setSoundEffects, musicEnabled, setMusicEnabled } = useLanguage();
+  const { t } = useLanguage();
   const { playerId, profile, addCoins, updateProfile } = usePlayer();
   const { theme } = useTheme();
   const { privacyOptionsRequired, showPrivacyOptions,diagnosticReport,retryAds } = useAds();
@@ -182,66 +180,7 @@ export default function SettingsScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-        {/* ── Country ──────────────────────────────────── */}
-        <FantasySettingsSection title={<>الصوت والموسيقى</>} defaultExpanded>
-
-
-          <View style={[styles.toggleCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleLeft}>
-                <Ionicons name="musical-note" size={20} color={LOGO.cyan} />
-                <View style={styles.toggleTexts}>
-                  <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>المؤثرات الصوتية</Text>
-                  <Text style={[styles.toggleSub, { color: theme.textMuted }]}>أصوات الزر والتحذير</Text>
-                </View>
-              </View>
-              <Switch
-                value={soundEffects}
-                onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSoundEffects(v); }}
-                trackColor={{ false: theme.cardBorder, true: LOGO.cyan + "80" }}
-                thumbColor={soundEffects ? LOGO.cyan : theme.textMuted}
-              />
-            </View>
-
-            <View style={[styles.toggleDivider, { backgroundColor: theme.cardBorder }]} />
-
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleLeft}>
-                <Ionicons name="headset" size={20} color={LOGO.purple} />
-                <View style={styles.toggleTexts}>
-                  <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>الموسيقى</Text>
-                  <Text style={[styles.toggleSub, { color: theme.textMuted }]}>موسيقى الخلفية</Text>
-                </View>
-              </View>
-              <Switch
-                value={musicEnabled}
-                onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMusicEnabled(v); }}
-                trackColor={{ false: theme.cardBorder, true: LOGO.purple + "80" }}
-                thumbColor={musicEnabled ? LOGO.purple : theme.textMuted}
-              />
-            </View>
-          </View>
-        </FantasySettingsSection>
-
-        {/* ── Player Code ─────────────────────────────── */}
-        <FantasySettingsSection title={<>{t.language}</>}>
-
-          <View style={styles.optionsRow}>
-            {(["ar", "en"] as Language[]).map((lang) => (
-              <TouchableOpacity
-                key={lang}
-                style={[styles.languageOption, { backgroundColor: theme.card, borderColor: theme.cardBorder }, language === lang && styles.languageOptionActive]}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setLanguage(lang); }}
-              >
-                <Text style={styles.languageFlag}>{lang === "ar" ? "🇲🇦" : "🇺🇸"}</Text>
-                <Text style={[styles.languageLabel, { color: theme.textSecondary }, language === lang && styles.languageLabelActive]}>
-                  {lang === "ar" ? t.arabic : t.english}
-                </Text>
-                {language === lang && <Ionicons name="checkmark-circle" size={16} color={LOGO.yellow} />}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </FantasySettingsSection>
+        <SettingsQuickGrid notifications={notificationsEnabled} onNotifications={value=>void handleToggleNotifications(value)}/>
 
         {/* ── Referral System ──────────────────────────── */}
         <FantasySettingsSection title={<>بلدك</>}>
@@ -260,29 +199,6 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
           </TouchableOpacity>
-        </FantasySettingsSection>
-
-        {/* ── Language ────────────────────────────────── */}
-        <FantasySettingsSection title={<>الإشعارات</>}>
-
-
-          <View style={[styles.toggleCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleLeft}>
-                <Ionicons name="notifications-outline" size={20} color={gameDesign.colors.online} />
-                <View style={styles.toggleTexts}>
-                  <Text style={[styles.toggleTitle, { color: theme.textPrimary }]}>إشعارات اللعبة</Text>
-                  <Text style={[styles.toggleSub, { color: theme.textMuted }]}>مكافآت وتذكيرات يومية</Text>
-                </View>
-              </View>
-              <Switch
-                value={notificationsEnabled}
-                onValueChange={handleToggleNotifications}
-                trackColor={{ false: theme.cardBorder, true: `${gameDesign.colors.online}80` }}
-                thumbColor={notificationsEnabled ? gameDesign.colors.online : theme.textMuted}
-              />
-            </View>
-          </View>
         </FantasySettingsSection>
 
         {/* ── Sound Settings ──────────────────────────── */}
@@ -382,7 +298,7 @@ export default function SettingsScreen() {
           <View style={[styles.rulesList, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
             {([
               { icon: "text" as const,         text: "سيظهر حرف عشوائي باللغة العربية",    color: LOGO.yellow },
-              { icon: "timer" as const,        text: "لديك 25 ثانية لكتابة كلمة من كل فئة", color: LOGO.yellow },
+              { icon: "timer" as const,        text: "اكتب كلمة من كل فئة قبل نهاية وقت الجولة", color: LOGO.yellow },
               { icon: "trophy" as const,       text: "الإجابة الصحيحة = 3 نقاط",            color: Colors.emerald },
               { icon: "copy" as const,         text: "الإجابة المكررة = 0 نقاط",             color: Colors.scoreDuplicate },
               { icon: "close-circle" as const, text: "الفئة الفارغة = 0 نقاط",              color: Colors.ruby },

@@ -1,4 +1,5 @@
 import { initializeGameWallet,gameWalletAction,queueOfflineMatch,flushOfflineMatches } from "@/services/game-wallet";
+import {HALLOWEEN_PROMOTIONS_ENABLED} from "@/constants/release-content";
 import { getOnlineGuestToken } from "@/services/socket";
 import { applyDeviceHalloween, recordDeviceHalloweenClaims, type DeviceHalloween } from "@shared/halloween-update";
 import { prepareHalloweenObjectives } from "@shared/halloween-objectives";
@@ -422,6 +423,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   }, [playerId]);
 
   const applyHalloweenAction = useCallback(async (action:SeasonAction) => {
+    if(!HALLOWEEN_PROMOTIONS_ENABLED&&!["enter","equip","unequip"].includes(action.type))throw Error("season_ended");
     const previous=profileRef.current;
     const seasonal=prepareHalloweenObjectives(previous.halloween2026,previous);
     let result;
