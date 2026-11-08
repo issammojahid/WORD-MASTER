@@ -1,3 +1,4 @@
+import {getStoreOffer,canPurchaseStoreOffer,STORE_TIER_LABELS} from "@/constants/store-economy";
 import {INTERNAL_SHOWCASE_ENABLED} from "@/constants/release-content";
 import {RoyalSurface} from "@/components/RoyalUi";
 import {SeasonCatalogArtwork} from "@/components/SeasonCatalogArtwork";
@@ -245,8 +246,8 @@ export default function StoreScreen() {
     [columns, horizontalPadding, width],
   );
   const products = selectedKind === "skin"
-    ? AVATAR_CATALOG.map((item) => ({ ...item, kind: "skin" as const, icon: "person-outline" as const }))
-    : COSMETIC_CATALOG.filter((item) => item.kind === selectedKind);
+    ? AVATAR_CATALOG.map((item) => ({ ...item, ...getStoreOffer(item.id)!, kind: "skin" as const, icon: "person-outline" as const }))
+    : COSMETIC_CATALOG.filter((item) => item.kind === selectedKind).map(item=>({...item,...getStoreOffer(item.id)!}));
   const selectedProduct = products.find((item) => item.id === selectedItemId) ?? products[0];
   const selectedSkin = selectedKind === "skin" ? selectedItemId as SkinId : profile.equippedSkin;
   const selectedCosmetic = getAvatarCosmetic(selectedSkin);
@@ -278,6 +279,7 @@ export default function StoreScreen() {
   }, [previewScale, reduceMotion, selectedItemId]);
 
   const buyItem = async (itemId: string, itemKind: "skin" | CosmeticKind, price: number) => {
+    if (!canPurchaseStoreOffer(itemId,price)) {setFeedback(isRTL?"الشراء متوقف مؤقتاً لتحديث الأثمنة. يمكنك تجهيز المظاهر المملوكة.":"Purchases are paused while prices are updated. Owned items can still be equipped.");setFeedbackIsError(true);return;}
     if (!playerId || buyingItemId) return;
     setFeedback("");
     setBuyingItemId(itemId);
@@ -348,7 +350,7 @@ export default function StoreScreen() {
   const selectionOwned=selectedKind==="skin"?profile.ownedSkins.includes(selectedItemId as SkinId):profile.ownedCosmetics[selectedKind].includes(selectedItemId);
   const seasonEvent=SEASON_EVENTS[initialSeasonIndex(Date.now())],seasonKind=selectedKind==="skin"?"avatar":selectedKind==="seasonal"?"icon":selectedKind;
   const seasonItems=INTERNAL_SHOWCASE_ENABLED?seasonPreviewItems(seasonEvent.id).filter(item=>item.kind===seasonKind):[];
-  function activateSelected(){if(selectionOwned){if(selectedKind==="skin")equipSkin(selectedItemId as SkinId);else equipCosmetic(selectedKind,selectedItemId);}else{setPreviewOpen(false);setPendingPurchase({id:selectedItemId,kind:selectedKind,price:selectedProduct.price});}}
+  function activateSelected(){if(!selectionOwned&&!selectedProduct.purchaseReady)return;if(selectionOwned){if(selectedKind==="skin")equipSkin(selectedItemId as SkinId);else equipCosmetic(selectedKind,selectedItemId);}else{setPreviewOpen(false);setPendingPurchase({id:selectedItemId,kind:selectedKind,price:selectedProduct.price});}}
 
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
@@ -412,7 +414,7 @@ export default function StoreScreen() {
           ) : null}
         </LinearGradient>
         {showHalloween&&halloween.asset(halloweenCategory)?<HalloweenAcquireButton assetKey={halloween.asset(halloweenCategory)!.previewKey}/>:null}
-        {!showHalloween&&<Pressable accessibilityRole="button" disabled={selectedEquipped||!!buyingItemId||!playerId} onPress={()=>{if(selectionOwned){if(selectedKind==="skin")equipSkin(selectedItemId as SkinId);else equipCosmetic(selectedKind,selectedItemId);}else {setPreviewOpen(false);setPendingPurchase({id:selectedItemId,kind:selectedKind,price:selectedProduct.price});}}} style={[styles.actionButton,{backgroundColor:gameDesign.colors.coins,opacity:selectedEquipped?.5:1}]}><Text style={[styles.actionText,{color:"#1C1231",fontSize:15}]}>{selectedEquipped?text.equipped:selectionOwned?text.equip:`${text.buy} · ${selectedProduct.price} ${text.coins}`}</Text></Pressable>}
+        {!showHalloween&&<Pressable accessibilityRole="button" disabled={selectedEquipped||!!buyingItemId||!playerId||(!selectionOwned&&!selectedProduct.purchaseReady)} onPress={()=>{if(selectionOwned){if(selectedKind==="skin")equipSkin(selectedItemId as SkinId);else equipCosmetic(selectedKind,selectedItemId);}else {setPreviewOpen(false);setPendingPurchase({id:selectedItemId,kind:selectedKind,price:selectedProduct.price});}}} style={[styles.actionButton,{backgroundColor:gameDesign.colors.coins,opacity:selectedEquipped?.5:1}]}><Text style={[styles.actionText,{color:"#1C1231",fontSize:15}]}>{selectedEquipped?text.equipped:selectionOwned?text.equip:!selectedProduct.purchaseReady?(isRTL?"الشراء متوقف مؤقتاً":"Purchases paused"):`${text.buy} · ${selectedProduct.price} ${text.coins}`}</Text></Pressable>}
         </ScrollView></GameModal>
 
         {selectedKind==="seasonal"?<Text style={[styles.description,{color:theme.textSecondary}]}>{text.seasonalNote}</Text>:null}
@@ -477,7 +479,7 @@ export default function StoreScreen() {
 
         {INTERNAL_SHOWCASE_ENABLED?<Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:"#FFE3A6",textAlign:"right"}}>{seasonEvent.title} · معاينة المظاهر القادمة</Text>:null}
         <View style={styles.catalog}>{seasonItems.map(item=><Pressable key={item.key} accessibilityRole="button" accessibilityLabel={`معاينة موسمية: ${item.name}`} onPress={()=>{setSeasonSelection(item);setSeasonPreviewOpen(true);}} style={[styles.productCard,{width:cardWidth,borderColor:seasonSelection?.key===item.key?"#3DE4D4":"#C2985F",backgroundColor:theme.card}]}><SeasonCatalogArtwork item={item} size={Math.max(30,cardWidth-6)}/><Text numberOfLines={1} style={[styles.productName,{color:theme.textPrimary}]}>{item.name}</Text><Text style={{fontFamily:"Cairo_600SemiBold",fontSize:9,color:"#81EADD"}}>قريباً</Text></Pressable>)}</View>
-        <Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:"#FFE3A6",textAlign:"right"}}>المجموعة الأساسية</Text>
+        <Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:"#FFE3A6",textAlign:"right"}}>المجموعة الأساسية</Text><Text style={{fontFamily:"Cairo_400Regular",fontSize:11,lineHeight:21,color:theme.textMuted,textAlign:isRTL?"right":"left"}}>{isRTL?"أثمنة جديدة حسب ندرة المظهر. الشراء متوقف مؤقتاً لتحديث الأثمنة؛ المظاهر المملوكة تبقى متاحة للتجهيز.":"New rarity-based prices. Purchases are paused for the price update; owned items remain available to equip."}</Text>
         <View style={styles.catalog}>
           {products.map((item) => {
             const owned = item.kind === "skin"
@@ -521,10 +523,10 @@ export default function StoreScreen() {
                       ? <AvatarArtwork skinId={item.id as SkinId} size={Math.max(32,cardWidth-6)} />
                       : <CosmeticArtwork kind={item.kind} itemId={item.id} size={Math.max(32,cardWidth-12)} />}
                   </View>
-                  <Text style={[styles.productName, { color: theme.textPrimary }]} numberOfLines={1}>{name}</Text>
+                  <Text style={[styles.productName, { color: theme.textPrimary }]} numberOfLines={1}>{name}</Text><Text style={{fontFamily:"Cairo_600SemiBold",fontSize:9,color:item.tier==="legendary"?"#F5CB68":item.tier==="rare"?"#C9ACFF":"#8ADCD7"}}>{isRTL?STORE_TIER_LABELS[item.tier]:item.tier}</Text>
 
                 </Pressable>
-                <Text style={{fontFamily:"Cairo_700Bold",fontSize:10,color:gameDesign.colors.coinsText,textAlign:"center"}}>{equipped?"✓":owned?text.owned:item.price}</Text>
+                <Text style={{fontFamily:"Cairo_700Bold",fontSize:10,color:gameDesign.colors.coinsText,textAlign:"center"}}>{equipped?"✓":owned?text.owned:item.price.toLocaleString()}</Text>
 
               </View>
             );
@@ -533,7 +535,7 @@ export default function StoreScreen() {
         <RoyalSurface style={{padding:12,flexDirection:"row-reverse",gap:12,alignItems:"center",minHeight:125}}>
          <Pressable accessibilityRole="button" accessibilityLabel="تكبير معاينة المظهر" onPress={()=>seasonSelection?setSeasonPreviewOpen(true):setPreviewOpen(true)}>{seasonSelection?<SeasonCatalogArtwork item={seasonSelection} size={94}/>:showHalloween?<HalloweenAvatar skinId={profile.equippedSkin} size={94}/>:selectedKind==="skin"||selectedKind==="frame"?<PlayerAvatar skinId={selectedSkin} frameId={selectedKind==="frame"?selectedItemId:profile.equippedCosmetics.frame} size={94}/>:<CosmeticArtwork kind={selectedKind} itemId={selectedItemId} size={94}/>}</Pressable>
          <View style={{flex:1,gap:6}}><Text style={{fontFamily:"Cairo_700Bold",fontSize:17,color:theme.textPrimary,textAlign:"right"}}>{seasonSelection?.name??selectedName}</Text>
-          {seasonSelection?<><Text style={{fontFamily:"Cairo_400Regular",fontSize:11,color:theme.textSecondary,textAlign:"right"}}>قريباً · معاينة فقط</Text><Pressable accessibilityRole="button" onPress={()=>setSeasonPreviewOpen(true)} style={[styles.actionButton,{borderColor:"#3ADDD0",backgroundColor:"#116877"}]}><Text style={[styles.actionText,{color:"#FFF0D6"}]}>معاينة المظهر والحركة</Text></Pressable></>:showHalloween&&halloween.asset(halloweenCategory)?<HalloweenAcquireButton assetKey={halloween.asset(halloweenCategory)!.previewKey}/>:<><Text style={{fontFamily:"Cairo_700Bold",fontSize:13,color:"#F2CC7C",textAlign:"right"}}>{selectionOwned?text.owned:`${selectedProduct.price} ${text.coins}`}</Text><Pressable accessibilityRole="button" disabled={selectedEquipped||!!buyingItemId||!playerId} onPress={activateSelected} style={[styles.actionButton,{backgroundColor:"#F3CC78",borderColor:"#FFF0B8",opacity:selectedEquipped?.55:1}]}><Text style={[styles.actionText,{fontSize:16,color:"#30213E"}]}>{selectedEquipped?text.equipped:selectionOwned?text.equip:text.buy}</Text></Pressable></>}
+          {seasonSelection?<><Text style={{fontFamily:"Cairo_400Regular",fontSize:11,color:theme.textSecondary,textAlign:"right"}}>قريباً · معاينة فقط</Text><Pressable accessibilityRole="button" onPress={()=>setSeasonPreviewOpen(true)} style={[styles.actionButton,{borderColor:"#3ADDD0",backgroundColor:"#116877"}]}><Text style={[styles.actionText,{color:"#FFF0D6"}]}>معاينة المظهر والحركة</Text></Pressable></>:showHalloween&&halloween.asset(halloweenCategory)?<HalloweenAcquireButton assetKey={halloween.asset(halloweenCategory)!.previewKey}/>:<><Text style={{fontFamily:"Cairo_700Bold",fontSize:13,color:"#F2CC7C",textAlign:"right"}}>{selectionOwned?text.owned:`${selectedProduct.price} ${text.coins}`}</Text><Pressable accessibilityRole="button" disabled={selectedEquipped||!!buyingItemId||!playerId||(!selectionOwned&&!selectedProduct.purchaseReady)} onPress={activateSelected} style={[styles.actionButton,{backgroundColor:"#F3CC78",borderColor:"#FFF0B8",opacity:selectedEquipped?.55:1}]}><Text style={[styles.actionText,{fontSize:16,color:"#30213E"}]}>{selectedEquipped?text.equipped:selectionOwned?text.equip:!selectedProduct.purchaseReady?(isRTL?"الشراء متوقف مؤقتاً":"Purchases paused"):text.buy}</Text></Pressable></>}
          </View>
         </RoyalSurface>
         <Text style={[styles.note, { color: theme.textMuted }]}>{text.onlineNote}</Text>
