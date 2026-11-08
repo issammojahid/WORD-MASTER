@@ -5,11 +5,18 @@ import {useReducedMotion} from './GameUi';
 import {SeasonCatalogArtwork} from './SeasonCatalogArtwork';
 import {seasonPreviewItems} from '@/constants/season-catalog';
 import type {SeasonEventId} from '@/lib/season-calendar';
+import {useAppActive} from '@/lib/use-app-active';
 
 // Four authored chest frames, cross-faded on the native driver. No reward mutation.
 export function SeasonChestPreview({event}:{event:SeasonEventId}){
- const reduced=useReducedMotion(),open=useRef(new Animated.Value(0)).current;
- useEffect(()=>{open.setValue(0);const animation=Animated.timing(open,{toValue:1,delay:reduced?0:220,duration:reduced?0:1800,useNativeDriver:true});animation.start();return()=>animation.stop();},[event,open,reduced]);
+ const reduced=useReducedMotion(),active=useAppActive(),open=useRef(new Animated.Value(0)).current;
+ useEffect(()=>{
+  if(reduced||!active){open.setValue(1);return;}
+  open.setValue(0);
+  const animation=Animated.timing(open,{toValue:1,delay:220,duration:1800,useNativeDriver:true});
+  animation.start();
+  return()=>{animation.stop();open.stopAnimation();};
+ },[active,event,open,reduced]);
  const icon=seasonPreviewItems(event).find(item=>item.kind==='icon')!;
  const ranges=[{inputRange:[0,.18,.3,1],outputRange:[1,1,0,0]},{inputRange:[0,.18,.3,.42,.54,1],outputRange:[0,0,1,1,0,0]},{inputRange:[0,.42,.54,.66,.8,1],outputRange:[0,0,1,1,0,0]},{inputRange:[0,.66,.8,1],outputRange:[0,0,1,1]}];
  return <View style={s.stage}>

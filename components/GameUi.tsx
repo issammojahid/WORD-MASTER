@@ -248,8 +248,9 @@ export function GameModal({
   children: React.ReactNode;
 }) {
   const { theme } = useTheme();
+  const reduced = useReducedMotion();
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onRequestClose}>
+    <Modal visible={visible} transparent animationType={reduced ? "none" : "fade"} onRequestClose={onRequestClose}>
       <View style={[styles.modalBackdrop, { backgroundColor: theme.overlay }]}>
         <View style={[styles.modal, { backgroundColor: theme.modalBg, borderColor: theme.cardBorder }]}>
           <ScrollView style={{flexShrink:1}} contentContainerStyle={{gap:12}} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
