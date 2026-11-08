@@ -40,7 +40,7 @@ export function registerLocalFriendsRooms(app:Express,http:HttpServer,options:{c
   const restored=byPlayer.get(id);if(restored){const p=restored.players.find(p=>p.id===id)!;if(p.disconnectTimer)clearTimeout(p.disconnectTimer);p.socketId=socket.id;socket.join(restored.id);socket.emit("match:restored",{...snap(restored),roundResults:restored.roundResults});if(restored.finalResults)socket.emit("match:finished",restored.finalResults);update(restored);}
   socket.emit("session:ready",{playerId:id});
   socket.on("match:find",(payload?:unknown)=>{
-   if(!allowed("find",5))return;const mode=payload===undefined?"solo":payload&&typeof payload==="object"?(payload as {mode?:unknown}).mode:undefined;
+   if(!allowed("find",5))return;const mode=payload==null?"solo":payload&&typeof payload==="object"?(payload as {mode?:unknown}).mode:undefined;
    const entryFee=payload&&typeof payload==="object"?(payload as {entryFee?:unknown}).entryFee??0:0;
    if(!isPublicQueueMode(mode)||!isQueueFee(entryFee))return fail("invalid_payload");
    if((testWallets.get(id)??0)<entryFee)return fail("insufficient_online_coins");

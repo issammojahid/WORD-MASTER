@@ -27,6 +27,25 @@ async function fixture(options={queueMs:120000}){
  async function connect(auth?:any){if(!auth){const data=await (await fetch(base+"/api/online/guest-session",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"})).json();auth={token:data.token,displayName:"Public QA "+sockets.length};}const socket=io(base,{autoConnect:false,transports:["websocket"],auth,reconnection:false});sockets.push(socket);const ready=wait(socket,"session:ready");socket.connect();await ready;return socket;}
  return {connect,close:()=>{sockets.forEach(s=>s.disconnect());service.close();}};
 }
+test("2.7.2 undefined wrapper arguments survive Socket.IO null serialization and match a modern free duel",async()=>{
+ const f=await fixture();try{
+  const legacy=await f.connect(),modern=await f.connect();
+  const queued=wait(legacy,"match:queued");
+  // Exact wrapper used by 2.7.2: socket.emit(event, payload, ack).
+  legacy.emit("match:find",undefined,undefined);
+  const waiting=await queued;assert.equal(waiting.mode,"solo");assert.equal(waiting.entryFee,0);
+  const found=wait(legacy,"match:found");modern.emit("match:find",{mode:"solo",entryFee:0});
+  const match=await found;assert.equal(match.queueMode,"solo");assert.equal(match.settings.entryFee,0);assert.equal(match.players.length,2);
+ }finally{f.close();}
+});
+test("legacy fallback still rejects malformed modern requests",async()=>{
+ const f=await fixture();try{
+  const client=await f.connect();
+  for(const payload of [{},{mode:"unknown"},{mode:"solo",entryFee:-1}]){
+   const error=wait(client,"online:error");client.emit("match:find",payload);assert.equal((await error).code,"invalid_payload");
+  }
+ }finally{f.close();}
+});
 test("real sockets keep team, four-player solo and legacy duels separate and run all three games",async()=>{
  const f=await fixture();try{
   const clients:Socket[]=[];for(let i=0;i<10;i++)clients.push(await f.connect());const team=clients.slice(0,4),four=clients.slice(4,8),solo=clients.slice(8,10);
