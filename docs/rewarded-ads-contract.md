@@ -10,7 +10,7 @@ Client entry points: a voluntary coin ad on Home; loss recovery only on a finish
 - Configure the AdMob rewarded unit's server-side-verification callback. Validate Google's callback signature/key and all signed fields, ad unit, transaction ID, token, player, expiry, and intended reward. A client EARNED_REWARD event is not proof of payment.
 - Atomically persist and credit each verified transaction once into the unified wallet. Enforce unique transaction IDs and one recovery per player/match. Lost paid match membership and the original entry fee must come from authoritative match/entry records. Wins, draws, refunded/cancelled entries and private matches are ineligible.
 
-Updated daily-page design: six ad milestones labelled 100/250/500/1000/1500/2000. Whether these are separate payouts or cumulative milestones is awaiting confirmation; no total or payout formula is implemented. This supersedes the earlier 50-coin/five-ad proposal. Suggested recovery remains min(original paid entry, 500), once per eligible lost match (100 -> 100, 500 -> 500, 1000 -> 500, 2500 -> 500); backend rules are not active.
+Updated daily-page design: six ad milestones labelled 100/250/500/1000/1500/2000. The user confirmed separate per-ad payouts, totalling 5350 coins per day. The backend must enforce six verified ads per day and award the correct next amount atomically. This supersedes the earlier 50-coin/five-ad proposal. Suggested recovery remains min(original paid entry, 500), once per eligible lost match (100 -> 100, 500 -> 500, 1000 -> 500, 2500 -> 500); backend rules are not active.
 
 ## Implemented client behavior
 

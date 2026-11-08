@@ -6,6 +6,6 @@ Browser development builds link from Home to /ad-rewards?preview=ads for a clear
 
 Outside that development-only browser mode, all viewing is disabled with a service-unavailable explanation. No actual daily count, reset or payout is enforced locally. Backend/Supabase activation remains explicitly declined. The existing secure rewarded-ad adapter and loss-recovery preparation remain separate and pending backend integration.
 
-The interpretation of the displayed milestones is awaiting the user's answer: individual payouts totalling 5350, or cumulative milestones ending at 2000. No daily total or payout formula is assumed or implemented.
+The user confirmed independent payouts for each ad: 100 + 250 + 500 + 1000 + 1500 + 2000 = 5350 coins per day. The display configuration declares per-ad mode and derives the total; actual credit and daily enforcement remain server responsibilities and are not activated.
 
 Validation: TypeScript and focused ESLint passed. Browser verification exercised all six stages, confirmed no seventh watch button, checked six completed stages and unchanged 2000 wallet, reset the showcase, verified real viewing is disabled without preview mode, and followed the Home link to the new page. Actual native ads and daily server progression were not tested or enabled. No production changes, build or push.
