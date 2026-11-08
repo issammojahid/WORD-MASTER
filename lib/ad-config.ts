@@ -22,6 +22,6 @@ export function getAdUnitId(format: AdFormat): string | undefined {
     return testAdUnitIds[format];
   }
 
-  if (Platform.OS !== "android" || format === "rewarded") return undefined;
+  if (Platform.OS !== "android") return undefined;
   return androidProductionAdUnitIds[format];
 }

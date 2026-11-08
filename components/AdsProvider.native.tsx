@@ -30,6 +30,7 @@ let initialization: Promise<void> | null = null;
 type Format = "consent" | "sdk" | "appOpen" | "banner";
 type Diagnostic = { format: Format; status: string; code?: string; at: number };
 type AdsContextValue = {
+  acquireRewardedSlot: () => (() => void) | null;
   adRequestVersion: number;
   canRequestAds: boolean;
   isFullScreenAdActive: boolean;
@@ -40,6 +41,7 @@ type AdsContextValue = {
   reportAdEvent: (format: Format, status: string, error?: unknown) => void;
 };
 const AdsContext = createContext<AdsContextValue>({
+  acquireRewardedSlot: () => null,
   adRequestVersion: 0,
   canRequestAds: false,
   isFullScreenAdActive: false,
@@ -63,6 +65,12 @@ export function AdsProvider({ children }: React.PropsWithChildren) {
     preparing = useRef(false),
     privacyBusy = useRef(false),
     generation = useRef(0);
+  const rewardBusy=useRef(false);
+  const acquireRewardedSlot=useCallback(()=>{
+   if(!mounted.current||!permission.current||showing.current||rewardBusy.current||privacyBusy.current||AppState.currentState!=="active")return null;
+   rewardBusy.current=true;setFullScreen(true);let released=false;
+   return()=>{if(released)return;released=true;rewardBusy.current=false;if(mounted.current)setFullScreen(false);};
+  },[]);
   const ad = useRef<AppOpenAd | null>(null),
     listeners = useRef<(() => void)[]>([]),
     loaded = useRef(false),
@@ -127,7 +135,7 @@ export function AdsProvider({ children }: React.PropsWithChildren) {
       !mounted.current ||
       !permission.current ||
       AppState.currentState !== "active" ||
-      showing.current ||
+      showing.current || rewardBusy.current ||
       loading.current
     )
       return;
@@ -297,7 +305,7 @@ export function AdsProvider({ children }: React.PropsWithChildren) {
         canShowAppOpen({
           allowed: permission.current,
           home: pathRef.current === "/",
-          showing: showing.current,
+          showing: showing.current||rewardBusy.current,
           capReady: capReady.current,
           loaded: loaded.current,
           loadedAt: loadedAt.current,
@@ -314,7 +322,7 @@ export function AdsProvider({ children }: React.PropsWithChildren) {
         void Promise.resolve()
           .then(() => {
             if (
-              !permission.current ||
+              !permission.current || rewardBusy.current ||
               !mounted.current ||
               ad.current !== request
             )
@@ -386,6 +394,7 @@ export function AdsProvider({ children }: React.PropsWithChildren) {
   return (
     <AdsContext.Provider
       value={{
+        acquireRewardedSlot,
         adRequestVersion,
         canRequestAds: allowed,
         isFullScreenAdActive: fullScreen,

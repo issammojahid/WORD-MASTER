@@ -1,3 +1,4 @@
+import {RewardedCoinsCard} from "./RewardedCoinsCard";
 import {rankedOutcome} from "@/lib/match-outcome";
 import {useResultSound} from "@/lib/use-result-sound";
 import {RoomSettingsSummary} from "@/components/RoomSettingsSummary";
@@ -730,6 +731,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
         {isFinished && match && (
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
 
+            {resultOutcome==="lose"&&match.mode==="random"&&(match.settings.entryFee??0)>0?<RewardedCoinsCard key={match.matchId} matchId={match.matchId}/>:null}
             <View style={styles.onlineResultHero}>
               <GameIllustration
                 name={ownWinner ? "victory" : "defeat"}

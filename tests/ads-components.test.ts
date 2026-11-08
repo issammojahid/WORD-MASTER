@@ -88,6 +88,20 @@ async function setup(options: Record<string, unknown> = {}) {
     },
   };
 }
+test('rewarded fullscreen slot blocks duplicate reward requests and app-open overlap',async(t)=>{
+ t.mock.timers.enable({apis:['setTimeout','Date'],now:5_000_000});
+ const app=await setup();
+ try{
+  let release:any;await act(async()=>{release=app.context().acquireRewardedSlot();});
+  assert.equal(typeof release,'function');assert.equal(app.context().isFullScreenAdActive,true);
+  assert.equal(app.context().acquireRewardedSlot(),null);
+  await app.state('background');await act(async()=>t.mock.timers.tick(30000));await app.state('active');
+  assert.equal(app.env.shows,0,'app-open cannot cover the rewarded flow');
+  await act(async()=>{release();release();});assert.equal(app.context().isFullScreenAdActive,false);
+  let again:any;await act(async()=>{again=app.context().acquireRewardedSlot();});assert.equal(typeof again,'function');await act(async()=>again());
+ }finally{await app.close();}
+});
+
 test("native provider initializes after a permitted cached consent fallback, but blocks unpermitted requests", async () => {
   let app = await setup({ consentError: true });
   try {

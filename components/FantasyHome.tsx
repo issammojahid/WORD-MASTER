@@ -1,3 +1,4 @@
+import {RewardedCoinsCard} from "./RewardedCoinsCard";
 import {ScaledText as Text} from "@/components/ScaledText";
 import React from 'react';
 import {Image, Pressable, ScrollView, StyleSheet, View, useWindowDimensions} from 'react-native';
@@ -22,7 +23,7 @@ export function FantasyHome({onOfflinePress,onOnlinePress,hasLocalProfileError}:
    <Pressable accessibilityRole="button" accessibilityLabel="الإعدادات" onPress={()=>router.push('/settings')} style={s.settings}><RoyalSurface style={{padding:4,alignItems:'center',justifyContent:'center',height:43}}><RoyalIcon name="settings" size={30}/></RoyalSurface></Pressable>
   </View>
   <GameModeCarousel isRTL={isRTL} offlineTitle={t.offlineMode} offlineDescription={t.playOfflineHint} offlineButtonLabel={t.playOffline} onlineTitle={t.onlineMode} onlineDescription={t.onlineModeHint} onlineButtonLabel={t.playOnline} selectorLabel={t.chooseGameMode} swipeHint="اسحب لاختيار الوضع" onOfflinePress={onOfflinePress} onOnlinePress={onOnlinePress} onTeamPress={()=>router.push('/team-up')} onFourPress={()=>router.push('/four-players')} onFriendsPress={()=>router.push('/private-room')}/>
-  <View style={s.lower}><SeasonEventCarousel/>
+  <View style={s.lower}><SeasonEventCarousel/><RewardedCoinsCard/>
    <View style={s.shortcutRow}>{([{route:'/daily-challenge',label:'تحدي اليوم',icon:'tasks'},{route:'/spin',label:'هدية اليوم',icon:'gift'},{route:'/clans',label:'العشائر',icon:'clan'}] as const).map(item=><Pressable key={item.route} accessibilityRole="button" accessibilityLabel={item.label} onPress={()=>router.push(item.route)} style={{flex:1}}><RoyalSurface style={s.shortcut}><RoyalIcon name={item.icon} size={36}/><Text style={s.shortcutLabel}>{item.label}</Text></RoyalSurface></Pressable>)}</View>
 <HomeBannerAd/>
   </View>
