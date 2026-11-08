@@ -12,6 +12,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { getApiUrl } from "@/lib/query-client";
 import { fetch } from "expo/fetch";
 import { CoinBalance, GameHeader, GameScreenBackground } from "@/components/GameUi";
+import {RoyalIcon} from "@/components/RoyalUi";
 import { GameIcon as FeatureIcon } from "@/components/GameIcon";
 import { gameDesign } from "@/constants/game-design";
 
@@ -127,8 +128,8 @@ export default function ClansScreen() {
       const data = await res.json();
       if (!res.ok) {
         const msgs: Record<string, string> = {
-          already_in_clan: "أنت بالفعل في عصابة",
-          insufficient_coins: "تحتاج 500 عملة لإنشاء عصابة",
+          already_in_clan: "أنت بالفعل في عشيرة",
+          insufficient_coins: "تحتاج 500 عملة لإنشاء عشيرة",
           name_taken: "هذا الاسم مأخوذ، جرب اسماً آخر",
           missing_params: "بيانات ناقصة",
         };
@@ -138,7 +139,7 @@ export default function ClansScreen() {
         setCreateName("");
         setCreateEmoji("⚔️");
         await fetchMyClan();
-        Alert.alert("تهانينا!", `تم إنشاء عصابة "${createEmoji} ${createName.trim()}" بنجاح!`);
+        Alert.alert("تهانينا!", `تم إنشاء عشيرة "${createEmoji} ${createName.trim()}" بنجاح!`);
       }
     } catch {
       Alert.alert("خطأ", "تعذر الاتصال بالخادم");
@@ -160,9 +161,9 @@ export default function ClansScreen() {
       const data = await res.json();
       if (!res.ok) {
         const msgs: Record<string, string> = {
-          already_in_clan: "أنت بالفعل في عصابة",
-          clan_full: "العصابة ممتلئة (الحد الأقصى 20 عضو)",
-          not_found: "لم يتم العثور على العصابة",
+          already_in_clan: "أنت بالفعل في عشيرة",
+          clan_full: "العشيرة ممتلئة (الحد الأقصى 20 عضو)",
+          not_found: "لم يتم العثور على العشيرة",
         };
         Alert.alert("خطأ", msgs[data.error] || "حدث خطأ");
       } else {
@@ -170,7 +171,7 @@ export default function ClansScreen() {
         setSearchQ("");
         setSearchResults([]);
         await fetchMyClan();
-        Alert.alert("أهلاً وسهلاً!", `انضممت إلى عصابة "${clanName}" 🎉`);
+        Alert.alert("أهلاً وسهلاً!", `انضممت إلى عشيرة "${clanName}" 🎉`);
       }
     } catch {
       Alert.alert("خطأ", "تعذر الاتصال بالخادم");
@@ -182,7 +183,7 @@ export default function ClansScreen() {
   const handleLeave = () => {
     if (!myClan) return;
     Alert.alert(
-      "مغادرة العصابة",
+      "مغادرة العشيرة",
       `هل تريد مغادرة "${myClan.emoji} ${myClan.name}"؟`,
       [
         { text: "إلغاء", style: "cancel" },
@@ -197,7 +198,7 @@ export default function ClansScreen() {
               });
               if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
-                Alert.alert("خطأ", data.error === "not_a_member" ? "أنت لست عضواً في هذه العصابة" : "تعذرت المغادرة، حاول مرة أخرى");
+                Alert.alert("خطأ", data.error === "not_a_member" ? "أنت لست عضواً في هذه العشيرة" : "تعذرت المغادرة، حاول مرة أخرى");
               } else {
                 setMyClan(null);
               }
@@ -235,7 +236,7 @@ export default function ClansScreen() {
         setShowRename(false);
         setRenameInput("");
         await fetchMyClan();
-        Alert.alert("تم!", "تم تغيير اسم العصابة بنجاح ✅");
+        Alert.alert("تم!", "تم تغيير اسم العشيرة بنجاح ✅");
       }
     } catch {
       Alert.alert("خطأ", "تعذر الاتصال بالخادم");
@@ -248,7 +249,7 @@ export default function ClansScreen() {
     if (!myClan) return;
     Alert.alert(
       "طرد العضو",
-      `هل تريد طرد "${targetName}" من العصابة؟`,
+      `هل تريد طرد "${targetName}" من العشيرة؟`,
       [
         { text: "إلغاء", style: "cancel" },
         {
@@ -263,7 +264,7 @@ export default function ClansScreen() {
               if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
                 const msg = data.error === "not_leader" ? "أنت لست القائد"
-                  : data.error === "not_a_member" ? "هذا اللاعب ليس في عصابتك"
+                  : data.error === "not_a_member" ? "هذا اللاعب ليس في عشيرتك"
                   : "تعذر الطرد، حاول مرة أخرى";
                 Alert.alert("خطأ", msg);
               } else {
@@ -289,7 +290,7 @@ export default function ClansScreen() {
         <GameHeader
           title="العشائر"
           onBack={() => router.back()}
-          icon={<FeatureIcon name="clans" size={23} color={gameDesign.colors.clans} />}
+          icon={<RoyalIcon name="clan" size={30} />}
           trailing={<View style={styles.headerBalance}><CoinBalance amount={profile.coins} /></View>}
         />
         <FantasySectionBanner kind="clans" />
@@ -325,20 +326,20 @@ export default function ClansScreen() {
       <Modal visible={showCreate} transparent animationType="fade" onRequestClose={() => setShowCreate(false)}>
         <View style={[styles.modalOverlay, { backgroundColor: "rgba(0,0,0,0.75)" }]}>
           <View style={[styles.modalCard, { backgroundColor: theme.modalBg }]}>
-            <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>إنشاء عصابة جديدة</Text>
+            <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>إنشاء عشيرة جديدة</Text>
             <View style={styles.modalCost}>
               <Text style={[styles.modalSubtitle, { color: theme.textSecondary }]}>التكلفة: 500 عملة</Text>
               <FeatureIcon name="coins" size={18} color={gameDesign.colors.coins} />
             </View>
 
-            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>اسم العصابة</Text>
+            <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>اسم العشيرة</Text>
             <TextInput
               style={[styles.input, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.inputText }]}
               value={createName}
               onChangeText={setCreateName}
               maxLength={20}
               textAlign="right"
-              placeholder="اسم العصابة..."
+              placeholder="اسم العشيرة..."
               placeholderTextColor={theme.inputPlaceholder}
             />
 
@@ -375,7 +376,7 @@ export default function ClansScreen() {
       <Modal visible={showRename} transparent animationType="fade" onRequestClose={() => setShowRename(false)}>
         <View style={[styles.modalOverlay, { backgroundColor: "rgba(0,0,0,0.75)" }]}>
           <View style={[styles.modalCard, { backgroundColor: theme.modalBg }]}>
-            <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>تغيير اسم العصابة</Text>
+            <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>تغيير اسم العشيرة</Text>
             <Text style={[styles.inputLabel, { color: theme.textSecondary }]}>الاسم الجديد</Text>
             <TextInput
               style={[styles.input, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.inputText }]}
@@ -383,7 +384,7 @@ export default function ClansScreen() {
               onChangeText={setRenameInput}
               maxLength={20}
               textAlign="right"
-              placeholder="اسم العصابة..."
+              placeholder="اسم العشيرة..."
               placeholderTextColor={theme.inputPlaceholder}
               autoFocus
             />
@@ -407,12 +408,12 @@ export default function ClansScreen() {
       <Modal visible={showJoin} transparent animationType="fade" onRequestClose={() => { setShowJoin(false); setSearchQ(""); setSearchResults([]); }}>
         <View style={[styles.modalOverlay, { backgroundColor: "rgba(0,0,0,0.75)" }]}>
           <View style={[styles.modalCard, { backgroundColor: theme.modalBg }]}>
-            <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>الانضمام لعصابة</Text>
+            <Text style={[styles.modalTitle, { color: theme.textPrimary }]}>الانضمام لعشيرة</Text>
             <TextInput
               style={[styles.input, { backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.inputText }]}
               value={searchQ}
               onChangeText={handleSearch}
-              placeholder="ابحث عن عصابة..."
+              placeholder="ابحث عن عشيرة..."
               placeholderTextColor={theme.inputPlaceholder}
               textAlign="right"
               autoFocus
@@ -458,11 +459,11 @@ function NoClanView({ profile, theme, onCreate, onJoin }: { profile: ReturnType<
   return (
     <View style={styles.noClanContainer}>
       <View style={styles.noClanIcon}>
-        <FeatureIcon name="clans" size={54} color={gameDesign.colors.clans} />
+        <RoyalIcon name="clan" size={62} />
       </View>
-      <Text style={[styles.noClanTitle, { color: theme.textPrimary }]}>لست في أي عصابة</Text>
+      <Text style={[styles.noClanTitle, { color: theme.textPrimary }]}>لست في أي عشيرة</Text>
       <Text style={[styles.noClanDesc, { color: theme.textSecondary }]}>
-        انضم لعصابة أو أنشئ عصابتك الخاصة وشارك في حروب العصابات الأسبوعية!
+        انضم لعشيرة أو أنشئ عشيرتك الخاصة وشارك في حروب العشائر الأسبوعية!
       </Text>
 
       <View style={styles.rewardInfo}>
@@ -486,14 +487,14 @@ function NoClanView({ profile, theme, onCreate, onJoin }: { profile: ReturnType<
       <TouchableOpacity style={styles.createBtn} onPress={onCreate} activeOpacity={0.85}>
         <LinearGradient colors={[gameDesign.colors.clans, "#966BC4"]} style={styles.createBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
           <Ionicons name="add-circle" size={20} color="#fff" />
-          <Text style={styles.createBtnText}>إنشاء عصابة (500 عملة)</Text>
+          <Text style={styles.createBtnText}>إنشاء عشيرة (500 عملة)</Text>
           <FeatureIcon name="coins" size={18} color={gameDesign.colors.coins} />
         </LinearGradient>
       </TouchableOpacity>
       <Text style={[styles.orText, { color: theme.textMuted }]}>— أو —</Text>
       <TouchableOpacity style={[styles.joinBtn, { backgroundColor: theme.card, borderColor: theme.cardBorder }]} onPress={onJoin} activeOpacity={0.85}>
         <Ionicons name="search" size={18} color={gameDesign.colors.clans} />
-        <Text style={[styles.joinBtnTextLarge, { color: gameDesign.colors.clans }]}>البحث عن عصابة والانضمام</Text>
+        <Text style={[styles.joinBtnTextLarge, { color: gameDesign.colors.clans }]}>البحث عن عشيرة والانضمام</Text>
       </TouchableOpacity>
 
       <View style={styles.balanceNote}>
@@ -563,7 +564,7 @@ function MyClanView({
           <Text style={[styles.warInfoTitle, { color: gameDesign.colors.coins }]}>حرب هذا الأسبوع</Text>
         </View>
         <Text style={[styles.warInfoDesc, { color: theme.textSecondary }]}>
-          كل انتصار يُضيف نقطة لعصابتك. العصابة الأولى تفوز بـ 300 عملة لكل عضو!
+          كل انتصار يُضيف نقطة لعشيرتك. العشيرة الأولى تفوز بـ 300 عملة لكل عضو!
         </Text>
       </View>
 
@@ -592,7 +593,7 @@ function MyClanView({
       {/* Leave button */}
       <TouchableOpacity style={styles.leaveBtn} onPress={onLeave} activeOpacity={0.8}>
         <Ionicons name="exit-outline" size={18} color={gameDesign.colors.danger} />
-        <Text style={styles.leaveBtnText}>مغادرة العصابة</Text>
+        <Text style={styles.leaveBtnText}>مغادرة العشيرة</Text>
       </TouchableOpacity>
     </View>
   );

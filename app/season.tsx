@@ -1,3 +1,6 @@
+import {INTERNAL_SHOWCASE_ENABLED} from "@/constants/release-content";
+import {SeasonAvailability} from "@/components/SeasonAvailability";
+import {useSeasonNow} from "@/lib/use-season-now";
 import {SeasonEventArtwork} from "@/components/SeasonEventArtwork";
 import {SeasonGiftCards} from "@/components/SeasonGiftCards";
 import {ScaledText as Text} from "@/components/ScaledText";
@@ -16,13 +19,15 @@ import {useTheme} from '@/contexts/ThemeContext';
 
 export default function SeasonScreen(){
  const {event:requested}=useLocalSearchParams<{event?:string}>(),{theme}=useTheme(),insets=useSafeAreaInsets(),{width,fontScale}=useWindowDimensions();
+ const now=useSeasonNow();
  const event=SEASON_EVENTS.find(item=>item.id===requested)??SEASON_EVENTS[0];
  const [kind,setKind]=useState<SeasonCategory>('avatar'),[selected,setSelected]=useState<SeasonPreviewItem|null>(null),[modal,setModal]=useState<'item'|'chest'|null>(null);
  const [giftPreview,setGiftPreview]=useState(false);
  const [chestReplay,setChestReplay]=useState(0);
  const items=seasonPreviewItems(event.id),visible=items.filter(item=>item.kind===kind),current=selected?.event===event.id&&selected.kind===kind?selected:visible[0];
  const previewSize=Math.min(280,Math.max(176,width-88)),previewHeight=modal==="chest"?300:280;
- const columns=fontScale>1.3?3:5,tileWidth=(Math.min(width,760)-28-(columns-1)*6)/columns,phase=eventPhase(event,Date.now());
+ const columns=fontScale>1.3?3:5,tileWidth=(Math.min(width,760)-28-(columns-1)*6)/columns,phase=eventPhase(event,now);
+ if(!INTERNAL_SHOWCASE_ENABLED)return <SeasonAvailability eventId={event.id} now={now}/>;
  return <View style={{flex:1,backgroundColor:theme.background,paddingTop:Platform.OS==='web'?16:insets.top}}>
   <GameScreenBackground/><GameHeader title={event.title} subtitle={event.dates} onBack={()=>router.back()}/>
   <ScrollView contentContainerStyle={[s.content,{paddingBottom:Math.max(28,insets.bottom)}]} showsVerticalScrollIndicator={false}>

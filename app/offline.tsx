@@ -1,4 +1,4 @@
-import {PowerCardToolbar} from "@/components/UpcomingGameControls";
+import {useResultSound} from "@/lib/use-result-sound";
 import {ScaledText as Text} from "@/components/ScaledText";
 import {MatchRoster} from "@/components/MatchRoster";
 import {AnswerSheet} from "@/components/AnswerSheet";
@@ -228,6 +228,7 @@ export default function OfflineScreen() {
   const highestBotScore = Math.max(...Object.values(botScores));
   const playerWon = totalScore > highestBotScore;
   const matchDraw = totalScore === highestBotScore;
+  useResultSound(phase==="gameOver"?"offline-result":null,playerWon?"win":matchDraw?"draw":"lose");
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: topInset, paddingBottom: bottomInset }]}>
@@ -333,7 +334,7 @@ export default function OfflineScreen() {
           keyboardShouldPersistTaps="handled"
           bottomOffset={24}
         >
-          <PowerCardToolbar/>
+
           <View style={{flexDirection:"row-reverse",gap:10,alignItems:"stretch"}}>
           <View style={[styles.timerCard, {flex:1,justifyContent:"center",minWidth:0}, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
             <View style={styles.timerLabels}>

@@ -15,7 +15,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import Colors from "@/constants/colors";
 import { getPlayerDisplayId } from "@/lib/player-code";
 import { getApiUrl } from "@/lib/query-client";
-import { updateNotificationSetting, getNotificationSettings } from "@/lib/notifications";
+import { updateNotificationSetting, getNotificationSettings } from "@/lib/local-reminders";
 import { getCountryInfo, CountryPickerModal } from "@/lib/countries";
 import { GameHeader, GameScreenBackground } from "@/components/GameUi";
 import { GameIcon } from "@/components/GameIcon";
@@ -46,7 +46,7 @@ export default function SettingsScreen() {
   const [refClaiming, setRefClaiming] = useState(false);
   const [refAlreadyClaimed, setRefAlreadyClaimed] = useState(false);
   const [refEligible, setRefEligible] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
   const topInset = Platform.OS === "web" ? 20 : insets.top;
   const bottomInset = Platform.OS === "web" ? 34 : insets.bottom;
@@ -94,7 +94,7 @@ export default function SettingsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (playerId) {
       const ok = await updateNotificationSetting(playerId, value);
-      if (!ok) setNotificationsEnabled(!value);
+      if (!ok) {setNotificationsEnabled(!value);Alert.alert("الإشعارات", "تعذر تفعيل التذكيرات. راجع إذن الإشعارات في إعدادات جهازك.");}
     }
   };
 
@@ -171,6 +171,7 @@ export default function SettingsScreen() {
 
         <SettingsQuickGrid notifications={notificationsEnabled} onNotifications={value=>void handleToggleNotifications(value)}/>
 
+        <Text style={{fontFamily:"Cairo_400Regular",fontSize:11,color:theme.textMuted,textAlign:"center"}}>عند التفعيل: 5 تذكيرات يومياً، من 10 صباحاً إلى 9 مساءً حسب وقت جهازك.</Text>
         <RoyalSettingsFooter/>
         <FantasySettingsSection title="إعدادات الحساب ومعلومات اللعب">
         {/* ── Referral System ──────────────────────────── */}

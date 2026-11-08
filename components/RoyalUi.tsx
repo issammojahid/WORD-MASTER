@@ -1,12 +1,14 @@
+import {ClanEmblem} from "./ClanEmblem";
 import {ScaledText as Text} from "@/components/ScaledText";
 import React,{useId} from 'react';
 import {Text as NativeText, Image, Pressable, StyleSheet, View, type StyleProp, type ViewStyle,type ViewProps} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
 import Svg,{Defs,LinearGradient as SvgGradient,Stop,Path,Pattern} from 'react-native-svg';
 
-export type RoyalIconName='podium'|'coins'|'trophy'|'swords'|'music'|'speaker'|'bell'|'motion'|'quality'|'globe'|'scroll'|'settings'|'home'|'store'|'tasks'|'gift'|'privacy';
+export type RoyalIconName='clan'|'podium'|'coins'|'trophy'|'swords'|'music'|'speaker'|'bell'|'motion'|'quality'|'globe'|'scroll'|'settings'|'home'|'store'|'tasks'|'gift'|'privacy';
 const ICONS:RoyalIconName[]=['coins','trophy','swords','music','speaker','bell','motion','quality','globe','scroll','settings','home','store','tasks','gift','privacy'];
 export function RoyalIcon({name,size=40}:{name:RoyalIconName;size?:number}){
+ if(name==='clan')return <View pointerEvents="none" style={{width:size,height:size}}><ClanEmblem size={size}/></View>;
  if(name==='podium')return <View pointerEvents="none"><Image source={require('../assets/ui-2027/leaderboard-podium.png')} resizeMode="contain" fadeDuration={0} style={{width:size,height:size}}/></View>;
  const index=ICONS.indexOf(name);
  return <View pointerEvents="none" style={{width:size,height:size,overflow:'hidden'}}><Image source={require('../assets/ui-2027/royal-icons.png')} resizeMode="stretch" fadeDuration={0} style={{position:'absolute',width:size*4,height:size*4,left:-(index%4)*size,top:-Math.floor(index/4)*size}}/></View>;

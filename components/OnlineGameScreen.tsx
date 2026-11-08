@@ -1,4 +1,5 @@
-import {PowerCardToolbar,RewardAdPreview} from "@/components/UpcomingGameControls";
+import {rankedOutcome} from "@/lib/match-outcome";
+import {useResultSound} from "@/lib/use-result-sound";
 import {RoomSettingsSummary} from "@/components/RoomSettingsSummary";
 import {AnswerSheet} from "@/components/AnswerSheet";
 import {EntryFeePicker} from "@/components/EntryFeePicker";
@@ -494,6 +495,8 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
 
   const ownTeam=match?.teams?.find(team=>team.playerIds.includes(principalId));
   const ownWinner=match?.settings.teamMode==="duo"?ownTeam?.rank===1&&!ownTeam.forfeited:finalPlayers?.find(player=>player.playerId===principalId)?.rank===1;
+  const resultOutcome=match?.settings.teamMode==="duo"?rankedOutcome(ownTeam,match.teams??[]):rankedOutcome(finalPlayers?.find(player=>player.playerId===principalId),finalPlayers??[]);
+  useResultSound(match?.phase==="finished"?match.matchId:null,resultOutcome);
   const pageTitle = match?.phase === "playing"
     ? `${t.round} ${match.round}/${match.totalRounds}`
     : match?.phase === "finished"
@@ -693,7 +696,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
         )}
 
         {isPlaying && match && <View style={{gap:12}}>
-          <PowerCardToolbar/>
+
           {match.settings.teamMode!=="duo"?<MatchRoster players={match.players} ownId={principalId}/>:null}
           <View style={{gap:7}}><View style={{flexDirection:"row",justifyContent:"space-between"}}><Text style={[styles.timerText,{color:secondsLeft<=10?"#FF8798":CYAN}]}>{secondsLeft}s</Text><Text style={[styles.bodyText,{color:theme.textSecondary}]}>{t.round} {match.round} / {match.totalRounds}</Text></View><View style={{height:8,borderRadius:8,overflow:"hidden",backgroundColor:theme.card}}><View style={{height:"100%",width:`${Math.max(0,Math.min(1,secondsLeft/match.settings.secondsPerRound))*100}%`,backgroundColor:secondsLeft<=10?"#FF8798":CYAN}}/></View></View>
           <View style={[styles.gameMeta,{justifyContent:"center",gap:14}]}><Text style={[styles.settingLabel,{color:theme.textSecondary}]}>{t.currentLetter}</Text><View style={[styles.letterBadge,{borderColor:CYAN,backgroundColor:theme.card}]}><Text style={styles.letterText}>{match.letter}</Text></View></View>
@@ -726,7 +729,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
 
         {isFinished && match && (
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-            {!ownWinner&&match.mode==="random"?<RewardAdPreview entryFee={match.settings.entryFee}/>:null}
+
             <View style={styles.onlineResultHero}>
               <GameIllustration
                 name={ownWinner ? "victory" : "defeat"}

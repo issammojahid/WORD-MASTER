@@ -1,3 +1,4 @@
+import {useResultSound} from "@/lib/use-result-sound";
 import {ScaledText as Text} from "@/components/ScaledText";
 import { fetchWithTimeout } from "@/lib/network";
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -179,6 +180,7 @@ export default function DailyChallengeScreen() {
     return result;
   }
 
+  useResultSound(resultModal?"daily-result":null,won?"win":"lose");
   function updateLetterMap(allGuesses: ColoringEntry[][]) {
     const map: Record<string, LetterStatus> = {};
     for (const row of allGuesses) {

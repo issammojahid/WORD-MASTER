@@ -4,6 +4,7 @@ import { Platform } from "react-native";
 const SOUND_FILES = {
   correct: require("../assets/sounds/correct.mp3"),
   wrong:   require("../assets/sounds/wrong.mp3"),
+  draw: require("../assets/sounds/draw.wav"),
   win:     require("../assets/sounds/win.mp3"),
   lose:    require("../assets/sounds/lose.mp3"),
   laugh:   require("../assets/sounds/laugh.mp3"),
@@ -44,13 +45,13 @@ async function loadSound(name: SoundName): Promise<Audio.Sound | null> {
   }
 }
 
-export async function playSound(name: SoundName): Promise<void> {
+export async function playSound(name: SoundName, allowed:()=>boolean=()=>true): Promise<void> {
   if (Platform.OS === "web") return;
   try {
     const sound = await loadSound(name);
-    if (!sound) return;
+    if (!sound || !allowed()) return;
     await sound.setPositionAsync(0);
-    await sound.playAsync();
+    if(allowed()) await sound.playAsync();
   } catch {}
 }
 
@@ -68,3 +69,5 @@ export async function unloadAllSounds(): Promise<void> {
   cache.clear();
   audioModeInitialized = false;
 }
+
+export async function stopSound(name:SoundName){try{await cache.get(name)?.stopAsync();}catch{}}

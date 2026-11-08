@@ -1,3 +1,4 @@
+import {INTERNAL_SHOWCASE_ENABLED} from "@/constants/release-content";
 import {RoyalSurface} from "@/components/RoyalUi";
 import {SeasonCatalogArtwork} from "@/components/SeasonCatalogArtwork";
 import {SeasonItemPreview} from "@/components/SeasonItemPreview";
@@ -346,7 +347,7 @@ export default function StoreScreen() {
 
   const selectionOwned=selectedKind==="skin"?profile.ownedSkins.includes(selectedItemId as SkinId):profile.ownedCosmetics[selectedKind].includes(selectedItemId);
   const seasonEvent=SEASON_EVENTS[initialSeasonIndex(Date.now())],seasonKind=selectedKind==="skin"?"avatar":selectedKind==="seasonal"?"icon":selectedKind;
-  const seasonItems=seasonPreviewItems(seasonEvent.id).filter(item=>item.kind===seasonKind);
+  const seasonItems=INTERNAL_SHOWCASE_ENABLED?seasonPreviewItems(seasonEvent.id).filter(item=>item.kind===seasonKind):[];
   function activateSelected(){if(selectionOwned){if(selectedKind==="skin")equipSkin(selectedItemId as SkinId);else equipCosmetic(selectedKind,selectedItemId);}else{setPreviewOpen(false);setPendingPurchase({id:selectedItemId,kind:selectedKind,price:selectedProduct.price});}}
 
   return (
@@ -474,7 +475,7 @@ export default function StoreScreen() {
           </View>
         ) : null}
 
-        <Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:"#FFE3A6",textAlign:"right"}}>{seasonEvent.title} · معاينة المظاهر القادمة</Text>
+        {INTERNAL_SHOWCASE_ENABLED?<Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:"#FFE3A6",textAlign:"right"}}>{seasonEvent.title} · معاينة المظاهر القادمة</Text>:null}
         <View style={styles.catalog}>{seasonItems.map(item=><Pressable key={item.key} accessibilityRole="button" accessibilityLabel={`معاينة موسمية: ${item.name}`} onPress={()=>{setSeasonSelection(item);setSeasonPreviewOpen(true);}} style={[styles.productCard,{width:cardWidth,borderColor:seasonSelection?.key===item.key?"#3DE4D4":"#C2985F",backgroundColor:theme.card}]}><SeasonCatalogArtwork item={item} size={Math.max(30,cardWidth-6)}/><Text numberOfLines={1} style={[styles.productName,{color:theme.textPrimary}]}>{item.name}</Text><Text style={{fontFamily:"Cairo_600SemiBold",fontSize:9,color:"#81EADD"}}>قريباً</Text></Pressable>)}</View>
         <Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:"#FFE3A6",textAlign:"right"}}>المجموعة الأساسية</Text>
         <View style={styles.catalog}>

@@ -1,4 +1,3 @@
-import {WeeklyRewardPreview} from "@/components/WeeklyRewardPreview";
 import {ScaledText as Text} from "@/components/ScaledText";
 import {RoyalSurface,RoyalIcon} from "@/components/RoyalUi";
 import {ProgressTabs} from "@/components/ProgressTabs";
@@ -343,7 +342,7 @@ title="المهام والإنجازات"
                 theme={theme}
               /></View>
             ))}</View>
-            <WeeklyRewardPreview/>
+
             <EarnedAchievements/>
           </ScrollView>
         )}

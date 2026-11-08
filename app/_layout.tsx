@@ -1,3 +1,4 @@
+import {useAppActive} from "@/lib/use-app-active";
 import {ScaledText as Text} from "@/components/ScaledText";
 import { PlayerNameForm } from "@/components/PlayerNameForm";
 import {
@@ -32,7 +33,7 @@ import { StartupProvider } from "@/contexts/StartupContext";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import SplashOverlay from "@/components/SplashOverlay";
 import CinematicIntro, { INTRO_SEEN_KEY } from "@/components/CinematicIntro";
-import { registerForPushNotifications, getPermissionsStatus } from "@/lib/notifications";
+import { setLocalReminders, syncLocalReminders, getPermissionsStatus } from "@/lib/local-reminders";
 import { gameDesign } from "@/constants/game-design";
 
 SplashScreen.preventAutoHideAsync();
@@ -40,9 +41,11 @@ SplashScreen.preventAutoHideAsync();
 const NOTIF_PROMPT_KEY = "notif_prompt_shown_v1";
 
 function PushNotificationRegistrar() {
+  const active=useAppActive();
   const { playerId } = usePlayer();
   const [showModal, setShowModal] = useState(false);
   const checkedRef = useRef(false);
+  useEffect(()=>{if(active)void syncLocalReminders().catch(()=>{});},[active]);
 
   useEffect(() => {
     if (!playerId || checkedRef.current) return;
@@ -53,7 +56,7 @@ function PushNotificationRegistrar() {
         if (Platform.OS === "web") return;
         const status = await getPermissionsStatus();
         if (status === "granted") {
-          registerForPushNotifications(playerId).catch(() => {});
+          syncLocalReminders().catch(() => {});
           return;
         }
         if (status === null) return;
@@ -68,7 +71,7 @@ function PushNotificationRegistrar() {
   const handleAllow = async () => {
     setShowModal(false);
     await AsyncStorage.setItem(NOTIF_PROMPT_KEY, "1");
-    if (playerId) registerForPushNotifications(playerId).catch(() => {});
+    await setLocalReminders(true);
   };
 
   const handleDecline = async () => {
@@ -87,7 +90,7 @@ function PushNotificationRegistrar() {
           </View>
           <Text style={np.title}>تفعيل الإشعارات</Text>
           <Text style={np.body}>
-            {"ابق على اطلاع بالمهام اليومية ومكافآت التحدي!\n\nيمكنك إيقاف الإشعارات في أي وقت من الإعدادات."}
+            {"خمسة تذكيرات يومياً للعب، بين العاشرة صباحاً والتاسعة مساءً.\n\nيمكنك إيقاف الإشعارات في أي وقت من الإعدادات."}
           </Text>
           <TouchableOpacity style={np.allowBtn} onPress={handleAllow} activeOpacity={0.85}>
             <LinearGradient colors={[gameDesign.colors.friends, "#0878B5"]} style={np.allowGrad}>
