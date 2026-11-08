@@ -1,0 +1,14 @@
+{
+  "method": "built-in image generation",
+  "assets": [
+    {
+      "path": "assets/ui-2027/leaderboard-podium.png",
+      "prompt": "Create a single isolated premium 3D mobile game LEADERBOARD icon: a three-step Moroccan zellige winners podium, tall central GOLD step with numeral 1, shorter SILVER step left with numeral 2, BRONZE step right with numeral 3. Rich royal indigo enamel and luminous turquoise inlays, beveled golden edging, clean chunky readable silhouette. Match the provided reference game icon atlas's polished storybook 3D rendering and gold/turquoise materials. No trophy, no cup, no laurel, no people, no extra lettering. Full podium fits with generous 12 percent transparent padding on all sides. Square canvas real transparent alpha background, no scene, no border, no UI. Must read clearly at 32 pixels and be visibly distinct from an achievements trophy."
+    },
+    {
+      "path": "assets/seasons-2027/event-banners.png",
+      "prompt": "Generate a production texture atlas of FIVE DISTINCT horizontal seasonal event banners for a Moroccan fantasy word mobile game. Canvas 1536 wide x2560 high, EXACTLY one column FIVE equally tall rows, each banner 1536x512 (3:1), NO gutters NO borders NO labels NO text NO UI. Polished vivid storybook 3D game art, indigo purple turquoise gold consistent identity. Each row is a complete independent full-width scene. Row1 ATLAS TREASURES: a snowcapped Moroccan Atlas mountain kasbah with OPEN treasure chest overflowing gold and turquoise jewels in foreground, snowy pine trees. Row2 ARABIC LANGUAGE MAGIC: luminous OPEN BOOK in ornate Moroccan library, floating abstract golden calligraphy strokes (no readable words), hanging lanterns and blue starry window. Row3 WINTER KINGDOM: crystalline turquoise ice palace with snowflakes, snowy fir trees and a crystal fox, colder blue and silver. Row4 GIFT FESTIVAL: lavish red violet and teal gift boxes with big GOLD ribbons in warm Moroccan courtyard, hanging lanterns and sparkles, no snow mountain focal point. Row5 GATEWAY 2027: majestic open Moroccan golden gateway toward indigo night sky filled with fireworks and sparkling starlight, glowing turquoise path into horizon, no numbers or typography. Main visual focal point toward center-left of each row; keep lower-right dark calm for native text overlay. Scenes must be distinct instantly at thumbnail scale. Fill all five exact equal bands, avoid any overlap between scenes. No cards, characters, buttons, price, watermark or heading.",
+      "layout": "Actual output 793x1983; five equal rows, atlas/arabic/winter/gifts/newyear. Renderer uses actual dimensions, not the requested aspect."
+    }
+  ]
+}
