@@ -6,7 +6,7 @@ import { FantasyHomeDock } from "@/components/FantasyHome";
 export function BottomNavigation() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
-  const visible = ["/", "/tasks", "/achievements", "/store", "/friends", "/clans", "/profile", "/settings", "/daily-challenge", "/spin", "/halloween", "/season", "/leaderboard"].includes(pathname) || pathname.startsWith("/chat/");
+  const visible = ["/", "/tasks", "/achievements", "/store", "/friends", "/clans", "/profile", "/settings", "/daily-challenge", "/spin", "/halloween", "/season", "/leaderboard", "/ad-rewards"].includes(pathname) || pathname.startsWith("/chat/");
   if (!visible) return null;
   return <FantasyHomeDock bottomInset={insets.bottom} pathname={pathname} />;
 }

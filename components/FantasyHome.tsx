@@ -1,7 +1,6 @@
-import {RewardedCoinsCard} from "./RewardedCoinsCard";
 import {ScaledText as Text} from "@/components/ScaledText";
 import React from 'react';
-import {Image, Pressable, ScrollView, StyleSheet, View, useWindowDimensions} from 'react-native';
+import {Image, Pressable, ScrollView, StyleSheet, View, Platform, useWindowDimensions} from 'react-native';
 import {router} from 'expo-router';
 import {LinearGradient} from 'expo-linear-gradient';
 import {usePlayer,getXpProgress} from '@/contexts/PlayerContext';
@@ -13,6 +12,7 @@ import {SeasonEventCarousel} from '@/components/SeasonEventCarousel';
 import {HomeBannerAd} from '@/components/HomeBannerAd';
 
 export function FantasyHome({onOfflinePress,onOnlinePress,hasLocalProfileError}:{onOfflinePress:()=>void;onOnlinePress:()=>void;hasLocalProfileError:boolean}){
+ const showAdDesign=__DEV__&&Platform.OS==="web";
  const {profile}=usePlayer(),{t,isRTL}=useLanguage(),{width}=useWindowDimensions(),xp=getXpProgress(profile.xp),small=width<360;
  return <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}><View style={s.content}>
   {hasLocalProfileError?<Text accessibilityRole="alert" style={s.warning}>تعذّر تحميل بعض البيانات المحفوظة. أعد فتح اللعبة للمحاولة.</Text>:null}
@@ -23,7 +23,7 @@ export function FantasyHome({onOfflinePress,onOnlinePress,hasLocalProfileError}:
    <Pressable accessibilityRole="button" accessibilityLabel="الإعدادات" onPress={()=>router.push('/settings')} style={s.settings}><RoyalSurface style={{padding:4,alignItems:'center',justifyContent:'center',height:43}}><RoyalIcon name="settings" size={30}/></RoyalSurface></Pressable>
   </View>
   <GameModeCarousel isRTL={isRTL} offlineTitle={t.offlineMode} offlineDescription={t.playOfflineHint} offlineButtonLabel={t.playOffline} onlineTitle={t.onlineMode} onlineDescription={t.onlineModeHint} onlineButtonLabel={t.playOnline} selectorLabel={t.chooseGameMode} swipeHint="اسحب لاختيار الوضع" onOfflinePress={onOfflinePress} onOnlinePress={onOnlinePress} onTeamPress={()=>router.push('/team-up')} onFourPress={()=>router.push('/four-players')} onFriendsPress={()=>router.push('/private-room')}/>
-  <View style={s.lower}><SeasonEventCarousel/><RewardedCoinsCard/>
+  <View style={s.lower}><SeasonEventCarousel/><Pressable accessibilityRole="button" accessibilityLabel="افتح مكافآت الإعلانات" onPress={()=>router.push(showAdDesign?{pathname:"/ad-rewards",params:{preview:"ads"}}:"/ad-rewards")}><RoyalSurface style={{padding:9,minHeight:70,flexDirection:"row-reverse",gap:10,alignItems:"center"}}><View style={{flex:1}}><Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:"#FFE3A6",textAlign:"right"}}>مكافآت الإعلانات</Text><Text style={{fontFamily:"Cairo_400Regular",fontSize:11,color:"#D6C8E6",textAlign:"right"}}>6 مراحل يومية · استكشف المكافآت</Text></View><RoyalIcon name="coins" size={42}/></RoyalSurface></Pressable>
    <View style={s.shortcutRow}>{([{route:'/daily-challenge',label:'تحدي اليوم',icon:'tasks'},{route:'/spin',label:'هدية اليوم',icon:'gift'},{route:'/clans',label:'العشائر',icon:'clan'}] as const).map(item=><Pressable key={item.route} accessibilityRole="button" accessibilityLabel={item.label} onPress={()=>router.push(item.route)} style={{flex:1}}><RoyalSurface style={s.shortcut}><RoyalIcon name={item.icon} size={36}/><Text style={s.shortcutLabel}>{item.label}</Text></RoyalSurface></Pressable>)}</View>
 <HomeBannerAd/>
   </View>
