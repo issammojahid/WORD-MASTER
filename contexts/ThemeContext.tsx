@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const STORAGE_KEY = "app_theme_v1";
+const STORAGE_KEY = "app_theme_2027";
 
 export type ThemeColors = {
   background: string;

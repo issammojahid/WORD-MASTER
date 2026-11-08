@@ -1,5 +1,6 @@
+import {ScaledText as Text} from "@/components/ScaledText";
 import React from "react";
-import {useWindowDimensions,Pressable,StyleSheet,Text,View} from "react-native";
+import {useWindowDimensions, Pressable, StyleSheet, View} from "react-native";
 import {LinearGradient} from "expo-linear-gradient";
 import {router} from "expo-router";
 import {SEASON_EVENTS,initialSeasonIndex} from "@/lib/season-calendar";

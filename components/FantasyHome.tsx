@@ -1,65 +1,35 @@
-import {SeasonEventCarousel} from "@/components/SeasonEventCarousel";
-import React from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import { router } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
-import { usePlayer, getXpProgress } from "@/contexts/PlayerContext";
-import { useLanguage } from "@/contexts/LanguageContext";
-import { CoinBalance, PlayerAvatar } from "@/components/GameUi";
-import { GameModeCarousel } from "@/components/GameModeCarousel";
-import { HalloweenEntry } from "@/components/HalloweenEconomy";
-import { HomeBannerAd } from "@/components/HomeBannerAd";
+import {ScaledText as Text} from "@/components/ScaledText";
+import React from 'react';
+import {Image, Pressable, ScrollView, StyleSheet, View, useWindowDimensions} from 'react-native';
+import {router} from 'expo-router';
+import {LinearGradient} from 'expo-linear-gradient';
+import {usePlayer,getXpProgress} from '@/contexts/PlayerContext';
+import {useLanguage} from '@/contexts/LanguageContext';
+import {PlayerAvatar} from '@/components/GameUi';
+import {RoyalBrand,RoyalIcon,RoyalSurface,type RoyalIconName} from '@/components/RoyalUi';
+import {GameModeCarousel} from '@/components/GameModeCarousel';
+import {SeasonEventCarousel} from '@/components/SeasonEventCarousel';
+import {HomeBannerAd} from '@/components/HomeBannerAd';
 
-export function FantasyHome({ onOfflinePress, onOnlinePress, hasLocalProfileError }: { onOfflinePress:()=>void; onOnlinePress:()=>void; hasLocalProfileError:boolean }) {
- const { profile } = usePlayer();
- const { t, isRTL } = useLanguage();
- const { width, height } = useWindowDimensions();
- const xp = getXpProgress(profile.xp);
- const compact = width < 500 && height < 740;
- const heroHeight = compact ? Math.min(210, (width - 32) * 0.55) : Math.min(250, (width - 32) * 0.55);
- return <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
-  <View style={s.content}>
-   {hasLocalProfileError ? <Text accessibilityRole="alert" style={s.warning}>{isRTL ? "تعذّر تحميل بعض البيانات المحفوظة. أعد فتح اللعبة للمحاولة من جديد." : "Some saved data could not be loaded. Reopen the game to retry."}</Text> : null}
-   <View style={[s.hud,{flexDirection:"row"}]}>
-    <Pressable accessibilityRole="button" accessibilityLabel={`${profile.name}, ${t.level} ${profile.level}`} onPress={()=>router.push("/profile")} style={s.profile}>
-     <PlayerAvatar size={37} skinId={profile.equippedSkin} frameId={profile.equippedCosmetics.frame}/>
-     <View style={s.profileCopy}><Text style={s.level}>{t.level} {profile.level}</Text><View style={s.miniTrack}><View style={[s.miniFill,{width:`${Math.max(0,Math.min(1,xp.progress))*100}%`}]} /></View></View>
-    </Pressable>
-    <Pressable accessibilityRole="button" accessibilityLabel={`${t.coins}: ${profile.coins}`} accessibilityHint={t.dailyLoginReward} onPress={()=>router.push("/spin")} style={s.coins}><CoinBalance amount={profile.coins} label={t.coins}/></Pressable>
-    <Pressable accessibilityRole="button" accessibilityLabel={t.settings} onPress={()=>router.push("/settings")} style={s.settings}><Ionicons name="settings" size={23} color="#E4C080"/></Pressable>
-   </View>
-   <View style={[s.hero,{height:heroHeight}]}>
-    <Image source={require("../assets/ui-2027/home-hero.png")} accessibilityLabel={isRTL?"عالم حروف المغرب الخيالي":"The fantasy world of Horof Morocco"} resizeMode="cover" style={s.heroImage}/>
-    <LinearGradient colors={["#160D2700","#180C2700","#180C27"]} locations={[0,0.68,1]} style={StyleSheet.absoluteFill}/>
-    <View style={s.brand}>
-     <Ionicons name="sparkles" size={16} color="#F5D180"/><Text accessibilityRole="header" style={[s.brandTitle,{fontSize:width<360?23:29}]}>{isRTL?"حروف المغرب":"Horof Morocco"}</Text>
-    </View>
-   </View>
-   <View style={s.modeSection}>
-    <GameModeCarousel isRTL={isRTL} offlineTitle={t.offlineMode} offlineDescription={t.playOfflineHint} offlineButtonLabel={t.playOffline} onlineTitle={t.onlineMode} onlineDescription={t.onlineModeHint} onlineButtonLabel={t.playOnline} selectorLabel={t.chooseGameMode} swipeHint={isRTL?"اسحب لاختيار طريقة اللعب":t.swipeToChooseMode} onOfflinePress={onOfflinePress} onOnlinePress={onOnlinePress} onTeamPress={()=>router.push("/team-up")} onFourPress={()=>router.push("/four-players")} onFriendsPress={()=>router.push("/private-room")}/>
-   </View>
-   <View style={s.lower}><SeasonEventCarousel/><HalloweenEntry/>
-    <Pressable accessibilityRole="button" accessibilityLabel={isRTL?"المستوى والتقدم":"Level and progress"} onPress={()=>router.push("/profile")} style={[s.progressCard,{display:"none"}]}>
-     <Ionicons name="ribbon" size={31} color="#EFC67D"/>
-     <View style={s.progressCopy}><Text style={s.progressTitle}>{isRTL?"المستوى التالي":"Your next level"}</Text><View style={s.xpTrack}><LinearGradient colors={["#18B9BB","#74E2D0"]} start={{x:0,y:0}} end={{x:1,y:0}} style={[s.xpFill,{width:`${Math.max(0,Math.min(1,xp.progress))*100}%`}]}/></View><Text style={s.xpText}>{xp.current} / {xp.needed} XP</Text></View>
-     <Text style={s.nextLevel}>{profile.level+1}</Text>
-    </Pressable>
-    <View style={s.shortcuts}>
-     {([{route:"/daily-challenge",icon:"flash-outline",label:isRTL?"تحدي اليوم":"Daily challenge"},{route:"/spin",icon:"gift-outline",label:isRTL?"هدية اليوم":"Daily gift"},{route:"/clans",icon:"shield-outline",label:isRTL?"العشائر":"Clans"},{route:"/friends",icon:"notifications-outline",label:isRTL?"الإشعارات":"Notifications",section:"notifications"}] as const).map(item=><Pressable key={item.label} accessibilityRole="button" accessibilityLabel={item.label} onPress={()=>router.push("section" in item?{pathname:item.route,params:{section:item.section}}:item.route)} style={s.shortcut}><Ionicons name={item.icon} size={20} color="#D7B5EB"/><Text style={s.shortcutText}>{item.label}</Text></Pressable>)}
-    </View>
-    <HomeBannerAd/>
-   </View>
+export function FantasyHome({onOfflinePress,onOnlinePress,hasLocalProfileError}:{onOfflinePress:()=>void;onOnlinePress:()=>void;hasLocalProfileError:boolean}){
+ const {profile}=usePlayer(),{t,isRTL}=useLanguage(),{width}=useWindowDimensions(),xp=getXpProgress(profile.xp),small=width<360;
+ return <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}><View style={s.content}>
+  {hasLocalProfileError?<Text accessibilityRole="alert" style={s.warning}>تعذّر تحميل بعض البيانات المحفوظة. أعد فتح اللعبة للمحاولة.</Text>:null}
+  <View style={[s.hero,{height:small?238:230}]}><Image source={require('../assets/ui-2027/royal-home-hero.png')} resizeMode="cover" style={[StyleSheet.absoluteFill,{width:"100%",height:"100%"}]}/><LinearGradient colors={['#14144000','#17153B00','#171437']} locations={[0,.78,1]} style={StyleSheet.absoluteFill}/>
+   <View style={[s.logo,{top:small?43:5}]}><RoyalBrand width={small?126:144}/></View>
+   <Pressable accessibilityRole="button" accessibilityLabel={`${profile.name}، المستوى ${profile.level}`} onPress={()=>router.push('/profile')} style={[s.profile,{width:small?96:118}]}><RoyalSurface style={s.profilePanel}><PlayerAvatar size={35} skinId={profile.equippedSkin} frameId={profile.equippedCosmetics.frame}/><View style={{flex:1,gap:4}}><Text style={s.level}>المستوى {profile.level}</Text><View style={s.track}><View style={[s.fill,{width:`${Math.max(0,Math.min(1,xp.progress))*100}%`}]}/></View></View></RoyalSurface></Pressable>
+   <Pressable accessibilityRole="button" accessibilityLabel={`${profile.coins} عملة`} onPress={()=>router.push('/features-preview')} style={[s.wallet,{width:small?80:91}]}><RoyalSurface style={s.walletPanel}><RoyalIcon name="coins" size={25}/><Text style={s.coins}>{profile.coins.toLocaleString()}</Text></RoyalSurface></Pressable>
+   <Pressable accessibilityRole="button" accessibilityLabel="الإعدادات" onPress={()=>router.push('/settings')} style={s.settings}><RoyalSurface style={{padding:4,alignItems:'center',justifyContent:'center',height:43}}><RoyalIcon name="settings" size={30}/></RoyalSurface></Pressable>
   </View>
- </ScrollView>;
+  <GameModeCarousel isRTL={isRTL} offlineTitle={t.offlineMode} offlineDescription={t.playOfflineHint} offlineButtonLabel={t.playOffline} onlineTitle={t.onlineMode} onlineDescription={t.onlineModeHint} onlineButtonLabel={t.playOnline} selectorLabel={t.chooseGameMode} swipeHint="اسحب لاختيار الوضع" onOfflinePress={onOfflinePress} onOnlinePress={onOnlinePress} onTeamPress={()=>router.push('/team-up')} onFourPress={()=>router.push('/four-players')} onFriendsPress={()=>router.push('/private-room')}/>
+  <View style={s.lower}><SeasonEventCarousel/>
+   <View style={s.shortcutRow}>{([{route:'/daily-challenge',label:'تحدي اليوم',icon:'tasks'},{route:'/spin',label:'هدية اليوم',icon:'gift'}] as const).map(item=><Pressable key={item.route} accessibilityRole="button" accessibilityLabel={item.label} onPress={()=>router.push(item.route)} style={{flex:1}}><RoyalSurface style={s.shortcut}><RoyalIcon name={item.icon} size={45}/><Text style={s.shortcutLabel}>{item.label}</Text></RoyalSurface></Pressable>)}</View>
+   <View style={s.links}>{([{route:'/leaderboard',label:'الترتيب العام'},{route:'/features-preview',label:'مزايا قريبة'},{route:'/clans',label:'العشائر'}] as const).map(item=><Pressable key={item.route} accessibilityRole="button" onPress={()=>router.push(item.route)} style={s.link}><Text style={s.linkText}>{item.label}</Text></Pressable>)}</View><HomeBannerAd/>
+  </View>
+ </View></ScrollView>;
 }
-
-export function FantasyHomeDock({ bottomInset = 0, pathname = "/" }: { bottomInset?: number; pathname?: string }){
- const {isRTL,t}=useLanguage();
- const tabs=[{route:"/" as const,icon:"home" as const,label:isRTL?"الرئيسية":"Home"},{route:"/tasks" as const,icon:"clipboard-outline" as const,label:t.missions},{route:"/achievements" as const,icon:"trophy-outline" as const,label:t.achievements},{route:"/store" as const,icon:"storefront-outline" as const,label:isRTL?"المتجر":"Store"}];
- return <View accessibilityRole="tablist" style={[s.dock,{flexDirection:isRTL?"row-reverse":"row",paddingBottom:Math.max(5,bottomInset)}]}>{tabs.map(tab=><Pressable key={tab.route} accessibilityRole="tab" accessibilityLabel={tab.label} accessibilityState={{selected:tab.route===pathname}} aria-selected={tab.route===pathname} onPress={()=>{if(tab.route!==pathname){if(tab.route==="/")router.replace("/");else router.push(tab.route);}}} style={[s.dockTab,tab.route===pathname&&s.homeTab]}><Ionicons name={tab.icon} size={26} color={tab.route===pathname?"#FFE6A2":"#CFABDA"}/><Text maxFontSizeMultiplier={1.3} style={[s.dockText,tab.route===pathname&&{color:"#FFF0CB"}]}>{tab.label}</Text></Pressable>)}</View>;
+export function FantasyHomeDock({bottomInset=0,pathname='/'}:{bottomInset?:number;pathname?:string}){
+ const tabs:{route:'/'|'/tasks'|'/achievements'|'/store';icon:RoyalIconName;label:string}[]=[{route:'/',icon:'home',label:'الرئيسية'},{route:'/tasks',icon:'tasks',label:'المهام'},{route:'/achievements',icon:'trophy',label:'الإنجازات'},{route:'/store',icon:'store',label:'المتجر'}];
+ return <View accessibilityRole="tablist" accessibilityLabel="التنقل الرئيسي" style={[s.dock,{paddingBottom:Math.max(4,bottomInset)}]}>{tabs.map(tab=><Pressable key={tab.route} accessibilityRole="tab" accessibilityLabel={tab.label} accessibilityState={{selected:tab.route===pathname}} aria-selected={tab.route===pathname} onPress={()=>{if(tab.route!==pathname){if(tab.route==='/')router.replace('/');else router.push(tab.route);}}} style={{flex:1,minWidth:0}}><RoyalSurface selected={tab.route===pathname} style={s.dockTab}><RoyalIcon name={tab.icon} size={36}/><Text maxFontSizeMultiplier={1.3} style={s.dockLabel}>{tab.label}</Text></RoyalSurface></Pressable>)}</View>;
 }
-
-const s=StyleSheet.create({
- scroll:{flexGrow:1,alignItems:"center",paddingBottom:24},content:{width:"100%",maxWidth:592},hud:{paddingHorizontal:16,gap:8,alignItems:"center",justifyContent:"space-between",zIndex:1},profile:{minHeight:49,flexDirection:"row",alignItems:"center",gap:7,flex:1,maxWidth:190,paddingHorizontal:8,paddingVertical:5,borderRadius:23,borderWidth:1.5,borderColor:"#DCB473",backgroundColor:"#30234F"},profileCopy:{flex:1,gap:5},level:{fontFamily:"Cairo_700Bold",fontSize:12,lineHeight:18,color:"#FFF0D6"},miniTrack:{height:6,borderRadius:5,overflow:"hidden",backgroundColor:"#1C102A",borderWidth:0.5,borderColor:"#9C7550"},miniFill:{height:"100%",backgroundColor:"#3DD8CD"},coins:{paddingHorizontal:9,minHeight:44,borderRadius:23,borderWidth:1.5,borderColor:"#D9B073",backgroundColor:"#30234F",justifyContent:"center"},settings:{width:42,height:44,borderRadius:15,borderWidth:1.5,borderColor:"#CFA96E",backgroundColor:"#30234F",alignItems:"center",justifyContent:"center"},hero:{marginTop:6,overflow:"hidden"},heroImage:{position:"absolute",top:0,left:0,width:"100%",height:"100%"},brand:{position:"absolute",top:22,left:"43%",right:"3%",height:100,alignItems:"center",justifyContent:"center",padding:4,gap:2},brandTitle:{fontFamily:"Cairo_700Bold",fontSize:34,textAlign:"center",color:"#FFE2A0",textShadowColor:"#160A25",textShadowOffset:{width:0,height:3},textShadowRadius:3},brandTag:{position:"absolute",bottom:-18,left:0,right:0,fontFamily:"Cairo_600SemiBold",fontSize:9,color:"#E9CFA9",textAlign:"center"},modeSection:{marginTop:-12,zIndex:1,paddingHorizontal:4},lower:{paddingHorizontal:16,gap:10},progressCard:{minHeight:76,flexDirection:"row",alignItems:"center",gap:12,borderRadius:23,borderWidth:1.5,borderColor:"#B38C57",padding:12,backgroundColor:"#34213F",marginTop:8},progressCopy:{flex:1,gap:5},progressTitle:{fontFamily:"Cairo_700Bold",fontSize:13,color:"#F3DFB3",textAlign:"center"},xpTrack:{height:9,borderRadius:6,overflow:"hidden",backgroundColor:"#1C102B",borderWidth:1,borderColor:"#BA975D"},xpFill:{height:"100%",borderRadius:6},xpText:{fontFamily:"Cairo_400Regular",fontSize:9,color:"#D6C2DE",textAlign:"center"},nextLevel:{fontFamily:"Cairo_700Bold",fontSize:21,color:"#F6CB78",minWidth:28,textAlign:"center"},shortcuts:{flexDirection:"row",flexWrap:"wrap",gap:8,marginVertical:12,justifyContent:"center"},shortcut:{minWidth:100,flex:1,minHeight:54,alignItems:"center",justifyContent:"center",gap:4,borderRadius:15,borderWidth:1,borderColor:"#75517E",backgroundColor:"#281A37"},shortcutText:{fontFamily:"Cairo_600SemiBold",fontSize:10,color:"#E5D7EC"},warning:{margin:12,padding:10,borderRadius:12,backgroundColor:"#622947",color:"#FFE4EB",fontFamily:"Cairo_400Regular",fontSize:12},dock:{width:"100%",maxWidth:592,alignSelf:"center",minHeight:74,borderRadius:24,borderWidth:1.5,borderColor:"#C5A061",backgroundColor:"#28204A",padding:5,marginBottom:6,alignItems:"stretch",gap:4},dockTab:{flex:1,minWidth:0,paddingHorizontal:2,paddingVertical:5,alignItems:"center",justifyContent:"center",gap:3,borderRadius:18,minHeight:60},homeTab:{backgroundColor:"#146A73",borderWidth:1,borderColor:"#E9C780"},dockText:{fontFamily:"Cairo_600SemiBold",fontSize:10,textAlign:"center",alignSelf:"stretch",color:"#D2BBDC"},
-});
+const s=StyleSheet.create({scroll:{flexGrow:1,alignItems:'center',paddingBottom:12},content:{width:'100%',maxWidth:760},hero:{width:'100%',overflow:'hidden'},logo:{position:'absolute',left:'50%',marginLeft:-72},profile:{position:'absolute',top:10,left:8},profilePanel:{padding:5,height:46,flexDirection:'row',gap:5,alignItems:'center'},level:{fontFamily:'Cairo_700Bold',fontSize:9,color:'#FFF0D3',textAlign:'center'},track:{height:6,borderRadius:5,overflow:'hidden',backgroundColor:'#21162C',borderWidth:.5,borderColor:'#D1A662'},fill:{height:'100%',backgroundColor:'#2FD6CD'},wallet:{position:'absolute',right:49,top:11},walletPanel:{height:44,padding:5,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:4},coins:{fontFamily:'Cairo_700Bold',fontSize:14,color:'#FFF0D3'},settings:{position:'absolute',right:7,top:11,width:38},lower:{paddingHorizontal:12,gap:9},shortcutRow:{flexDirection:'row-reverse',gap:8},shortcut:{minHeight:64,padding:8,flexDirection:'row-reverse',alignItems:'center',justifyContent:'center',gap:5},shortcutLabel:{fontFamily:'Cairo_700Bold',fontSize:15,color:'#FFF0D6',flexShrink:1,textAlign:'center'},links:{flexDirection:'row-reverse',justifyContent:'center',gap:6},link:{minHeight:44,justifyContent:'center',paddingHorizontal:9},linkText:{fontFamily:'Cairo_600SemiBold',fontSize:11,color:'#DCC58C'},dock:{width:'100%',maxWidth:760,alignSelf:'center',flexDirection:'row-reverse',gap:3,paddingHorizontal:5,paddingTop:3,backgroundColor:'#161535DD'},dockTab:{minHeight:73,paddingVertical:4,paddingHorizontal:2,alignItems:'center',justifyContent:'center',gap:1},dockLabel:{fontFamily:'Cairo_700Bold',fontSize:12,color:'#FFF0D6',textAlign:'center'},warning:{fontFamily:'Cairo_400Regular',fontSize:12,color:'#FFE2E8',padding:12,backgroundColor:'#532640'}});

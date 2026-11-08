@@ -1,20 +1,9 @@
+import {ScaledText as Text} from "@/components/ScaledText";
+import {RoyalSettingsFooter} from "@/components/RoyalSettingsFooter";
 import {SettingsQuickGrid} from "@/components/SettingsQuickGrid";
 import { FantasySettingsSection } from "@/components/FantasySettingsSection";
 import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Platform,
-  Modal,
-  BackHandler,
-  Alert,
-  TextInput,
-  Share,
-  ActivityIndicator,
-} from "react-native";
+import {View, StyleSheet, TouchableOpacity, ScrollView, Platform, Modal, BackHandler, Alert, TextInput, Share, ActivityIndicator} from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -170,10 +159,10 @@ export default function SettingsScreen() {
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
       <GameScreenBackground accent="online" />
-      <View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:theme.background+"A8"}]}/>
+
       <GameHeader
         title={t.settings}
-        subtitle="تفضيلات اللعب والحساب"
+        subtitle="اضبط تجربتك"
         onBack={() => router.back()}
         icon={<GameIcon name="settings" size={23} color={LOGO.cyan} />}
       />
@@ -182,6 +171,8 @@ export default function SettingsScreen() {
 
         <SettingsQuickGrid notifications={notificationsEnabled} onNotifications={value=>void handleToggleNotifications(value)}/>
 
+        <RoyalSettingsFooter/>
+        <FantasySettingsSection title="إعدادات الحساب ومعلومات اللعب">
         {/* ── Referral System ──────────────────────────── */}
         <FantasySettingsSection title={<>بلدك</>}>
 
@@ -368,6 +359,7 @@ export default function SettingsScreen() {
           <Text style={styles.exitBtnText}>الخروج من اللعبة</Text>
         </TouchableOpacity>
 
+        </FantasySettingsSection>
       </ScrollView>
 
       <CountryPickerModal

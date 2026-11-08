@@ -1,17 +1,7 @@
+import {ScaledText as Text} from "@/components/ScaledText";
 import { fetchWithTimeout } from "@/lib/network";
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Animated,
-  Platform,
-  ActivityIndicator,
-  Modal,
-  useWindowDimensions,
-} from "react-native";
+import {View, StyleSheet, TouchableOpacity, ScrollView, Animated, Platform, ActivityIndicator, Modal, useWindowDimensions} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -351,7 +341,7 @@ export default function DailyChallengeScreen() {
     return (
       <View style={[styles.container, styles.centerContent, { paddingTop: topInset, backgroundColor: theme.background }]}>
         <GameScreenBackground accent="offline" />
-      <View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:theme.background+"A8"}]}/>
+
         <ActivityIndicator size="large" color={Colors.emerald} />
         <Text style={[styles.loadingText, { color: theme.textSecondary }]}>جاري تحميل تحدي اليوم...</Text>
       </View>

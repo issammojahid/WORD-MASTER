@@ -1,5 +1,6 @@
+import {ScaledText as Text} from "@/components/ScaledText";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { FlatList, Image, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions, type ImageSourcePropType } from "react-native";
+import {FlatList, Image, Platform, Pressable, StyleSheet, View, useWindowDimensions, type ImageSourcePropType} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useReducedMotion } from "@/components/GameUi";
@@ -12,7 +13,7 @@ type Props = {
 };
 
 export function GameModeCarousel(props: Props) {
- const { width, height, fontScale } = useWindowDimensions();
+ const { width, fontScale } = useWindowDimensions();
  const [trackWidth, setTrackWidth] = useState(Math.min(width - 32, 560));
  const [selected, setSelected] = useState(0);
  const selectedRef = useRef(0);
@@ -20,7 +21,7 @@ export function GameModeCarousel(props: Props) {
  const webSnap = useRef<ReturnType<typeof setTimeout> | null>(null);
  const list = useRef<FlatList<Mode>>(null);
  const reduced = useReducedMotion();
- const cardHeight = (width < 500 && height < 740 ? 235 : 260) + Math.ceil((Math.min(1.5, Math.max(1, fontScale)) - 1) * 180);
+ const cardHeight = Math.min(210,Math.max(164,trackWidth*.45)) + Math.ceil((Math.min(1.5, Math.max(1, fontScale)) - 1) * 180);
  const cardWidth = Math.max(204, trackWidth - 56), gap = 12, stride = cardWidth + gap;
  const modes: Mode[] = [
   { id: "offline", title: props.isRTL ? "دون اتصال" : props.offlineTitle, description: props.isRTL ? "لعبة فردية دون إنترنت" : props.offlineDescription, button: props.isRTL ? "العب الآن" : "Play now", image: require("../assets/fantasy-menu/offline.png"), accent: "#37DAD3", onPress: props.onOfflinePress },
@@ -58,7 +59,7 @@ export function GameModeCarousel(props: Props) {
   }
  };
  return <View style={s.container} onLayout={event => setTrackWidth(Math.max(240, event.nativeEvent.layout.width))}>
-  <View accessibilityRole="tablist" style={[s.modeTabs,{flexDirection:props.isRTL?"row-reverse":"row"}]}>{modes.map((mode,index)=><Pressable key={mode.id} accessibilityRole="tab" accessibilityLabel={mode.title} accessibilityState={{selected:index===selected}} onPress={()=>select(index)} style={[s.modeTab,index===selected&&s.modeTabActive]}><Ionicons name={mode.id==="offline"?"cloud-offline-outline":mode.id==="online"?"globe-outline":mode.id==="team"?"people":mode.id==="four"?"game-controller-outline":"people-outline"} size={19} color={index===selected?"#65FFF0":"#F2D69E"}/><Text maxFontSizeMultiplier={1.3} style={s.modeTabText}>{props.isRTL?({offline:"دون اتصال",online:"أونلاين",team:"فرق",four:"4 لاعبين",friends:"الأصدقاء"}[mode.id]):({offline:"Offline",online:"Online",team:"Teams",four:"4 Players",friends:"Friends"}[mode.id])}</Text></Pressable>)}</View>
+  <View accessibilityRole="tablist" accessibilityLabel="أوضاع اللعب" style={[s.modeTabs,{flexDirection:props.isRTL?"row-reverse":"row"}]}>{modes.map((mode,index)=><Pressable key={mode.id} accessibilityRole="tab" accessibilityLabel={mode.title} aria-selected={index===selected} accessibilityState={{selected:index===selected}} onPress={()=>select(index)} style={[s.modeTab,index===selected&&s.modeTabActive]}><Ionicons name={mode.id==="offline"?"cloud-offline-outline":mode.id==="online"?"globe-outline":mode.id==="team"?"people":mode.id==="four"?"game-controller-outline":"people-outline"} size={19} color={index===selected?"#65FFF0":"#F2D69E"}/><Text maxFontSizeMultiplier={1.3} style={s.modeTabText}>{props.isRTL?({offline:"دون اتصال",online:"أونلاين",team:"فرق",four:"4 لاعبين",friends:"الأصدقاء"}[mode.id]):({offline:"Offline",online:"Online",team:"Teams",four:"4 Players",friends:"Friends"}[mode.id])}</Text></Pressable>)}</View>
   <FlatList ref={list} horizontal data={modes} keyExtractor={mode => mode.id} showsHorizontalScrollIndicator={false}
    nestedScrollEnabled directionalLockEnabled decelerationRate="fast" snapToInterval={stride} snapToAlignment="start"
    getItemLayout={(_, index) => ({ length: stride, offset: stride * index, index })}
@@ -70,11 +71,11 @@ export function GameModeCarousel(props: Props) {
    ItemSeparatorComponent={() => <View style={{ width: gap }} />}
    renderItem={({ item, index }) => <View style={[s.card, { width: cardWidth, height: cardHeight, borderColor: index === selected ? "#E8C37C" : "#92704F", opacity: index === selected ? 1 : 0.84 }]}>
     <Image source={item.image} accessibilityLabel={props.isRTL ? `رسم وضع ${item.title}` : `${item.title} artwork`} resizeMode="cover" style={s.art} />
-    <LinearGradient colors={["#26103800", "#23103233", "#26103DEB", "#22102FFF"]} locations={[0, 0.3, 0.62, 1]} style={StyleSheet.absoluteFill} />
+    <LinearGradient colors={["#26103800", "#23103233", "#26103DEB", "#22102FFF"]} locations={[0, 0.12, 0.4, 1]} style={StyleSheet.absoluteFill} />
     <View pointerEvents="none" style={s.innerBorder} />
     <View style={s.modeNumber}><Text style={s.modeNumberText}>0{index + 1}</Text></View>
     <View style={s.cardBody}>
-     <Text accessibilityRole="header" maxFontSizeMultiplier={1.5} style={[s.title, { fontSize: cardWidth < 280 ? 20 : 23 }]}>{item.title}</Text>
+     <Text accessibilityRole="header" maxFontSizeMultiplier={1.5} style={[s.title, { fontSize: cardWidth < 280 ? 17 : 20 }]}>{item.title}</Text>
      <Text maxFontSizeMultiplier={1.5} style={s.description}>{item.description}</Text>
      <Pressable accessibilityRole="button" accessibilityLabel={item.button} accessibilityHint={item.description} onPress={item.onPress} style={({ pressed }) => [s.play, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}>
       <LinearGradient colors={["#35E5D8", "#07939E"]} start={{x:0,y:0}} end={{x:1,y:1}} style={s.playFill}>
@@ -94,5 +95,5 @@ export function GameModeCarousel(props: Props) {
 }
 
 const s = StyleSheet.create({
- modeTabs:{width:"100%",gap:4,paddingHorizontal:12,marginBottom:4},modeTab:{flex:1,minWidth:0,minHeight:56,borderRadius:12,borderWidth:1,borderColor:"#85619F",backgroundColor:"#30204D",alignItems:"center",justifyContent:"center",padding:3,gap:2},modeTabActive:{borderColor:"#4CEADE",backgroundColor:"#0D727E"},modeTabText:{fontFamily:"Cairo_700Bold",fontSize:9,color:"#FFF0D3",textAlign:"center"},container:{width:"100%",alignItems:"center"},card:{height:282,borderRadius:28,borderWidth:2,overflow:"hidden",backgroundColor:"#271239"},art:{position:"absolute",top:0,left:0,width:"100%",height:"100%"},innerBorder:{position:"absolute",top:5,left:5,right:5,bottom:5,borderRadius:22,borderWidth:1,borderColor:"#E6BB7048"},modeNumber:{position:"absolute",top:12,right:15,paddingHorizontal:8,borderRadius:8,backgroundColor:"#251136BB"},modeNumberText:{color:"#F3D49B",fontFamily:"Cairo_700Bold",fontSize:11},cardBody:{flex:1,justifyContent:"flex-end",alignItems:"center",padding:16,gap:3},title:{fontFamily:"Cairo_700Bold",color:"#FFE7A7",textAlign:"center"},description:{fontFamily:"Cairo_400Regular",fontSize:11,color:"#F5E6FA",textAlign:"center",minHeight:19},play:{width:"100%",borderRadius:17,borderWidth:1.5,borderColor:"#F5D08B",overflow:"hidden",marginTop:6},playFill:{minHeight:49,paddingVertical:9,paddingHorizontal:10,flexDirection:"row",gap:12,alignItems:"center",justifyContent:"center"},playText:{fontFamily:"Cairo_700Bold",fontSize:18,flexShrink:1,minWidth:0,textAlign:"center"},controls:{flexDirection:"row",alignItems:"center",gap:18,justifyContent:"center",height:38},arrow:{width:42,height:38,alignItems:"center",justifyContent:"center"},dots:{flexDirection:"row"},dotTarget:{width:30,height:36,alignItems:"center",justifyContent:"center"},dot:{width:7,height:7,borderRadius:4,backgroundColor:"#B7A3CC"},activeDot:{width:12,height:12,borderRadius:6,backgroundColor:"#F6C66F",borderWidth:2,borderColor:"#FFE7AB"},hint:{fontFamily:"Cairo_600SemiBold",color:"#E9D8F1",fontSize:11,lineHeight:18,textAlign:"center",marginBottom:8},
+ modeTabs:{width:"100%",gap:4,paddingHorizontal:12,marginBottom:4},modeTab:{flex:1,minWidth:0,minHeight:56,borderRadius:12,borderWidth:1,borderColor:"#85619F",backgroundColor:"#30204D",alignItems:"center",justifyContent:"center",padding:3,gap:2},modeTabActive:{borderColor:"#4CEADE",backgroundColor:"#0D727E"},modeTabText:{fontFamily:"Cairo_700Bold",fontSize:9,color:"#FFF0D3",textAlign:"center"},container:{width:"100%",alignItems:"center"},card:{height:282,borderRadius:28,borderWidth:2,overflow:"hidden",backgroundColor:"#271239"},art:{position:"absolute",top:0,left:0,width:"100%",height:"100%"},innerBorder:{position:"absolute",top:5,left:5,right:5,bottom:5,borderRadius:22,borderWidth:1,borderColor:"#E6BB7048"},modeNumber:{position:"absolute",top:12,right:15,paddingHorizontal:8,borderRadius:8,backgroundColor:"#251136BB"},modeNumberText:{color:"#F3D49B",fontFamily:"Cairo_700Bold",fontSize:11},cardBody:{flex:1,justifyContent:"flex-end",alignItems:"center",padding:10,gap:3},title:{textShadowColor:"#120E25",textShadowRadius:3,textShadowOffset:{width:0,height:2},fontFamily:"Cairo_700Bold",color:"#FFE7A7",textAlign:"center"},description:{fontFamily:"Cairo_400Regular",fontSize:11,color:"#F5E6FA",textAlign:"center",minHeight:19},play:{width:"100%",borderRadius:17,borderWidth:1.5,borderColor:"#F5D08B",overflow:"hidden",marginTop:6},playFill:{minHeight:49,paddingVertical:9,paddingHorizontal:10,flexDirection:"row",gap:12,alignItems:"center",justifyContent:"center"},playText:{fontFamily:"Cairo_700Bold",fontSize:18,flexShrink:1,minWidth:0,textAlign:"center"},controls:{flexDirection:"row",alignItems:"center",gap:18,justifyContent:"center",height:38},arrow:{width:42,height:38,alignItems:"center",justifyContent:"center"},dots:{flexDirection:"row"},dotTarget:{width:30,height:36,alignItems:"center",justifyContent:"center"},dot:{width:7,height:7,borderRadius:4,backgroundColor:"#B7A3CC"},activeDot:{width:12,height:12,borderRadius:6,backgroundColor:"#F6C66F",borderWidth:2,borderColor:"#FFE7AB"},hint:{fontFamily:"Cairo_600SemiBold",color:"#E9D8F1",fontSize:11,lineHeight:18,textAlign:"center",marginBottom:8},
 });

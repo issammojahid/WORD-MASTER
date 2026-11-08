@@ -1,5 +1,6 @@
+import {ScaledText as Text} from "@/components/ScaledText";
 import React,{useRef,useState} from "react";
-import {StyleSheet,Text,TextInput,View} from "react-native";
+import {StyleSheet, TextInput, View} from "react-native";
 import {GAME_CATEGORIES,type GameCategory} from "@/constants/i18n";
 import {useTheme} from "@/contexts/ThemeContext";
 import {useLanguage} from "@/contexts/LanguageContext";

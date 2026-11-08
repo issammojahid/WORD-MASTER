@@ -1,16 +1,7 @@
+import {ScaledText as Text} from "@/components/ScaledText";
 import { FantasySectionBanner } from "@/components/FantasySectionBanner";
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  TextInput,
-  Modal,
-  ActivityIndicator,
-  Alert,
-} from "react-native";
+import {View, StyleSheet, TouchableOpacity, ScrollView, TextInput, Modal, ActivityIndicator, Alert} from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";

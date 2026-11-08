@@ -1,3 +1,4 @@
+import {ScaledText as Text} from "@/components/ScaledText";
 import { PlayerNameForm } from "@/components/PlayerNameForm";
 import {
   Cairo_400Regular,
@@ -12,7 +13,7 @@ import * as SystemUI from "expo-system-ui";
 import * as SplashScreen from "expo-splash-screen";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Platform, StyleSheet, View, Text, TouchableOpacity, Modal } from "react-native";
+import {Animated, Platform, StyleSheet, View, TouchableOpacity, Modal} from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { LinearGradient } from "expo-linear-gradient";

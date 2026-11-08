@@ -1,5 +1,6 @@
+import {ScaledText as Text} from "@/components/ScaledText";
 import React,{useEffect,useRef,useState} from 'react';
-import {Animated,AppState,StyleSheet,Text,View} from 'react-native';
+import {Animated, AppState, StyleSheet, View} from 'react-native';
 import {SeasonCatalogArtwork} from './SeasonCatalogArtwork';
 import {PlayerAvatar,useReducedMotion} from './GameUi';
 import {usePlayer} from '@/contexts/PlayerContext';

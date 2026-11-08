@@ -1,3 +1,4 @@
+import {RoyalIcon,type RoyalIconName} from "./RoyalUi";
 import React from "react";
 import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, Rect, Stop } from "react-native-svg";
 import { gameDesign } from "@/constants/game-design";
@@ -39,6 +40,8 @@ export function GameIcon({
   secondaryColor = gameDesign.colors.profile,
   accessibilityLabel,
 }: GameIconProps) {
+  const mapped:Partial<Record<GameIconName,RoyalIconName>>={home:"home",missions:"tasks",achievements:"trophy",coins:"coins",settings:"settings",dailyChallenge:"tasks",online:"globe",offline:"scroll"};
+  if(mapped[name])return <RoyalIcon name={mapped[name]!} size={size}/>;
   const primary = { ...OUTLINE, stroke: color };
   const secondary = { ...OUTLINE, stroke: secondaryColor };
 

@@ -1,16 +1,7 @@
+import {ScaledText as Text} from "@/components/ScaledText";
 import { displayError } from "@/lib/display-error";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import {ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Switch, TextInput, View} from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { GameIcon, GameIllustration } from "@/components/GameIcon";
@@ -525,7 +516,7 @@ export default function FriendsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 12) }]}>
       <GameScreenBackground accent="online" />
-      <View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:theme.background+"A8"}]}/>
+
       <GameHeader
         title={activeSection==="notifications"?labels.notifications:labels.title}
         subtitle={activeSection==="notifications"?"دعواتك وآخر أخبار أصدقائك":"تواصل والعب مع أصدقائك"}

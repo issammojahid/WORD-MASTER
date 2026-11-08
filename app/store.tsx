@@ -1,16 +1,12 @@
+import {RoyalSurface} from "@/components/RoyalUi";
+import {SeasonCatalogArtwork} from "@/components/SeasonCatalogArtwork";
+import {SeasonItemPreview} from "@/components/SeasonItemPreview";
+import {seasonPreviewItems,type SeasonPreviewItem} from "@/constants/season-catalog";
+import {SEASON_EVENTS,initialSeasonIndex} from "@/lib/season-calendar";
+import {ScaledText as Text} from "@/components/ScaledText";
 import {SeasonCollectionBanner} from "@/components/SeasonCollectionBanner";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Animated,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import {ActivityIndicator, Animated, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions} from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -38,7 +34,7 @@ import { getApiUrl } from "@/lib/query-client";
 
 const COPY = {
   ar: {
-    title: "متجر المظاهر",
+    title: "المتجر",
     subtitle: "اختر المظاهر التي تعبّر عن أسلوبك",
     heading: "شخصيات وإطارات",
     description: "مظاهر تجميلية فقط؛ لا تؤثر على قواعد اللعب أو النقاط.",
@@ -223,6 +219,7 @@ export default function StoreScreen() {
   const collectionScroll = useRef<ScrollView>(null);
   const [legacyPreview, setLegacyPreview] = useState(false);
   const [previewOpen,setPreviewOpen]=useState(false);
+  const [seasonSelection,setSeasonSelection]=useState<SeasonPreviewItem|null>(null),[seasonPreviewOpen,setSeasonPreviewOpen]=useState(false);
   useEffect(() => { setLegacyPreview(false); }, [halloween.equipmentKey]);
   const showHalloween = halloween.active && !legacyPreview;
   const [selectedKind, setSelectedKind] = useState<"skin" | CosmeticKind>("skin");
@@ -348,10 +345,14 @@ export default function StoreScreen() {
   };
 
   const selectionOwned=selectedKind==="skin"?profile.ownedSkins.includes(selectedItemId as SkinId):profile.ownedCosmetics[selectedKind].includes(selectedItemId);
+  const seasonEvent=SEASON_EVENTS[initialSeasonIndex(Date.now())],seasonKind=selectedKind==="skin"?"avatar":selectedKind==="seasonal"?"icon":selectedKind;
+  const seasonItems=seasonPreviewItems(seasonEvent.id).filter(item=>item.kind===seasonKind);
+  function activateSelected(){if(selectionOwned){if(selectedKind==="skin")equipSkin(selectedItemId as SkinId);else equipCosmetic(selectedKind,selectedItemId);}else{setPreviewOpen(false);setPendingPurchase({id:selectedItemId,kind:selectedKind,price:selectedProduct.price});}}
+
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
       <GameScreenBackground accent="reward" />
-      <View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:theme.background+"A8"}]}/>
+
       <GameHeader
         title={text.title}
         subtitle={text.subtitle}
@@ -425,7 +426,7 @@ export default function StoreScreen() {
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
                 onPress={() => {
-                  setSelectedKind(kind);
+                  setSeasonSelection(null);setSelectedKind(kind);
                   if (kind === "skin") {
                     setSelectedItemId(profile.equippedSkin);
                   } else {
@@ -454,7 +455,7 @@ export default function StoreScreen() {
           })}
         </ScrollView>
 
-        <HalloweenCategory kind={selectedKind} onSelect={() => { setLegacyPreview(false); setPreviewOpen(true); setFeedback(""); collectionScroll.current?.scrollTo({ y: 0, animated: !reduceMotion }); }} />
+        <HalloweenCategory kind={selectedKind} onSelect={() => { setSeasonSelection(null);setLegacyPreview(false); setPreviewOpen(true); setFeedback(""); collectionScroll.current?.scrollTo({ y: 0, animated: !reduceMotion }); }} />
 
         {feedback ? (
           <View
@@ -473,6 +474,9 @@ export default function StoreScreen() {
           </View>
         ) : null}
 
+        <Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:"#FFE3A6",textAlign:"right"}}>{seasonEvent.title} · معاينة المظاهر القادمة</Text>
+        <View style={styles.catalog}>{seasonItems.map(item=><Pressable key={item.key} accessibilityRole="button" accessibilityLabel={`معاينة موسمية: ${item.name}`} onPress={()=>{setSeasonSelection(item);setSeasonPreviewOpen(true);}} style={[styles.productCard,{width:cardWidth,borderColor:seasonSelection?.key===item.key?"#3DE4D4":"#C2985F",backgroundColor:theme.card}]}><SeasonCatalogArtwork item={item} size={Math.max(30,cardWidth-6)}/><Text numberOfLines={1} style={[styles.productName,{color:theme.textPrimary}]}>{item.name}</Text><Text style={{fontFamily:"Cairo_600SemiBold",fontSize:9,color:"#81EADD"}}>قريباً</Text></Pressable>)}</View>
+        <Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:"#FFE3A6",textAlign:"right"}}>المجموعة الأساسية</Text>
         <View style={styles.catalog}>
           {products.map((item) => {
             const owned = item.kind === "skin"
@@ -507,7 +511,7 @@ export default function StoreScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`${name}. ${description}`}
                   accessibilityState={{ selected }}
-                  onPress={() => { halloween.reset(); setLegacyPreview(true); setSelectedItemId(item.id); setPreviewOpen(true); collectionScroll.current?.scrollTo({y:0,animated:!reduceMotion}); }}
+                  onPress={() => { setSeasonSelection(null); halloween.reset(); setLegacyPreview(true); setSelectedItemId(item.id); setPreviewOpen(true); collectionScroll.current?.scrollTo({y:0,animated:!reduceMotion}); }}
                   style={({ pressed }) => [styles.productPreview, pressed && styles.pressed]}
                 >
                   {owned?<View style={[styles.productState,{backgroundColor:equipped?"#087D83":"#48315F"}]}><Ionicons name={equipped?"checkmark-circle":"checkmark"} size={12} color="#ABFFF1"/></View>:null}
@@ -525,13 +529,16 @@ export default function StoreScreen() {
             );
           })}
         </View>
-        <Pressable accessibilityRole="button" accessibilityState={{expanded:previewOpen}} onPress={()=>setPreviewOpen(v=>!v)} style={[styles.previewToggle,{backgroundColor:theme.card,borderColor:theme.cardBorder}]}>
-          {showHalloween?<HalloweenAvatar skinId={profile.equippedSkin} size={70}/>:(selectedKind==="skin"||selectedKind==="frame"?<PlayerAvatar skinId={selectedSkin} size={70} frameId={selectedKind==="frame"?selectedItemId:profile.equippedCosmetics.frame}/>:<CosmeticArtwork kind={selectedKind} itemId={selectedItemId} size={70}/>)}
-          <View style={{flex:1,alignItems:"flex-end"}}><Text style={[styles.previewName,{fontSize:15,color:theme.textPrimary}]}>{selectedName}</Text><Text style={[styles.previewLabel,{color:theme.textSecondary}]}>{selectionOwned?text.owned:`${selectedProduct.price} ${text.coins}`}</Text><Text style={{color:"#65F0E4",fontFamily:"Cairo_700Bold",fontSize:12}}>معاينة وتجهيز</Text></View><Ionicons name={previewOpen?"expand-outline":"expand-outline"} size={18} color={theme.textSecondary}/>
-        </Pressable>
+        <RoyalSurface style={{padding:12,flexDirection:"row-reverse",gap:12,alignItems:"center",minHeight:125}}>
+         <Pressable accessibilityRole="button" accessibilityLabel="تكبير معاينة المظهر" onPress={()=>seasonSelection?setSeasonPreviewOpen(true):setPreviewOpen(true)}>{seasonSelection?<SeasonCatalogArtwork item={seasonSelection} size={94}/>:showHalloween?<HalloweenAvatar skinId={profile.equippedSkin} size={94}/>:selectedKind==="skin"||selectedKind==="frame"?<PlayerAvatar skinId={selectedSkin} frameId={selectedKind==="frame"?selectedItemId:profile.equippedCosmetics.frame} size={94}/>:<CosmeticArtwork kind={selectedKind} itemId={selectedItemId} size={94}/>}</Pressable>
+         <View style={{flex:1,gap:6}}><Text style={{fontFamily:"Cairo_700Bold",fontSize:17,color:theme.textPrimary,textAlign:"right"}}>{seasonSelection?.name??selectedName}</Text>
+          {seasonSelection?<><Text style={{fontFamily:"Cairo_400Regular",fontSize:11,color:theme.textSecondary,textAlign:"right"}}>قريباً · معاينة فقط</Text><Pressable accessibilityRole="button" onPress={()=>setSeasonPreviewOpen(true)} style={[styles.actionButton,{borderColor:"#3ADDD0",backgroundColor:"#116877"}]}><Text style={[styles.actionText,{color:"#FFF0D6"}]}>معاينة المظهر والحركة</Text></Pressable></>:showHalloween&&halloween.asset(halloweenCategory)?<HalloweenAcquireButton assetKey={halloween.asset(halloweenCategory)!.previewKey}/>:<><Text style={{fontFamily:"Cairo_700Bold",fontSize:13,color:"#F2CC7C",textAlign:"right"}}>{selectionOwned?text.owned:`${selectedProduct.price} ${text.coins}`}</Text><Pressable accessibilityRole="button" disabled={selectedEquipped||!!buyingItemId||!playerId} onPress={activateSelected} style={[styles.actionButton,{backgroundColor:"#F3CC78",borderColor:"#FFF0B8",opacity:selectedEquipped?.55:1}]}><Text style={[styles.actionText,{fontSize:16,color:"#30213E"}]}>{selectedEquipped?text.equipped:selectionOwned?text.equip:text.buy}</Text></Pressable></>}
+         </View>
+        </RoyalSurface>
         <Text style={[styles.note, { color: theme.textMuted }]}>{text.onlineNote}</Text>
       </ScrollView>
 
+      <GameModal visible={seasonPreviewOpen} onRequestClose={()=>setSeasonPreviewOpen(false)}>{seasonSelection?<View style={{alignItems:"center",gap:10}}><Text style={{fontFamily:"Cairo_700Bold",fontSize:19,color:"#FFE3A6",textAlign:"center"}}>{seasonSelection.name}</Text><View style={{width:Math.min(280,width-88),height:Math.min(280,width-88)}}><View style={{position:"absolute",left:(Math.min(280,width-88)-280)/2,top:(Math.min(280,width-88)-280)/2,transform:[{scale:Math.min(280,width-88)/280}]}}><SeasonItemPreview key={seasonSelection.key} item={seasonSelection}/></View></View><Text style={{fontFamily:"Cairo_400Regular",fontSize:11,color:theme.textSecondary,textAlign:"center"}}>معاينة فنية · لا تغيّر الملكية أو المظهر المجهّز</Text><Pressable accessibilityRole="button" onPress={()=>setSeasonPreviewOpen(false)} style={{minHeight:44,justifyContent:"center"}}><Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:"#6AE9DD"}}>إغلاق المعاينة الموسمية</Text></Pressable></View>:null}</GameModal>
       <GameModal visible={pendingPurchase !== null} onRequestClose={() => setPendingPurchase(null)}>
         {pendingPurchase ? (
           <View style={styles.confirmation}>

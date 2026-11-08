@@ -1,5 +1,6 @@
+import {ScaledText as Text} from "@/components/ScaledText";
 import { Link, Stack } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import {StyleSheet, View} from "react-native";
 import { useTheme } from "@/contexts/ThemeContext";
 import { GameIllustration } from "@/components/GameIcon";
 import { GameScreenBackground } from "@/components/GameUi";

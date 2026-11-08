@@ -1,5 +1,6 @@
+import {ScaledText as Text} from "@/components/ScaledText";
 import React from "react";
-import {Image,Pressable,StyleSheet,Text,View} from "react-native";
+import {Image, Pressable, StyleSheet, View} from "react-native";
 import {Ionicons} from "@expo/vector-icons";
 import {MatchRoster,type RosterPlayer} from "./MatchRoster";
 import {PlayerAvatar} from "./GameUi";

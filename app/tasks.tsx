@@ -1,15 +1,10 @@
+import {WeeklyRewardPreview} from "@/components/WeeklyRewardPreview";
+import {ScaledText as Text} from "@/components/ScaledText";
+import {RoyalSurface,RoyalIcon} from "@/components/RoyalUi";
+import {ProgressTabs} from "@/components/ProgressTabs";
+import {EarnedAchievements} from "@/components/EarnedAchievements";
 import React, { useState, useEffect, useCallback, useRef, memo } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-  Platform,
-  Animated,
-  Easing,
-} from "react-native";
+import {View, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform, Animated, Easing} from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -147,7 +142,7 @@ const ClaimButton = memo(function ClaimButton({ onPress, disabled }: { onPress: 
   );
 });
 const cb = StyleSheet.create({
-  btn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, justifyContent: "center", alignItems: "center", overflow: "hidden" },
+  btn: { minHeight:44,paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, justifyContent: "center", alignItems: "center", overflow: "hidden" },
   text: { fontFamily: "Cairo_700Bold", fontSize: 13, color: "#000" },
   shine: { position: "absolute", top: 0, bottom: 0, width: 28, backgroundColor: "rgba(255,255,255,0.35)" },
 });
@@ -155,24 +150,15 @@ const cb = StyleSheet.create({
 function TaskCard({ task, onClaim, isPending, theme }: { task: Task; onClaim: () => void; isPending: boolean; theme: AppTheme }) {
   const pct = Math.min(1, task.progress / task.target);
   const barColor = task.completed ? ACCENT.green : ACCENT.cyan;
-  const borderColor = task.claimed ? ACCENT.green + "40"
-    : task.completed ? ACCENT.gold + "60"
-    : theme.cardBorder;
-  const bgGrad: [string, string] = task.claimed
-    ? [`${ACCENT.green}10`, theme.card]
-    : task.completed
-    ? [`${ACCENT.gold}16`, theme.card]
-    : [theme.card, theme.card];
-
+  if(task.isWeekly)return <RoyalSurface style={{padding:12,flexDirection:"row-reverse",alignItems:"center",gap:10,minHeight:90}}><RoyalIcon name="gift" size={54}/><View style={{flex:1,gap:5}}><Text style={{fontFamily:"Cairo_700Bold",fontSize:16,color:"#FFE5A5",textAlign:"right"}}>{task.titleAr}</Text><View style={{height:9,width:"100%",flexDirection:"row"}}><AnimatedProgressBar pct={pct} color={barColor} trackColor={theme.cardBorder}/></View><Text style={{fontFamily:"Cairo_600SemiBold",fontSize:11,color:theme.textSecondary,textAlign:"right"}}>{task.progress} / {task.target} · {task.rewardCoins} عملة</Text></View>{task.completed&&!task.claimed?<ClaimButton onPress={onClaim} disabled={isPending}/>:task.claimed?<Ionicons name="checkmark-circle" size={26} color={ACCENT.green}/>:null}</RoyalSurface>;
   return (
-    <LinearGradient colors={bgGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-      style={[tc.card, { borderColor }]}>
+    <RoyalSurface style={[tc.card,{borderWidth:0,padding:12}]}>
       <View style={[tc.iconWrap, { backgroundColor: task.completed ? ACCENT.gold + "22" : `${ACCENT.cyan}18` }]}>
-        <GameIcon name="missions" size={25} color={task.completed ? ACCENT.gold : ACCENT.cyan} />
+        <RoyalIcon name={task.type.includes("win")?"trophy":task.type.includes("score")?"coins":"swords"} size={36}/>
       </View>
       <View style={tc.content}>
         <Text style={[tc.title, { color: theme.textPrimary }]}>{task.titleAr}</Text>
-        <Text style={[tc.desc, { color: theme.textSecondary }]}>{task.descAr}</Text>
+        <Text numberOfLines={1} style={[tc.desc, { color: theme.textSecondary }]}>{task.descAr}</Text>
         <View style={tc.progressRow}>
           <AnimatedProgressBar pct={pct} color={barColor} trackColor={theme.cardBorder} />
           <Text style={[tc.progressNum, { color: theme.textMuted }]}>{task.progress}/{task.target}</Text>
@@ -205,15 +191,15 @@ function TaskCard({ task, onClaim, isPending, theme }: { task: Task; onClaim: ()
           </View>
         )}
       </View>
-    </LinearGradient>
+    </RoyalSurface>
   );
 }
 const tc = StyleSheet.create({
   card: {
     flexDirection: "column", alignItems: "stretch",
-    borderRadius: 18, padding: 12, borderWidth: 1, gap: 8, minHeight:210,
+    borderRadius: 18, padding: 10, borderWidth: 1, gap: 5, minHeight:184,
   },
-  iconWrap: { width: 50, height: 50, borderRadius: 25, justifyContent: "center", alignItems: "center" },
+  iconWrap: { width: 38, height: 38, borderRadius: 25, justifyContent: "center", alignItems: "center" },
   icon: { fontSize: 26 },
   content: { gap: 4, width:"100%" },
   title: { fontFamily: "Cairo_700Bold", fontSize: 13, textAlign:"right" },
@@ -226,7 +212,7 @@ const tc = StyleSheet.create({
   rewardText: { fontFamily: "Cairo_600SemiBold", fontSize: 11, color: ACCENT.gold },
   action: { alignItems: "center", justifyContent: "center" },
   doneBadge: { alignItems: "center", justifyContent: "center" },
-  lockCircle: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.05)", justifyContent: "center", alignItems: "center" },
+  lockCircle: { width: 24, height: 24, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.05)", justifyContent: "center", alignItems: "center" },
 });
 
 function TasksScreenInner() {
@@ -297,8 +283,8 @@ function TasksScreenInner() {
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <GameScreenBackground accent="offline" />
       <View style={{ paddingTop: topInset + 8, paddingBottom: bottomInset, flex: 1 }}>
-        <GameHeader
-          title="مهام اليوم"
+        <GameHeader brand={false}
+title="المهام والإنجازات"
           subtitle={`${claimedCount}/${tasks.length} مكتملة`}
           onBack={() => router.back()}
           icon={<GameIcon name="missions" size={23} color={ACCENT.cyan} />}
@@ -308,37 +294,10 @@ function TasksScreenInner() {
             </TouchableOpacity>
           }
         />
+        <ProgressTabs active="tasks"/>
 
 
-        <LinearGradient
-          colors={[theme.card, theme.backgroundSecondary]}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={[s.summaryCard, { borderColor: theme.cardBorder }]}
-        >
-          <View style={s.summaryTop}>
-            <Text style={[s.summaryLabel, { color: theme.textSecondary }]}>تجدد بعد</Text>
-            <Text style={s.summaryCountdown}>{countdown}</Text>
-          </View>
-          <View style={[s.summaryBarTrack, { backgroundColor: theme.cardBorder }]}>
-            <Animated.View style={[s.summaryBarFill, { width: `${totalPct * 100}%` }]} />
-          </View>
-          <View style={s.summaryStats}>
-            <View style={s.summaryStat}>
-              <Text style={[s.summaryStatNum, { color: theme.textPrimary }]}>{claimedCount}</Text>
-              <Text style={[s.summaryStatLabel, { color: theme.textSecondary }]}>مستلمة</Text>
-            </View>
-            <View style={[s.summaryDivider]} />
-            <View style={s.summaryStat}>
-              <Text style={[s.summaryStatNum, { color: theme.textPrimary }]}>{tasks.filter(t => t.completed && !t.claimed).length}</Text>
-              <Text style={[s.summaryStatLabel, { color: theme.textSecondary }]}>جاهزة</Text>
-            </View>
-            <View style={[s.summaryDivider]} />
-            <View style={s.summaryStat}>
-              <Text style={[s.summaryStatNum, { color: theme.textPrimary }]}>{tasks.filter(t => !t.completed).length}</Text>
-              <Text style={[s.summaryStatLabel, { color: theme.textSecondary }]}>قيد التقدم</Text>
-            </View>
-          </View>
-        </LinearGradient>
+        <RoyalSurface style={{marginHorizontal:16,marginBottom:12,padding:10,flexDirection:"row-reverse",alignItems:"center",gap:12}}><RoyalIcon name="tasks" size={52}/><View style={{flex:1,gap:4}}><Text style={{fontFamily:"Cairo_700Bold",fontSize:16,color:"#FFE5A0",textAlign:"right"}}>رحلة المهام</Text><View style={{height:8,borderRadius:7,backgroundColor:"#1A1735",overflow:"hidden"}}><View style={{height:"100%",width:`${totalPct*100}%`,backgroundColor:"#2BDDD0"}}/></View><Text style={{fontFamily:"Cairo_400Regular",fontSize:10,color:"#D8CCE6",textAlign:"right"}}>تم استلام {claimedCount} من {tasks.length} · التجديد بعد {countdown}</Text></View></RoyalSurface>
 
         {isLoading ? (
           <View style={s.center}>
@@ -384,6 +343,8 @@ function TasksScreenInner() {
                 theme={theme}
               /></View>
             ))}</View>
+            <WeeklyRewardPreview/>
+            <EarnedAchievements/>
           </ScrollView>
         )}
       </View>

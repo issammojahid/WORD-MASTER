@@ -1,5 +1,7 @@
+import {SeasonGiftCards} from "@/components/SeasonGiftCards";
+import {ScaledText as Text} from "@/components/ScaledText";
 import React,{useState} from 'react';
-import {Platform,Pressable,ScrollView,StyleSheet,Text,View,useWindowDimensions} from 'react-native';
+import {Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions} from 'react-native';
 import {router,useLocalSearchParams} from 'expo-router';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Ionicons} from '@expo/vector-icons';
@@ -15,6 +17,7 @@ export default function SeasonScreen(){
  const {event:requested}=useLocalSearchParams<{event?:string}>(),{theme}=useTheme(),insets=useSafeAreaInsets(),{width,fontScale}=useWindowDimensions();
  const event=SEASON_EVENTS.find(item=>item.id===requested)??SEASON_EVENTS[0];
  const [kind,setKind]=useState<SeasonCategory>('avatar'),[selected,setSelected]=useState<SeasonPreviewItem|null>(null),[modal,setModal]=useState<'item'|'chest'|null>(null);
+ const [giftPreview,setGiftPreview]=useState(false);
  const items=seasonPreviewItems(event.id),visible=items.filter(item=>item.kind===kind),current=selected?.event===event.id&&selected.kind===kind?selected:visible[0];
  const previewSize=Math.min(280,Math.max(176,width-88)),previewHeight=modal==="chest"?300:280;
  const columns=fontScale>1.3?3:5,tileWidth=(Math.min(width,760)-28-(columns-1)*6)/columns,phase=eventPhase(event,Date.now());
@@ -27,8 +30,10 @@ export default function SeasonScreen(){
    <View style={s.grid}>{visible.map(item=><Pressable key={item.key} accessibilityRole="button" accessibilityLabel={`معاينة ${item.name}`} accessibilityState={{selected:item.key===current.key}} onPress={()=>{setSelected(item);setModal('item');}} style={[s.tile,{width:tileWidth,backgroundColor:theme.card,borderColor:item.key===current.key?'#3DE6D6':theme.cardBorder}]}><SeasonCatalogArtwork item={item} size={Math.max(30,tileWidth-6)}/><Text numberOfLines={2} style={s.tileName}>{item.name}</Text></Pressable>)}</View>
    <Pressable accessibilityRole="button" accessibilityLabel={`فتح معاينة ${current.name}`} onPress={()=>setModal('item')} style={[s.selection,{backgroundColor:theme.card,borderColor:theme.cardBorder}]}><SeasonCatalogArtwork item={current} size={84}/><View style={{flex:1,gap:5}}><Text style={s.heading}>{current.name}</Text><Text style={s.note}>معاينة فنية · لا تغيّر المظهر المجهّز</Text><Text style={s.link}>عرض المظهر والحركة</Text></View><Ionicons name="expand-outline" size={21} color="#74EFE1"/></Pressable>
    <Pressable accessibilityRole="button" accessibilityLabel="معاينة فتح صندوق الموسم" onPress={()=>setModal('chest')} style={[s.chest,{backgroundColor:theme.card,borderColor:theme.cardBorder}]}><Ionicons name="gift-outline" size={28} color="#F2CA7D"/><View style={{flex:1}}><Text style={s.heading}>صندوق الموسم</Text><Text style={s.note}>شاهد حركة الفتح</Text></View><Ionicons name="play-circle-outline" size={27} color="#58DFD2"/></Pressable>
+   <Pressable accessibilityRole="button" accessibilityLabel="معاينة بطاقات هدية البداية" onPress={()=>setGiftPreview(true)} style={[s.chest,{backgroundColor:theme.card,borderColor:theme.cardBorder}]}><Text style={s.heading}>هدية البداية · اقلب أربع بطاقات واختر واحدة</Text></Pressable>
    <Text style={s.disclaimer}>معاينة المجموعات القادمة فقط. الشراء والملكية والمهام والجوائز غير مفعّلة في هذه المعاينة. الصور ثابتة، مع حركات عرض ومؤثرات مضافة داخل الواجهة.</Text>
   </ScrollView>
+  {giftPreview?<SeasonGiftCards event={event.id} onClose={()=>setGiftPreview(false)}/>:null}
   <GameModal visible={modal!==null} onRequestClose={()=>setModal(null)}><View style={{alignItems:'center',gap:12}}><Text style={s.modalTitle}>{modal==='chest'?'صندوق الموسم':current.name}</Text><View style={{width:previewSize,height:previewHeight*previewSize/280}}><View style={{position:"absolute",width:280,height:previewHeight,left:(previewSize-280)/2,top:(previewHeight*previewSize/280-previewHeight)/2,transform:[{scale:previewSize/280}]}}>{modal==='item'?<SeasonItemPreview key={current.key} item={current}/>:modal==='chest'?<SeasonChestPreview event={event.id}/>:null}</View></View><Pressable accessibilityRole="button" accessibilityLabel="إغلاق المعاينة" onPress={()=>setModal(null)} style={s.close}><Text style={s.closeText}>إغلاق</Text></Pressable></View></GameModal>
  </View>;
 }

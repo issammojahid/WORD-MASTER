@@ -1,6 +1,7 @@
+import {ScaledText as Text} from "@/components/ScaledText";
 import { HalloweenCountdown } from "@/components/HalloweenCountdown";
 import React, { useRef } from "react";
-import { ScrollView, View, Image, Text, StyleSheet, Platform } from "react-native";
+import {ScrollView, View, Image, StyleSheet, Platform} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

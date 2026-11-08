@@ -317,7 +317,7 @@ const ar: Translations = {
   difficultyHard: "صعب",
   difficultyHardHint: "منافسون أذكياء وإجابات أكثر",
   difficultyLegendary: "أسطوري",
-  difficultyLegendaryHint: "أقوى المنافسين — هل أنت قدّها؟",
+  difficultyLegendaryHint: "أقوى المنافسين — هل تستطيع التفوّق عليهم؟",
   startBotMatch: "ابدأ المباراة",
   botNameOne: "أمين",
   botNameTwo: "سلمى",

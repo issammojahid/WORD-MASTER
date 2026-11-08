@@ -1,0 +1,26 @@
+[
+  {
+    "asset": "courtyard",
+    "prompt": "Use the supplied approved UI screenshot as a STRICT ART STYLE REFERENCE. Create ONLY a full-bleed Moroccan fantasy night COURTYARD / CITY PANORAMA background illustration, landscape 1536x1024. SAME beautiful polished 3D storybook render, saturated royal indigo blue sky, warm lanterns, orange gold kasbah walls, snow-capped Atlas mountains, palm silhouettes, glowing gateway on RIGHT, minaret on LEFT, rich purple shadows and fine zellige. Keep upper CENTER quiet dark blue sky to put a native logo on it later. Architecture mainly at left and right edges with skyline at middle. NO text, NO logo, NO badges, NO borders, NO panels, NO characters, NO buttons, no UI. This is the real top backdrop for Settings, Profile, Tasks and Store matching the reference, not a different design.",
+    "method": "built-in image generation",
+    "prototypeLimit": "Static raster artwork; UI animations are separate."
+  },
+  {
+    "asset": "home-hero",
+    "prompt": "Use this approved main-menu screenshot as STRICT style and composition reference. Generate ONLY its top HERO ILLUSTRATION, a landscape 1536x768 text-free background asset. SAME young friendly Moroccan fantasy wizard in red fez, purple gold embroidered robe, LEFT side of image, waist-up, one hand reaching toward viewer and other holding open magical book, gold letter-like abstract magic light near book; ornate illuminated Moroccan kasbah gate on RIGHT, snowy Atlas mountains in distance, indigo starry sky. Keep TOP CENTER empty dark indigo for a native title logo to be overlaid later; head below top quarter. Camera frontal polished beautiful 3D storybook game art like reference. Rich saturated indigo blue, violet, warm gold, vivid turquoise accents. No text, no logos, no UI, no panels, no buttons. Match reference young character and scenery, no older bearded wizard.",
+    "method": "built-in image generation",
+    "prototypeLimit": "Static raster artwork; UI animations are separate."
+  },
+  {
+    "asset": "icons",
+    "prompt": "Create an actual production UI ICON texture atlas matching this approved Moroccan fantasy game UI's chunky polished 3D gold and turquoise icons. EXACTLY 4 columns x4 rows, 16 equally sized square cells, canvas square 1536x1536, transparent alpha background. No text, NO labels, NO grid lines, no borders, no backgrounds. Each icon fills 70% of its cell, with clear transparent padding and consistent frontal slightly beveled 3D style. Order row-major: row1 coin stack gold, golden trophy cup with laurel, crossed silver swords with gold handles, gold musical note. row2 TURQUOISE speaker with sound waves, golden notification bell, lilac running person with motion streaks, two gold sparkling stars. row3 turquoise globe with gold stand, golden parchment scroll, ornate golden settings gear, golden home house. row4 golden market stall canopy, golden clipboard checklist, red purple present with gold bow, golden privacy shield with lock. Isolated crisp silhouettes, tasteful zellige engraving, soft specular highlights, no excessive sparkles, no hard shadows outside cells. Must look like reference's actual app icons rather than flat symbols.",
+    "method": "built-in image generation",
+    "prototypeLimit": "Static raster artwork; UI animations are separate."
+  },
+  {
+    "asset": "cutouts",
+    "prompt": "Edit this EXISTING 2-column 4-row portrait atlas to make a matching TRANSPARENT CUTOUT version for a fantasy game profile. Preserve every character's EXACT face, hairstyle, costume, pose, accessories, illustration quality and position in their cell. Preserve the exact row-major order and straight 2x4 square cell layout, full canvas aspect ratio 1:2. Remove ALL architecture, landscapes, sky and scenery behind each character, replacing those backgrounds with real transparent alpha. Keep only each character's head, hair, body, held book and personal gear. No white/black/checkerboard backdrops, no text, no UI, no borders, no scene remnants. Ensure character silhouettes do not cross cell boundaries. Lower busts can stop cleanly at bottom of own square, like profile character artwork, but no unrelated background. Maintain the same scales as input so the existing cell renderer can use this directly. Output actual alpha transparency.",
+    "method": "built-in image generation",
+    "prototypeLimit": "Static raster artwork; UI animations are separate."
+  }
+]

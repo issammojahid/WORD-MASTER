@@ -1,5 +1,6 @@
+import {ScaledText as Text} from "@/components/ScaledText";
 import React from "react";
-import {View,Text,StyleSheet} from "react-native";
+import {View, StyleSheet} from "react-native";
 import {useTheme} from "@/contexts/ThemeContext";
 import type {TeamId,RoomTeamScore} from "@shared/friends-room";
 import {AvatarArtwork} from './AvatarArtwork';

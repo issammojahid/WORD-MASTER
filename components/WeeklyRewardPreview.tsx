@@ -1,0 +1,5 @@
+import {ScaledText as Text} from "@/components/ScaledText";
+import React from 'react';
+import {Image, View} from 'react-native';
+import {RoyalSurface} from './RoyalUi';
+export function WeeklyRewardPreview(){return <RoyalSurface style={{padding:12,gap:8,marginTop:10}}><Text style={{fontFamily:'Cairo_700Bold',fontSize:15,color:'#FFF0D6',textAlign:'center'}}>✧　مكافأة الأسبوع · قريباً　✧</Text><View style={{flexDirection:'row-reverse',gap:8}}>{[3,6,9].map(count=><View key={count} style={{flex:1,alignItems:'center',gap:5}}><View style={{width:65,height:65,overflow:'hidden'}}><Image source={require('../assets/ui-2027/chest-animation-atlas.png')} resizeMode="stretch" style={{position:'absolute',width:130,height:130,left:0,top:0}}/></View><Text style={{fontFamily:'Cairo_700Bold',fontSize:11,color:'#F0D39A'}}>{count} مهام مكتملة</Text></View>)}</View><View style={{height:5,backgroundColor:'#6B5C91',borderRadius:4,marginHorizontal:20}}/><Text style={{fontFamily:'Cairo_400Regular',fontSize:10,color:'#C5B8D8',textAlign:'center'}}>معاينة المسار · الجوائز غير مفعّلة حالياً</Text></RoyalSurface>;}

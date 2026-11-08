@@ -1,13 +1,6 @@
+import {ScaledText as Text} from "@/components/ScaledText";
 import React, { useEffect, useRef, useState } from "react";
-import {
-  Animated,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import {Animated, Modal, Platform, Pressable, StyleSheet, View} from "react-native";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

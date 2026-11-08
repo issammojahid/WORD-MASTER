@@ -1,15 +1,9 @@
+import {PowerCardToolbar} from "@/components/UpcomingGameControls";
+import {ScaledText as Text} from "@/components/ScaledText";
 import {MatchRoster} from "@/components/MatchRoster";
 import {AnswerSheet} from "@/components/AnswerSheet";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Keyboard,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import {Keyboard, Platform, ScrollView, StyleSheet, TouchableOpacity, View} from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -238,7 +232,7 @@ export default function OfflineScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background, paddingTop: topInset, paddingBottom: bottomInset }]}>
       <GameScreenBackground accent="offline" />
-      <GameHeader
+      <GameHeader compact
         title={t.offlineMode}
         subtitle={phase === "setup" ? t.botMatchDescription : t[selectedDifficulty.title]}
         onBack={closeScreen}
@@ -339,6 +333,7 @@ export default function OfflineScreen() {
           keyboardShouldPersistTaps="handled"
           bottomOffset={24}
         >
+          <PowerCardToolbar/>
           <View style={{flexDirection:"row-reverse",gap:10,alignItems:"stretch"}}>
           <View style={[styles.timerCard, {flex:1,justifyContent:"center",minWidth:0}, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
             <View style={styles.timerLabels}>

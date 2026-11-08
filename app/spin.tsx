@@ -1,17 +1,7 @@
+import {ScaledText as Text} from "@/components/ScaledText";
 import Svg, { Path, Circle } from "react-native-svg";
 import React, { useState, useRef, useEffect } from "react";
-import {
-  View,
-  ScrollView,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Animated,
-  Easing,
-  Platform,
-  useWindowDimensions,
-  Alert,
-} from "react-native";
+import {View, ScrollView, StyleSheet, TouchableOpacity, Animated, Easing, Platform, useWindowDimensions, Alert} from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -262,7 +252,7 @@ export default function SpinScreen() {
   return (
     <View style={[styles.container, { paddingTop: topInset, paddingBottom: bottomInset, backgroundColor: theme.background }]}>
       <GameScreenBackground accent="reward" />
-      <View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:theme.background+"A8"}]}/>
+
       <GameHeader
         title={isRTL ? "عجلة الحظ" : "Daily Spin"}
         subtitle={isRTL?"دورة مجانية واحدة كل يوم":"One free spin every day"}

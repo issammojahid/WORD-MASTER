@@ -1,15 +1,9 @@
+import {ScaledText as Text} from "@/components/ScaledText";
+import {RoyalSurface,RoyalIcon} from "@/components/RoyalUi";
+import {ProgressTabs} from "@/components/ProgressTabs";
+import {EarnedAchievements} from "@/components/EarnedAchievements";
 import React, { useState, useCallback, useRef, useEffect, memo } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Platform,
-  Animated,
-  Easing,
-  Alert,
-} from "react-native";
+import {View, StyleSheet, TouchableOpacity, ScrollView, Platform, Animated, Easing, Alert} from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -133,20 +127,8 @@ const clb = StyleSheet.create({
 function AchCard({ ach, onClaim, isPending, theme }: { ach: Achievement; onClaim: () => void; isPending: boolean; theme: AppTheme }) {
   const pct = Math.min(1, ach.progress / ach.target);
   const barColor = ach.unlocked ? ACCENT.gold : ACCENT.cyan;
-  const borderColor = ach.claimed
-    ? ACCENT.green + "40"
-    : ach.unlocked
-    ? ACCENT.gold + "55"
-    : theme.cardBorder;
-  const bgGrad: [string, string] = ach.claimed
-    ? [`${ACCENT.green}10`, theme.card]
-    : ach.unlocked
-    ? [`${ACCENT.gold}16`, theme.card]
-    : [theme.card, theme.card];
-
   return (
-    <LinearGradient colors={bgGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-      style={[ac.card, { borderColor, opacity: ach.claimed ? 0.65 : 1 }]}>
+    <RoyalSurface style={[ac.card,{borderWidth:0,padding:12}]}>
       <View style={[ac.iconWrap, {
         backgroundColor: ach.unlocked ? ACCENT.gold + "22" : `${ACCENT.cyan}12`,
         borderColor: ach.unlocked ? ACCENT.gold + "40" : theme.cardBorder,
@@ -155,7 +137,7 @@ function AchCard({ ach, onClaim, isPending, theme }: { ach: Achievement; onClaim
         shadowRadius: 8, shadowOffset: { width: 0, height: 0 },
       }]}>
         <View style={{ opacity: ach.unlocked ? 1 : 0.35 }}>
-          <GameIcon name="achievements" size={29} color={ach.unlocked ? ACCENT.gold : theme.textMuted} />
+          <RoyalIcon name="trophy" size={43}/>
         </View>
         {ach.unlocked && !ach.claimed && (
           <View style={[ac.unlockedDot, { borderColor: theme.card }]} />
@@ -198,7 +180,7 @@ function AchCard({ ach, onClaim, isPending, theme }: { ach: Achievement; onClaim
           </View>
         )}
       </View>
-    </LinearGradient>
+    </RoyalSurface>
   );
 }
 const ac = StyleSheet.create({
@@ -307,8 +289,8 @@ function AchievementsScreenInner() {
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <GameScreenBackground accent="reward" />
       <View style={{ paddingTop: topInset + 8, paddingBottom: bottomInset, flex: 1 }}>
-        <GameHeader
-          title="الإنجازات"
+        <GameHeader brand={false}
+title="المهام والإنجازات"
           subtitle={readyToClaim > 0 ? `${readyToClaim} جاهزة للاستلام` : undefined}
           onBack={() => router.back()}
           icon={<GameIcon name="achievements" size={23} color={ACCENT.gold} />}
@@ -318,10 +300,11 @@ function AchievementsScreenInner() {
             </TouchableOpacity>
           }
         />
+        <ProgressTabs active="achievements"/>
 
 
         <LinearGradient
-          colors={[theme.card, theme.backgroundSecondary]}
+          colors={["#372155", "#191A3D"]}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
           style={[s.summaryCard, { borderColor: theme.cardBorder }]}
         >
@@ -385,6 +368,7 @@ function AchievementsScreenInner() {
                 theme={theme}
               /></View>
             ))}</View>
+            <EarnedAchievements/>
           </ScrollView>
         )}
       </View>

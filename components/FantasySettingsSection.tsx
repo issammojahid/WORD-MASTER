@@ -1,5 +1,6 @@
+import {ScaledText as Text} from "@/components/ScaledText";
 import React, { useState } from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import {View, Pressable, StyleSheet} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "@/contexts/ThemeContext";
 export function FantasySettingsSection({title,children,defaultExpanded=false}:{title:React.ReactNode;children:React.ReactNode;defaultExpanded?:boolean}){

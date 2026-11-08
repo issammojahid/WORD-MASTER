@@ -27,13 +27,14 @@ const AVATAR_ARTWORK: Record<SkinId, ImageSourcePropType> = {
 type AvatarArtworkProps = {
   skinId?: SkinId;
   size?: number;
+  transparent?: boolean;
 };
 
-export function AvatarArtwork({ skinId = "student", size = 48 }: AvatarArtworkProps) {
+export function AvatarArtwork({ skinId = "student", size = 48, transparent = false }: AvatarArtworkProps) {
   // New visuals retain every legacy identity; uncommon earned skins keep their artwork.
   const index = ["student", "djellaba", "sport", "amazigh", "astronaut", "ninja", "king", "champion"].indexOf(skinId);
   if (index >= 0) return <View pointerEvents="none" style={{ width: size, height: size, overflow: "hidden", borderRadius: size * 0.16 }}>
-    <Image source={require("../assets/ui-2027/portraits-atlas.png")} fadeDuration={0} resizeMode="stretch" style={{ position: "absolute", width: size * 2, height: size * 4, left: -(index % 2) * size, top: -Math.floor(index / 2) * size }} />
+    <Image source={transparent ? require("../assets/ui-2027/portraits-cutout-atlas.png") : require("../assets/ui-2027/portraits-atlas.png")} fadeDuration={0} resizeMode="stretch" style={{ position: "absolute", width: size * 2, height: size * 4, left: -(index % 2) * size, top: -Math.floor(index / 2) * size }} />
   </View>;
   return (
     <Image

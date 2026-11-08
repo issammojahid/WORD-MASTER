@@ -1,3 +1,4 @@
+import {PowerCardToolbar,RewardAdPreview} from "@/components/UpcomingGameControls";
 import {RoomSettingsSummary} from "@/components/RoomSettingsSummary";
 import {AnswerSheet} from "@/components/AnswerSheet";
 import {EntryFeePicker} from "@/components/EntryFeePicker";
@@ -502,8 +503,8 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
   return (
     <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: Math.max(insets.top, 12) }]}>
       <GameScreenBackground accent="online" />
-      <View pointerEvents="none" style={[StyleSheet.absoluteFill,{backgroundColor:theme.background+"A8"}]}/>
-      <GameHeader
+
+      <GameHeader compact
         title={pageTitle}
         onBack={() => {
           if (match && match.phase !== "finished"){leaveCurrentMatch();return;}
@@ -692,6 +693,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
         )}
 
         {isPlaying && match && <View style={{gap:12}}>
+          <PowerCardToolbar/>
           {match.settings.teamMode!=="duo"?<MatchRoster players={match.players} ownId={principalId}/>:null}
           <View style={{gap:7}}><View style={{flexDirection:"row",justifyContent:"space-between"}}><Text style={[styles.timerText,{color:secondsLeft<=10?"#FF8798":CYAN}]}>{secondsLeft}s</Text><Text style={[styles.bodyText,{color:theme.textSecondary}]}>{t.round} {match.round} / {match.totalRounds}</Text></View><View style={{height:8,borderRadius:8,overflow:"hidden",backgroundColor:theme.card}}><View style={{height:"100%",width:`${Math.max(0,Math.min(1,secondsLeft/match.settings.secondsPerRound))*100}%`,backgroundColor:secondsLeft<=10?"#FF8798":CYAN}}/></View></View>
           <View style={[styles.gameMeta,{justifyContent:"center",gap:14}]}><Text style={[styles.settingLabel,{color:theme.textSecondary}]}>{t.currentLetter}</Text><View style={[styles.letterBadge,{borderColor:CYAN,backgroundColor:theme.card}]}><Text style={styles.letterText}>{match.letter}</Text></View></View>
@@ -724,6 +726,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
 
         {isFinished && match && (
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+            {!ownWinner&&match.mode==="random"?<RewardAdPreview entryFee={match.settings.entryFee}/>:null}
             <View style={styles.onlineResultHero}>
               <GameIllustration
                 name={ownWinner ? "victory" : "defeat"}
