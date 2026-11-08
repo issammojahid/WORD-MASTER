@@ -2,7 +2,7 @@
 
 ## Review result (8 November 2026)
 
-Worktree: `release/2027-compatible`. The original `design/2027-seasonal-ui` checkout and its running preview are unchanged. No APK/AAB, push, production migration, AdMob console change or Render deployment has been performed. Production Supabase was inspected inside `BEGIN READ ONLY`: core profiles, online sessions/matches, social profiles, unified wallets and seasonal inventory exist; `rewarded_ad_sessions` and `player_deletion_requests` do not yet exist.
+Worktree: `release/2027-compatible`. The original `design/2027-seasonal-ui` checkout and its running preview are unchanged. No APK/AAB or AdMob console change has been performed. A fresh public-schema pg_dump backup was restored into password-protected loopback PostgreSQL and successfully migrated without changing historical record/balance aggregates. The reviewed additive migrations were then applied to production Supabase. Backend publication status is recorded below. Production Supabase was inspected inside `BEGIN READ ONLY`: core profiles, online sessions/matches, social profiles, unified wallets and seasonal inventory exist; `rewarded_ad_sessions` and `player_deletion_requests` were absent at inspection and now exist after the reviewed migration.
 
 ## Implemented
 
@@ -20,7 +20,7 @@ Worktree: `release/2027-compatible`. The original `design/2027-seasonal-ui` chec
 
 ## Local evidence
 
-The full suite passed 86 tests before the final small ownership/voice hardening changes; focused checks and the final combined run are recorded separately in the local test log. TypeScript, focused ESLint and backend bundling passed. Android Hermes/assets export passed (this is not a signed APK/AAB and does not exercise native microphone/ad SDK behavior).
+The final full suite passed 87 tests after ownership/voice hardening. TypeScript, focused ESLint and backend bundling passed. Android Hermes/assets export passed (this is not a signed APK/AAB and does not exercise native microphone/ad SDK behavior).
 
 Browser review used a separate in-memory API (`scripts/release-preview.ts`, loopback 6060) and a separate Metro preview (8085). Its injected clock is 3 December and its 100000 sample coins are fictional. Tested 390×844 phone and 768×1024 tablet, reveal-all-before-choice, one gift, actual equipment on the profile, locked objective, explicit purchase and 100000→82000 wallet update. Screenshots are saved in the workspace's `previews/release-compatible` folder.
 
@@ -28,10 +28,10 @@ Artwork remains static prototype sheets/cutouts with interface animations, not i
 
 ## Reviewable deployment plan
 
-1. Create a fresh database backup with official pg_dump and test restoration. This machine currently has no pg_dump on PATH. Keep backups out of Git and never print connection credentials.
+1. Create a fresh database backup with official pg_dump and test restoration. Official EDB PostgreSQL 17.11 portable tools were downloaded into the ignored .build-tmp directory; no system service was installed. The fresh dump and restored test data stay outside Git. Keep backups out of Git and never print connection credentials.
 2. Run `scripts/release-database.ts --plan` (default, no DB connection), then `--check` against the deliberately selected database. The apply command requires a fresh pg_dump file and exact hostname confirmation. It wraps the additive migrations and checksums in one transaction with timeouts/advisory lock. It never runs destructive 002 or renames players with 007. Existing 004/005/006/008 are idempotent prerequisites; new work is 009/010.
 3. After explicit production approval, apply the reviewed migrations; push/deploy reviewed backend sources with the existing 2.7.2 null-wrapper compatibility fix retained. Avoid mixing unrelated server_dist/.agents edits from the original checkout. Verify health and old/new socket flows.
-4. Enable `SEASON_2027_ENABLED=true`. It does not open events early; the server's real clock still gates dates. Keep `REWARDED_ADS_ENABLED=false` until AdMob SSV callback configuration and native testing succeed.
+4. This reviewed release enables the seasonal schedule by default; `SEASON_2027_ENABLED=false` is the emergency off switch. It does not open events early; the server's real clock still gates dates. Keep `REWARDED_ADS_ENABLED=false` until AdMob SSV callback configuration and native testing succeed.
 5. Configure the rewarded unit callback to `/api/rewarded-ads/ssv` on the existing HTTPS backend. Set the exact signed `ADMOB_SSV_AD_UNIT`, nominal `ADMOB_SSV_REWARD_ITEM` and nominal `ADMOB_SSV_REWARD_AMOUNT`; these are the AdMob unit's values, not the staged coin payouts. Validate a genuine callback before activation.
 6. Supply `VOICE_TURN_URLS` and server-only `VOICE_TURN_SECRET` for an actual coturn REST-compatible relay, then test two different real networks. Do not embed permanent relay credentials in Expo public variables.
 7. Review/publish the privacy URLs in Play Console and monitor the deletion inbox/support email. The in-app path and public request path do not remove the need to actually process requests. Commands in `scripts/privacy-requests.ts` default to listing pending requests; fulfillment requires explicit request/player, stopped-server assertion and a fresh backup. Never execute fulfillment during ordinary deployment.
@@ -48,3 +48,7 @@ Rollback: disable new feature flags and restore the prior backend deployment. Le
 - [coturn REST temporary credentials](https://github.com/coturn/coturn/wiki/turnserver)
 
 These references guide the implementation; they do not certify the app's compliance or replace verification of the owner's actual retention/hosting and store declarations.
+
+## Publication status
+
+Production additive migrations applied after a successful backup/restore rehearsal. No profiles, balances, old inventories or match records were intentionally rewritten. Backend Git publication and health verification are the next step. Rewarded currency remains disabled until SSV configuration/native verification. TURN relay service credentials are not supplied. The owner deferred physical-phone tests because no device was available.

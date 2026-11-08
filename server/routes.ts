@@ -377,7 +377,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerGameWallet(app);
   registerReleaseRoutes(app,pool);
   registerPrivacyRoutes(app,{database:coinDatabase,authenticate:authenticatedGuest});
-  registerSeason2027(app,{database:coinDatabase,authenticate:authenticatedGuest,enabled:()=>process.env.SEASON_2027_ENABLED==='true'});
+  registerSeason2027(app,{database:coinDatabase,authenticate:authenticatedGuest,enabled:()=>process.env.SEASON_2027_ENABLED!=='false'});
   registerRewardedAds(app,{database:coinDatabase,authenticate:authenticatedGuest,verify:createAdmobVerifier({adUnit:process.env.ADMOB_SSV_AD_UNIT??"",rewardItem:process.env.ADMOB_SSV_REWARD_ITEM??"",rewardAmount:process.env.ADMOB_SSV_REWARD_AMOUNT??""}),config:{enabled:process.env.REWARDED_ADS_ENABLED==="true"&&!!process.env.ADMOB_SSV_AD_UNIT&&!!process.env.ADMOB_SSV_REWARD_ITEM&&!!process.env.ADMOB_SSV_REWARD_AMOUNT,recoveryDailyLimit:6}});
   registerSocialRoutes(app);
   registerHalloweenRoutes(app, postgresHalloweenRepository(pool), { enabled: () => process.env.HALLOWEEN_COMMERCE_ENABLED === "1" });
@@ -625,7 +625,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ────────────────────────────────────────────────────────────────────────────
 
   app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString(),release:process.env.RENDER_GIT_COMMIT??"local",privateRoomTeams:true,coinEntryRooms:true,unifiedWallet:true });
+    res.json({ status: "ok", timestamp: new Date().toISOString(),release:process.env.RENDER_GIT_COMMIT??"local",privateRoomTeams:true,coinEntryRooms:true,unifiedWallet:true,season2027:process.env.SEASON_2027_ENABLED!=="false",rewardedAds:process.env.REWARDED_ADS_ENABLED==="true"&&!!process.env.ADMOB_SSV_AD_UNIT&&!!process.env.ADMOB_SSV_REWARD_ITEM&&!!process.env.ADMOB_SSV_REWARD_AMOUNT });
   });
 
   const LOGIN_STREAK_REWARDS: Record<number, number> = {
