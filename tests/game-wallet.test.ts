@@ -57,7 +57,7 @@ test('authenticated wallet: welcome once, ownership, snapshot tampering, idempot
   assert.equal((await request('/api/player/a',{coins:99999},other,'PUT')).status,403);
   assert.equal((await request('/API/player/%61/',{coins:99999},other,'PUT')).status,403);
   assert.deepEqual((await request('/API/player/%61/',{coins:99999},token,'PUT')).body,{});
-  assert.deepEqual((await request('/api/player/a',{coins:99999,xp:999,name:'Okay'},token,'PUT')).body,{name:'Okay'});
+  assert.deepEqual((await request('/api/player/a',{coins:99999,xp:999,ownedSkins:['king'],ownedTitles:['vip_gold'],name:'Okay'},token,'PUT')).body,{name:'Okay'});
   assert.equal((await request('/api/player/a/game-result',{coinsWon:99999})).status,400);
   assert.equal((await request('/api/game-wallet/action',{operationId:'offline:test',kind:'offline_match',score:400})).body.coins,2020);
   assert.equal((await request('/api/game-wallet/action',{operationId:'offline:test',kind:'offline_match',score:400})).body.coins,2020);

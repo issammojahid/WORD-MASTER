@@ -1,6 +1,13 @@
+import {registerPrivacyRoutes} from './privacy-routes';
+import {registerSeason2027} from './season-2027-routes';
+import {registerReleaseRoutes} from "./release-routes";
+import {registerRewardedAds} from "./rewarded-ads";
+import {createAdmobVerifier} from "./admob-ssv";
+import {coinDatabase} from "./coin-entry-postgres";
+import {getStoreOffer} from "../constants/store-economy";
 import {gameLevel} from "../shared/game-wallet";
 import { randomBytes } from "node:crypto";
-import {registerGameWallet,walletTransaction} from "./game-wallet";
+import {registerGameWallet,walletTransaction,authenticatedGuest} from "./game-wallet";
 import { registerPlayerNameRoute } from "./player-name-store";
 import type { Express } from "express";
 import { createServer, type Server } from "node:http";
@@ -368,6 +375,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   await registerOnlineMultiplayer(app, httpServer);
   registerGameWallet(app);
+  registerReleaseRoutes(app,pool);
+  registerPrivacyRoutes(app,{database:coinDatabase,authenticate:authenticatedGuest});
+  registerSeason2027(app,{database:coinDatabase,authenticate:authenticatedGuest,enabled:()=>process.env.SEASON_2027_ENABLED==='true'});
+  registerRewardedAds(app,{database:coinDatabase,authenticate:authenticatedGuest,verify:createAdmobVerifier({adUnit:process.env.ADMOB_SSV_AD_UNIT??"",rewardItem:process.env.ADMOB_SSV_REWARD_ITEM??"",rewardAmount:process.env.ADMOB_SSV_REWARD_AMOUNT??""}),config:{enabled:process.env.REWARDED_ADS_ENABLED==="true"&&!!process.env.ADMOB_SSV_AD_UNIT&&!!process.env.ADMOB_SSV_REWARD_ITEM&&!!process.env.ADMOB_SSV_REWARD_AMOUNT,recoveryDailyLimit:6}});
   registerSocialRoutes(app);
   registerHalloweenRoutes(app, postgresHalloweenRepository(pool), { enabled: () => process.env.HALLOWEEN_COMMERCE_ENABLED === "1" });
 
@@ -765,6 +776,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allowedFields = [ "coins", "xp", "level", "equippedSkin", "ownedSkins", "equippedTitle", "ownedTitles", "totalScore", "gamesPlayed", "wins", "winStreak", "bestStreak", "lastStreakReward", "powerCards", "country"];
       for (const key of allowedFields) {
         if (data[key] !== undefined) {
+          if(res.locals.unifiedPlayerId&&key==="equippedSkin"&&!(existing.ownedSkins as string[]).includes(data[key]))continue;
+          if(res.locals.unifiedPlayerId&&key==="equippedTitle"&&!(existing.ownedTitles as string[]).includes(data[key]))continue;
           // Never overwrite country with null — DB default "MA" is the fallback
           if (key === "country" && data[key] === null) continue;
           updateData[key] = data[key];
@@ -803,8 +816,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cosmeticProduct = itemType === "cosmetic"
         ? COSMETIC_CATALOG.find((item) => item.id === itemId)
         : undefined;
-      if ((itemType === "skin" && (!avatarProduct || price !== avatarProduct.price))
-        || (itemType === "cosmetic" && (!cosmeticProduct || price !== cosmeticProduct.price))
+      const authoritative=avatarProduct||cosmeticProduct;
+      if(authoritative&&price!==getStoreOffer(authoritative.id)?.price)return res.status(409).json({error:"price_changed",expectedPrice:getStoreOffer(authoritative.id)?.price});
+      if ((itemType === "skin" && !avatarProduct)
+        || (itemType === "cosmetic" && !cosmeticProduct)
         || !["skin", "title", "cosmetic"].includes(itemType)) {
         return res.status(400).json({ error: "invalid_item" });
       }
@@ -814,12 +829,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .where(eq(playerProfiles.id, id))
             .for("update");
           if (!profile) return { status: 404 as const, error: "player_not_found" };
-          if (profile.coins < price) return { status: 402 as const, error: "insufficient_coins" };
           const owned = profile.ownedCosmetics ?? {};
           const ownedInKind = owned[cosmeticProduct.kind as CosmeticKind] ?? [];
           if (ownedInKind.includes(itemId)) {
             return { status: 200 as const, profile, alreadyOwned: true };
           }
+          if (profile.coins < price) return { status: 402 as const, error: "insufficient_coins" };
           const updatedOwned = {
             ...owned,
             [cosmeticProduct.kind]: [...ownedInKind, itemId],
@@ -839,8 +854,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const [profile] = await db.select().from(playerProfiles).where(eq(playerProfiles.id, id));
       if (!profile) return res.status(404).json({ error: "player_not_found" });
-      if (profile.coins < price) return res.status(402).json({ error: "insufficient_coins" });
-
       const ownedSkins: string[] = Array.isArray(profile.ownedSkins) ? (profile.ownedSkins as string[]) : [];
       const ownedTitles: string[] = Array.isArray(profile.ownedTitles) ? (profile.ownedTitles as string[]) : [];
 
@@ -851,6 +864,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ profile, alreadyOwned: true });
       }
 
+      if (profile.coins < price) return res.status(402).json({ error: "insufficient_coins" });
       const updates: Partial<typeof profile> = { coins: profile.coins - price, updatedAt: new Date() };
       if (itemType === "skin") updates.ownedSkins = [...ownedSkins, itemId] as any;
       if (itemType === "title") updates.ownedTitles = [...ownedTitles, itemId] as any;

@@ -54,7 +54,7 @@ export function registerGameWallet(app:Express,walletPool=pool){
    const wallet=await walletPool.query('SELECT player_id FROM game_wallet_accounts WHERE player_id=ANY($1::varchar[])',[candidates]);if(!wallet.rows.length)return next();
    const owner=await authenticatedGuest(req,walletPool);if(!owner||wallet.rows.some(row=>row.player_id!==owner))return res.status(403).json({error:'wallet_owner_required'});
    res.locals.unifiedPlayerId=owner;
-   if(req.method==='PUT'&&/^\/api\/player\/[^/]+\/?$/i.test(req.path)){delete req.body.coins;delete req.body.xp;delete req.body.level;delete req.body.totalScore;delete req.body.gamesPlayed;delete req.body.wins;delete req.body.winStreak;delete req.body.bestStreak;}
+   if(req.method==='PUT'&&/^\/api\/player\/[^/]+\/?$/i.test(req.path)){delete req.body.coins;delete req.body.xp;delete req.body.level;delete req.body.totalScore;delete req.body.gamesPlayed;delete req.body.wins;delete req.body.winStreak;delete req.body.bestStreak;delete req.body.ownedSkins;delete req.body.ownedTitles;}
    if(req.method!=='GET'&&(/\/game-result\/?$/i.test(req.path)||['/api/task-progress','/api/achievement-progress'].includes(req.path.toLowerCase().replace(/\/$/,''))))return res.status(400).json({error:'use_verified_wallet_rewards'});
    next();
   }catch{return res.status(503).json({error:'wallet_unavailable'});}

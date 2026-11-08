@@ -1,3 +1,5 @@
+> Historical client preparation contract below. The authenticated backend is now implemented and locally tested, but not deployed/activated. See [2027-compatible-release.md](2027-compatible-release.md) for the current 6+6 quotas, SSV setup and rollout requirements.
+
 # Rewarded ads: client ready, backend activation pending
 
 Client entry points: a voluntary coin ad on Home; loss recovery only on a finished public paid match with a losing result (solo, teams or four-player). No recovery card for a win, draw, free match or private room. Existing ad unit IDs, UMP consent and non-personalized requests are reused. The rewarded format is now configured for Android production; availability still requires a successful authenticated server offer before an ad can load. Browser ads remain unavailable.

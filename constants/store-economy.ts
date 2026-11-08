@@ -18,7 +18,7 @@ export function getStoreOffer(id:string){
  if(!offer)return undefined;
  return {...offer,purchaseReady:offer.price===legacy.price};
 }
-export function canPurchaseStoreOffer(id:string,quotedPrice:number){
+export function canPurchaseStoreOffer(id:string,quotedPrice:number,authoritativePrice?:number){
  const offer=getStoreOffer(id);
- return !!offer?.purchaseReady&&quotedPrice===offer.price;
+ return !!offer&&quotedPrice===offer.price&&(offer.price===0||authoritativePrice===offer.price);
 }

@@ -4,6 +4,11 @@ import {getOnlineGuestToken} from './socket';
 export type RewardKind='coins'|'loss-recovery';
 export type RewardOffer={enabled:boolean;coins:number};
 export type RewardSession={id:string;customData:string;coins:number};
+export async function getDailyAdProgress(signal?:AbortSignal):Promise<{completed:number;recoveries:number;day:string}>{
+ const data=await request('/api/rewarded-ads/daily',undefined,signal);
+ if(data.enabled!==true||!Number.isInteger(data.completed)||data.completed<0||data.completed>6||!Number.isInteger(data.recoveries)||data.recoveries<0||data.recoveries>6||data.limit!==6||data.recoveryLimit!==6||typeof data.day!=='string')throw Error('invalid_daily_rewards');
+ return {completed:data.completed,recoveries:data.recoveries,day:data.day};
+}
 async function request(path:string,body?:unknown,signal?:AbortSignal){
  installApiAuthentication(getApiUrl());await getOnlineGuestToken();
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);

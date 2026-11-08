@@ -1,3 +1,4 @@
+import {parseVoiceIce,type VoiceIceServer} from '@shared/voice-ice';
 import {RoomVoiceButton} from "./RoomVoiceButton";
 import React,{useEffect,useRef,useState} from "react";
 import {AppState,NativeModules,PermissionsAndroid,Platform} from "react-native";
@@ -12,11 +13,12 @@ export function RoomVoiceChat({socket,matchId,connected,players}:VoiceProps){
  const [joined,setJoined]=useState(false),[busy,setBusy]=useState(false),[mic,setMic]=useState(false),[error,setError]=useState(""),[peers,setPeers]=useState<Peer[]>([]),[muted,setMuted]=useState<string[]>([]),[speaking,setSpeaking]=useState<string[]>([]);
  const rtc=useRef<typeof import("react-native-webrtc")|null>(null),stream=useRef<MediaStream|null>(null),links=useRef(new Map<string,Link>()),epoch=useRef(0),active=useRef(false),mutedRef=useRef<string[]>([]);
  function stop(){epoch.current++;active.current=false;stream.current?.getTracks().forEach(t=>t.stop());stream.current?.release();stream.current=null;for(const link of links.current.values())link.pc.close();links.current.clear();setJoined(false);setBusy(false);setMic(false);setPeers([]);setSpeaking([]);}
+ const ice=useRef<VoiceIceServer[]>([]);
  const stopRef=useRef(stop);stopRef.current=stop;
  useEffect(()=>{
   if(!socket)return;
   function leave(){socket!.emit("voice:leave");stopRef.current();}
-  function linkFor(peerId:string){let link=links.current.get(peerId);if(link)return link;const pc=new rtc.current!.RTCPeerConnection({iceServers:[]});link={pc,pending:[],tracks:[]};links.current.set(peerId,link);stream.current?.getAudioTracks().forEach(t=>pc.addTrack(t,stream.current!));
+  function linkFor(peerId:string){let link=links.current.get(peerId);if(link)return link;const pc=new rtc.current!.RTCPeerConnection({iceServers:ice.current});link={pc,pending:[],tracks:[]};links.current.set(peerId,link);stream.current?.getAudioTracks().forEach(t=>pc.addTrack(t,stream.current!));
    onNative(pc,"icecandidate",(event:{candidate:{toJSON():RTCIceCandidateInit}|null})=>{if(event.candidate&&active.current)socket!.emit("voice:signal",{matchId,to:peerId,signal:{type:"ice",candidate:event.candidate.toJSON()}});});
    onNative(pc,"track",(event:{track:MediaStreamTrack})=>{if(event.track.kind==="audio"){link!.tracks.push(event.track);event.track._setVolume(mutedRef.current.includes(peerId)?0:1);}});
    onNative(pc,"connectionstatechange",()=>{if(pc.connectionState==="failed")setError("تعذر الاتصال بأحد المشاركين. أعد الدخول إلى الصوت.");});return link;
@@ -41,7 +43,7 @@ export function RoomVoiceChat({socket,matchId,connected,players}:VoiceProps){
  async function join(){if(!socket?.connected||busy||joined)return;setBusy(true);setError("");const generation=epoch.current;
   try{if(!NativeModules.WebRTCModule)throw Error("native_build_required");if(Platform.OS==="android"){const result=await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);if(generation!==epoch.current)return;if(result!==PermissionsAndroid.RESULTS.GRANTED)throw Error("permission_denied");}
    const module=await import("react-native-webrtc");rtc.current=module;if(generation!==epoch.current)return;const media=await module.mediaDevices.getUserMedia({audio:true,video:false});if(generation!==epoch.current){media.getTracks().forEach(t=>t.stop());media.release();return;}media.getAudioTracks().forEach(t=>{t.enabled=false;onNative(t,"ended",()=>{socket.emit("voice:leave");stopRef.current();});});stream.current=media;active.current=true;
-   socket.timeout(5000).emit("voice:join",{matchId},(err:Error|null,response:{ok:boolean})=>{if(generation!==epoch.current)return;if(err||!response?.ok){socket.emit("voice:leave");stopRef.current();setError("تعذر الدخول إلى الصوت. أعد المحاولة.");return;}setBusy(false);setJoined(true);});
+   socket.timeout(5000).emit("voice:join",{matchId},(err:Error|null,response:{ok:boolean;iceServers?:unknown})=>{if(generation!==epoch.current)return;if(err||!response?.ok){socket.emit("voice:leave");stopRef.current();setError("تعذر الدخول إلى الصوت. أعد المحاولة.");return;}ice.current=parseVoiceIce(response.iceServers);setBusy(false);setJoined(true);});
   }catch(cause){if(generation!==epoch.current)return;stopRef.current();setError(cause instanceof Error&&cause.message==="native_build_required"?"الصوت يحتاج نسخة جديدة من التطبيق؛ لا يتوفر داخل Expo Go.":"تعذر فتح الميكروفون. تحقق من الإذن ثم أعد المحاولة.");}
  }
  function toggleMic(){const track=stream.current?.getAudioTracks()[0];if(track){track.enabled=!track.enabled;setMic(track.enabled);}}

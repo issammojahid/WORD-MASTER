@@ -1,3 +1,4 @@
+import type {VoiceIceServer} from '../shared/voice-ice';
 import { z } from "zod";
 import type { Server, Socket } from "socket.io";
 const id = z.string().min(1).max(80);
@@ -8,7 +9,7 @@ const signalSchema = z.object({matchId:id,to:id,signal:z.union([
 ])});
 type Member={socket:Socket;playerId:string;matchId:string;seen:number};
 // Only signalling travels through Socket.IO. Audio is never recorded or stored here.
-export function createRoomVoice(io:Server,authorize:(socket:Socket,matchId:string)=>boolean){
+export function createRoomVoice(io:Server,authorize:(socket:Socket,matchId:string)=>boolean,iceFor:(playerId:string)=>VoiceIceServer[]=()=>[]){
  const members=new Map<string,Member>();
  const valid=(m:Member)=>m.socket.connected&&Date.now()-m.seen<15000&&authorize(m.socket,m.matchId);
  function roster(matchId:string){return [...members.values()].filter(m=>m.matchId===matchId&&valid(m)).map(m=>({peerId:m.socket.id,playerId:m.playerId}));}
@@ -25,7 +26,7 @@ export function createRoomVoice(io:Server,authorize:(socket:Socket,matchId:strin
    const matchId=parsed.data.matchId;
    for(const m of members.values())if(m.playerId===playerId&&m.socket.id!==socket.id)remove(m.socket.id,true);
    remove(socket.id);members.set(socket.id,{socket,playerId,matchId,seen:Date.now()});
-   ack({ok:true,peers:roster(matchId)});publish(matchId);
+   ack({ok:true,peers:roster(matchId),iceServers:iceFor(playerId)});publish(matchId);
   });
   socket.on("voice:heartbeat",(payload:unknown)=>{const m=members.get(socket.id);if(m&&allowed()&&joinSchema.safeParse(payload).success&&(payload as {matchId:string}).matchId===m.matchId&&authorize(socket,m.matchId))m.seen=Date.now();});
   socket.on("voice:signal",(payload:unknown)=>{

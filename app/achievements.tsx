@@ -1,3 +1,4 @@
+import {Season2027Collection} from '@/components/Season2027Collection';
 import {ScaledText as Text} from "@/components/ScaledText";
 import {RoyalSurface,RoyalIcon} from "@/components/RoyalUi";
 import {ProgressTabs} from "@/components/ProgressTabs";
@@ -352,12 +353,10 @@ title="المهام والإنجازات"
           <View style={s.center}>
             <LoadingState label="جارٍ تحميل الإنجازات" />
           </View>
-        ) : filtered.length === 0 ? (
-          <View style={s.center}>
-            <EmptyState title="لا توجد إنجازات هنا" description="العب وتقدم للحصول على الإنجازات" icon="achievements" />
-          </View>
         ) : (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
+            <Season2027Collection objectives="achievement"/>
+            {filtered.length===0?<EmptyState title="لا توجد إنجازات هنا" description="العب وتقدم للحصول على الإنجازات" icon="achievements"/>:null}
             <View style={{flexDirection:"row-reverse",flexWrap:"wrap",gap:10}}>{filtered.map((ach) => (
               <View key={ach.key} style={{width:"48%"}}>
               <AchCard

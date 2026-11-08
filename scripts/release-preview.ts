@@ -1,0 +1,35 @@
+// Isolated browser review only: in-memory data, loopback listener, no production .env.
+import express from 'express';
+import {PGlite} from '@electric-sql/pglite';
+import {randomBytes,randomUUID,createHash} from 'node:crypto';
+import {readFileSync} from 'node:fs';
+import {URL} from 'node:url';
+import {registerSeason2027} from '../server/season-2027-routes';
+import {registerReleaseRoutes} from '../server/release-routes';
+import {registerPrivacyRoutes} from '../server/privacy-routes';
+import {registerRewardedAds} from '../server/rewarded-ads';
+import type {CoinDatabase} from '../server/coin-entry-ledger';
+process.env.DATABASE_URL='postgres://preview:preview@127.0.0.1:1/unused';
+const {registerGameWallet,authenticatedGuest}=await import('../server/game-wallet');
+const pg=new PGlite();
+for(const file of ['supabase-initial/0000_clammy_thor.sql','006_halloween_inventory.sql','008_unified_game_wallet.sql','009_rewarded_ads.sql','010_privacy_requests.sql'])await pg.exec(readFileSync(new URL('../server/migrations/'+file,import.meta.url),'utf8'));
+const query=(sql:string,values?:unknown[])=>pg.query<Record<string,unknown>>(sql,values),adapter={query,connect:async()=>({query,release(){}})};
+const database:CoinDatabase={transaction:fn=>pg.transaction(tx=>fn({query:(sql,values)=>tx.query<Record<string,unknown>>(sql,values)}))};
+const authenticate=(req:express.Request)=>authenticatedGuest(req,adapter as never);
+const app=express();app.use(express.json());
+app.use((req,res,next)=>{const origin=req.get('origin');if(origin&&/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin))res.set('Access-Control-Allow-Origin',origin);res.set('Access-Control-Allow-Headers','Content-Type, Authorization');res.set('Access-Control-Allow-Methods','GET,POST,PUT,PATCH,OPTIONS');if(req.method==='OPTIONS')return res.sendStatus(204);next();});
+// Serialize this in-memory review service, including BEGIN/COMMIT adapters.
+let queue:Promise<void>=Promise.resolve();app.use((_req,res,next)=>{const previous=queue;let release!:()=>void;queue=new Promise(resolve=>{release=resolve;});res.once('finish',release);res.once('close',release);void previous.then(()=>next());});
+app.post('/api/online/guest-session',async(_req,res)=>{const id=randomUUID(),token=randomBytes(48).toString('base64url');await query("INSERT INTO online_guest_sessions(id,token_hash,expires_at) VALUES($1,$2,now()+interval '1 year')",[id,createHash('sha256').update(token).digest('hex')]);res.json({token});});
+app.post('/api/game-wallet/initialize',async(req,res)=>{const id=await authenticate(req);if(!id)return res.status(401).json({error:'unauthorized'});await query("INSERT INTO player_profiles(id,name,coins,player_tag) VALUES($1,'مستكشف التجربة',100000,7154) ON CONFLICT(id) DO NOTHING",[id]);await query('INSERT INTO game_wallet_accounts(player_id) VALUES($1) ON CONFLICT DO NOTHING',[id]);const player=(await query('SELECT coins,name FROM player_profiles WHERE id=$1',[id])).rows[0];res.json({playerId:id,unified:true,...player});});
+registerGameWallet(app,adapter as never);
+app.get('/api/online/wallet',async(req,res)=>{const id=await authenticate(req);if(!id)return res.sendStatus(401);const row=(await query('SELECT coins FROM player_profiles WHERE id=$1',[id])).rows[0];res.json({coins:row?.coins??0,entryFees:true,local:true,claims:[]});});
+registerReleaseRoutes(app,{query});registerPrivacyRoutes(app,{database,authenticate});registerSeason2027(app,{database,authenticate,enabled:()=>true,now:()=>new Date('2026-12-03T12:00:00Z')});
+registerRewardedAds(app,{database,authenticate,config:{enabled:true,recoveryDailyLimit:6},verify:async()=>{throw Error('No simulated ad verification endpoint is provided.');}});
+app.get('/api/player/:id',async(req,res)=>{const row=(await query('SELECT * FROM player_profiles WHERE id=$1',[req.params.id])).rows[0];if(!row)return res.sendStatus(404);res.json(Object.fromEntries(Object.entries(row).map(([key,value])=>[key.replace(/_([a-z])/g,(_,c:string)=>c.toUpperCase()),value])));});
+app.put('/api/player/:id',async(req,res)=>{if(await authenticate(req)!==req.params.id)return res.sendStatus(403);await query('UPDATE player_profiles SET equipped_skin=COALESCE($2,equipped_skin),equipped_cosmetics=COALESCE($3::jsonb,equipped_cosmetics) WHERE id=$1',[req.params.id,req.body.equippedSkin??null,req.body.equippedCosmetics?JSON.stringify(req.body.equippedCosmetics):null]);res.json({success:true});});
+app.patch('/api/player/change-name',async(req,res)=>{const id=await authenticate(req);if(!id||req.body.player_id!==id)return res.sendStatus(403);await query('UPDATE player_profiles SET name=$2 WHERE id=$1',[id,String(req.body.new_name??'مستكشف التجربة')]);res.json({success:true,name:req.body.new_name});});
+app.get('/api/tasks/:id',(_req,res)=>res.json([]));app.get('/api/achievements/:id',(_req,res)=>res.json([]));app.post('/api/daily-login',(_req,res)=>res.json({alreadyClaimed:true,reward:0}));
+app.get('/api/health',(_req,res)=>res.json({status:'ok',local:true,reviewClock:'2026-12-03',note:'In-memory test data only. No native ad payouts.'}));
+app.use((_req,res)=>res.status(404).json({error:'not_available_in_isolated_preview'}));
+app.listen(6060,'127.0.0.1',()=>console.log('Isolated review API on http://127.0.0.1:6060; event clock 3 December; sample coins 100000. No production access.'));

@@ -1,3 +1,6 @@
+import {seasonalItem} from '@shared/season-2027';
+import {SeasonCatalogArtwork} from './SeasonCatalogArtwork';
+import {View} from 'react-native';
 import React, { useId } from "react";
 import Svg, {
   Circle,
@@ -24,6 +27,8 @@ function Diamond({ x, y, size, color }: { x: number; y: number; size: number; co
 
 export function CosmeticArtwork({ kind, itemId, size = 72, height = size }: CosmeticArtworkProps) {
   const instanceId = useId().replace(/:/g, "");
+  const seasonal=seasonalItem(itemId);
+  if(seasonal&&((kind==='seasonal'&&seasonal.kind==='icon')||kind===seasonal.kind))return <View style={{width:size,height,alignItems:'center',justifyContent:'center',overflow:'hidden'}}><SeasonCatalogArtwork item={seasonal.art} size={size}/></View>;
   const item = getCosmetic(kind, itemId);
   const [accent, highlight, deep] = item?.colors ?? ["#33C5A1", "#B6F3E2", "#12634F"];
   const gradientId = `cosmetic-${instanceId}`;

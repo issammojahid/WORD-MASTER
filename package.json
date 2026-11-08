@@ -1,6 +1,6 @@
 {
   "name": "expo-app",
-  "main": "expo-router/entry",
+  "main": "index.ts",
   "version": "2.1.0",
   "type": "module",
   "scripts": {

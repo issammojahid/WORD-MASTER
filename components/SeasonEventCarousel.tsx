@@ -1,3 +1,4 @@
+import {useSeasonNow} from '@/lib/use-season-now';
 import {RoyalSurface,RoyalIcon} from "./RoyalUi";
 import {ScaledText as Text} from "@/components/ScaledText";
 import React,{useCallback,useEffect,useRef,useState} from "react";
@@ -13,13 +14,13 @@ import {useInterfacePreferences} from "@/lib/interface-preferences";
 
 
 export function SeasonEventCarousel(){
- const [now,setNow]=useState(Date.now),[index,setIndex]=useState(()=>initialSeasonIndex(Date.now())),[width,setWidth]=useState(300),[paused,setPaused]=useState(false),[active,setActive]=useState(AppState.currentState==="active");
+ const now=useSeasonNow();
+ const [index,setIndex]=useState(()=>initialSeasonIndex(Date.now())),[width,setWidth]=useState(300),[paused,setPaused]=useState(false),[active,setActive]=useState(AppState.currentState==="active");
  const reduced=useReducedMotion(),focused=useIsFocused(),list=useRef<FlatList<typeof SEASON_EVENTS[number]>>(null),interacted=useRef(0),indexRef=useRef(index);indexRef.current=index;
  const {textScale}=useInterfacePreferences();
  const cardWidth=(width-28)/2,stride=cardWidth+10,cardHeight=140+Math.max(0,textScale-1)*100;
  const select=useCallback((next:number,manual=false)=>{if(manual)interacted.current=Date.now();const bounded=(next+SEASON_EVENTS.length)%SEASON_EVENTS.length;setIndex(bounded);list.current?.scrollToOffset({offset:bounded*stride,animated:!reduced});},[reduced,stride]);
  useEffect(()=>{const sub=AppState.addEventListener("change",state=>setActive(state==="active"));return()=>sub.remove();},[]);
- useEffect(()=>{if(!focused||!active)return;const timer=setInterval(()=>setNow(Date.now()),60000);return()=>clearInterval(timer);},[active,focused]);
  useEffect(()=>{list.current?.scrollToOffset({offset:indexRef.current*stride,animated:false});},[stride]);
  useEffect(()=>{if(reduced||paused||!focused||!active)return;const timer=setInterval(()=>{if(Date.now()-interacted.current>10000)select(indexRef.current+1);},6000);return()=>clearInterval(timer);},[reduced,paused,focused,active,select]);
  return <RoyalSurface style={[s.section,{borderWidth:0,backgroundColor:"transparent"}]} onLayout={e=>setWidth(e.nativeEvent.layout.width)}>

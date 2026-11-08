@@ -1,3 +1,4 @@
+import {parseVoiceIce,type VoiceIceServer} from '@shared/voice-ice';
 import {RoomVoiceButton} from "./RoomVoiceButton";
 import React,{useEffect,useRef,useState} from "react";
 
@@ -8,6 +9,7 @@ export function RoomVoiceChat({socket,matchId,connected,players}:VoiceProps){
  const [joined,setJoined]=useState(false),[busy,setBusy]=useState(false),[mic,setMic]=useState(false),[error,setError]=useState(""),[peers,setPeers]=useState<Peer[]>([]),[muted,setMuted]=useState<string[]>([]),[speaking,setSpeaking]=useState<string[]>([]),[failed,setFailed]=useState(false);
  const stream=useRef<MediaStream|null>(null),links=useRef(new Map<string,Link>()),epoch=useRef(0),active=useRef(false),mutedRef=useRef<string[]>([]),audioContext=useRef<AudioContext|null>(null),selfAnalyser=useRef<AnalyserNode|null>(null),playersRef=useRef(players);playersRef.current=players;
  function stop(){epoch.current++;active.current=false;stream.current?.getTracks().forEach(t=>t.stop());stream.current=null;for(const link of links.current.values()){link.pc.close();link.audio.pause();link.audio.srcObject=null;}links.current.clear();void audioContext.current?.close();audioContext.current=null;selfAnalyser.current=null;setJoined(false);setBusy(false);setMic(false);setPeers([]);setSpeaking([]);setFailed(false);}
+ const ice=useRef<VoiceIceServer[]>([]);
  const stopRef=useRef(stop);stopRef.current=stop;
  useEffect(()=>{
   if(!socket)return;
@@ -15,8 +17,8 @@ export function RoomVoiceChat({socket,matchId,connected,players}:VoiceProps){
   function analyser(media:MediaStream){try{const context=audioContext.current;if(!context)return;const node=context.createAnalyser();node.fftSize=256;context.createMediaStreamSource(media).connect(node);return node;}catch{return;}}
   function linkFor(peerId:string){
    let link=links.current.get(peerId);if(link)return link;
-   // Local preview intentionally uses no third-party STUN/TURN or embedded credentials.
-   const pc=new RTCPeerConnection({iceServers:[]}),audio=new Audio();audio.autoplay=true;audio.muted=mutedRef.current.includes(peerId);
+   // The authenticated private-room join supplies short-lived relay credentials.
+   const pc=new RTCPeerConnection({iceServers:ice.current}),audio=new Audio();audio.autoplay=true;audio.muted=mutedRef.current.includes(peerId);
    link={pc,audio,pending:[]};links.current.set(peerId,link);const own=stream.current;own?.getAudioTracks().forEach(track=>pc.addTrack(track,own));
    pc.onicecandidate=event=>{if(event.candidate&&active.current)socket!.emit("voice:signal",{matchId,to:peerId,signal:{type:"ice",candidate:event.candidate.toJSON()}});};
    pc.ontrack=event=>{if(!active.current)return;const remote=event.streams[0]??new MediaStream([event.track]);audio.srcObject=remote;link!.analyser=analyser(remote);void audio.play().catch(()=>setError("تعذر تشغيل الصوت. اضغط «تشغيل الصوت» أدناه."));};
@@ -46,7 +48,7 @@ export function RoomVoiceChat({socket,matchId,connected,players}:VoiceProps){
  async function join(){if(!socket?.connected||busy||joined)return;setBusy(true);setError("");const generation=epoch.current;
   try{if(!navigator.mediaDevices?.getUserMedia||typeof RTCPeerConnection==="undefined")throw Error("unsupported");const media=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});if(generation!==epoch.current){media.getTracks().forEach(t=>t.stop());return;}media.getAudioTracks().forEach(track=>{track.enabled=false;track.onended=()=>{socket.emit("voice:leave");stopRef.current();};});stream.current=media;
    const context=new AudioContext();audioContext.current=context;await context.resume();if(generation!==epoch.current)return;const node=context.createAnalyser();node.fftSize=256;context.createMediaStreamSource(media).connect(node);selfAnalyser.current=node;active.current=true;
-   socket.timeout(5000).emit("voice:join",{matchId},(err:Error|null,response:{ok:boolean})=>{if(generation!==epoch.current)return;if(err||!response?.ok){socket.emit("voice:leave");stopRef.current();setError("تعذر الدخول إلى الصوت. تحقق من الاتصال ثم أعد المحاولة.");return;}setBusy(false);setJoined(true);});
+   socket.timeout(5000).emit("voice:join",{matchId},(err:Error|null,response:{ok:boolean;iceServers?:unknown})=>{if(generation!==epoch.current)return;if(err||!response?.ok){socket.emit("voice:leave");stopRef.current();setError("تعذر الدخول إلى الصوت. تحقق من الاتصال ثم أعد المحاولة.");return;}ice.current=parseVoiceIce(response.iceServers);setBusy(false);setJoined(true);});
   }catch(cause){if(generation!==epoch.current)return;stopRef.current();setError(cause instanceof Error&&cause.name==="NotAllowedError"?"لم يُسمح بالميكروفون. يمكنك السماح به من إعدادات المتصفح ثم إعادة المحاولة.":"الصوت غير متاح هنا. استخدم متصفحاً يدعم الصوت على اتصال آمن.");}
  }
  function toggleMic(){const track=stream.current?.getAudioTracks()[0];if(track){track.enabled=!track.enabled;setMic(track.enabled);}}

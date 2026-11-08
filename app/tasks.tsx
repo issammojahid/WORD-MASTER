@@ -1,3 +1,4 @@
+import {Season2027Collection} from '@/components/Season2027Collection';
 import {ScaledText as Text} from "@/components/ScaledText";
 import {RoyalSurface,RoyalIcon} from "@/components/RoyalUi";
 import {ProgressTabs} from "@/components/ProgressTabs";
@@ -302,12 +303,10 @@ title="المهام والإنجازات"
           <View style={s.center}>
             <LoadingState label="جارٍ تحميل المهام" />
           </View>
-        ) : tasks.length === 0 ? (
-          <View style={s.center}>
-            <EmptyState title="لا توجد مهام حالياً" description="تُجدَّد المهام يومياً" icon="missions" />
-          </View>
         ) : (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
+            <Season2027Collection objectives="task"/>
+            {tasks.length===0?<EmptyState title="لا توجد مهام يومية حالياً" description="تُجدَّد المهام يومياً" icon="missions"/>:null}
             {tasks.filter(t => t.isWeekly).map((task) => (
               <View key={task.key}>
                 <View style={s.sectionHeader}>

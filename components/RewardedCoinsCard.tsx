@@ -8,7 +8,7 @@ import {runRewardedAd} from '@/lib/rewarded-ad';
 import {RoyalSurface,RoyalIcon} from './RoyalUi';
 import {ScaledText as Text} from './ScaledText';
 
-export function RewardedCoinsCard({matchId}:{matchId?:string}){
+export function RewardedCoinsCard({matchId,compact=false,expectedCoins,onCredited}:{matchId?:string;compact?:boolean;expectedCoins?:number;onCredited?:()=>Promise<void>}){
  const kind:RewardKind=matchId?'loss-recovery':'coins',ads=useAds(),{playerId,refreshCoins}=usePlayer();
  const [offer,setOffer]=useState<RewardOffer|null>(null),[pending,setPending]=useState<string|null>(null),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const epoch=useRef(0),alive=useRef(false),lock=useRef(false),release=useRef<null|(()=>void)>(null),controller=useRef<AbortController|null>(null),allowed=useRef(false);
@@ -23,7 +23,7 @@ export function RewardedCoinsCard({matchId}:{matchId?:string}){
  async function verify(id:string){
   const status=await getRewardReceipt(id);
   if(status==='credited'){
-   await refreshCoins();await AsyncStorage.removeItem(key);
+   await refreshCoins();await AsyncStorage.removeItem(key);await onCredited?.();
    if(alive.current){setPending(null);setOffer(null);setMessage('تم تأكيد المكافأة وتحديث رصيدك.');}
   }else if(status==='expired'){
    await AsyncStorage.removeItem(key);if(alive.current){setPending(null);setMessage('انتهت صلاحية الطلب دون مكافأة.');}
@@ -37,6 +37,7 @@ export function RewardedCoinsCard({matchId}:{matchId?:string}){
    const slot=ads.acquireRewardedSlot();if(!slot)throw Error('busy');release.current=slot;
    const session=await startRewardSession(kind,matchId);
    if(!current())throw Error("cancelled");
+   if(expectedCoins!==undefined&&session.coins!==expectedCoins){await onCredited?.();throw Error('reward_offer_changed');}
    await AsyncStorage.setItem(key,session.id);if(alive.current)setPending(session.id);
    const abort=new AbortController();controller.current=abort;
    const earned=await runRewardedAd({userId:playerId,customData:session.customData,allowed:()=>current()&&allowed.current,signal:abort.signal});
@@ -47,9 +48,10 @@ export function RewardedCoinsCard({matchId}:{matchId?:string}){
   finally{release.current?.();release.current=null;controller.current=null;lock.current=false;if(alive.current)setBusy(false);}
  }
  // Keep the release UI clean until the authoritative reward service is enabled.
- if(!offer?.enabled&&!pending)return null;
+ if(!offer?.enabled&&!pending)return compact?<Text style={{fontFamily:'Cairo_400Regular',fontSize:10,color:'#C9BADB',textAlign:'center'}}>غير متاح حالياً</Text>:null;
  const disabled=busy||!playerId||(!pending&&(!offer?.enabled||!ads.canRequestAds||ads.isFullScreenAdActive||Platform.OS==='web'));
- return <RoyalSurface style={{padding:12,gap:9,marginTop:8}}><View style={{flexDirection:'row-reverse',gap:10,alignItems:'center'}}><RoyalIcon name={matchId?'gift':'coins'} size={40}/><View style={{flex:1}}><Text style={{fontFamily:'Cairo_700Bold',fontSize:14,color:'#FFE4A3',textAlign:'right'}}>{matchId?'عوّض جزءاً من مبلغ الدخول':'اربح عملات بمشاهدة إعلان'}</Text><Text style={{fontFamily:'Cairo_400Regular',fontSize:11,color:'#D8C9E4',textAlign:'right'}}>{offer?.enabled?`المكافأة: ${offer.coins} عملة`:'يتطلب اتصالاً وخدمة مكافآت متاحة.'}</Text></View></View>
+ const Wrapper=compact?View:RoyalSurface;
+ return <Wrapper style={compact?{gap:3}:{padding:12,gap:9,marginTop:8}}>{!compact?<View style={{flexDirection:'row-reverse',gap:10,alignItems:'center'}}><RoyalIcon name={matchId?'gift':'coins'} size={40}/><View style={{flex:1}}><Text style={{fontFamily:'Cairo_700Bold',fontSize:14,color:'#FFE4A3',textAlign:'right'}}>{matchId?'عوّض جزءاً من مبلغ الدخول':'اربح عملات بمشاهدة إعلان'}</Text><Text style={{fontFamily:'Cairo_400Regular',fontSize:11,color:'#D8C9E4',textAlign:'right'}}>{offer?.enabled?`المكافأة: ${offer.coins} عملة`:'يتطلب اتصالاً وخدمة مكافآت متاحة.'}</Text></View></View>:null}
  <Pressable accessibilityRole="button" accessibilityState={{disabled,busy}} disabled={disabled} onPress={()=>void watch()} style={{minHeight:46,borderRadius:12,backgroundColor:disabled?'#4A405F':'#0E8C92',justifyContent:'center',opacity:disabled?.65:1}}><Text style={{fontFamily:'Cairo_700Bold',fontSize:13,color:'#FFF0D6',textAlign:'center'}}>{busy?'جارٍ المعالجة…':pending?'التحقق من المكافأة':offer?.enabled?'شاهد الإعلان':'الإعلان غير متاح حالياً'}</Text></Pressable>
- {message?<Text accessibilityLiveRegion="polite" style={{fontFamily:'Cairo_400Regular',fontSize:11,lineHeight:21,color:'#E9D7B8',textAlign:'center'}}>{message}</Text>:null}</RoyalSurface>;
+ {message?<Text accessibilityLiveRegion="polite" style={{fontFamily:'Cairo_400Regular',fontSize:11,lineHeight:21,color:'#E9D7B8',textAlign:'center'}}>{message}</Text>:null}</Wrapper>;
 }

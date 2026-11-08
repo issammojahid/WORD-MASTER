@@ -1,9 +1,15 @@
+import {useIsFocused} from '@react-navigation/native';
+import {useAppActive} from '@/lib/use-app-active';
+import {useSeasonAppearance} from '@/lib/use-season-appearance';
+import {useSeason2027} from '@/contexts/Season2027Context';
+import {seasonalItem} from '@shared/season-2027';
+import {SeasonCatalogArtwork} from './SeasonCatalogArtwork';
 import {ScaledText as Text} from "@/components/ScaledText";
 import {RoyalBrand,RoyalSurface} from "./RoyalUi";
 import {usePlayer} from "@/contexts/PlayerContext";
 import {useInterfacePreferences} from "@/lib/interface-preferences";
-import React, { useEffect, useState } from "react";
-import {ActivityIndicator, AccessibilityInfo, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, type StyleProp, type PressableProps, type TextInputProps, type ViewStyle} from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import {ActivityIndicator, Animated, AccessibilityInfo, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, type StyleProp, type PressableProps, type TextInputProps, type ViewStyle} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Path, Defs, Pattern, Rect } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
@@ -54,7 +60,7 @@ export function GameHeader({title,subtitle,onBack,trailing,icon,compact=false,br
  const back=onBack?<Pressable accessibilityRole="button" accessibilityLabel={t.back} onPress={onBack} style={{width:44,minHeight:44,alignItems:"center",justifyContent:"center",borderRadius:13,borderWidth:1.5,borderColor:"#E1BB76",backgroundColor:"#242044"}}><Ionicons name={isRTL?"arrow-forward":"arrow-back"} size={26} color="#FFE4A0"/></Pressable>:<View style={{width:44}}/>;
  if(compact)return <RoyalSurface style={{marginHorizontal:10,marginBottom:8,paddingVertical:6,flexDirection:isRTL?"row-reverse":"row",alignItems:"center",gap:9,minHeight:62}}>{back}<View style={{flex:1}}><Text style={{fontFamily:"Cairo_700Bold",fontSize:17,color:theme.textPrimary,textAlign:isRTL?"right":"left"}}>{title}</Text>{subtitle?<Text style={{fontFamily:"Cairo_400Regular",fontSize:10,color:theme.textSecondary,textAlign:isRTL?"right":"left"}}>{subtitle}</Text>:null}</View>{trailing}</RoyalSurface>;
  return <View style={{paddingHorizontal:14,paddingBottom:8,gap:3}}>
-  {brand&&<View style={{height:100,flexDirection:"row",alignItems:"center",justifyContent:"space-between"}}><View style={{width:58,alignItems:"center"}}><PlayerAvatar size={49} skinId={profile.equippedSkin} frameId={profile.equippedCosmetics.frame}/><View style={{borderRadius:8,borderWidth:1,borderColor:"#EECC7A",backgroundColor:"#116C79",paddingHorizontal:7,marginTop:-7}}><Text style={{fontFamily:"Cairo_700Bold",fontSize:10,color:"#FFF0CB"}}>{profile.level}</Text></View></View><RoyalBrand width={150}/><View style={{width:58,alignItems:"flex-end"}}>{back}</View></View>}
+  {brand&&<View style={{height:100,flexDirection:"row",alignItems:"center",justifyContent:"space-between"}}><View style={{width:58,alignItems:"center"}}><PlayerAvatar own size={49} skinId={profile.equippedSkin} frameId={profile.equippedCosmetics.frame}/><View style={{borderRadius:8,borderWidth:1,borderColor:"#EECC7A",backgroundColor:"#116C79",paddingHorizontal:7,marginTop:-7}}><Text style={{fontFamily:"Cairo_700Bold",fontSize:10,color:"#FFF0CB"}}>{profile.level}</Text></View></View><RoyalBrand width={150}/><View style={{width:58,alignItems:"flex-end"}}>{back}</View></View>}
   <RoyalSurface style={{minHeight:49,paddingVertical:4,paddingHorizontal:14,flexDirection:"row",alignItems:"center",gap:7}}><View style={{minWidth:25}}>{!brand?back:icon??<Text style={{fontSize:21,color:"#E5BE72"}}>✧</Text>}</View><Text accessibilityRole="header" style={{flex:1,fontFamily:"Cairo_700Bold",fontSize:22,textAlign:"center",color:"#FFF0D6"}}>{title}</Text>{trailing??<Text style={{fontSize:21,color:"#E5BE72"}}>✧</Text>}</RoyalSurface>
   {subtitle?<Text style={{fontFamily:"Cairo_600SemiBold",fontSize:11,color:"#EDE0C6",textAlign:"center",paddingTop:2}}>{subtitle}</Text>:null}
  </View>;
@@ -138,12 +144,21 @@ export function PlayerAvatar({
   accessibilityLabel,
   skinId = "student",
   frameId = "classic",
+  own = false,
+  playerId,
 }: {
   size?: number;
   accessibilityLabel?: string;
   skinId?: SkinId;
   frameId?: string;
+  own?: boolean;
+  playerId?: string;
 }) {
+  const season=useSeason2027();
+  const peer=useSeasonAppearance(own?undefined:playerId);
+  const equipment=own?season.equipped:peer;
+  const seasonal=seasonalItem(equipment.avatar);
+  if(equipment.frame)frameId=equipment.frame;
   const frameColor = getCosmetic("frame", frameId)?.colors[0] ?? gameDesign.colors.profile;
   return (
     <View
@@ -160,7 +175,7 @@ export function PlayerAvatar({
         },
       ]}
     >
-      <AvatarArtwork transparent skinId={skinId} size={frameId === "basic_frame" ? size : size * 0.78} />
+      {seasonal?<SeasonCatalogArtwork item={seasonal.art} size={frameId === "basic_frame" ? size : size * 0.78}/>:<AvatarArtwork transparent skinId={skinId} size={frameId === "basic_frame" ? size : size * 0.78} />}
       {frameId !== "basic_frame" ? (
         <View style={[StyleSheet.absoluteFill, { pointerEvents: "none" }]}>
           <CosmeticArtwork kind="frame" itemId={frameId} size={size} />
@@ -171,11 +186,15 @@ export function PlayerAvatar({
 }
 
 export function VictoryCosmeticEffect({ effectId }: { effectId: string }) {
+  const season=useSeason2027();effectId=season.equipped.victory??effectId;
+  const reduced=useReducedMotion(),active=useAppActive(),focused=useIsFocused(),pulse=useRef(new Animated.Value(0)).current;
+  const seasonal=!!seasonalItem(effectId);
+  useEffect(()=>{pulse.setValue(0);if(!seasonal||reduced||!active||!focused)return;const animation=Animated.loop(Animated.sequence([Animated.timing(pulse,{toValue:1,duration:700,useNativeDriver:true}),Animated.timing(pulse,{toValue:0,duration:700,useNativeDriver:true})]),{iterations:3});animation.start();return()=>{animation.stop();pulse.stopAnimation();};},[effectId,seasonal,reduced,active,focused,pulse]);
   if (effectId === "none" || effectId === "no_victory_effect") return null;
   return (
-    <View accessible accessibilityLabel="Victory cosmetic effect" style={styles.victoryEffect}>
+    <Animated.View accessible accessibilityLabel="تأثير الفوز" style={[styles.victoryEffect,{transform:[{scale:pulse.interpolate({inputRange:[0,1],outputRange:[1,1.15]})}]}]}>
       <CosmeticArtwork kind="victory" itemId={effectId} size={46} />
-    </View>
+    </Animated.View>
   );
 }
 

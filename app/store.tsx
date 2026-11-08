@@ -1,3 +1,5 @@
+import {Season2027Collection} from '@/components/Season2027Collection';
+import {useSeason2027} from '@/contexts/Season2027Context';
 import {getStoreOffer,canPurchaseStoreOffer,STORE_TIER_LABELS} from "@/constants/store-economy";
 import {INTERNAL_SHOWCASE_ENABLED} from "@/constants/release-content";
 import {RoyalSurface} from "@/components/RoyalUi";
@@ -218,6 +220,7 @@ export default function StoreScreen() {
   const reduceMotion = useReducedMotion();
   const text = COPY[language];
   const halloween = useHalloweenAppearance();
+  const seasons=useSeason2027();
   const collectionScroll = useRef<ScrollView>(null);
   const [legacyPreview, setLegacyPreview] = useState(false);
   const [previewOpen,setPreviewOpen]=useState(false);
@@ -234,6 +237,8 @@ export default function StoreScreen() {
       if(first){setSelectedKind(first.kind);setSelectedItemId(first.id);}
     }
   },[category]);
+  const [serverPrices,setServerPrices]=useState<Record<string,number>>({});
+  useEffect(()=>{let active=true;const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),10000);void fetch(new URL("/api/store/catalog",getApiUrl()).toString(),{signal:controller.signal}).then(async response=>{if(!response.ok)return;const data=await response.json();if(!Array.isArray(data.items))return;const prices:Record<string,number>={};for(const item of data.items){if(typeof item.id==="string"&&Number.isSafeInteger(item.price)&&item.price>=0)prices[item.id]=item.price;}if(active)setServerPrices(prices);}).catch(()=>{}).finally(()=>clearTimeout(timeout));return()=>{active=false;clearTimeout(timeout);controller.abort();};},[]);
   const [buyingItemId, setBuyingItemId] = useState<string | null>(null);
   const [pendingPurchase, setPendingPurchase] = useState<{ id: string; kind: "skin" | CosmeticKind; price: number } | null>(null);
   const [feedback, setFeedback] = useState("");
@@ -246,8 +251,8 @@ export default function StoreScreen() {
     [columns, horizontalPadding, width],
   );
   const products = selectedKind === "skin"
-    ? AVATAR_CATALOG.map((item) => ({ ...item, ...getStoreOffer(item.id)!, kind: "skin" as const, icon: "person-outline" as const }))
-    : COSMETIC_CATALOG.filter((item) => item.kind === selectedKind).map(item=>({...item,...getStoreOffer(item.id)!}));
+    ? AVATAR_CATALOG.map((item) => ({ ...item, ...getStoreOffer(item.id)!, purchaseReady:getStoreOffer(item.id)!.price===0||serverPrices[item.id]===getStoreOffer(item.id)!.price, kind: "skin" as const, icon: "person-outline" as const }))
+    : COSMETIC_CATALOG.filter((item) => item.kind === selectedKind).map(item=>({...item,...getStoreOffer(item.id)!,purchaseReady:getStoreOffer(item.id)!.price===0||serverPrices[item.id]===getStoreOffer(item.id)!.price}));
   const selectedProduct = products.find((item) => item.id === selectedItemId) ?? products[0];
   const selectedSkin = selectedKind === "skin" ? selectedItemId as SkinId : profile.equippedSkin;
   const selectedCosmetic = getAvatarCosmetic(selectedSkin);
@@ -256,7 +261,7 @@ export default function StoreScreen() {
   const halloweenCategory = selectedKind === "skin" ? "avatar" : selectedKind === "seasonal" ? "icon" : selectedKind;
   const selectedName = showHalloween ? (halloween.asset(halloweenCategory)?.label ?? (language === "ar" ? "مظهر هالوين" : "Halloween look")) : labels[selectedItemId] ?? selectedItemId;
   const selectedDescription = showHalloween && halloween.equipped ? "مظاهر هالوين المجهزة محفوظة في مجموعتك" : showHalloween ? (language === "ar" ? "معاينة محلية فقط · لم يتغير حسابك أو مشترياتك" : "Local preview only · your account and purchases are unchanged") : labels[`${selectedItemId}Desc`] ?? "";
-  const selectedEquipped = (showHalloween && halloween.equipped) || (!showHalloween && (selectedKind === "skin"
+  const selectedEquipped = (showHalloween && halloween.equipped) || (!showHalloween && !seasons.equipped[halloweenCategory] && (selectedKind === "skin"
     ? profile.equippedSkin === selectedItemId
     : profile.equippedCosmetics[selectedKind] === selectedItemId));
   const topInset = Platform.OS === "web" ? 20 : insets.top;
@@ -279,7 +284,7 @@ export default function StoreScreen() {
   }, [previewScale, reduceMotion, selectedItemId]);
 
   const buyItem = async (itemId: string, itemKind: "skin" | CosmeticKind, price: number) => {
-    if (!canPurchaseStoreOffer(itemId,price)) {setFeedback(isRTL?"الشراء متوقف مؤقتاً لتحديث الأثمنة. يمكنك تجهيز المظاهر المملوكة.":"Purchases are paused while prices are updated. Owned items can still be equipped.");setFeedbackIsError(true);return;}
+    if (!canPurchaseStoreOffer(itemId,price,serverPrices[itemId])) {setFeedback(isRTL?"الشراء متوقف مؤقتاً لتحديث الأثمنة. يمكنك تجهيز المظاهر المملوكة.":"Purchases are paused while prices are updated. Owned items can still be equipped.");setFeedbackIsError(true);return;}
     if (!playerId || buyingItemId) return;
     setFeedback("");
     setBuyingItemId(itemId);
@@ -294,6 +299,7 @@ export default function StoreScreen() {
         profile?: { coins?: number; ownedSkins?: string[]; ownedCosmetics?: typeof profile.ownedCosmetics };
         alreadyOwned?: boolean;
       };
+      if(data.error==="price_changed"){setFeedback(isRTL?"تغيّر ثمن هذا العنصر. حدّث المتجر قبل الشراء.":"This price changed. Refresh the store before purchasing.");setFeedbackIsError(true);setServerPrices(current=>{const next={...current};delete next[itemId];return next;});return;}
       if (response.status === 402 || data.error === "insufficient_coins") {
         setFeedback(text.insufficient);
         setFeedbackIsError(true);
@@ -324,7 +330,8 @@ export default function StoreScreen() {
     }
   };
 
-  const equipSkin = (skinId: SkinId) => {
+  const equipSkin = async (skinId: SkinId) => {
+    try{await seasons.clearCategory("avatar");}catch{setFeedback(text.networkError);setFeedbackIsError(true);return;}
     if (profile.equippedSkin === skinId) return;
     updateProfile({ equippedSkin: skinId });
     setFeedback(text.equipSuccess);
@@ -332,7 +339,8 @@ export default function StoreScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
-  const equipCosmetic = (kind: CosmeticKind, itemId: string) => {
+  const equipCosmetic = async (kind: CosmeticKind, itemId: string) => {
+    try{await seasons.clearCategory(kind==="seasonal"?"icon":kind);}catch{setFeedback(text.networkError);setFeedbackIsError(true);return;}
     if (profile.equippedCosmetics[kind] === itemId) return;
     updateProfile({ equippedCosmetics: { ...profile.equippedCosmetics, [kind]: itemId } });
     setFeedback(text.equipSuccess);
@@ -368,6 +376,7 @@ export default function StoreScreen() {
         <HalloweenEntry compact />
         <HalloweenAccountStatus compact />
         <SeasonCollectionBanner/>
+        <Season2027Collection/>
         <GameModal visible={previewOpen} onRequestClose={()=>setPreviewOpen(false)}><ScrollView style={{maxHeight:600}} contentContainerStyle={{gap:10}}><Pressable accessibilityRole="button" accessibilityLabel="إغلاق المعاينة" onPress={()=>setPreviewOpen(false)} style={{minHeight:44,alignSelf:"flex-start",justifyContent:"center"}}><Ionicons name="close" size={24} color={theme.textPrimary}/></Pressable><LinearGradient
           colors={[`${selectedColors[0]}30`, "#1A112D", theme.card]}
           locations={[0, 0.58, 1]}
@@ -479,15 +488,15 @@ export default function StoreScreen() {
 
         {INTERNAL_SHOWCASE_ENABLED?<Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:"#FFE3A6",textAlign:"right"}}>{seasonEvent.title} · معاينة المظاهر القادمة</Text>:null}
         <View style={styles.catalog}>{seasonItems.map(item=><Pressable key={item.key} accessibilityRole="button" accessibilityLabel={`معاينة موسمية: ${item.name}`} onPress={()=>{setSeasonSelection(item);setSeasonPreviewOpen(true);}} style={[styles.productCard,{width:cardWidth,borderColor:seasonSelection?.key===item.key?"#3DE4D4":"#C2985F",backgroundColor:theme.card}]}><SeasonCatalogArtwork item={item} size={Math.max(30,cardWidth-6)}/><Text numberOfLines={1} style={[styles.productName,{color:theme.textPrimary}]}>{item.name}</Text><Text style={{fontFamily:"Cairo_600SemiBold",fontSize:9,color:"#81EADD"}}>قريباً</Text></Pressable>)}</View>
-        <Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:"#FFE3A6",textAlign:"right"}}>المجموعة الأساسية</Text><Text style={{fontFamily:"Cairo_400Regular",fontSize:11,lineHeight:21,color:theme.textMuted,textAlign:isRTL?"right":"left"}}>{isRTL?"أثمنة جديدة حسب ندرة المظهر. الشراء متوقف مؤقتاً لتحديث الأثمنة؛ المظاهر المملوكة تبقى متاحة للتجهيز.":"New rarity-based prices. Purchases are paused for the price update; owned items remain available to equip."}</Text>
+        <Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:"#FFE3A6",textAlign:"right"}}>المجموعة الأساسية</Text><Text style={{fontFamily:"Cairo_400Regular",fontSize:11,lineHeight:21,color:theme.textMuted,textAlign:isRTL?"right":"left"}}>{isRTL?"أثمنة حسب ندرة المظهر. يمكنك تجهيز المظاهر المملوكة، ويتاح الشراء عند تأكيد الثمن.":"New rarity-based prices. Purchases are paused for the price update; owned items remain available to equip."}</Text>
         <View style={styles.catalog}>
           {products.map((item) => {
             const owned = item.kind === "skin"
               ? profile.ownedSkins.includes(item.id as SkinId)
               : profile.ownedCosmetics[item.kind].includes(item.id);
-            const equipped = item.kind === "skin"
+            const equipped = !seasons.equipped[item.kind==="skin"?"avatar":item.kind==="seasonal"?"icon":item.kind] && (item.kind === "skin"
               ? profile.equippedSkin === item.id
-              : profile.equippedCosmetics[item.kind] === item.id;
+              : profile.equippedCosmetics[item.kind] === item.id);
             const selected = selectedItemId === item.id;
             const name = labels[item.id] ?? item.id;
             const description = labels[`${item.id}Desc`] ?? "";

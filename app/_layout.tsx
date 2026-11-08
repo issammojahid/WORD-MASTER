@@ -1,3 +1,4 @@
+import {Season2027Provider} from '@/contexts/Season2027Context';
 import {useAppActive} from "@/lib/use-app-active";
 import {ScaledText as Text} from "@/components/ScaledText";
 import { PlayerNameForm } from "@/components/PlayerNameForm";
@@ -322,7 +323,7 @@ export default function RootLayout() {
               <GestureHandlerRootView style={{ flex: 1, backgroundColor: gameDesign.colors.background }}>
                 <KeyboardProvider>
                   <AdsProvider>
-                    <HalloweenProvider><StartupShell fontsReady={fontsReady} /></HalloweenProvider>
+                    <Season2027Provider><HalloweenProvider><StartupShell fontsReady={fontsReady} /></HalloweenProvider></Season2027Provider>
                   </AdsProvider>
                 </KeyboardProvider>
               </GestureHandlerRootView>

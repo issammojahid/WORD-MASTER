@@ -1,3 +1,4 @@
+import {voiceIceConfig} from './voice-ice';
 import {isEntryFee,isQueueFee} from "../shared/coin-entry";
 import {reserveCoinEntry,settleCoinEntry,refundInterruptedCoinEntries} from "./coin-entry-ledger";
 import {coinDatabase} from "./coin-entry-postgres";
@@ -802,7 +803,7 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
   const bucketCleanup = setNodeInterval(cleanRateBuckets, 60_000);
   httpServer.once("close", () => clearNodeInterval(bucketCleanup));
 
-  const voice=createRoomVoice(io,(socket,matchId)=>{const room=matchesById.get(matchId),player=room&&getPlayer(room,socket.data.playerId);return !!room&&room.mode==="private"&&!!player&&!player.abandoned&&socket.rooms.has(matchId)&&(activeMatchByPlayer.get(player.id)===room||finishedMatchByPlayer.get(player.id)===room);});
+  const voice=createRoomVoice(io,(socket,matchId)=>{const room=matchesById.get(matchId),player=room&&getPlayer(room,socket.data.playerId);return !!room&&room.mode==="private"&&!!player&&!player.abandoned&&socket.rooms.has(matchId)&&(activeMatchByPlayer.get(player.id)===room||finishedMatchByPlayer.get(player.id)===room);},playerId=>voiceIceConfig(playerId));
   io.use((socket, next) => {
     const ip = getClientAddress(socket);
     cleanRateBuckets();

@@ -1,3 +1,5 @@
+> Historical client-only preparation below. Current local integration/deployment status is documented in [2027-compatible-release.md](2027-compatible-release.md). Do not treat the historical blockers or “no server source changed” statement as the current worktree status.
+
 # Local release preparation
 
 ## Completed
