@@ -916,7 +916,8 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
 
     socket.on("match:find",async(payload?:unknown)=>{
       if(!eventAllowed("match:find",5,60000))return;
-      const requested=payload===undefined?"solo":payload&&typeof payload==="object"?(payload as {mode?:unknown}).mode:undefined;
+      // 2.7.2 emits undefined arguments, which Socket.IO serializes as null.
+      const requested=payload==null?"solo":payload&&typeof payload==="object"?(payload as {mode?:unknown}).mode:undefined;
       const entryFee=payload&&typeof payload==="object"?(payload as {entryFee?:unknown}).entryFee??0:0;
       if(!isPublicQueueMode(requested)||!isQueueFee(entryFee)){emitError(socket,"invalid_payload");return;}
       if(entryFee>0){try{const [wallet]=await db.select({coins:onlineGuestWallets.coins}).from(onlineGuestWallets).where(eq(onlineGuestWallets.playerId,playerId)).limit(1);if((await readGameCoins(pool,playerId))<entryFee){emitError(socket,"insufficient_online_coins");return;}}catch{emitError(socket,"online_unavailable");return;}}
