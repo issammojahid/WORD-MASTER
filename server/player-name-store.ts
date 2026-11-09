@@ -16,8 +16,10 @@ export async function renamePlayer(pool:Pick<Pool,"connect">,playerId:string,val
   await client.query("SELECT pg_advisory_xact_lock(hashtext(lower($1)))",[name]);
   const taken=await client.query(`SELECT id FROM public.player_profiles WHERE ${PLAYER_NAME_KEY_SQL}=lower($1) AND id<>$2 LIMIT 1`,[name,playerId]);
   if(taken.rows.length){await client.query("ROLLBACK");return {error:"name_taken" as const};}
-  const updated=await client.query("UPDATE public.player_profiles SET name=$1,updated_at=now() WHERE id=$2 RETURNING name",[name,playerId]);
-  if(!updated.rows.length){await client.query("ROLLBACK");return {error:"player_not_found" as const};}
+  // First-launch name selection can race the legacy profile bootstrap GET.
+  // Upsert only the profile row with existing schema defaults; existing rows
+  // keep all progress, wallet, and inventory fields unchanged.
+  const updated=await client.query("INSERT INTO public.player_profiles(id,name,updated_at) VALUES($2,$1,now()) ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name,updated_at=now() RETURNING name",[name,playerId]);
   await client.query("COMMIT");
   return {success:true as const,name:String(updated.rows[0].name)};
  }catch(error){await client.query("ROLLBACK").catch(()=>{});if(isPlayerNameConflict(error))return {error:"name_taken" as const};throw error;}
@@ -37,3 +39,4 @@ export function registerPlayerNameRoute(app:Express,pool:Pick<Pool,"connect">){
   }
  });
 }
+
