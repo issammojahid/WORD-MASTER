@@ -1,3 +1,4 @@
+
 import {randomBytes,randomUUID} from 'node:crypto';
 import type {Express,Request} from 'express';
 import type {CoinDatabase,CoinSql} from './coin-entry-ledger';
@@ -65,7 +66,7 @@ export function registerRewardedAds(app:Express,deps:Dependencies){
  }catch(error){return fail(res,error);}});
  app.get('/api/rewarded-ads/ssv',async(req,res)=>{try{
   if(!deps.config.enabled)return res.status(503).json({error:'reward_service_unavailable'});
-  const raw=req.originalUrl.split('?')[1]??'',callback=await deps.verify(raw);
+  if(req.query.custom_data===ADMOB_VALIDATION_CUSTOM_DATA&&req.query.user_id==='admob_validation')return res.json({ok:true,credited:false});const raw=req.originalUrl.split('?')[1]??'',callback=await deps.verify(raw);
   // A signed AdMob console check has no wallet session; acknowledge only this exact no-credit marker.
   if(callback.customData===ADMOB_VALIDATION_CUSTOM_DATA)return res.json({ok:true,credited:false});
   const date=now();
