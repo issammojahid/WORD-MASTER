@@ -8,6 +8,7 @@ import {DAILY_AD_MILESTONES} from '../constants/daily-ad-rewards';
 type Kind='coins'|'loss-recovery';
 type Config={enabled:boolean;recoveryDailyLimit:number};
 type Dependencies={database:CoinDatabase;authenticate:(req:Request)=>Promise<string|null>;verify:(query:string)=>Promise<VerifiedAdCallback>;config:Config;now?:()=>Date};
+export const ADMOB_VALIDATION_CUSTOM_DATA='admob-validation-only-no-reward-2026-11-10';
 export function rewardDay(now:Date){const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Africa/Casablanca',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);return ['year','month','day'].map(k=>parts.find(p=>p.type===k)!.value).join('-');}
 function kindOf(value:unknown):Kind{if(value!=='coins'&&value!=='loss-recovery')throw Error('invalid_kind');return value;}
 async function lockWallet(tx:CoinSql,id:string){const row=(await tx.query('SELECT p.id FROM player_profiles p JOIN game_wallet_accounts w ON w.player_id=p.id WHERE p.id=$1 FOR UPDATE OF p',[id])).rows[0];if(!row)throw Error('initialize_wallet_first');}
@@ -64,7 +65,10 @@ export function registerRewardedAds(app:Express,deps:Dependencies){
  }catch(error){return fail(res,error);}});
  app.get('/api/rewarded-ads/ssv',async(req,res)=>{try{
   if(!deps.config.enabled)return res.status(503).json({error:'reward_service_unavailable'});
-  const raw=req.originalUrl.split('?')[1]??'',callback=await deps.verify(raw),date=now();
+  const raw=req.originalUrl.split('?')[1]??'',callback=await deps.verify(raw);
+  // A signed AdMob console check has no wallet session; acknowledge only this exact no-credit marker.
+  if(callback.customData===ADMOB_VALIDATION_CUSTOM_DATA)return res.json({ok:true,credited:false});
+  const date=now();
   await deps.database.transaction(async tx=>{
    await lockWallet(tx,callback.userId);
    const row=(await tx.query('SELECT * FROM rewarded_ad_sessions WHERE custom_data=$1 AND player_id=$2 FOR UPDATE',[callback.customData,callback.userId])).rows[0];

@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {URL} from 'node:url';
 import {PGlite} from '@electric-sql/pglite';
 import express from 'express';
-import {registerRewardedAds} from '../server/rewarded-ads';
+import {registerRewardedAds,ADMOB_VALIDATION_CUSTOM_DATA} from '../server/rewarded-ads';
 import {reserveCoinEntry,settleCoinEntry,type CoinDatabase,type EntryMatch} from '../server/coin-entry-ledger';
 import type {VerifiedAdCallback} from '../server/admob-ssv';
 test('verified rewards: six independent daily stages, six separate recoveries, owner isolation, expiry and exactly-once wallet credits',async()=>{
@@ -20,6 +20,11 @@ test('verified rewards: six independent daily stages, six separate recoveries, o
  const balance=async(id='a')=>Number((await pg.query<{coins:number}>('SELECT coins FROM player_profiles WHERE id=$1',[id])).rows[0].coins);
  async function complete(session:{customData:string},user='a'){const key='cb'+(++sequence);callbacks.set(key,{userId:user,customData:session.customData,adUnit:'5071837508',timestamp:clock.getTime(),transactionId:sequence.toString(16).padStart(32,'0')});const first=await call('/ssv?'+key,undefined,null);const second=await call('/ssv?'+key,undefined,null);assert.equal(first.status,200);assert.equal(second.status,200);}
  try{
+  const beforeValidation=await balance('old');
+  callbacks.set('console-validation',{userId:'admob_validation',customData:ADMOB_VALIDATION_CUSTOM_DATA,adUnit:'5071837508',timestamp:clock.getTime(),transactionId:'a'.repeat(32)});
+  assert.deepEqual(await call('/ssv?console-validation',undefined,null),{status:200,body:{ok:true,credited:false}});
+  assert.equal(await balance('old'),beforeValidation,'console validation must never grant coins');
+  assert.equal((await pg.query('SELECT id FROM rewarded_ad_sessions WHERE custom_data=$1',[ADMOB_VALIDATION_CUSTOM_DATA])).rows.length,0);
   assert.equal((await call('/daily',undefined,null)).status,401);
   let total=0;
   for(const amount of [100,250,500,1000,1500,2000]){
