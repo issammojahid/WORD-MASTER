@@ -29,6 +29,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { GameIcon, GameIllustration } from "@/components/GameIcon";
 import { gameDesign } from "@/constants/game-design";
 import * as Clipboard from "expo-clipboard";
+import * as Linking from "expo-linking";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Socket } from "socket.io-client";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -37,11 +38,13 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { GAME_CATEGORIES, type GameCategory } from "@/constants/i18n";
 import { connectOnlineSocket, disconnectOnlineSocket, fetchOnlineWallet } from "@/services/socket";
 import { GameButton, GameHeader, GameScreenBackground, GameInput, StatusBadge, VictoryCosmeticEffect } from "@/components/GameUi";
+import { RoyalSurface } from "@/components/RoyalUi";
 
 type OnlineSettings = { entryFee?:number; teamMode?:TeamMode; matchmakingMode?:PublicQueueMode; maxPlayers: 2 | 4 | 6 | 8; rounds: 3 | 5 | 7; secondsPerRound: 45 | 60 | 90 };
-type RoomPlayer = { abandoned?:boolean; teamId?:TeamId|null; id: string; name: string; ready: boolean; host: boolean; connected: boolean; score: number };
+type RoomPlayer = { abandoned?:boolean; isBot?:boolean; teamId?:TeamId|null; id: string; name: string; ready: boolean; host: boolean; connected: boolean; score: number };
 type MatchSnapshot = {
   queueMode?:PublicQueueMode;
+  botPractice?:boolean;
   teams?:RoomTeamScore[];
   messages?:QuickRoomMessage[];
   local?:boolean;
@@ -129,6 +132,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(true);
   const [searching, setSearching] = useState(false);
+  const [botFallbackAvailable, setBotFallbackAvailable] = useState(false);
   const [queuePlayers,setQueuePlayers]=useState(0);
   const [match, setMatch] = useState<MatchSnapshot | null>(null);
   const [principalId, setPrincipalId] = useState("");
@@ -240,13 +244,15 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
         setSearching(true);
         setError("");
       };
-      const onSearchCancelled = () => setSearching(false);
+      const onSearchCancelled = () => { setSearching(false); setBotFallbackAvailable(false); };
       const onQueueTimeout = () => {
         setSearching(false);
+        setBotFallbackAvailable(true);
         setError(queueMode==="solo"?t.opponentDisconnected:"لم يكتمل عدد اللاعبين. أعد البحث.");
       };
       const onFound = (data: MatchSnapshot) => {
         setSearching(false);
+        setBotFallbackAvailable(false);
         setMatch(data);
         setRoundResult(null);
         setFinalPlayers(null);
@@ -302,6 +308,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
       const onBalance=(data:{balance:number})=>{if(Number.isSafeInteger(data.balance)&&data.balance>=0){setOnlineCoins(data.balance);void refreshCoins().catch(()=>{});}};
       const onCancelled = (data: { reason?: string }) => {
         setSearching(false);
+        setBotFallbackAvailable(false);
         setCountdown(null);
         setMatch(null);
         if(data.reason==="insufficient_online_coins"){setError("الرصيد غير كافٍ عند البداية. لم يُخصم الدخول من أي لاعب.");return;}
@@ -447,6 +454,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
   };
 
   const startNewMatch = () => {
+    setBotFallbackAvailable(false);
     setMatch(null);
     setFinalPlayers(null);
     setRoundResult(null);
@@ -522,7 +530,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
         }
       />
 
-      <KeyboardAwareScrollViewCompat contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" bottomOffset={30} showsVerticalScrollIndicator={false}>
+      <KeyboardAwareScrollViewCompat contentContainerStyle={isPrivateRoomScreen ? styles.content : styles.publicQueueContent} keyboardShouldPersistTaps="handled" bottomOffset={30} showsVerticalScrollIndicator={false}>
         {roomPlayer?.abandoned&&match?.phase!=="finished"?<Text style={[styles.bodyText,{color:GOLD}]}>انسحبت من المباراة. يبقى الدخول محسوباً؛ انتظر نهايتها لتأكيد النتيجة.</Text>:null}
         {match&&match.settings.teamMode==="duo"&&match.teams?<RoomTeamBoard ownId={principalId} teams={match.teams} players={match.players} finished={match.phase==="finished"}/>:null}
         {match?.local?<Text style={[styles.bodyText,{color:theme.textSecondary}]}>معاينة محلية · عملات الأونلاين هنا تجريبية</Text>:null}
@@ -539,6 +547,22 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
             <Text style={[styles.errorText, { color: gameDesign.colors.dangerText }]}>{error}</Text>
           </View>
         )}
+        {match?.botPractice ? (
+          <View style={[styles.card, { backgroundColor: theme.card, borderColor: `${GOLD}88` }]}>
+            <Text style={[styles.bodyText, { color: GOLD, textAlign: "center" }]}>لم نعثر على لاعب خلال 15 ثانية؛ هذه مباراة تدريب مجانية ضد خصم مؤقت. لا يوجد رهان أو مكافأة عملات.</Text>
+          </View>
+        ) : null}
+        {botFallbackAvailable && !match && !isPrivateRoomScreen ? (
+          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder, gap: 10 }]}>
+            <Text style={[styles.bodyText, { color: theme.textSecondary }]}>
+              تدرب مجاناً ضد بوتات مؤقتة بأسماء عشوائية. لن يُخصم مبلغ الدخول، والبوتات لا تُسجّل في Supabase أو الترتيب.
+            </Text>
+            {renderButton("تدريب مجاني ضد البوتات", () => {
+              setBotFallbackAvailable(false);
+              router.push("/offline");
+            }, { color: CYAN, icon: "hardware-chip-outline" })}
+          </View>
+        ) : null}
 
         {!connecting && !match && (
           <>
@@ -584,21 +608,34 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
                 </View>
               </>
             ) : (
-              <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
+              <View style={isPrivateRoomScreen ? [styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }] : styles.publicEntryPanel}>
                 <EntryFeePicker mode={queueMode} balance={onlineCoins} fee={entryFee} onSelect={setEntryFee} disabled={searching}/>
                 {entryFee>0&&!entrySupported?<Text style={[styles.bodyText,{color:GOLD}]}>قاعات العملات تحتاج تحديث الخادم. التدريب المجاني متاح.</Text>:null}
                 {entryFee>0&&onlineCoins!==null&&onlineCoins<entryFee?<Text style={[styles.bodyText,{color:GOLD}]}>رصيدك غير كافٍ لمبلغ الدخول المختار. اختر مبلغاً أقل أو التدريب المجاني.</Text>:null}
-                {renderButton(entryFee===0?"تم اختيار التدريب المجاني":"تدريب مجاني",()=>setEntryFee(0),{disabled:searching,color:CYAN})}
                 {searching ? (
                   <View style={styles.searchingRow}>
                     <GameIllustration name="matchmaking" size={70} />
                     <Text style={[styles.bodyText, { color: CYAN, flex: 1 }]}>{queueMode==="solo"?t.searchingOpponent:(isRTL?"في انتظار اللاعبين":"Waiting for players")+" · "+queuePlayers+" / "+publicQueueSize(queueMode)}</Text>
                     {renderButton(t.cancelSearch, () => emit("match:cancel-search"), { color: "#FF738D" })}
                   </View>
-                ) : renderButton(queueMode==="solo"?t.findOpponent:isRTL?"ابحث عن لاعبين":"Find players", () => {
-                  setError("");
-                  emit("match:find",{mode:queueMode,entryFee});
-                }, { icon: "search-outline", disabled: !connected||(entryFee>0&&(!entrySupported||onlineCoins===null||onlineCoins<entryFee)) })}
+                ) : (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={queueMode==="solo"?t.findOpponent:isRTL?"ابحث عن لاعبين":"Find players"}
+                    disabled={!connected||(entryFee>0&&(!entrySupported||onlineCoins===null||onlineCoins<entryFee))}
+                    onPress={() => { setError(""); setBotFallbackAvailable(false); emit("match:find",{mode:queueMode,entryFee}); }}
+                    style={styles.findPlayerPressable}
+                  >
+                    <RoyalSurface selected rounded style={styles.findPlayerSurface}>
+                      <Ionicons name="sparkles" size={22} color="#F6D17B" />
+                      <Text style={styles.findPlayerText}>{queueMode==="solo"?t.findOpponent:isRTL?"ابحث عن لاعبين":"Find players"}</Text>
+                      <Ionicons name="sparkles" size={22} color="#F6D17B" />
+                    </RoyalSurface>
+                  </Pressable>
+                )}
+                <Pressable accessibilityRole="button" onPress={() => setEntryFee(0)} disabled={searching} style={styles.freePracticeLink}>
+                  <Text style={[styles.bodyText, { color: theme.textSecondary }]}>أو تابع بتدريب مجاني دون رسوم</Text>
+                </Pressable>
               </View>
             )}
           </>
@@ -656,7 +693,14 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
                   accessibilityRole="button"
                   accessibilityLabel={t.shareRoomCode}
                   onPress={() => {
-                    if (match.roomCode) void Share.share({ message: `${t.roomCode}: ${match.roomCode}` });
+                    if (match.roomCode) {
+                      const roomLink = Linking.createURL("/private-room", { queryParams: { roomCode: match.roomCode } });
+                      const storeLink = "https://play.google.com/store/apps/details?id=com.huroofalmaghrib";
+                      void Share.share({
+                        title: "دعوة إلى غرفة حروف المغرب",
+                        message: `انضم إلى غرفة الأصدقاء في حروف المغرب: ${roomLink}\nكود الغرفة: ${match.roomCode}\nإذا لم تكن اللعبة مثبتة، حمّلها من Google Play: ${storeLink}`,
+                      });
+                    }
                   }}
                   style={[styles.shareButton, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
                 >
@@ -784,6 +828,12 @@ const styles = StyleSheet.create({
   connectionPill: { minHeight: 36, borderWidth: 2, borderRadius: 4, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 6 },
   connectionDot: { width: 7, height: 7, borderRadius: 4 },
   content: { padding: 12, paddingBottom: 36, gap: 16, width: "100%", maxWidth: 760, alignSelf: "center" },
+  publicQueueContent: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 36, gap: 12, width: "100%", maxWidth: 760, alignSelf: "center" },
+  publicEntryPanel: { width: "100%", gap: 9 },
+  findPlayerPressable: { width: "100%", minHeight: 76, borderRadius: 22, shadowColor: "#19D5CB", shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.48, shadowRadius: 18, elevation: 8 },
+  findPlayerSurface: { minHeight: 76, width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 16, paddingHorizontal: 18 },
+  findPlayerText: { color: "#FFF0D6", fontFamily: "Cairo_700Bold", fontSize: 23, textAlign: "center", flexShrink: 1 },
+  freePracticeLink: { minHeight: 36, alignItems: "center", justifyContent: "center", paddingVertical: 5 },
   hero: { alignItems: "center", padding: 22, borderWidth: 2, borderRadius: 22, gap: 8 },
   heroIcon: { width: 56, height: 56, borderRadius: 4, alignItems: "center", justifyContent: "center", backgroundColor: `${CYAN}20` },
   heroTitle: { fontSize: 25, fontWeight: "900", textAlign: "center" },

@@ -43,6 +43,7 @@ import {
   type OnlineRoomSettings,
 } from "./online-game-logic";
 import { GAME_CATEGORIES } from "../constants/i18n";
+import { CATEGORY_MAP, getWordsForLetter } from "./wordDatabase";
 import { attachSocialSocket, initializeSocial, setSocialPlayerInGame } from "./social";
 
 const SESSION_TTL_MS = 365 * 24 * 60 * 60 * 1000;
@@ -50,6 +51,7 @@ const READY_TIMEOUT_MS = 30_000;
 const RECONNECT_GRACE_MS = 30_000;
 const COUNTDOWN_SECONDS = 3;
 const RESULT_DISPLAY_MS = 4_000;
+const SOLO_BOT_FALLBACK_MS = 15_000;
 const MAX_SOCKET_PAYLOAD_BYTES = 16 * 1024;
 const displayNameSchema = z.string().trim().min(1).max(24);
 const roomSettingsSchema=friendRoomSettingsSchema;
@@ -68,6 +70,7 @@ const settingsEventSchema = z.object({
 type OnlineSocket = Socket & { data: { playerId?: string; displayName?: string } };
 type PlayerSlot = {
   teamId?:TeamId|null;
+  isBot?: boolean;
   id: string;
   name: string;
   socketId: string | null;
@@ -108,6 +111,8 @@ type MatchState = {
   cleanupTimer: ReturnType<typeof setTimeout> | null;
   startedAt: number;
   finalResults: FinalMatchPlayer[] | null;
+  botPractice: boolean;
+  botAnswerTimer: ReturnType<typeof setTimeout> | null;
 };
 
 const waitingQueue = new PublicMatchmaking<QueueEntry>();
@@ -118,6 +123,7 @@ const roomsByCode = new Map<string, MatchState>();
 const socketByPlayer = new Map<string, string>();
 const socketsByPlayer = new Map<string, Set<string>>();
 const rateBuckets = new Map<string, { startedAt: number; count: number }>();
+const BOT_NAMES = ["فارس الكلمات", "سراج", "نديم", "زاهر", "ليلى"];
 
 const emptySettings: OnlineRoomSettings = {
   maxPlayers: 2,
@@ -169,6 +175,7 @@ function snapshot(match: MatchState) {
     roomCode: match.roomCode,
     hostId: match.hostId,
     settings: match.settings,
+    botPractice: match.botPractice,
     queueMode:match.mode==="random"?match.settings.matchmakingMode??"solo":undefined,
     round: match.round,
     totalRounds: match.settings.rounds,
@@ -178,6 +185,7 @@ function snapshot(match: MatchState) {
     messages:match.messages,
     players: match.players.map((player) => ({
       id: player.id,
+      isBot: player.isBot ?? false,
       teamId:player.teamId??null,
       name: player.name,
       ready: player.ready,
@@ -187,6 +195,17 @@ function snapshot(match: MatchState) {
       score: player.score,
     })),
   };
+}
+
+function makeBotAnswers(letter: string): OnlinePlayerAnswer {
+  const answers: OnlinePlayerAnswer = {};
+  for (const category of GAME_CATEGORIES) {
+    const wordCategory = CATEGORY_MAP[category];
+    if (!wordCategory) continue;
+    const words = getWordsForLetter(wordCategory, letter);
+    if (words.length > 0) answers[category] = words[randomBytes(4).readUInt32BE(0) % words.length];
+  }
+  return answers;
 }
 
 function emitRoomUpdate(io: SocketServer, match: MatchState): void {
@@ -204,6 +223,7 @@ function clearMatchTimers(match: MatchState): void {
   if (match.countdownTimer) clearInterval(match.countdownTimer);
   if (match.resultsTimer) clearTimeout(match.resultsTimer);
   if (match.cleanupTimer) clearTimeout(match.cleanupTimer);
+  if (match.botAnswerTimer) clearTimeout(match.botAnswerTimer);
   for (const player of match.players) {
     if (player.disconnectTimer) clearTimeout(player.disconnectTimer);
     player.disconnectTimer = null;
@@ -213,6 +233,7 @@ function clearMatchTimers(match: MatchState): void {
   match.countdownTimer = null;
   match.resultsTimer = null;
   match.cleanupTimer = null;
+  match.botAnswerTimer = null;
 }
 
 function notifyPublicQueues(io:SocketServer){
@@ -277,6 +298,8 @@ function makeMatch(mode: OnlineMode, host: PlayerSlot, settings: OnlineRoomSetti
     cleanupTimer: null,
     startedAt: 0,
     finalResults: null,
+    botPractice: false,
+    botAnswerTimer: null,
   };
   matchesById.set(match.id, match);
   activeMatchByPlayer.set(host.id, match);
@@ -291,6 +314,7 @@ function attachPlayer(io: SocketServer, match: MatchState, player: PlayerSlot, s
 }
 
 async function persistMatchStart(match: MatchState): Promise<void> {
+  if (match.botPractice) return;
   if(match.players.some(p=>!p.socketId||p.abandoned))throw Error("players_not_ready");
   if(match.mode==="random"&&isEntryFee(match.settings.entryFee)){await reserveCoinEntry(coinDatabase,match);return;}
   await db.transaction(async (tx) => {
@@ -327,6 +351,10 @@ async function persistAndPayMatch(match: MatchState, forfeitedPlayerId?: string)
         abandoned: player.abandoned,
       };
     }).sort((a,b)=>a.rank-b.rank||b.score-a.score);
+
+  if (match.botPractice) {
+    return results.map((result) => ({ ...result, coinsAwarded: 0, walletBalance: 0 }));
+  }
 
   if(match.mode==="random"&&isEntryFee(match.settings.entryFee)){
     const payments=await settleCoinEntry(coinDatabase,match,{rounds:match.roundResults,final:results,forfeitedPlayerId:forfeitedPlayerId??null});
@@ -484,7 +512,7 @@ async function persistAndPayMatch(match: MatchState, forfeitedPlayerId?: string)
 function beginRound(io: SocketServer, match: MatchState): void {
   if (match.phase === "finished" || match.phase === "settling") return;
   match.phase = "playing";
-  for (const player of match.players) setSocialPlayerInGame(player.id, true);
+  for (const player of match.players) if (!player.isBot) setSocialPlayerInGame(player.id, true);
   match.round += 1;
   match.letter = getRandomLetter();
   match.answers.clear();
@@ -497,6 +525,22 @@ function beginRound(io: SocketServer, match: MatchState): void {
     deadline: match.deadline,
     categories: GAME_CATEGORIES,
   });
+  const bots = match.players.filter((player) => player.isBot);
+  if (bots.length > 0) {
+    const delay = 4_000 + (randomBytes(4).readUInt32BE(0) % 12_000);
+    match.botAnswerTimer = setTimeout(() => {
+      match.botAnswerTimer = null;
+      if (match.phase !== "playing") return;
+      for(const bot of bots){
+        if(match.answers.has(bot.id))continue;
+        match.answers.set(bot.id, makeBotAnswers(match.letter));
+        io.to(match.id).emit("match:player-submitted", { playerId: bot.id });
+      }
+      if (match.players.filter((player) => !player.abandoned).every((player) => match.answers.has(player.id))) {
+        void finishRound(io, match);
+      }
+    }, delay);
+  }
 }
 
 async function finishMatch(
@@ -510,10 +554,10 @@ async function finishMatch(
   try {
     const finalPlayers = await persistAndPayMatch(match, forfeitedPlayerId);
     match.phase = "finished";
-    for (const player of match.players) setSocialPlayerInGame(player.id, false);
+    for (const player of match.players) if (!player.isBot) setSocialPlayerInGame(player.id, false);
     match.finalResults = finalPlayers;
     releaseMatchPlayers(match);
-    for (const player of match.players) finishedMatchByPlayer.set(player.id, match);
+    for (const player of match.players) if (!player.isBot) finishedMatchByPlayer.set(player.id, match);
     const publicPlayers = finalPlayers.map(({ walletBalance: _walletBalance, ...player }) => player);
     io.to(match.id).emit("match:finished", {
       matchId: match.id,
@@ -617,7 +661,7 @@ function beginCountdown(io: SocketServer, match: MatchState): void {
     void (async () => {
       try {
         await persistMatchStart(match);
-        for(const player of match.players){try{const [wallet]=await db.select({coins:onlineGuestWallets.coins}).from(onlineGuestWallets).where(eq(onlineGuestWallets.playerId,player.id)).limit(1);for(const sid of socketsByPlayer.get(player.id)??[])io.to(sid).emit("match:balance",{balance:await readGameCoins(pool,player.id)});}catch{}}
+        for(const player of match.players.filter((candidate)=>!candidate.isBot)){try{const [wallet]=await db.select({coins:onlineGuestWallets.coins}).from(onlineGuestWallets).where(eq(onlineGuestWallets.playerId,player.id)).limit(1);for(const sid of socketsByPlayer.get(player.id)??[])io.to(sid).emit("match:balance",{balance:await readGameCoins(pool,player.id)});}catch{}}
         match.startedAt = Date.now();
         beginRound(io, match);
       } catch (error) {
@@ -927,7 +971,32 @@ export async function registerOnlineMultiplayer(app: Express, httpServer: HttpSe
       const prior=waitingQueue.modeFor(playerId);if(prior&&(prior!==requested||waitingQueue.feeFor(playerId)!==entryFee)){emitError(socket,"already_in_queue");return;}
       if(prior){notifyPublicQueues(io);return;}
       for(const [queuedId,entry] of waitingQueue.entriesList()){if(!entry.player.socketId||!io.sockets.sockets.get(entry.player.socketId)?.connected)removeFromQueue(queuedId);}
-      const currentEntry:QueueEntry={player:makePlayer(playerId,socket.data.displayName??"",socket.id),queuedAt:Date.now(),timeout:setTimeout(()=>{removeFromQueue(playerId);for(const sid of socketsByPlayer.get(playerId)??[])io.to(sid).emit("match:queue-timeout");notifyPublicQueues(io);},120000)};
+    const currentEntry:QueueEntry={player:makePlayer(playerId,socket.data.displayName??"",socket.id),queuedAt:Date.now(),timeout:setTimeout(()=>{
+      const stillWaiting=waitingQueue.has(playerId);
+      if(!stillWaiting)return;
+      const human=waitingQueue.entriesFor(requested,entryFee).find(([id])=>id===playerId)?.[1]?.player;
+      removeFromQueue(playerId);
+      const liveSocket=io.sockets.sockets.get(socket.id);
+      if(!human||!liveSocket?.connected||activeMatchByPlayer.has(playerId)){notifyPublicQueues(io);return;}
+      const settings:OnlineRoomSettings={...emptySettings,maxPlayers:publicQueueSize(requested),teamMode:requested==="team"?"duo":"solo",matchmakingMode:requested,entryFee:0};
+      const match=makeMatch("random",human,settings);
+      match.botPractice=true;
+      const nameOffset=randomBytes(4).readUInt32BE(0)%BOT_NAMES.length;
+      for(let index=0;index<settings.maxPlayers-1;index++){
+        const bot=makePlayer(`bot:${randomUUID()}`,BOT_NAMES[(nameOffset+index)%BOT_NAMES.length],"");
+        bot.socketId=null;bot.isBot=true;bot.ready=true;
+        match.players.push(bot);
+      }
+      activeMatchByPlayer.set(playerId,match);
+      for(const [id,teamId]of roomTeamAssignment(match.players,settings.teamMode)){
+        const player=match.players.find((candidate)=>candidate.id===id);
+        if(player)player.teamId=teamId;
+      }
+      liveSocket.join(match.id);
+      beginCountdown(io,match);
+      io.to(match.id).emit("match:found",snapshot(match));
+      notifyPublicQueues(io);
+    },SOLO_BOT_FALLBACK_MS)};
       const result=waitingQueue.enqueue(playerId,currentEntry,requested,entryFee);
       if(result.status!=="matched"){notifyPublicQueues(io);return;}
       const settings:OnlineRoomSettings={...emptySettings,maxPlayers:publicQueueSize(requested),teamMode:requested==="team"?"duo":"solo",matchmakingMode:requested,entryFee};
