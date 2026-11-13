@@ -2,6 +2,7 @@ import {Season2027Provider} from '@/contexts/Season2027Context';
 import {useAppActive} from "@/lib/use-app-active";
 import {ScaledText as Text} from "@/components/ScaledText";
 import { PlayerNameForm } from "@/components/PlayerNameForm";
+import { FirstCountryForm } from "@/components/FirstCountryForm";
 import {
   Cairo_400Regular,
   Cairo_600SemiBold,
@@ -30,6 +31,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { PlayerProvider, usePlayer } from "@/contexts/PlayerContext";
 import { HalloweenProvider } from "@/contexts/HalloweenContext";
 import { HalloweenLaunchPopup } from "@/components/HalloweenLaunchPopup";
+import { RatingPrompt } from "@/components/RatingPrompt";
 import { StartupProvider } from "@/contexts/StartupContext";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import SplashOverlay from "@/components/SplashOverlay";
@@ -154,6 +156,7 @@ function RootLayoutNav() {
     <>
       <DailyResetChecker />
       <PushNotificationRegistrar />
+      <RatingPrompt />
       <View style={[styles.navigationFrame, { backgroundColor: theme.background }]}>
         <Stack screenOptions={{
           headerShown: false,
@@ -193,7 +196,7 @@ const styles = StyleSheet.create({
 
 function StartupShell({ fontsReady }: { fontsReady: boolean }) {
   const router = useRouter();
-  const { isReady: playerReady, needsName } = usePlayer();
+  const { isReady: playerReady, needsName, needsCountry } = usePlayer();
   const { theme } = useTheme();
   const reduceMotion = useReducedMotion();
   const [navigationReady, setNavigationReady] = useState(false);
@@ -256,7 +259,7 @@ function StartupShell({ fontsReady }: { fontsReady: boolean }) {
   }, [router]);
 
   return (
-    <StartupProvider ready={!splashVisible && introChecked && !introVisible && !needsName}>
+    <StartupProvider ready={!splashVisible && introChecked && !introVisible && !needsName && !needsCountry}>
       <View
         style={[styles.navigationFrame, { backgroundColor: theme.background }]}
         onLayout={() => {
@@ -282,6 +285,7 @@ function StartupShell({ fontsReady }: { fontsReady: boolean }) {
         )}
         {introVisible && !splashVisible && <CinematicIntro onFinish={closeIntro} />}
         <GameModal visible={!splashVisible && introChecked && !introVisible && needsName} onRequestClose={() => {}}><PlayerNameForm /></GameModal>
+        <GameModal visible={!splashVisible && introChecked && !introVisible && !needsName && needsCountry} onRequestClose={() => {}}><FirstCountryForm /></GameModal>
         <HalloweenLaunchPopup />
       </View>
     </StartupProvider>

@@ -213,7 +213,7 @@ const COPY = {
 
 export default function StoreScreen() {
   const insets = useSafeAreaInsets();
-  const { width,fontScale } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const { isRTL, language } = useLanguage();
   const { profile, playerId, updateProfile } = usePlayer();
   const { theme } = useTheme();
@@ -244,7 +244,7 @@ export default function StoreScreen() {
   const [feedback, setFeedback] = useState("");
   const [feedbackIsError, setFeedbackIsError] = useState(false);
   const previewScale = useRef(new Animated.Value(1)).current;
-  const columns = fontScale>1.3?3:5;
+  const columns = 5;
   const horizontalPadding = width >= 600 ? 24 : 16;
   const cardWidth = useMemo(
     () => (Math.min(width, 760) - horizontalPadding * 2 - 8 * (columns - 1)) / columns,
@@ -487,7 +487,7 @@ export default function StoreScreen() {
         ) : null}
 
         {INTERNAL_SHOWCASE_ENABLED?<Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:"#FFE3A6",textAlign:"right"}}>{seasonEvent.title} · معاينة المظاهر القادمة</Text>:null}
-        <View style={styles.catalog}>{seasonItems.map(item=><Pressable key={item.key} accessibilityRole="button" accessibilityLabel={`معاينة موسمية: ${item.name}`} onPress={()=>{setSeasonSelection(item);setSeasonPreviewOpen(true);}} style={[styles.productCard,{width:cardWidth,borderColor:seasonSelection?.key===item.key?"#3DE4D4":"#C2985F",backgroundColor:theme.card}]}><SeasonCatalogArtwork item={item} size={Math.max(30,cardWidth-6)}/><Text numberOfLines={1} style={[styles.productName,{color:theme.textPrimary}]}>{item.name}</Text><Text style={{fontFamily:"Cairo_600SemiBold",fontSize:9,color:"#81EADD"}}>قريباً</Text></Pressable>)}</View>
+        <View style={styles.catalog}>{seasonItems.map(item=><Pressable key={item.key} accessibilityRole="button" accessibilityLabel={`معاينة موسمية: ${item.name}`} onPress={()=>{setSeasonSelection(item);setSeasonPreviewOpen(true);}} style={[styles.productCard,{width:cardWidth,borderColor:seasonSelection?.key===item.key?"#3DE4D4":"#C2985F",backgroundColor:theme.card}]}><SeasonCatalogArtwork item={item} size={Math.max(30,cardWidth-6)}/><Text numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.75} maxFontSizeMultiplier={1.15} style={[styles.productName,{color:theme.textPrimary}]}>{item.name}</Text><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{fontFamily:"Cairo_600SemiBold",fontSize:9,color:"#81EADD"}}>قريباً</Text></Pressable>)}</View>
         <Text style={{fontFamily:"Cairo_700Bold",fontSize:14,color:"#FFE3A6",textAlign:"right"}}>المجموعة الأساسية</Text><Text style={{fontFamily:"Cairo_400Regular",fontSize:11,lineHeight:21,color:theme.textMuted,textAlign:isRTL?"right":"left"}}>{isRTL?"أثمنة حسب ندرة المظهر. يمكنك تجهيز المظاهر المملوكة، ويتاح الشراء عند تأكيد الثمن.":"New rarity-based prices. Purchases are paused for the price update; owned items remain available to equip."}</Text>
         <View style={styles.catalog}>
           {products.map((item) => {
@@ -532,10 +532,10 @@ export default function StoreScreen() {
                       ? <AvatarArtwork skinId={item.id as SkinId} size={Math.max(32,cardWidth-6)} />
                       : <CosmeticArtwork kind={item.kind} itemId={item.id} size={Math.max(32,cardWidth-12)} />}
                   </View>
-                  <Text style={[styles.productName, { color: theme.textPrimary }]} numberOfLines={1}>{name}</Text><Text style={{fontFamily:"Cairo_600SemiBold",fontSize:9,color:item.tier==="legendary"?"#F5CB68":item.tier==="rare"?"#C9ACFF":"#8ADCD7"}}>{isRTL?STORE_TIER_LABELS[item.tier]:item.tier}</Text>
+                  <Text style={[styles.productName, { color: theme.textPrimary }]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.75} maxFontSizeMultiplier={1.15}>{name}</Text><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{fontFamily:"Cairo_600SemiBold",fontSize:9,color:item.tier==="legendary"?"#F5CB68":item.tier==="rare"?"#C9ACFF":"#8ADCD7"}}>{isRTL?STORE_TIER_LABELS[item.tier]:item.tier}</Text>
 
                 </Pressable>
-                <Text style={{fontFamily:"Cairo_700Bold",fontSize:10,color:gameDesign.colors.coinsText,textAlign:"center"}}>{equipped?"✓":owned?text.owned:item.price.toLocaleString()}</Text>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{fontFamily:"Cairo_700Bold",fontSize:10,color:gameDesign.colors.coinsText,textAlign:"center"}}>{equipped?"✓":owned?text.owned:item.price.toLocaleString()}</Text>
 
               </View>
             );
@@ -634,7 +634,7 @@ const styles = StyleSheet.create({
   productState: { position:"absolute",top:2,right:2,zIndex:2,minHeight: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, borderWidth: 1, borderRadius: 999, paddingHorizontal: 4, paddingVertical: 2 },
   productStateText: { fontFamily: "Cairo_700Bold", fontSize: 9, lineHeight: 14 },
   productAvatar: { width: "100%", height: 46, overflow:"hidden", borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  productName: { fontFamily: "Cairo_700Bold", fontSize: 9, lineHeight: 16, minHeight: 16, textAlign: "center" },
+  productName: { width: "100%", fontFamily: "Cairo_700Bold", fontSize: 10, lineHeight: 14, minHeight: 28, textAlign: "center", flexShrink: 1, paddingHorizontal: 2 },
   productDescription: { minHeight: 32, fontFamily: "Cairo_400Regular", fontSize: 10, lineHeight: 16, textAlign: "center" },
   actionButton: { width: "100%", minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3, borderRadius: 9, borderWidth: 1, paddingHorizontal: 5 },
   actionText: { fontFamily: "Cairo_700Bold", fontSize: 11, textAlign: "center" },

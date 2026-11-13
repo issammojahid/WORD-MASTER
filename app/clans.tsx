@@ -297,7 +297,7 @@ export default function ClansScreen() {
       </View>
 
       {/* Content */}
-      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(110, insets.bottom + 80) }]} showsVerticalScrollIndicator={false}>
         {loadingMyClan ? (
           <ActivityIndicator size="large" color={gameDesign.colors.clans} style={{ marginTop: 60 }} />
         ) : myClan ? (

@@ -2,6 +2,7 @@ import {ScaledText as Text} from "@/components/ScaledText";
 import React, { useEffect, useRef, useState } from "react";
 import {Animated, Modal, Platform, Pressable, StyleSheet, View} from "react-native";
 import { router } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GameIllustration } from "@/components/GameIcon";
@@ -13,9 +14,14 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { usePlayer } from "@/contexts/PlayerContext";
 import { useStartupReady } from "@/contexts/StartupContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { SeasonEventLaunchPopup } from "@/components/SeasonEventLaunchPopup";
+import { SEASON_EVENTS, eventPhase } from "@/lib/season-calendar";
+import { useSeasonNow } from "@/lib/use-season-now";
 import { fetchWithTimeout } from "@/lib/network";
 import { getApiUrl } from "@/lib/query-client";
 import { markStartup, markStartupDuration, startupNow } from "@/lib/startup-performance";
+
+const UI_PREVIEW_MODE = process.env.EXPO_PUBLIC_UI_PREVIEW_MODE === "1";
 
 const GOLD = gameDesign.colors.coins;
 const HOME_BACKGROUND = gameDesign.colors.background;
@@ -68,6 +74,17 @@ export default function HomeScreen() {
   const startupReady = useStartupReady();
   const halloweenAnnouncementOpen = useHalloweenLaunchPopupOpen();
   const [loginReward, setLoginReward] = useState<number | null>(null);
+  const [dailyRewardSettled, setDailyRewardSettled] = useState(false);
+  const [seasonPopupEvent, setSeasonPopupEvent] = useState<(typeof SEASON_EVENTS)[number] | null>(null);
+  const [seasonPreviewEvents, setSeasonPreviewEvents] = useState<Array<(typeof SEASON_EVENTS)[number]> | null>(null);
+  const [seasonPreviewIndex, setSeasonPreviewIndex] = useState<number | null>(null);
+  const seasonNow = useSeasonNow();
+  const currentEvent = SEASON_EVENTS.find((event) => eventPhase(event, seasonNow) === "active") ?? null;
+  const upcomingEvents = SEASON_EVENTS.filter((event) => eventPhase(event, seasonNow) === "upcoming");
+  const previewingSeasonEvent = seasonPreviewEvents !== null && seasonPreviewIndex !== null;
+  const displayedSeasonEvent = previewingSeasonEvent
+    ? seasonPreviewEvents?.[seasonPreviewIndex] ?? null
+    : seasonPopupEvent;
   const rewardCheckStarted = useRef(false);
   const updateProfileRef = useRef(updateProfile);
   const addCoinsRef = useRef(addCoins);
@@ -125,6 +142,8 @@ export default function HomeScreen() {
       } catch {
         if (__DEV__) console.warn("[startup] daily login check unavailable");
         markStartupDuration("daily-login-unavailable", requestStartedAt);
+      } finally {
+        if (active) setDailyRewardSettled(true);
       }
     })();
 
@@ -132,6 +151,64 @@ export default function HomeScreen() {
       active = false;
     };
   }, [isReady, playerId, startupReady]);
+
+  useEffect(() => {
+    if (
+      !startupReady || !isReady || !playerId || !dailyRewardSettled || loginReward !== null
+      || halloweenAnnouncementOpen || !currentEvent || seasonPopupEvent || previewingSeasonEvent
+    ) return;
+    let cancelled = false;
+    const event = currentEvent;
+    void AsyncStorage.getItem(`season_event_popup_seen_v1:${event.id}`).then((seen) => {
+      if (!cancelled && !seen) setSeasonPopupEvent(event);
+    }).catch(() => {
+      if (!cancelled) setSeasonPopupEvent(event);
+    });
+    return () => { cancelled = true; };
+  }, [currentEvent, dailyRewardSettled, halloweenAnnouncementOpen, isReady, loginReward, playerId, previewingSeasonEvent, seasonPopupEvent, startupReady]);
+
+  useEffect(() => {
+    if (seasonPopupEvent && eventPhase(seasonPopupEvent, seasonNow) !== "active") {
+      setSeasonPopupEvent(null);
+    }
+  }, [seasonNow, seasonPopupEvent]);
+
+  const closeSeasonPopup = () => {
+    if (previewingSeasonEvent) {
+      setSeasonPreviewEvents(null);
+      setSeasonPreviewIndex(null);
+      return;
+    }
+    if (seasonPopupEvent) {
+      void AsyncStorage.setItem(`season_event_popup_seen_v1:${seasonPopupEvent.id}`, "1").catch(() => {});
+    }
+    setSeasonPopupEvent(null);
+  };
+
+  const openSeasonEvent = () => {
+    const event = displayedSeasonEvent;
+    if (previewingSeasonEvent) {
+      setSeasonPreviewEvents(null);
+      setSeasonPreviewIndex(null);
+    }
+    else closeSeasonPopup();
+    if (event) router.push({ pathname: "/season", params: { event: event.id, ...(previewingSeasonEvent && (__DEV__ || UI_PREVIEW_MODE) ? { preview: "1" } : {}) } });
+  };
+
+  const previewUpcomingEvents = () => {
+    if ((__DEV__ || UI_PREVIEW_MODE) && upcomingEvents.length > 0) {
+      setSeasonPreviewEvents(upcomingEvents);
+      setSeasonPreviewIndex(0);
+    }
+  };
+
+  const moveSeasonPreview = (direction: -1 | 1) => {
+    setSeasonPreviewIndex((current) => {
+      const count = seasonPreviewEvents?.length ?? 0;
+      if (current === null || count === 0) return current;
+      return (current + direction + count) % count;
+    });
+  };
 
   const navigate = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -145,10 +222,21 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: HOME_BACKGROUND, paddingTop: topInset, paddingBottom: 0 }]}>
-      <FantasyHome onOfflinePress={navigate} onOnlinePress={navigateOnline} hasLocalProfileError={hasLocalProfileError} />
+      <FantasyHome onOfflinePress={navigate} onOnlinePress={navigateOnline} hasLocalProfileError={hasLocalProfileError} onPreviewSeasonEvents={( __DEV__ || UI_PREVIEW_MODE) && upcomingEvents.length > 0 ? previewUpcomingEvents : undefined} />
       {loginReward !== null && !halloweenAnnouncementOpen && (
         <DailyRewardModal reward={loginReward} onClaim={() => setLoginReward(null)} />
       )}
+      <SeasonEventLaunchPopup
+        event={displayedSeasonEvent}
+        onDismiss={closeSeasonPopup}
+        onOpen={openSeasonEvent}
+        preview={previewingSeasonEvent && displayedSeasonEvent && seasonPreviewIndex !== null ? {
+          position: seasonPreviewIndex + 1,
+          total: seasonPreviewEvents.length,
+          onPrevious: () => moveSeasonPreview(-1),
+          onNext: () => moveSeasonPreview(1),
+        } : undefined}
+      />
     </View>
   );
 }

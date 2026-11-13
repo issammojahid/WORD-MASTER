@@ -108,6 +108,8 @@ type PlayerContextType = {
   playerId: string;
   isReady: boolean;
   hasLocalProfileError: boolean;
+  needsCountry: boolean;
+  setPlayerCountry: (country: string) => Promise<void>;
   updateProfile: (updates: Partial<PlayerProfile>) => void;
   applyHalloweenAction: (action:SeasonAction) => Promise<SeasonSnapshot>;
   recordHalloweenClaims: (source:"task"|"achievement",keys:string[]) => void;
@@ -236,7 +238,9 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
   const [playerId, setPlayerId] = useState<string>("");
   const [isReady, setIsReady] = useState(false);
   const [needsName, setNeedsName] = useState(false);
+  const [needsCountry, setNeedsCountry] = useState(false);
   const [hasLocalProfileError, setHasLocalProfileError] = useState(false);
+  const countrySelectionPendingRef = useRef(false);
   const profileRef = useRef(defaultProfile);
   const nameRevisionRef = useRef(0);
   const walletReadyRef=useRef(false);
@@ -283,6 +287,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         if (!stored) localProfile.name = suggestPlayerName();
         setNeedsName(!stored || await AsyncStorage.getItem("@horof_name_pending") === "1");
         if (!stored) await AsyncStorage.setItem("@horof_name_pending", "1");
+        const countryPending = await AsyncStorage.getItem("@horof_country_pending");
+        const needsCountryChoice = countryPending === "1" || !localProfile.country;
+        countrySelectionPendingRef.current = needsCountryChoice;
+        if (needsCountryChoice) await AsyncStorage.setItem("@horof_country_pending", "1");
+        setNeedsCountry(needsCountryChoice);
         try {
           const wallet=await initializeGameWallet();
           if(id!==wallet.playerId){await AsyncStorage.setItem("@horof_pre_unified_profile",JSON.stringify({playerId:id,profile:localProfile}));await AsyncStorage.setItem(PLAYER_ID_KEY,wallet.playerId);localProfile.coins=wallet.coins;localProfile.name=wallet.name;}
@@ -355,7 +364,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
               isVip: sp.isVip ?? false,
               vipExpiresAt: sp.vipExpiresAt ?? null,
               elo: sp.elo ?? latestLocal.elo,
-              country: latestLocal.country ?? sp.country ?? null,
+              country: countrySelectionPendingRef.current ? latestLocal.country : latestLocal.country ?? sp.country ?? null,
               clanId: latestLocal.clanId ?? sp.clanId ?? null,
               division: latestLocal.division || sp.division || "bronze",
               seasonWins: Math.max(sp.seasonWins ?? 0, latestLocal.seasonWins),
@@ -508,7 +517,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   const setPlayerName = async (value: string) => {
     const name = cleanPlayerName(value);
-    const response = await fetchWithTimeout(new URL("/api/player/change-name", getApiUrl()), {
+    const baseUrl = getApiUrl();
+    // Ensure the server profile exists before renaming; startup profile creation may still be in flight.
+    const existingProfile = await fetchWithTimeout(new URL(`/api/player/${playerId}`, baseUrl).toString());
+    if (!existingProfile.ok) throw new Error("network_error");
+    const response = await fetchWithTimeout(new URL("/api/player/change-name", baseUrl).toString(), {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ player_id: playerId, new_name: name }),
     });
@@ -518,6 +531,19 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     updateProfile({ name: data.name });
     await AsyncStorage.removeItem("@horof_name_pending");
     setNeedsName(false);
+  };
+
+  const setPlayerCountry = async (country: string) => {
+    const normalized = country.trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(normalized)) throw new Error("invalid_country");
+    countrySelectionPendingRef.current = false;
+    await AsyncStorage.removeItem("@horof_country_pending");
+    const next = { ...profileRef.current, country: normalized };
+    profileRef.current = next;
+    setProfile(next);
+    await persistPlayerProfile(next);
+    debouncedSync(next);
+    setNeedsCountry(false);
   };
 
   const consumeCard = (cardId: keyof PowerCards): boolean => {
@@ -593,7 +619,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
             lastSpinAt: sp.lastSpinAt || profile.lastSpinAt,
             lastLoginRewardAt: sp.lastLoginRewardAt || profile.lastLoginRewardAt,
             claimedLevelRewards: [...new Set([...(sp.claimedLevelRewards || []), ...profile.claimedLevelRewards])],
-            country: sp.country ?? profile.country ?? defaultProfile.country,
+            country: countrySelectionPendingRef.current ? profile.country : sp.country ?? profile.country ?? defaultProfile.country,
             clanId: sp.clanId ?? profile.clanId ?? defaultProfile.clanId,
             elo: sp.elo ?? profile.elo ?? defaultProfile.elo,
             division: sp.division ?? profile.division ?? defaultProfile.division,
@@ -647,7 +673,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <PlayerContext.Provider value={{
-      profile, playerId, isReady, needsName, hasLocalProfileError, updateProfile, applyHalloweenAction, recordHalloweenClaims, addCoins, addXp, refreshCoins, awardOfflineMatch,
+      profile, playerId, isReady, needsName, needsCountry, setPlayerCountry, hasLocalProfileError, updateProfile, applyHalloweenAction, recordHalloweenClaims, addCoins, addXp, refreshCoins, awardOfflineMatch,
       setPlayerName, syncToServer, reportGameResult, consumeCard,
       addPowerCard,
     }}>

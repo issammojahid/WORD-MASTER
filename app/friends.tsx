@@ -733,7 +733,7 @@ const styles = StyleSheet.create({
   backButton: { width: 42, height: 42, alignItems: "center", justifyContent: "center" },
   title: { flex: 1, fontSize: 22, fontWeight: "900" },
   headerIcon: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: `${CYAN}18` },
-  content: { width: "100%", maxWidth: 592, alignSelf: "center", padding: 18, paddingBottom: 36, gap: 14 },
+  content: { width: "100%", maxWidth: 592, alignSelf: "center", padding: 18, paddingBottom: 115, gap: 14 },
   searchBox: { minHeight: 52, borderWidth: 1, borderRadius: 17, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 10 },
   playerCode: { minHeight: 60, borderWidth: 1, borderRadius: 16, paddingHorizontal: 13, paddingVertical: 9, flexDirection: "row", alignItems: "center", gap: 12 },
   playerCodeText: { fontSize: 11, fontWeight: "700" },

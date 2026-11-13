@@ -1,4 +1,5 @@
-import {RewardedCoinsCard} from "./RewardedCoinsCard";
+import {PostMatchAdPrompt} from "./PostMatchAdPrompt";
+import { ScaledText as Text } from "@/components/ScaledText";
 import {rankedOutcome} from "@/lib/match-outcome";
 import {useResultSound} from "@/lib/use-result-sound";
 import {RoomSettingsSummary} from "@/components/RoomSettingsSummary";
@@ -20,7 +21,6 @@ import {
   Pressable,
   Share,
   StyleSheet,
-  Text,
   View,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -775,7 +775,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
         {isFinished && match && (
           <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
 
-            {resultOutcome==="lose"&&match.mode==="random"&&(match.settings.entryFee??0)>0?<RewardedCoinsCard key={match.matchId} matchId={match.matchId}/>:null}
+            {match.mode==="random"?<PostMatchAdPrompt key={match.matchId} matchId={match.matchId} recoveryMatchId={resultOutcome==="lose"?match.matchId:undefined} entryFee={match.settings.entryFee??0} outcome={resultOutcome}/>:null}
             <View style={styles.onlineResultHero}>
               <GameIllustration
                 name={ownWinner ? "victory" : "defeat"}
@@ -822,7 +822,7 @@ export default function OnlineGameScreen({ mode,queueMode="solo" }: Props) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  topBar: { alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 10 },
+  topBar: { width: "100%", maxWidth: 760, alignSelf: "center", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 10 },
   backButton: { width: 48, height: 48, borderRadius: 14, borderWidth: 2, alignItems: "center", justifyContent: "center" },
   pageTitle: { flex: 1, fontSize: 20, fontWeight: "800", textAlign: "center" },
   connectionPill: { minHeight: 36, borderWidth: 2, borderRadius: 4, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", gap: 6 },

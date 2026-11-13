@@ -9,13 +9,7 @@ import React, {
 import { AppState, type AppStateStatus } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePathname } from "expo-router";
-import mobileAds, {
-  AdsConsent,
-  AdsConsentPrivacyOptionsRequirementStatus,
-  AdEventType,
-  AppOpenAd,
-  MaxAdContentRating,
-} from "react-native-google-mobile-ads";
+import { getGoogleMobileAds } from "@/lib/google-mobile-ads";
 import { getAdUnitId } from "@/lib/ad-config";
 import {
   adErrorCode,
@@ -23,14 +17,16 @@ import {
   createAdRetry,
   gatherAdPermission,
 } from "@/lib/ads-runtime";
+
 const CAP_KEY = "admob_app_open_last_shown_v1",
   CACHE_MS = 4 * 60 * 60 * 1000,
   LOAD_TIMEOUT_MS = 45_000;
 let initialization: Promise<void> | null = null;
-type Format = "consent" | "sdk" | "appOpen" | "banner";
+type Format = "consent" | "sdk" | "appOpen" | "banner" | "interstitial";
 type Diagnostic = { format: Format; status: string; code?: string; at: number };
 type AdsContextValue = {
   acquireRewardedSlot: () => (() => void) | null;
+  showInterstitial: () => Promise<boolean>;
   adRequestVersion: number;
   canRequestAds: boolean;
   isFullScreenAdActive: boolean;
@@ -42,6 +38,7 @@ type AdsContextValue = {
 };
 const AdsContext = createContext<AdsContextValue>({
   acquireRewardedSlot: () => null,
+  showInterstitial: async () => false,
   adRequestVersion: 0,
   canRequestAds: false,
   isFullScreenAdActive: false,
@@ -51,7 +48,51 @@ const AdsContext = createContext<AdsContextValue>({
   retryAds: async () => {},
   reportAdEvent: () => {},
 });
+
 export function AdsProvider({ children }: React.PropsWithChildren) {
+  const gma = getGoogleMobileAds();
+
+  if (!gma) {
+    const fallbackValue: AdsContextValue = {
+      acquireRewardedSlot: () => null,
+      showInterstitial: async () => false,
+      adRequestVersion: 0,
+      canRequestAds: false,
+      isFullScreenAdActive: false,
+      privacyOptionsRequired: false,
+      showPrivacyOptions: async () => {
+        throw new Error("Ads privacy options are unavailable on Expo Go.");
+      },
+      diagnosticReport: "الإعلانات غير متاحة في Expo Go",
+      retryAds: async () => {},
+      reportAdEvent: () => {},
+    };
+    return (
+      <AdsContext.Provider value={fallbackValue}>
+        {children}
+      </AdsContext.Provider>
+    );
+  }
+
+  return <NativeAdsProvider gma={gma}>{children}</NativeAdsProvider>;
+}
+
+function NativeAdsProvider({
+  children,
+  gma,
+}: React.PropsWithChildren<{
+  gma: NonNullable<ReturnType<typeof getGoogleMobileAds>>;
+}>) {
+  const {
+    default: mobileAds,
+    AdsConsent,
+    AdsConsentPrivacyOptionsRequirementStatus,
+    AdEventType,
+    AppOpenAd,
+    InterstitialAd,
+    MaxAdContentRating,
+  } = gma;
+
   const path = usePathname(),
     pathRef = useRef(path);
   pathRef.current = path;
@@ -65,13 +106,29 @@ export function AdsProvider({ children }: React.PropsWithChildren) {
     preparing = useRef(false),
     privacyBusy = useRef(false),
     generation = useRef(0);
-  const rewardBusy=useRef(false);
-  const acquireRewardedSlot=useCallback(()=>{
-   if(!mounted.current||!permission.current||showing.current||rewardBusy.current||privacyBusy.current||AppState.currentState!=="active")return null;
-   rewardBusy.current=true;setFullScreen(true);let released=false;
-   return()=>{if(released)return;released=true;rewardBusy.current=false;if(mounted.current)setFullScreen(false);};
-  },[]);
-  const ad = useRef<AppOpenAd | null>(null),
+  const rewardBusy = useRef(false);
+  const interstitialBusy = useRef(false);
+  const acquireRewardedSlot = useCallback(() => {
+    if (
+      !mounted.current ||
+      !permission.current ||
+      showing.current ||
+      rewardBusy.current ||
+      privacyBusy.current ||
+      AppState.currentState !== "active"
+    )
+      return null;
+    rewardBusy.current = true;
+    setFullScreen(true);
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      rewardBusy.current = false;
+      if (mounted.current) setFullScreen(false);
+    };
+  }, []);
+  const ad = useRef<any>(null),
     listeners = useRef<(() => void)[]>([]),
     loaded = useRef(false),
     loading = useRef(false),
@@ -97,6 +154,67 @@ export function AdsProvider({ children }: React.PropsWithChildren) {
     },
     [],
   );
+  const showInterstitial = useCallback(async () => {
+    const unitId = getAdUnitId("interstitial");
+    if (
+      !unitId || !mounted.current || !permission.current || showing.current
+      || rewardBusy.current || interstitialBusy.current || privacyBusy.current
+      || AppState.currentState !== "active"
+    ) return false;
+    const release = acquireRewardedSlot();
+    if (!release) return false;
+    interstitialBusy.current = true;
+    let request: ReturnType<typeof InterstitialAd.createForAdRequest>;
+    try {
+      request = InterstitialAd.createForAdRequest(unitId, { requestNonPersonalizedAdsOnly: true });
+    } catch (error) {
+      interstitialBusy.current = false;
+      release();
+      reportAdEvent("interstitial", "create_failed", error);
+      return false;
+    }
+    return await new Promise<boolean>((resolve) => {
+      let settled = false, opened = false;
+      let timeout: ReturnType<typeof setTimeout> | null = null;
+      const unsubscribers: (() => void)[] = [];
+      const finish = (shown: boolean, error?: unknown) => {
+        if (settled) return;
+        settled = true;
+        if (timeout) clearTimeout(timeout);
+        unsubscribers.forEach((unsubscribe) => unsubscribe());
+        interstitialBusy.current = false;
+        release();
+        reportAdEvent("interstitial", shown ? "closed" : "failed", error);
+        resolve(shown);
+      };
+      unsubscribers.push(
+        request.addAdEventListener(AdEventType.LOADED, () => {
+          if (settled) return;
+          reportAdEvent("interstitial", "loaded");
+          try {
+            void request.show().catch((error) => finish(false, error));
+          } catch (error) {
+            finish(false, error);
+          }
+        }),
+        request.addAdEventListener(AdEventType.OPENED, () => {
+          opened = true;
+          if (timeout) clearTimeout(timeout);
+          timeout = setTimeout(() => finish(false, { code: "show_timeout" }), 180_000);
+          reportAdEvent("interstitial", "opened");
+        }),
+        request.addAdEventListener(AdEventType.CLOSED, () => finish(opened)),
+        request.addAdEventListener(AdEventType.ERROR, (error) => finish(false, error)),
+      );
+      timeout = setTimeout(() => finish(false, { code: "load_timeout" }), LOAD_TIMEOUT_MS);
+      reportAdEvent("interstitial", "loading");
+      try {
+        request.load();
+      } catch (error) {
+        finish(false, error);
+      }
+    });
+  }, [acquireRewardedSlot, AdEventType, InterstitialAd, reportAdEvent]);
   const invalidate = useCallback(() => {
     generation.current++;
   }, []);
@@ -129,13 +247,14 @@ export function AdsProvider({ children }: React.PropsWithChildren) {
         throw error;
       });
     await initialization;
-  }, []);
+  }, [mobileAds, MaxAdContentRating]);
   const loadOpen = useCallback(() => {
     if (
       !mounted.current ||
       !permission.current ||
       AppState.currentState !== "active" ||
-      showing.current || rewardBusy.current ||
+      showing.current ||
+      rewardBusy.current ||
       loading.current
     )
       return;
@@ -200,13 +319,13 @@ export function AdsProvider({ children }: React.PropsWithChildren) {
       reportAdEvent("appOpen", "failed", error);
       openRetry.current?.schedule();
     }
-  }, [disposeOpen, clearWatchdog, reportAdEvent]);
+  }, [disposeOpen, clearWatchdog, reportAdEvent, AppOpenAd, AdEventType]);
   loadRef.current = loadOpen;
   const applyPermission = useCallback(
     async (
       info: {
         canRequestAds: boolean;
-        privacyOptionsRequirementStatus: AdsConsentPrivacyOptionsRequirementStatus;
+        privacyOptionsRequirementStatus: any;
       },
       token: number,
     ) => {
@@ -239,7 +358,12 @@ export function AdsProvider({ children }: React.PropsWithChildren) {
       reportAdEvent("sdk", "ready");
       loadRef.current();
     },
-    [initialize, disposeOpen, reportAdEvent],
+    [
+      initialize,
+      disposeOpen,
+      reportAdEvent,
+      AdsConsentPrivacyOptionsRequirementStatus,
+    ],
   );
   const prepare = useCallback(async () => {
     if (!mounted.current || preparing.current || privacyBusy.current) return;
@@ -262,7 +386,7 @@ export function AdsProvider({ children }: React.PropsWithChildren) {
     } finally {
       if (token === generation.current) preparing.current = false;
     }
-  }, [applyPermission, disposeOpen, reportAdEvent]);
+  }, [applyPermission, disposeOpen, reportAdEvent, AdsConsent]);
   prepareRef.current = prepare;
   useEffect(() => {
     mounted.current = true;
@@ -305,7 +429,7 @@ export function AdsProvider({ children }: React.PropsWithChildren) {
         canShowAppOpen({
           allowed: permission.current,
           home: pathRef.current === "/",
-          showing: showing.current||rewardBusy.current,
+          showing: showing.current || rewardBusy.current,
           capReady: capReady.current,
           loaded: loaded.current,
           loadedAt: loadedAt.current,
@@ -318,11 +442,11 @@ export function AdsProvider({ children }: React.PropsWithChildren) {
         const request = ad.current;
         showing.current = true;
         setFullScreen(true);
-        // Frequency cap is committed by OPENED, never by a rejected show attempt.
         void Promise.resolve()
           .then(() => {
             if (
-              !permission.current || rewardBusy.current ||
+              !permission.current ||
+              rewardBusy.current ||
               !mounted.current ||
               ad.current !== request
             )
@@ -370,7 +494,7 @@ export function AdsProvider({ children }: React.PropsWithChildren) {
     } finally {
       privacyBusy.current = false;
     }
-  }, [applyPermission, disposeOpen, reportAdEvent]);
+  }, [applyPermission, disposeOpen, reportAdEvent, AdsConsent]);
   const retryAds = useCallback(async () => {
     setAdRequestVersion((value) => value + 1);
     startupRetry.current?.reset();
@@ -386,6 +510,7 @@ export function AdsProvider({ children }: React.PropsWithChildren) {
     `السماح بطلب الإعلانات: ${allowed ? "نعم" : "لا"}`,
     `البانير: ${getAdUnitId("banner") ? "مهيأ" : "غير مهيأ"}`,
     `إعلان الرجوع: ${getAdUnitId("appOpen") ? "مهيأ" : "غير مهيأ"}`,
+    `إعلان ما بعد المباراة: ${getAdUnitId("interstitial") ? "مهيأ" : "غير مهيأ"}`,
     ...events.map(
       (e) =>
         `${new Date(e.at).toISOString()} ${e.format}: ${e.status}${e.code ? " [" + e.code + "]" : ""}`,
@@ -395,6 +520,7 @@ export function AdsProvider({ children }: React.PropsWithChildren) {
     <AdsContext.Provider
       value={{
         acquireRewardedSlot,
+        showInterstitial,
         adRequestVersion,
         canRequestAds: allowed,
         isFullScreenAdActive: fullScreen,
@@ -409,6 +535,7 @@ export function AdsProvider({ children }: React.PropsWithChildren) {
     </AdsContext.Provider>
   );
 }
+
 export function useAds() {
   return useContext(AdsContext);
 }

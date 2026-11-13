@@ -4,7 +4,7 @@ import {RoyalSurface,RoyalIcon} from "@/components/RoyalUi";
 import {ProgressTabs} from "@/components/ProgressTabs";
 import {EarnedAchievements} from "@/components/EarnedAchievements";
 import React, { useState, useCallback, useRef, useEffect, memo } from "react";
-import {View, StyleSheet, TouchableOpacity, ScrollView, Platform, Animated, Easing, Alert} from "react-native";
+import {View, StyleSheet, TouchableOpacity, ScrollView, Platform, Animated, Easing, Alert, useWindowDimensions} from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -203,7 +203,7 @@ const ac = StyleSheet.create({
   },
   content: { gap: 4, width:"100%" },
   title: { fontFamily: "Cairo_700Bold", fontSize: 13, textAlign:"right" },
-  desc: { fontFamily: "Cairo_400Regular", fontSize: 11, textAlign:"right" },
+  desc: { fontFamily: "Cairo_400Regular", fontSize: 11, lineHeight: 16, textAlign:"right" },
   progressRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
   progressNum: { fontFamily: "Cairo_400Regular", fontSize: 10, minWidth: 32, textAlign: "right" },
   rewards: { flexDirection: "row", flexWrap:"wrap", gap: 6, marginTop: 5 },
@@ -215,6 +215,8 @@ const ac = StyleSheet.create({
 
 function AchievementsScreenInner() {
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const achievementCardWidth = windowWidth < 560 ? "100%" : "48%";
   const { playerId, addCoins, addXp } = usePlayer();
   const { theme } = useTheme();
   const qc = useQueryClient();
@@ -354,11 +356,11 @@ title="المهام والإنجازات"
             <LoadingState label="جارٍ تحميل الإنجازات" />
           </View>
         ) : (
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={[s.list,{paddingBottom:Math.max(104,bottomInset+80)}]} showsVerticalScrollIndicator={false}>
             <Season2027Collection objectives="achievement"/>
             {filtered.length===0?<EmptyState title="لا توجد إنجازات هنا" description="العب وتقدم للحصول على الإنجازات" icon="achievements"/>:null}
             <View style={{flexDirection:"row-reverse",flexWrap:"wrap",gap:10}}>{filtered.map((ach) => (
-              <View key={ach.key} style={{width:"48%"}}>
+              <View key={ach.key} style={{width:achievementCardWidth,minWidth:0}}>
               <AchCard
                 key={ach.key}
                 ach={ach}

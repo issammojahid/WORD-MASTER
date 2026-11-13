@@ -1,6 +1,6 @@
 import {ScaledText as Text} from "@/components/ScaledText";
 import Svg, { Path, Circle } from "react-native-svg";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {View, ScrollView, StyleSheet, TouchableOpacity, Animated, Easing, Platform, useWindowDimensions, Alert} from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -66,45 +66,7 @@ export default function SpinScreen() {
   const wheelSize = Math.min(Math.max(width - 48, 236), 280);
 
   // ─── Cooldown checks ───────────────────────────────────────────────────────
-  useEffect(() => {
-    checkSpinAvailability();
-  }, [profile.lastSpinAt]);
-
-  useEffect(() => {
-    const interval = setInterval(updateCountdown, 1000);
-    return () => clearInterval(interval);
-  }, [profile.lastSpinAt]);
-
-  // ─── Idle pulse animation ──────────────────────────────────────────────────
-  const pulseLoopRef = useRef<Animated.CompositeAnimation | null>(null);
-
-  const startPulse = () => {
-    if (reduceMotion) return;
-    if (pulseLoopRef.current) return;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.04, duration: 1200, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1,    duration: 1200, useNativeDriver: true }),
-      ])
-    );
-    pulseLoopRef.current = loop;
-    loop.start();
-  };
-
-  const stopPulse = () => {
-    if (pulseLoopRef.current) {
-      pulseLoopRef.current.stop();
-      pulseLoopRef.current = null;
-    }
-    pulseAnim.setValue(1);
-  };
-
-  useEffect(() => {
-    startPulse();
-    return () => stopPulse();
-  }, [reduceMotion]);
-
-  const checkSpinAvailability = () => {
+  const checkSpinAvailability = useCallback(() => {
     try {
       if (!profile?.lastSpinAt) { setCanSpin(true); return; }
       const last = new Date(profile.lastSpinAt).getTime();
@@ -112,9 +74,9 @@ export default function SpinScreen() {
     } catch {
       setCanSpin(true);
     }
-  };
+  }, [profile?.lastSpinAt]);
 
-  const updateCountdown = () => {
+  const updateCountdown = useCallback(() => {
     try {
       if (!profile?.lastSpinAt) { setCountdown(""); return; }
       const next = new Date(profile.lastSpinAt).getTime() + 24 * 60 * 60 * 1000;
@@ -127,7 +89,45 @@ export default function SpinScreen() {
     } catch {
       setCountdown("");
     }
-  };
+  }, [profile?.lastSpinAt]);
+
+  useEffect(() => {
+    checkSpinAvailability();
+  }, [checkSpinAvailability]);
+
+  useEffect(() => {
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [updateCountdown]);
+
+  // ─── Idle pulse animation ──────────────────────────────────────────────────
+  const pulseLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  const startPulse = useCallback(() => {
+    if (reduceMotion) return;
+    if (pulseLoopRef.current) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.04, duration: 1200, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1,    duration: 1200, useNativeDriver: true }),
+      ])
+    );
+    pulseLoopRef.current = loop;
+    loop.start();
+  }, [pulseAnim, reduceMotion]);
+
+  const stopPulse = useCallback(() => {
+    if (pulseLoopRef.current) {
+      pulseLoopRef.current.stop();
+      pulseLoopRef.current = null;
+    }
+    pulseAnim.setValue(1);
+  }, [pulseAnim]);
+
+  useEffect(() => {
+    startPulse();
+    return () => stopPulse();
+  }, [startPulse, stopPulse]);
 
   // ─── Spin logic ────────────────────────────────────────────────────────────
   const handleSpin = async () => {

@@ -13,14 +13,14 @@ import {ScaledText as Text} from './ScaledText';
 
 const messages:Record<string,string>={insufficient_coins:'رصيد العملات غير كافٍ.',season_inactive:'هذا الحدث غير متاح الآن.',reward_locked:'أكمل هدف المكافأة أولاً.',gift_already_claimed:'استلمت هدية البداية لهذا الحدث.',price_changed:'تغيّر السعر. أعد تحميل المجموعة.',request_pending:'انتظر اكتمال الطلب الحالي.'};
 export function Season2027Collection({eventId,category,objectives}:{eventId?:SeasonEventId;category?:SeasonCategory;objectives?:'task'|'achievement'}){
- const {snapshot,error,busy,refresh,action}=useSeason2027(),{width,fontScale}=useWindowDimensions();const [kind,setKind]=useState<SeasonCategory>(category??'avatar'),[selected,setSelected]=useState<SeasonalItem|null>(null),[gift,setGift]=useState(false),[notice,setNotice]=useState(''),[availableWidth,setAvailableWidth]=useState(0),[pendingPurchase,setPendingPurchase]=useState<SeasonalItem|null>(null);
+ const {snapshot,error,busy,refresh,action}=useSeason2027(),{width}=useWindowDimensions();const [kind,setKind]=useState<SeasonCategory>(category??'avatar'),[selected,setSelected]=useState<SeasonalItem|null>(null),[gift,setGift]=useState(false),[notice,setNotice]=useState(''),[availableWidth,setAvailableWidth]=useState(0),[pendingPurchase,setPendingPurchase]=useState<SeasonalItem|null>(null);
  const active=snapshot?.activeEvent,chosen=eventId??active;const event=SEASON_EVENTS.find(event=>event.id===chosen);const owned=new Set(Object.values(snapshot?.states??{}).flatMap(state=>state?.owned??[]));
  const available=snapshot?.items.filter(item=>(!eventId||item.event===eventId)&&(!objectives||item.objective?.type===objectives))??[];
  const visible=available.filter(item=>objectives||item.kind===(category??kind));
  const run=async(body:Record<string,unknown>)=>{setNotice('');try{await action(body);setNotice('تم حفظ التغيير.');setSelected(null);}catch(error){setNotice(messages[error instanceof Error?error.message:'']??'تعذر إتمام الطلب. تحقق من الاتصال وأعد المحاولة.');}};
  if(!snapshot||error)return <RoyalSurface style={{padding:12,gap:6}}><Text style={{color:'#E2D8EF',textAlign:'right'}}>تعذر تحديث أحداث الموسم. لا يمكن استلام جوائز أو شراء عناصر دون اتصال.</Text><Pressable accessibilityRole="button" onPress={()=>void refresh()} style={{minHeight:44,justifyContent:'center'}}><Text style={{color:'#6AEFE1',textAlign:'center'}}>إعادة المحاولة</Text></Pressable></RoyalSurface>;
  if(!available.length)return null;
- const columns=fontScale>1.3?3:5,tile=Math.max(24,((availableWidth||Math.min(width,760)-60)-(columns-1)*6)/columns-0.5);
+ const columns=5,tile=Math.max(24,((availableWidth||Math.min(width,760)-60)-(columns-1)*6)/columns-0.5);
  const selectedOwned=selected?owned.has(selected.id):false;const selectedState=selected?snapshot.states[selected.event]:undefined;const equipped=selected?selectedState?.equipped[selected.kind]===selected.id:false;
  const activeSelection=selected?.event===active&&!error;
  const progress=selected?.objective?(selected.objective.type==='task'?snapshot.progress.games:snapshot.progress.wins):0;

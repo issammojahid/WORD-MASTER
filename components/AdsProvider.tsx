@@ -2,11 +2,12 @@ import React, { createContext, useContext } from "react";
 
 type AdsContextValue = {
   acquireRewardedSlot: () => (() => void) | null;
+  showInterstitial: () => Promise<boolean>;
   adRequestVersion: number;
   diagnosticReport: string;
   retryAds: () => Promise<void>;
   reportAdEvent: (
-    format: "consent" | "sdk" | "appOpen" | "banner",
+    format: "consent" | "sdk" | "appOpen" | "banner" | "interstitial",
     status: string,
     error?: unknown,
   ) => void;
@@ -18,6 +19,7 @@ type AdsContextValue = {
 
 const AdsContext = createContext<AdsContextValue>({
   acquireRewardedSlot: () => null,
+  showInterstitial: async () => false,
   adRequestVersion: 0,
   diagnosticReport: "الإعلانات غير متاحة في المتصفح",
   retryAds: async () => {},
@@ -33,7 +35,8 @@ const AdsContext = createContext<AdsContextValue>({
 export function AdsProvider({ children }: React.PropsWithChildren) {
   const value: AdsContextValue = {
     acquireRewardedSlot: () => null,
-  adRequestVersion: 0,
+    showInterstitial: async () => false,
+    adRequestVersion: 0,
     diagnosticReport: "الإعلانات غير متاحة في المتصفح",
     retryAds: async () => {},
     reportAdEvent: () => {},

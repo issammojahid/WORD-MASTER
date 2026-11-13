@@ -35,7 +35,7 @@ export default function SettingsScreen() {
   const { t } = useLanguage();
   const { playerId, profile, addCoins, updateProfile } = usePlayer();
   const { theme } = useTheme();
-  const { privacyOptionsRequired, showPrivacyOptions,diagnosticReport,retryAds } = useAds();
+  const { privacyOptionsRequired, showPrivacyOptions } = useAds();
   const [showExitModal, setShowExitModal] = useState(false);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
@@ -117,7 +117,11 @@ export default function SettingsScreen() {
   const handleShareReferral = async () => {
     if (!referralCode) return;
     try {
-      await Share.share({ message: `انضم لحروف المغرب واستخدم كود الإحالة: ${referralCode} واحصل على 100 عملة مجاناً! 🎁` });
+      const storeLink = "https://play.google.com/store/apps/details?id=com.huroofalmaghrib";
+      await Share.share({
+        title: "حروف المغرب",
+        message: `حمّل حروف المغرب من Google Play: ${storeLink}\n\nكود الدعوة: ${referralCode}\nأدخل الكود من الإعدادات بعد التسجيل لتحصلا على 100 عملة لكل إحالة مؤهلة. 🎁`,
+      });
     } catch {}
   };
 
@@ -207,7 +211,6 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </FantasySettingsSection>
 
-        {Platform.OS!=="web"?<FantasySettingsSection title={<>الإعلانات</>}><TouchableOpacity accessibilityRole="button" accessibilityLabel="حالة الإعلانات" style={[styles.settingRow,{backgroundColor:theme.card,borderColor:theme.cardBorder}]} onPress={()=>Alert.alert("حالة الإعلانات",diagnosticReport,[{text:"نسخ التقرير",onPress:()=>{void Clipboard.setStringAsync(diagnosticReport);}},{text:"إعادة المحاولة",onPress:()=>{void retryAds().catch(()=>Alert.alert("الإعلانات","تعذر إعادة المحاولة حالياً."));}},{text:"إغلاق",style:"cancel"}])}><View style={{flex:1,gap:2}}><Text style={[styles.toggleTitle,{color:theme.textPrimary}]}>حالة الإعلانات</Text><Text style={[styles.toggleSub,{color:theme.textMuted}]}>راجع الحالة أو انسخ التقرير للدعم</Text></View><Ionicons name="information-circle-outline" size={22} color={theme.textMuted}/></TouchableOpacity></FantasySettingsSection>:null}
         {Platform.OS !== "web" && privacyOptionsRequired && (
           <FantasySettingsSection title={<>{t.privacyOptions}</>}>
 
@@ -406,7 +409,7 @@ const styles = StyleSheet.create({
   headerCenter: { flexDirection: "row", alignItems: "center", gap: 8 },
   headerEmoji: { fontSize: 20 },
   headerTitle: { fontFamily: "Cairo_700Bold", fontSize: 20, color: "#F6F7FF" },
-  content: { width:"100%", maxWidth:592, alignSelf:"center", padding:16, gap:10, paddingBottom:32 },
+  content: { width:"100%", maxWidth:592, alignSelf:"center", padding:16, gap:10, paddingBottom:110 },
 
   section: { gap: 12 },
   sectionHeader: { flexDirection: "row", alignItems: "center", gap: 8 },

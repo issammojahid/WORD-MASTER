@@ -360,7 +360,7 @@ export default function DailyChallengeScreen() {
         icon={<GameIcon name="dailyChallenge" size={23} color={Colors.emerald} />}
       />
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always">
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.content,{paddingBottom:Math.max(104,bottomInset+80)}]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always">
           <View style={styles.challengeHeading}><Text style={[styles.challengeTitle,{color:theme.textPrimary}]}>اكتشف كلمة اليوم</Text><Text style={[styles.challengeHint,{color:theme.textSecondary}]}>التحدي التالي خلال {countdown}</Text></View>
           {localPreview&&!loadError?<Text style={[styles.challengeHint,{color:theme.textSecondary}]}>تحدٍّ محلي للتجربة · دون مكافآت العملات</Text>:null}
           {loadError ? <View style={[styles.completedBanner,{backgroundColor:theme.card,borderColor:theme.cardBorder}]}><GameIllustration name="reward" size={52}/><Text accessibilityRole="alert" style={[styles.challengeHint,{color:theme.textSecondary}]}>تعذر تحميل التحدي. تحقق من اتصالك ثم أعد المحاولة.</Text><TouchableOpacity accessibilityRole="button" onPress={()=>void loadChallenge()} style={styles.submitBtn}><Text style={styles.submitBtnText}>إعادة المحاولة</Text></TouchableOpacity></View> : <>
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
     width: 40, height: 40, borderRadius: 12,
     backgroundColor: "#102A29", justifyContent: "center", alignItems: "center",
   },
-  content: { width:"100%", maxWidth:560, alignSelf:"center", padding:16, gap:14, paddingBottom:32 },
+  content: { width:"100%", maxWidth:560, alignSelf:"center", padding:16, gap:14, paddingBottom: 110 },
   challengeHeading:{alignItems:"center",gap:4,paddingVertical:6},challengeTitle:{fontFamily:"Cairo_700Bold",fontSize:20},challengeHint:{fontFamily:"Cairo_400Regular",fontSize:12,textAlign:"center",lineHeight:22},legend:{flexDirection:"row-reverse",flexWrap:"wrap",gap:12,justifyContent:"center"},legendItem:{flexDirection:"row-reverse",gap:5,alignItems:"center"},legendDot:{width:8,height:8,borderRadius:3},legendText:{fontFamily:"Cairo_400Regular",fontSize:10},
   infoRow: { flexDirection: "row", gap: 8, justifyContent: "center" },
   infoBadge: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1 },

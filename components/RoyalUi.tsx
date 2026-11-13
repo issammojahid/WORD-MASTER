@@ -1,9 +1,10 @@
 import {ClanEmblem} from "./ClanEmblem";
 import {ScaledText as Text} from "@/components/ScaledText";
-import React,{useId} from 'react';
+import React from 'react';
 import {Text as NativeText, Image, Pressable, StyleSheet, View, type StyleProp, type ViewStyle,type ViewProps} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
-import Svg,{Defs,LinearGradient as SvgGradient,Stop,Path,Pattern} from 'react-native-svg';
+import Svg,{Defs,LinearGradient as SvgGradient,Stop,Path} from 'react-native-svg';
+import {useTheme} from '@/contexts/ThemeContext';
 
 export type RoyalIconName='clan'|'podium'|'coins'|'trophy'|'swords'|'music'|'speaker'|'bell'|'motion'|'quality'|'globe'|'scroll'|'settings'|'home'|'store'|'tasks'|'gift'|'privacy';
 const ICONS:RoyalIconName[]=['coins','trophy','swords','music','speaker','bell','motion','quality','globe','scroll','settings','home','store','tasks','gift','privacy'];
@@ -15,17 +16,8 @@ export function RoyalIcon({name,size=40}:{name:RoyalIconName;size?:number}){
 }
 
 export function RoyalSurface({children,style,selected=false,rounded=false,...props}:{children:React.ReactNode;style?:StyleProp<ViewStyle>;selected?:boolean;rounded?:boolean}&Omit<ViewProps,"style"|"children">){
- const id=useId().replace(/:/g,'');
- const edge=selected?'#4DF4EB':'#E8BD67';
- return <View {...props} style={[s.surface,style]}>
-  <Svg width="100%" height="100%" viewBox="0 0 400 180" preserveAspectRatio="none" style={StyleSheet.absoluteFill} pointerEvents="none">
-   <Defs><SvgGradient id={id+'fill'} x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor={selected?'#176D82':'#372257'}/><Stop offset=".5" stopColor={selected?'#0A4C69':'#211A45'}/><Stop offset="1" stopColor="#15172F"/></SvgGradient><SvgGradient id={id+'edge'} x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor={selected?'#94FFF5':'#FFF0AE'}/><Stop offset=".4" stopColor={edge}/><Stop offset="1" stopColor={selected?'#10AFAA':'#996536'}/></SvgGradient><Pattern id={id+'pattern'} width="44" height="44" patternUnits="userSpaceOnUse"><Path d="M22 2l6 12 14 8-14 6-6 14-6-14L2 22l14-8zM0 0l44 44M44 0L0 44" fill="none" stroke="#BA91DD" strokeWidth=".8" opacity=".12"/></Pattern></Defs>
-   <Path d={rounded?"M26 2H374Q398 2 398 26V154Q398 178 374 178H26Q2 178 2 154V26Q2 2 26 2Z":"M16 2H384L398 17V163L383 178H17L2 163V18Z"} fill={'url(#'+id+'fill)'} stroke={'url(#'+id+'edge)'} strokeWidth="2.5"/>
-   <Path d={rounded?"M26 7H374Q392 7 392 26V154Q392 173 374 173H26Q8 173 8 154V26Q8 7 26 7Z":"M18 7H381L392 20V160L379 173H20L8 160V21Z"} fill={'url(#'+id+'pattern)'} stroke="#F1CB7B" strokeOpacity=".19" strokeWidth=".8"/>
-   <Path d="M14 22l8-8 8 8-8 8zM370 22l8-8 8 8-8 8zM14 156l8-8 8 8-8 8zM370 156l8-8 8 8-8 8z" fill="none" stroke={edge} strokeWidth="1" opacity=".65"/>
-  </Svg>
-  {children}
- </View>;
+ const {theme}=useTheme();
+ return <View {...props} style={[s.surface,{backgroundColor:selected?'#244654':theme.card,borderColor:selected?'#35D5C9':theme.cardBorder,borderRadius:rounded?22:17},style]}>{children}</View>;
 }
 
 export function RoyalBrand({width=160}:{width?:number}){
@@ -42,4 +34,4 @@ export function RoyalHeading({title,subtitle}:{title:string;subtitle?:string}){
 export function RoyalToggle({label,value,onChange}:{label:string;value:boolean;onChange:(value:boolean)=>void}){
  return <Pressable accessibilityRole="switch" accessibilityLabel={label} accessibilityState={{checked:value}} aria-checked={value} onPress={()=>onChange(!value)} style={s.toggleTarget}><LinearGradient colors={value?['#35E2D0','#07858E','#055B6D']:['#5C6079','#30364C','#202338']} style={[s.toggle,{borderColor:value?'#5CFFF0':'#8E91AA'}]}><Text style={[s.toggleText,{paddingLeft:value?0:20,paddingRight:value?20:0}]}>{value?'مفعّل':'معطّل'}</Text><LinearGradient colors={['#FFFFFF','#CEDDE1']} style={[s.knob,value?{right:3}:{left:3}]}/></LinearGradient></Pressable>;
 }
-const s=StyleSheet.create({surface:{position:'relative',padding:14},brandText:{fontFamily:'Cairo_700Bold',color:'#FFE5A0',textAlign:'center',textShadowColor:'#946124',textShadowOffset:{width:0,height:2},textShadowRadius:1},heading:{minHeight:48,width:'100%',maxWidth:530,flexDirection:'row',alignItems:'center',justifyContent:'center',paddingVertical:4,gap:18},headingText:{fontFamily:'Cairo_700Bold',fontSize:22,color:'#FFF4D7',textAlign:'center',flexShrink:1},headingStar:{fontSize:24,color:'#E8BF6A'},subtitle:{fontFamily:'Cairo_600SemiBold',fontSize:12,color:'#E9DDBF',textAlign:'center'},toggleTarget:{minHeight:44,minWidth:114,alignItems:'center',justifyContent:'center'},toggle:{width:114,height:29,borderWidth:1.5,borderRadius:20,justifyContent:'center'},toggleText:{fontFamily:'Cairo_700Bold',fontSize:12,color:'#FFF9E5',textAlign:'center'},knob:{position:'absolute',width:23,height:23,borderRadius:14,top:1.5,borderWidth:1,borderColor:'#DBFAFA'}});
+const s=StyleSheet.create({surface:{position:'relative',padding:14,borderWidth:1.5,overflow:'hidden',shadowColor:'#080615',shadowOffset:{width:0,height:5},shadowOpacity:.2,shadowRadius:9,elevation:3},brandText:{fontFamily:'Cairo_700Bold',color:'#FFE5A0',textAlign:'center',textShadowColor:'#946124',textShadowOffset:{width:0,height:2},textShadowRadius:1},heading:{minHeight:48,width:'100%',maxWidth:530,flexDirection:'row',alignItems:'center',justifyContent:'center',paddingVertical:4,gap:18},headingText:{fontFamily:'Cairo_700Bold',fontSize:22,color:'#FFF4D7',textAlign:'center',flexShrink:1},headingStar:{fontSize:24,color:'#E8BF6A'},subtitle:{fontFamily:'Cairo_600SemiBold',fontSize:12,color:'#E9DDBF',textAlign:'center'},toggleTarget:{minHeight:44,minWidth:114,alignItems:'center',justifyContent:'center'},toggle:{width:114,height:29,borderWidth:1.5,borderRadius:20,justifyContent:'center'},toggleText:{fontFamily:'Cairo_700Bold',fontSize:12,color:'#FFF9E5',textAlign:'center'},knob:{position:'absolute',width:23,height:23,borderRadius:14,top:1.5,borderWidth:1,borderColor:'#DBFAFA'}});

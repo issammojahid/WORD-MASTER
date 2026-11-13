@@ -1,7 +1,7 @@
 import {getDailyAdProgress} from "@/services/rewarded-ads";
 import {RewardedCoinsCard} from "@/components/RewardedCoinsCard";
 import {useAppActive} from "@/lib/use-app-active";
-import React,{useCallback,useEffect,useState} from 'react';
+import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {Platform,Pressable,ScrollView,View} from 'react-native';
 import {router,useLocalSearchParams} from 'expo-router';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -13,20 +13,57 @@ import {ScaledText as Text} from '@/components/ScaledText';
 import {usePlayer} from '@/contexts/PlayerContext';
 import {DAILY_AD_LIMIT,DAILY_AD_MILESTONES,DAILY_AD_TOTAL} from '@/constants/daily-ad-rewards';
 
+const MOROCCO_TIME_ZONE='Africa/Casablanca';
+let moroccoClock:Intl.DateTimeFormat|null=null;
+function moroccoParts(timestamp:number){
+ try{
+  moroccoClock??=new Intl.DateTimeFormat('en-GB',{timeZone:MOROCCO_TIME_ZONE,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
+  const values=Object.fromEntries(moroccoClock.formatToParts(timestamp).map(part=>[part.type,Number(part.value)]));
+  return {year:values.year,month:values.month,day:values.day,hour:values.hour,minute:values.minute,second:values.second};
+ }catch{
+  const local=new Date(timestamp);
+  return {year:local.getFullYear(),month:local.getMonth()+1,day:local.getDate(),hour:local.getHours(),minute:local.getMinutes(),second:local.getSeconds()};
+ }
+}
+function nextMoroccoMidnight(timestamp:number){
+ const now=moroccoParts(timestamp),tomorrow=new Date(Date.UTC(now.year,now.month-1,now.day+1));
+ const target=Date.UTC(tomorrow.getUTCFullYear(),tomorrow.getUTCMonth(),tomorrow.getUTCDate());
+ let guess=target;
+ for(let i=0;i<4;i++){
+  const atGuess=moroccoParts(guess),represented=Date.UTC(atGuess.year,atGuess.month-1,atGuess.day,atGuess.hour,atGuess.minute,atGuess.second),adjust=target-represented;
+  if(!adjust)break;
+  guess+=adjust;
+ }
+ return guess;
+}
+function formatCountdown(seconds:number){const total=Math.max(0,seconds),hours=Math.floor(total/3600),minutes=Math.floor((total%3600)/60),remaining=total%60;return `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(remaining).padStart(2,'0')}`;}
+
 export default function AdRewardsScreen(){
- const {preview}=useLocalSearchParams<{preview?:string}>(),design=__DEV__&&Platform.OS==='web'&&preview==='ads';
+ const {preview}=useLocalSearchParams<{preview?:string}>(),design=((__DEV__&&Platform.OS==='web')||process.env.EXPO_PUBLIC_UI_PREVIEW_MODE==='1')&&preview==='ads';
  const {profile,playerId,isReady}=usePlayer(),insets=useSafeAreaInsets();
  const active=useAppActive();
  const [available,setAvailable]=useState(false);
  const [completed,setCompleted]=useState(0),[watchOpen,setWatchOpen]=useState(false);
+ const [secondsToReset,setSecondsToReset]=useState(()=>Math.max(0,Math.ceil((nextMoroccoMidnight(Date.now())-Date.now())/1000)));
+ const lastMoroccoDay=useRef('');
  const refresh=useCallback(async()=>{if(design||!playerId||!isReady)return;try{const progress=await getDailyAdProgress();setCompleted(progress.completed);setAvailable(true);}catch{setAvailable(false);}},[design,playerId,isReady]);
  useEffect(()=>{setCompleted(0);setWatchOpen(false);},[design]);
  useEffect(()=>{if(!active||design)return;void refresh();const timer=setInterval(()=>void refresh(),60000);return()=>clearInterval(timer);},[active,design,refresh]);
+ useEffect(()=>{
+  if(!active)return;
+  const update=()=>{
+   const now=Date.now(),day=moroccoParts(now),today=`${day.year}-${String(day.month).padStart(2,'0')}-${String(day.day).padStart(2,'0')}`;
+   setSecondsToReset(Math.max(0,Math.ceil((nextMoroccoMidnight(now)-now)/1000)));
+   if(lastMoroccoDay.current&&lastMoroccoDay.current!==today)void refresh();
+   lastMoroccoDay.current=today;
+  };
+  update();const timer=setInterval(update,1000);return()=>clearInterval(timer);
+ },[active,refresh]);
  const labelStyle={fontFamily:'Cairo_700Bold',fontSize:14,color:'#FFF0D6'} as const;
  return <View style={{flex:1,backgroundColor:'#171437',paddingTop:Math.max(insets.top,10)}}><GameScreenBackground/>
   <GameHeader brand={false} title="مكافآت الإعلانات" subtitle="شاهد إعلانات اختيارية واجمع العملات" onBack={()=>router.back()} trailing={<CoinBalance amount={profile.coins}/>}/>
   <ScrollView contentContainerStyle={{width:'100%',maxWidth:700,alignSelf:'center',paddingHorizontal:13,paddingBottom:Math.max(insets.bottom,18),gap:9}} showsVerticalScrollIndicator={false}>
-   <RoyalSurface style={{padding:10,flexDirection:'row-reverse',alignItems:'center',justifyContent:'space-between',gap:8}}><View accessibilityLabel={`${completed} من ${DAILY_AD_LIMIT} إعلانات`} style={{flexDirection:'row',gap:5}}>{DAILY_AD_MILESTONES.map((_,i)=><View key={i} style={{width:13,height:13,borderRadius:8,borderWidth:1,borderColor:'#E5BE70',backgroundColor:i<completed?'#1AD7CA':'#261B43'}}/>)}</View><Text accessibilityLiveRegion="polite" style={{...labelStyle,fontSize:20,color:'#FFE3A6'}}>{completed} / {DAILY_AD_LIMIT}</Text><Text style={{...labelStyle,fontSize:11}}>يتجدد يومياً</Text></RoyalSurface>
+   <RoyalSurface style={{padding:10,gap:6}}><View style={{flexDirection:'row-reverse',alignItems:'center',justifyContent:'space-between',gap:8}}><View accessibilityLabel={`${completed} من ${DAILY_AD_LIMIT} إعلانات`} style={{flexDirection:'row',gap:5}}>{DAILY_AD_MILESTONES.map((_,i)=><View key={i} style={{width:13,height:13,borderRadius:8,borderWidth:1,borderColor:'#E5BE70',backgroundColor:i<completed?'#1AD7CA':'#261B43'}}/>)}</View><Text accessibilityLiveRegion="polite" style={{...labelStyle,fontSize:20,color:'#FFE3A6'}}>{completed} / {DAILY_AD_LIMIT}</Text></View><Text style={{...labelStyle,fontSize:11,textAlign:'center'}}>يتجدد خلال {formatCountdown(secondsToReset)}</Text></RoyalSurface>
    {!design&&!available?<Text style={{fontFamily:'Cairo_400Regular',fontSize:11,lineHeight:21,color:'#E0CADF',textAlign:'center'}}>المشاهدة والمكافآت غير متاحتين حالياً. لا تُصرف عملات من هذه الصفحة قبل تفعيل الخدمة.</Text>:design?<Text style={{fontFamily:'Cairo_400Regular',fontSize:10,color:'#CBB9DC',textAlign:'center'}}>معاينة تفاعلية فقط · الرصيد الحقيقي لا يتغيّر</Text>:null}
    {DAILY_AD_MILESTONES.map((coins,index)=>{
     const done=index<completed,next=index===completed&&completed<DAILY_AD_LIMIT;

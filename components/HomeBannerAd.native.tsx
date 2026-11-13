@@ -1,12 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AppState, StyleSheet, Text, View } from "react-native";
-import { BannerAd, BannerAdSize } from "react-native-google-mobile-ads";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAds } from "@/components/AdsProvider";
 import { getAdUnitId } from "@/lib/ad-config";
 import { createAdRetry } from "@/lib/ads-runtime";
 import { gameDesign } from "@/constants/game-design";
+import { getGoogleMobileAds } from "@/lib/google-mobile-ads";
+
 export function HomeBannerAd() {
+  const gma = getGoogleMobileAds();
   const {
       canRequestAds,
       isFullScreenAdActive,
@@ -24,6 +26,7 @@ export function HomeBannerAd() {
     watchdog = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unitId = getAdUnitId("banner"),
     enabled =
+      !!gma &&
       canRequestAds &&
       !!unitId &&
       !isFullScreenAdActive &&
@@ -85,6 +88,20 @@ export function HomeBannerAd() {
       watchdog.current = null;
     };
   }, [enabled, key, reportAdEvent]);
+
+  if (!gma || !enabled || failed || !unitId) {
+    return (
+      <View
+        style={styles.container}
+        onLayout={(event) =>
+          setWidth(Math.max(0, Math.floor(event.nativeEvent.layout.width)))
+        }
+      />
+    );
+  }
+
+  const { BannerAd, BannerAdSize } = gma;
+
   return (
     <View
       style={styles.container}
@@ -92,46 +109,42 @@ export function HomeBannerAd() {
         setWidth(Math.max(0, Math.floor(event.nativeEvent.layout.width)))
       }
     >
-      {enabled && !failed && unitId ? (
-        <>
-          <Text style={styles.label}>{t.advertisement}</Text>
-          <BannerAd
-            key={key}
-            unitId={unitId}
-            size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-            width={width}
-            requestOptions={{ requestNonPersonalizedAdsOnly: true }}
-            onAdLoaded={() => {
-              if (
-                !enabledRef.current ||
-                keyRef.current !== key ||
-                failedRequest.current === key
-              )
-                return;
-              loaded.current = true;
-              if (watchdog.current) clearTimeout(watchdog.current);
-              watchdog.current = null;
-              retry.current?.reset();
-              reportAdEvent("banner", "loaded");
-            }}
-            onAdFailedToLoad={(error) => {
-              if (
-                !enabledRef.current ||
-                keyRef.current !== key ||
-                failedRequest.current === key
-              )
-                return;
-              failedRequest.current = key;
-              if (watchdog.current) clearTimeout(watchdog.current);
-              watchdog.current = null;
-              loaded.current = false;
-              setFailed(true);
-              reportAdEvent("banner", "failed", error);
-              retry.current?.schedule();
-            }}
-          />
-        </>
-      ) : null}
+      <Text style={styles.label}>{t.advertisement}</Text>
+      <BannerAd
+        key={key}
+        unitId={unitId}
+        size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+        width={width}
+        requestOptions={{ requestNonPersonalizedAdsOnly: true }}
+        onAdLoaded={() => {
+          if (
+            !enabledRef.current ||
+            keyRef.current !== key ||
+            failedRequest.current === key
+          )
+            return;
+          loaded.current = true;
+          if (watchdog.current) clearTimeout(watchdog.current);
+          watchdog.current = null;
+          retry.current?.reset();
+          reportAdEvent("banner", "loaded");
+        }}
+        onAdFailedToLoad={(error) => {
+          if (
+            !enabledRef.current ||
+            keyRef.current !== key ||
+            failedRequest.current === key
+          )
+            return;
+          failedRequest.current = key;
+          if (watchdog.current) clearTimeout(watchdog.current);
+          watchdog.current = null;
+          loaded.current = false;
+          setFailed(true);
+          reportAdEvent("banner", "failed", error);
+          retry.current?.schedule();
+        }}
+      />
     </View>
   );
 }

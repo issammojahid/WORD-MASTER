@@ -56,6 +56,14 @@ const BOT_FILL_CHANCES: Record<BotDifficulty, number> = {
   legendary: 0.9,
 };
 
+function randomBotSuffixes(): Record<BotId, number> {
+  return {
+    bot1: Math.floor(100 + Math.random() * 900),
+    bot2: Math.floor(100 + Math.random() * 900),
+    bot3: Math.floor(100 + Math.random() * 900),
+  };
+}
+
 function shuffleLetters(letters: string[]): string[] {
   const shuffled = [...letters];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -96,6 +104,7 @@ export default function OfflineScreen() {
   const [botScores, setBotScores] = useState<BotScoreMap>({ bot1: 0, bot2: 0, bot3: 0 });
   const [roundBotScores, setRoundBotScores] = useState<BotScoreMap>({ bot1: 0, bot2: 0, bot3: 0 });
   const [roundBotAnswers, setRoundBotAnswers] = useState<BotAnswerMap>({ bot1: {}, bot2: {}, bot3: {} });
+  const [botNameSuffixes, setBotNameSuffixes] = useState<Record<BotId, number>>(randomBotSuffixes);
 
   const topInset = Platform.OS === "web" ? 16 : insets.top;
   const bottomInset = Platform.OS === "web" ? 16 : insets.bottom;
@@ -207,11 +216,13 @@ export default function OfflineScreen() {
     setBotScores({ bot1: 0, bot2: 0, bot3: 0 });
     setRoundBotScores({ bot1: 0, bot2: 0, bot3: 0 });
     setRoundBotAnswers({ bot1: {}, bot2: {}, bot3: {} });
+    setBotNameSuffixes(randomBotSuffixes());
     setPhase("setup");
   };
 
   const startGame = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setBotNameSuffixes(randomBotSuffixes());
     setPhase("playing");
   };
 
@@ -223,7 +234,7 @@ export default function OfflineScreen() {
   const selectedDifficulty = BOT_DIFFICULTIES.find((option) => option.id === difficulty) ?? BOT_DIFFICULTIES[1];
   const standings = [
     { id: "player", name: profile.name, score: totalScore, color: gameDesign.colors.coins },
-    ...BOT_PLAYERS.map((bot) => ({ id: bot.id, name: t[bot.name], score: botScores[bot.id], color: bot.color })),
+    ...BOT_PLAYERS.map((bot) => ({ id: bot.id, name: t[bot.name] + "_" + botNameSuffixes[bot.id], score: botScores[bot.id], color: bot.color })),
   ].sort((first, second) => second.score - first.score);
   const highestBotScore = Math.max(...Object.values(botScores));
   const playerWon = totalScore > highestBotScore;
@@ -269,7 +280,7 @@ export default function OfflineScreen() {
                 <View style={[styles.botAvatar, { backgroundColor: `${bot.color}20` }]}>
                   <Ionicons name="hardware-chip-outline" size={17} color={bot.color} />
                 </View>
-                <Text style={[styles.botName, { color: theme.textPrimary }]}>{t[bot.name]}</Text>
+                <Text style={[styles.botName, { color: theme.textPrimary }]}>{t[bot.name] + "_" + botNameSuffixes[bot.id]}</Text>
               </View>
             ))}
           </View>
@@ -353,7 +364,7 @@ export default function OfflineScreen() {
           </View>
 
           </View>
-          <MatchRoster ownId="offline-self" compact players={[{id:"offline-self",name:profile.name,score:totalScore},...BOT_PLAYERS.map(bot=>({id:bot.id,name:t[bot.name],score:botScores[bot.id]}))]}/>
+          <MatchRoster ownId="offline-self" compact players={[{id:"offline-self",name:profile.name,score:totalScore},...BOT_PLAYERS.map(bot=>({id:bot.id,name:t[bot.name] + "_" + botNameSuffixes[bot.id],score:botScores[bot.id]}))]}/>
 
           <AnswerSheet answers={answers} maxLength={40} onChange={(category,value)=>setAnswers(previous=>({...previous,[category]:value}))} onSubmit={()=>submitRound(answersRef.current)}/>
 
@@ -382,7 +393,7 @@ export default function OfflineScreen() {
                 <View style={styles.botScoreContent}>
                   <View style={styles.standingPlayer}>
                     <View style={[styles.standingDot, { backgroundColor: bot.color }]} />
-                    <Text style={[styles.botScoreName, { color: theme.textPrimary }]}>{t[bot.name]}</Text>
+                    <Text style={[styles.botScoreName, { color: theme.textPrimary }]}>{t[bot.name] + "_" + botNameSuffixes[bot.id]}</Text>
                   </View>
                   <Text style={[styles.botAnswers, { color: theme.textSecondary }]}>
                     {t.botAnswers}: {GAME_CATEGORIES

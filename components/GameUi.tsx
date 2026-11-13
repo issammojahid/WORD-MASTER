@@ -5,13 +5,13 @@ import {useSeason2027} from '@/contexts/Season2027Context';
 import {seasonalItem} from '@shared/season-2027';
 import {SeasonCatalogArtwork} from './SeasonCatalogArtwork';
 import {ScaledText as Text} from "@/components/ScaledText";
-import {RoyalBrand,RoyalSurface} from "./RoyalUi";
+import {RoyalSurface} from "./RoyalUi";
 import {usePlayer} from "@/contexts/PlayerContext";
 import {useInterfacePreferences} from "@/lib/interface-preferences";
 import React, { useEffect, useRef, useState } from "react";
-import {ActivityIndicator, Animated, AccessibilityInfo, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, type StyleProp, type PressableProps, type TextInputProps, type ViewStyle} from "react-native";
+import {ActivityIndicator, Animated, AccessibilityInfo, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions, type StyleProp, type PressableProps, type TextInputProps, type ViewStyle} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import Svg, { Path, Defs, Pattern, Rect } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -39,30 +39,31 @@ export function useReducedMotion() {
   return reduceMotion||preferences.reduceMotion||preferences.quality==="low";
 }
 
-export function GameScreenBackground(_props: { accent?: "online" | "offline" | "reward" }) {
+export function GameScreenBackground({accent="online"}: { accent?: "online" | "offline" | "reward" }) {
   const { theme, isDark } = useTheme();
   const preferences=useInterfacePreferences();
-  const art = require("../assets/ui-2027/royal-courtyard.png");
+  const art = accent === "reward" ? require("../assets/fantasy-menu/offline.png") : accent === "offline" ? require("../assets/fantasy-menu/hero.png") : require("../assets/fantasy-menu/online.png");
   return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: "hidden" }]}>
     <LinearGradient colors={[theme.background, theme.backgroundSecondary, theme.backgroundTertiary]} style={StyleSheet.absoluteFill} />
-    {preferences.quality!=="low"&&<Image source={art} resizeMode="cover" style={{position:"absolute",top:0,left:0,width:"100%",height:360,opacity:isDark?1:0.25}} />}
-    <LinearGradient colors={isDark?["#17154000","#17153BB0","#171437"]:["#F7EEDA55","#F7EEDACC","#F7EEDA"]} locations={[0,0.5,1]} style={StyleSheet.absoluteFill} />
+    {preferences.quality!=="low"&&<Image source={art} resizeMode="cover" style={{position:"absolute",top:0,left:0,width:"100%",height:430,opacity:isDark?0.38:0.15}} />}
+    <LinearGradient colors={isDark?["#180C2766","#180C27BB","#180C27F5"]:["#F7EEDA55","#F7EEDACC","#F7EEDA"]} locations={[0,0.5,1]} style={StyleSheet.absoluteFill} />
     <Svg width="100%" height="100%" viewBox="0 0 400 800" preserveAspectRatio="none" style={StyleSheet.absoluteFill}>
-      <Defs><Pattern id="royal-edge-zellige" width="30" height="30" patternUnits="userSpaceOnUse"><Path d="M15 1l4 8 10 6-10 4-4 10-4-10L1 15l10-6zM0 0l30 30M30 0L0 30" fill="none" stroke="#D5AE69" strokeWidth=".9" opacity=".6"/></Pattern></Defs><Rect x="0" y="0" width="16" height="800" fill="url(#royal-edge-zellige)"/><Rect x="384" y="0" width="16" height="800" fill="url(#royal-edge-zellige)"/>
       <Path d="M10 130V48q0-20 20-20h54M390 130V48q0-20-20-20h-54M10 670v80q0 22 22 22h50M390 670v80q0 22-22 22h-50" fill="none" stroke={isDark?"#D5AE69":"#A97D45"} strokeWidth="1" opacity="0.35" />
       <Path d="m10 150 4 7-4 7-4-7zM390 150l4 7-4 7-4-7zM10 644l4 7-4 7-4-7zM390 644l4 7-4 7-4-7z" fill="#D5AE69" opacity="0.5" />
     </Svg>
   </View>;
 }
 
-export function GameHeader({title,subtitle,onBack,trailing,icon,compact=false,brand=true}:{title:string;subtitle?:string;onBack?:()=>void;trailing?:React.ReactNode;icon?:React.ReactNode;compact?:boolean;brand?:boolean}) {
- const {theme}=useTheme(),{isRTL,t}=useLanguage(),{profile}=usePlayer();
- const back=onBack?<Pressable accessibilityRole="button" accessibilityLabel={t.back} onPress={onBack} style={{width:44,minHeight:44,alignItems:"center",justifyContent:"center",borderRadius:13,borderWidth:1.5,borderColor:"#E1BB76",backgroundColor:"#242044"}}><Ionicons name={isRTL?"arrow-forward":"arrow-back"} size={26} color="#FFE4A0"/></Pressable>:<View style={{width:44}}/>;
- if(compact)return <RoyalSurface style={{marginHorizontal:10,marginBottom:8,paddingVertical:6,flexDirection:isRTL?"row-reverse":"row",alignItems:"center",gap:9,minHeight:62}}>{back}<View style={{flex:1}}><Text style={{fontFamily:"Cairo_700Bold",fontSize:17,color:theme.textPrimary,textAlign:isRTL?"right":"left"}}>{title}</Text>{subtitle?<Text style={{fontFamily:"Cairo_400Regular",fontSize:10,color:theme.textSecondary,textAlign:isRTL?"right":"left"}}>{subtitle}</Text>:null}</View>{trailing}</RoyalSurface>;
- return <View style={{paddingHorizontal:14,paddingBottom:8,gap:3}}>
-  {brand&&<View style={{height:100,flexDirection:"row",alignItems:"center",justifyContent:"space-between"}}><View style={{width:58,alignItems:"center"}}><PlayerAvatar own size={49} skinId={profile.equippedSkin} frameId={profile.equippedCosmetics.frame}/><View style={{borderRadius:8,borderWidth:1,borderColor:"#EECC7A",backgroundColor:"#116C79",paddingHorizontal:7,marginTop:-7}}><Text style={{fontFamily:"Cairo_700Bold",fontSize:10,color:"#FFF0CB"}}>{profile.level}</Text></View></View><RoyalBrand width={150}/><View style={{width:58,alignItems:"flex-end"}}>{back}</View></View>}
-  <RoyalSurface style={{minHeight:49,paddingVertical:4,paddingHorizontal:14,flexDirection:"row",alignItems:"center",gap:7}}><View style={{minWidth:25}}>{!brand?back:icon??<Text style={{fontSize:21,color:"#E5BE72"}}>✧</Text>}</View><Text accessibilityRole="header" style={{flex:1,fontFamily:"Cairo_700Bold",fontSize:22,textAlign:"center",color:"#FFF0D6"}}>{title}</Text>{trailing??<Text style={{fontSize:21,color:"#E5BE72"}}>✧</Text>}</RoyalSurface>
-  {subtitle?<Text style={{fontFamily:"Cairo_600SemiBold",fontSize:11,color:"#EDE0C6",textAlign:"center",paddingTop:2}}>{subtitle}</Text>:null}
+export function GameHeader({title,subtitle,onBack,trailing,icon,compact=false}:{title:string;subtitle?:string;onBack?:()=>void;trailing?:React.ReactNode;icon?:React.ReactNode;compact?:boolean;brand?:boolean}) {
+ const {theme,isDark}=useTheme(),{isRTL,t}=useLanguage();
+ const back=onBack?<Pressable accessibilityRole="button" accessibilityLabel={t.back} onPress={onBack} style={({pressed})=>[styles.backButton,{backgroundColor:theme.card,borderColor:theme.cardBorder,opacity:pressed ? 0.72 : 1}]}><Ionicons name={isRTL?"arrow-forward":"arrow-back"} size={21} color={theme.textPrimary}/></Pressable>:<View style={styles.headerSlot}/>;
+ return <View style={[styles.header,{maxWidth:760,width:"100%",alignSelf:"center",flexDirection:isRTL?"row-reverse":"row",backgroundColor:isDark?"#2B183ACC":"#FFF5E0DD",borderColor:theme.cardBorder,marginBottom:compact?8:0}]}>
+  {back}
+  <View style={[styles.headerCopy,{alignItems:isRTL?"flex-end":"flex-start"}]}>
+   <View style={[styles.headerTitleRow,{flexDirection:isRTL?"row-reverse":"row"}]}>{icon}<Text accessibilityRole="header" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72} style={[styles.headerTitle,{color:isDark?"#FFE3A6":theme.textPrimary}]}>{title}</Text></View>
+   {subtitle?<Text style={[styles.headerSubtitle,{color:theme.textSecondary}]} numberOfLines={2}>{subtitle}</Text>:null}
+  </View>
+  {trailing??<View style={styles.headerSlot}/>}
  </View>;
 }
 
@@ -268,11 +269,15 @@ export function GameModal({
 }) {
   const { theme } = useTheme();
   const reduced = useReducedMotion();
+  const { height } = useWindowDimensions();
+  const maxModalHeight = Math.min(height * 0.86, 680);
+
   return (
     <Modal visible={visible} transparent animationType={reduced ? "none" : "fade"} onRequestClose={onRequestClose}>
       <View style={[styles.modalBackdrop, { backgroundColor: theme.overlay }]}>
-        <View style={[styles.modal, { backgroundColor: theme.modalBg, borderColor: theme.cardBorder }]}>
-          <ScrollView style={{flexShrink:1}} contentContainerStyle={{gap:12}} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onRequestClose} />
+        <View style={[styles.modal, { backgroundColor: theme.modalBg, borderColor: theme.cardBorder, maxHeight: maxModalHeight }]}>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ gap: 12, paddingBottom: 4 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             {children}
           </ScrollView>
         </View>

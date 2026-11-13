@@ -32,7 +32,8 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://word-master-backend.onrender.com",
         "EXPO_PUBLIC_DOMAIN": "word-master-backend.onrender.com",
-        "EXPO_PUBLIC_ADMOB_MODE": "production"
+        "EXPO_PUBLIC_ADMOB_MODE": "production",
+        "EXPO_PUBLIC_ADMOB_INTERSTITIAL_ID": "ca-app-pub-8545693631358718/6714680528"
       }
     },
     "production-apk": {
